@@ -183,9 +183,3 @@ address StubRoutines::ppc::generate_crc_constants(juint reverse_poly) {
 
   return consts;
 }
-
-#if INCLUDE_CDS
-// nothing to do for ppc
-void StubRoutines::init_AOTAddressTable() {
-}
-#endif // INCLUDE_CDS

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@ package runtime.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 
 /*
@@ -35,7 +36,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile FlattenableSemanticTest.java
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.FlattenableSemanticTest
+ * @run main/othervm -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.FlattenableSemanticTest
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.FlattenableSemanticTest
  */
 public class FlattenableSemanticTest {
@@ -71,18 +72,22 @@ public class FlattenableSemanticTest {
     }
 
     static Point nfsp;
+    @Strict
     @NullRestricted
     static Point fsp = new Point();
 
     Point nfip;
+    @Strict
     @NullRestricted
     Point fip;
 
     static JumboInline nfsj;
+    @Strict
     @NullRestricted
     static JumboInline fsj = new JumboInline();
 
     JumboInline nfij;
+    @Strict
     @NullRestricted
     JumboInline fij;
 
@@ -93,7 +98,6 @@ public class FlattenableSemanticTest {
     FlattenableSemanticTest() {
         fip = new Point();
         fij = new JumboInline();
-        super();
     }
 
     public static void main(String[] args) {

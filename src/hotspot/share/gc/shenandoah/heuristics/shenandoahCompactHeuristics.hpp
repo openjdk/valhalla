@@ -33,17 +33,17 @@
  */
 class ShenandoahCompactHeuristics : public ShenandoahHeuristics {
 public:
-  explicit ShenandoahCompactHeuristics(ShenandoahSpaceInfo* space_info);
+  ShenandoahCompactHeuristics(ShenandoahSpaceInfo* space_info);
 
-  bool should_start_gc() override;
+  virtual bool should_start_gc();
 
-  void choose_collection_set_from_regiondata(ShenandoahCollectionSet* cset,
-                                             RegionData* data, size_t size,
-                                             size_t actual_free) override;
+  virtual void choose_collection_set_from_regiondata(ShenandoahCollectionSet* cset,
+                                                     RegionData* data, size_t size,
+                                                     size_t actual_free);
 
-  const char* name() override     { return "Compact"; }
-  bool is_diagnostic() override   { return false; }
-  bool is_experimental() override { return false; }
+  virtual const char* name()     { return "Compact"; }
+  virtual bool is_diagnostic()   { return false; }
+  virtual bool is_experimental() { return false; }
 };
 
 #endif // SHARE_GC_SHENANDOAH_HEURISTICS_SHENANDOAHCOMPACTHEURISTICS_HPP

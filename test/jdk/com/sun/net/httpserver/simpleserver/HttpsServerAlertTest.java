@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,15 @@
  * @summary Test if HttpsServer sends the TLS alerts produced
  * @library /test/lib
  * @build jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm HttpsServerAlertTest
+ * @run testng/othervm HttpsServerAlertTest
  */
 
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
@@ -48,9 +50,7 @@ import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.fail;
 
 public class HttpsServerAlertTest {
 
@@ -59,20 +59,18 @@ public class HttpsServerAlertTest {
     static final boolean ENABLE_LOGGING = true;
     static final Logger LOGGER = Logger.getLogger("com.sun.net.httpserver");
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    SSLContext sslContext;
 
-    static {
-        SSLContext.setDefault(sslContext);
-    }
-
-    @BeforeAll
-    public static void setup() throws IOException {
+    @BeforeTest
+    public void setup() throws IOException {
         if (ENABLE_LOGGING) {
             ConsoleHandler ch = new ConsoleHandler();
             LOGGER.setLevel(Level.ALL);
             ch.setLevel(Level.ALL);
             LOGGER.addHandler(ch);
         }
+        sslContext = new SimpleSSLContext().get();
+        SSLContext.setDefault(sslContext);
     }
 
     @Test

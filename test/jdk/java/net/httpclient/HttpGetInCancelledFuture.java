@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,9 +74,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build HttpGetInCancelledFuture ReferenceTracker
  * @run junit/othervm -DuseReferenceTracker=false
- *                   ${test.main.class}
+ *                   HttpGetInCancelledFuture
  * @run junit/othervm -DuseReferenceTracker=true
- *                   ${test.main.class}
+ *                   HttpGetInCancelledFuture
  * @summary This test verifies that cancelling a future that
  * does an HTTP request using the HttpClient doesn't cause
  * HttpClient::close to block forever.
@@ -98,7 +98,11 @@ public class HttpGetInCancelledFuture {
                 ? HttpServerAdapters.createClientBuilderForH3()
                 : HttpClient.newBuilder();
         if (uri.getScheme().equalsIgnoreCase("https")) {
-            builder.sslContext(SimpleSSLContext.findSSLContext());
+            try {
+                builder.sslContext(new SimpleSSLContext().get());
+            } catch (IOException io) {
+                throw new UncheckedIOException(io);
+            }
         }
         return builder.connectTimeout(Duration.ofSeconds(1))
                 .executor(executor)

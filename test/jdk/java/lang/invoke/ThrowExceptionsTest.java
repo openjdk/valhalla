@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,13 @@
 
 /* @test
  * @summary unit tests for method handles which permute their arguments
- * @run junit test.java.lang.invoke.ThrowExceptionsTest
+ * @run testng test.java.lang.invoke.ThrowExceptionsTest
  */
 
 package test.java.lang.invoke;
+
+import org.testng.*;
+import org.testng.annotations.*;
 
 import java.util.*;
 import java.lang.reflect.*;
@@ -34,10 +37,6 @@ import java.lang.reflect.*;
 import java.lang.invoke.*;
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
-
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class ThrowExceptionsTest {
     private static final Class<?> CLASS = ThrowExceptionsTest.class;
@@ -52,7 +51,7 @@ public class ThrowExceptionsTest {
         // mostly call testWMTCallee, but sometimes call its void-returning variant
         MethodHandle mh = testWMTCallee();
         MethodHandle mh1 = mh.asType(mh.type().changeReturnType(void.class));
-        assertNotSame(mh, mh1);
+        assert(mh1 != mh);
         testWMT(mh, mh1, 1000);
     }
 
@@ -109,7 +108,7 @@ public class ThrowExceptionsTest {
         MethodHandle[] cell = { null };  // recursion point
         MethodHandle getCell = insertArguments(arrayElementGetter(cell.getClass()), 0, cell, 0);
         MethodHandle invokeCell = foldArguments(exactInvoker(cellType), getCell);
-        assertSame(cellType, invokeCell.type());
+        assert(invokeCell.type() == cellType);
         cell[0] = invokeCell;
         // make it conformable to any type:
         invokeCell = dropArguments(invokeCell, 0, Object[].class).asVarargsCollector(Object[].class);
@@ -190,6 +189,7 @@ public class ThrowExceptionsTest {
             try {
                 // FIXME: should not have to retype this
                 n = (int) mh.invokeExact((Object)this, "x");
+                assertEquals(n, i - catches);
                 // Using the exact type for this causes endless deopt due to
                 // 'non_cached_result' in SystemDictionary::find_method_handle_invoke.
                 // The problem is that the compiler thread needs to access a cached
@@ -198,9 +198,7 @@ public class ThrowExceptionsTest {
             } catch (Exception ex) {
                 savedEx = ex;
                 catches++;
-                continue;
             }
-            assertEquals(i - catches, n);
         }
         //VERBOSE: System.out.println("reps="+reps+" catches="+catches);
         return savedEx;
@@ -221,5 +219,10 @@ public class ThrowExceptionsTest {
             savedEx = testWMT(mhs, reps);
         }
         return savedEx;
+    }
+
+    private static void assertEquals(Object x, Object y) {
+        if (x == y || x != null && x.equals(y))  return;
+        throw new RuntimeException(x+" != "+y);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -157,6 +157,11 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
         while (getRunState() < STATE_SHUTDOWN) {
             try {
                 platformRunMessage();
+                if (Thread.currentThread().isInterrupted()) {
+                    if (AppContext.getAppContext().isDisposed()) {
+                        break;
+                    }
+                }
             } catch (Throwable t) {
                 // TODO: log
                 System.err.println("Exception on the toolkit thread");
@@ -451,7 +456,7 @@ public abstract class LWToolkit extends SunToolkit implements Runnable {
     public abstract LWCursorManager getCursorManager();
 
     public static void postEvent(AWTEvent event) {
-        SunToolkit.postEvent(event);
+        postEvent(targetToAppContext(event.getSource()), event);
     }
 
     @Override

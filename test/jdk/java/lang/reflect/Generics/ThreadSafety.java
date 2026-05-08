@@ -21,16 +21,17 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 8062771 8016236
  * @summary Test publication of Class objects via a data race
- * @run junit ThreadSafety
+ * @run testng ThreadSafety
  */
 
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.concurrent.BrokenBarrierException;
@@ -42,8 +43,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.*;
+import org.testng.annotations.Test;
 
 /**
  * A test resulting from an attempt to repro this failure (in guice):

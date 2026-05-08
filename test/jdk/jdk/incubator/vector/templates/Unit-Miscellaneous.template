@@ -10,7 +10,7 @@
 
             // Check results as part of computation.
             for (int j = 0; j < SPECIES.length(); j++) {
-                assertEquals(mv.laneIsSet(j), lt(a[i + j], b[i]));
+                Assert.assertEquals(mv.laneIsSet(j), a[i + j] < b[i]);
             }
         }
     }
@@ -26,7 +26,7 @@
 
             // Check results as part of computation.
             for (int j = 0; j < SPECIES.length(); j++) {
-                assertEquals(mv.laneIsSet(j), eq(a[i + j], b[i]));
+                Assert.assertEquals(mv.laneIsSet(j), a[i + j] == b[i]);
             }
         }
     }
@@ -123,7 +123,7 @@
     static long ADDReduceLong($type$[] a, int idx) {
         $type$ res = 0;
         for (int i = idx; i < (idx + SPECIES.length()); i++) {
-            res = scalar_add(res, a[i]);
+            res += a[i];
         }
 
         return (long)res;
@@ -132,7 +132,7 @@
     static long ADDReduceAllLong($type$[] a) {
         long res = 0;
         for (int i = 0; i < a.length; i += SPECIES.length()) {
-            res = (long)scalar_add(($type$)res, ($type$)ADDReduceLong(a, i));
+            res += ADDReduceLong(a, i);
         }
 
         return res;
@@ -150,8 +150,8 @@
         }
 
         ra = 0;
-        for (int i = 0; i < a.length; i++) {
-            ra = (long)scalar_add(($type$)ra, ($type$)r[i]);
+        for (int i = 0; i < a.length; i ++) {
+            ra += r[i];
         }
 
         assertReductionLongArraysEquals(r, ra, a,
@@ -161,9 +161,8 @@
     static long ADDReduceLongMasked($type$[] a, int idx, boolean[] mask) {
         $type$ res = 0;
         for (int i = idx; i < (idx + SPECIES.length()); i++) {
-            if (mask[i % SPECIES.length()]) {
-                res = scalar_add(res, a[i]);
-            }
+            if(mask[i % SPECIES.length()])
+                res += a[i];
         }
 
         return (long)res;
@@ -172,7 +171,7 @@
     static long ADDReduceAllLongMasked($type$[] a, boolean[] mask) {
         long res = 0;
         for (int i = 0; i < a.length; i += SPECIES.length()) {
-            res = (long)scalar_add(($type$)res, ($type$)ADDReduceLongMasked(a, i, mask));
+            res += ADDReduceLongMasked(a, i, mask);
         }
 
         return res;
@@ -192,8 +191,8 @@
         }
 
         ra = 0;
-        for (int i = 0; i < a.length; i++) {
-            ra = (long)scalar_add(($type$)ra, ($type$)r[i]);
+        for (int i = 0; i < a.length; i ++) {
+            ra += r[i];
         }
 
         assertReductionLongArraysEqualsMasked(r, ra, a, mask,
@@ -351,7 +350,7 @@
             int subarr[] = Arrays.copyOfRange(a, i, i + SPECIES.length());
             int expectedHash = Objects.hash(SPECIES, Arrays.hashCode(subarr));
             Assert.assertTrue(hash == expectedHash, "at index " + i + ", hash should be = " + expectedHash + ", but is = " + hash);
-            assertEquals(length, SPECIES.length());
+            Assert.assertEquals(length, SPECIES.length());
         }
     }
 
@@ -379,7 +378,7 @@
             var bv = VectorShuffle.fromArray(SPECIES, b, i);
             boolean eq = av.equals(bv);
             int to = i + SPECIES.length();
-            assertEquals(eq, Arrays.equals(a, i, to, b, i, to));
+            Assert.assertEquals(eq, Arrays.equals(a, i, to, b, i, to));
         }
     }
 
@@ -394,7 +393,7 @@
                 var bv = SPECIES.loadMask(b, i);
                 boolean equals = av.equals(bv);
                 int to = i + SPECIES.length();
-                assertEquals(equals, Arrays.equals(a, i, to, b, i, to));
+                Assert.assertEquals(equals, Arrays.equals(a, i, to, b, i, to));
             }
         }
     }
@@ -497,7 +496,7 @@
                 trueCount = vmask.trueCount();
                 var rmask = vmask.compress();
                 for (int j = 0; j < SPECIES.length(); j++)  {
-                    assertEquals(rmask.laneIsSet(j), j < trueCount);
+                    Assert.assertEquals(rmask.laneIsSet(j), j < trueCount);
                 }
             }
         }
@@ -523,7 +522,7 @@
             assert(actualMask.equals(expectedMask));
             for (int j = 0; j < SPECIES.length(); j++)  {
                 int index = i + j + offset;
-                assertEquals(actualMask.laneIsSet(j), index >= 0 && index < limit);
+                Assert.assertEquals(actualMask.laneIsSet(j), index >= 0 && index < limit);
             }
         }
     }
@@ -537,7 +536,7 @@
             assert(actualMask.equals(expectedMask));
             for (int j = 0; j < SPECIES.length(); j++)  {
                 long index = i + j + offset;
-                assertEquals(actualMask.laneIsSet(j), index >= 0 && index < limit);
+                Assert.assertEquals(actualMask.laneIsSet(j), index >= 0 && index < limit);
             }
         }
     }
@@ -559,7 +558,7 @@
     static void loopBound$vectorteststype$SmokeTest(int length) {
         int actualLoopBound = SPECIES.loopBound(length);
         int expectedLoopBound = length - Math.floorMod(length, SPECIES.length());
-        assertEquals(actualLoopBound, expectedLoopBound);
+        Assert.assertEquals(actualLoopBound, expectedLoopBound);
     }
 
     @Test(dataProvider = "lengthProvider")
@@ -567,14 +566,14 @@
         long length = _length;
         long actualLoopBound = SPECIES.loopBound(length);
         long expectedLoopBound = length - Math.floorMod(length, SPECIES.length());
-        assertEquals(actualLoopBound, expectedLoopBound);
+        Assert.assertEquals(actualLoopBound, expectedLoopBound);
     }
 
     @Test
     static void ElementSize$vectorteststype$SmokeTest() {
         $abstractvectortype$ av = $abstractvectortype$.zero(SPECIES);
         int elsize = av.elementSize();
-        assertEquals(elsize, $Wideboxtype$.SIZE);
+        Assert.assertEquals(elsize, $Wideboxtype$.SIZE);
     }
 
     @Test
@@ -628,6 +627,6 @@
     @Test
     static void MaskAllTrue$vectorteststype$SmokeTest() {
         for (int ic = 0; ic < INVOC_COUNT; ic++) {
-          assertEquals(SPECIES.maskAll(true).toLong(), -1L >>> (64 - SPECIES.length()));
+          Assert.assertEquals(SPECIES.maskAll(true).toLong(), -1L >>> (64 - SPECIES.length()));
         }
     }

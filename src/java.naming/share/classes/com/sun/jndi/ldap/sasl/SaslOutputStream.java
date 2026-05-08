@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,10 +35,9 @@ import java.io.OutputStream;
 class SaslOutputStream extends FilterOutputStream {
     private static final boolean debug = false;
 
-    private final byte[] lenBuf = new byte[4];  // buffer for storing length
+    private byte[] lenBuf = new byte[4];  // buffer for storing length
     private int rawSendSize = 65536;
-    private final SaslClient sc;
-    private boolean closed;
+    private SaslClient sc;
 
     SaslOutputStream(SaslClient sc, OutputStream out) throws SaslException {
         super(out);
@@ -61,9 +60,8 @@ class SaslOutputStream extends FilterOutputStream {
 
     // Override this method to call write(byte[], int, int) counterpart
     // super.write(int) simply calls out.write(int)
-    @Override
+
     public void write(int b) throws IOException {
-        ensureOpen();
         byte[] buffer = new byte[1];
         buffer[0] = (byte)b;
         write(buffer, 0, 1);
@@ -73,9 +71,7 @@ class SaslOutputStream extends FilterOutputStream {
      * Override this method to "wrap" the outgoing buffer before
      * writing it to the underlying output stream.
      */
-    @Override
     public void write(byte[] buffer, int offset, int total) throws IOException {
-        ensureOpen();
         int count;
         byte[] wrappedToken;
 
@@ -105,12 +101,7 @@ class SaslOutputStream extends FilterOutputStream {
         }
     }
 
-    @Override
     public void close() throws IOException {
-        if (closed) {
-            return;
-        }
-        closed = true;
         SaslException save = null;
         try {
             sc.dispose();  // Dispose of SaslClient's state
@@ -130,7 +121,8 @@ class SaslOutputStream extends FilterOutputStream {
      * Encodes an integer into 4 bytes in network byte order in the buffer
      * supplied.
      */
-    private static void intToNetworkByteOrder(int num, byte[] buf, int start, int count) {
+    private static void intToNetworkByteOrder(int num, byte[] buf, int start,
+        int count) {
         if (count > 4) {
             throw new IllegalArgumentException("Cannot handle more than 4 bytes");
         }
@@ -138,12 +130,6 @@ class SaslOutputStream extends FilterOutputStream {
         for (int i = count-1; i >= 0; i--) {
             buf[start+i] = (byte)(num & 0xff);
             num >>>= 8;
-        }
-    }
-
-    private void ensureOpen() throws IOException {
-        if (closed) {
-            throw new IOException("stream closed");
         }
     }
 }

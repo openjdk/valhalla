@@ -1,7 +1,6 @@
 /*
- * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, 2022, Red Hat, Inc. All rights reserved.
- * Copyright (c) 2012, 2026 SAP SE. All rights reserved.
+ * Copyright (c) 2012, 2022 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,15 +45,15 @@ class ShenandoahBarrierSetAssembler: public BarrierSetAssembler {
 private:
 
   /* ==== Actual barrier implementations ==== */
-  void satb_barrier_impl(MacroAssembler* masm, DecoratorSet decorators,
-                         Register base, RegisterOrConstant ind_or_offs,
-                         Register pre_val,
-                         Register tmp1, Register tmp2,
-                         MacroAssembler::PreservationLevel preservation_level);
+  void satb_write_barrier_impl(MacroAssembler* masm, DecoratorSet decorators,
+                               Register base, RegisterOrConstant ind_or_offs,
+                               Register pre_val,
+                               Register tmp1, Register tmp2,
+                               MacroAssembler::PreservationLevel preservation_level);
 
-  void card_barrier(MacroAssembler* masm,
-                    Register base, RegisterOrConstant ind_or_offs,
-                    Register tmp);
+  void store_check(MacroAssembler* masm,
+                   Register base, RegisterOrConstant ind_or_offs,
+                   Register tmp);
 
   void load_reference_barrier_impl(MacroAssembler* masm, DecoratorSet decorators,
                                    Register base, RegisterOrConstant ind_or_offs,
@@ -86,10 +85,10 @@ public:
 #endif
 
   /* ==== Available barriers (facades of the actual implementations) ==== */
-  void satb_barrier(MacroAssembler* masm,
-                    Register base, RegisterOrConstant ind_or_offs,
-                    Register tmp1, Register tmp2, Register tmp3,
-                    MacroAssembler::PreservationLevel preservation_level);
+  void satb_write_barrier(MacroAssembler* masm,
+                          Register base, RegisterOrConstant ind_or_offs,
+                          Register tmp1, Register tmp2, Register tmp3,
+                          MacroAssembler::PreservationLevel preservation_level);
 
   void load_reference_barrier(MacroAssembler* masm, DecoratorSet decorators,
                               Register base, RegisterOrConstant ind_or_offs,
@@ -122,8 +121,6 @@ public:
 
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register dst, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
-
-  virtual void try_resolve_weak_handle(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
 };
 
 #endif // CPU_PPC_GC_SHENANDOAH_SHENANDOAHBARRIERSETASSEMBLER_PPC_HPP

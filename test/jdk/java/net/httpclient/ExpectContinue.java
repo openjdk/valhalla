@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestServerConfigurator
  * @modules java.net.http/jdk.internal.net.http.common
  *          jdk.httpserver
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm ExpectContinue
  */
 
 import com.sun.net.httpserver.HttpExchange;
@@ -51,24 +51,23 @@ import javax.net.ssl.SSLContext;
 
 import jdk.httpclient.test.lib.common.TestServerConfigurator;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.System.out;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
 
 public class ExpectContinue {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpServer httpTestServer;         // HTTP/1.1    [ 2 servers ]
-    private static HttpsServer httpsTestServer;       // HTTPS/1.1
-    private static String httpURI;
-    private static String httpsURI;
+    SSLContext sslContext;
+    HttpServer httpTestServer;         // HTTP/1.1    [ 2 servers ]
+    HttpsServer httpsTestServer;       // HTTPS/1.1
+    String httpURI;
+    String httpsURI;
 
-    public static Object[][] positive() {
+    @DataProvider(name = "positive")
+    public Object[][] positive() {
         return new Object[][] {
                 { httpURI,  false, "Billy" },
                 { httpURI,  false, "Bob"   },
@@ -77,8 +76,7 @@ public class ExpectContinue {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("positive")
+    @Test(dataProvider = "positive")
     void test(String uriString, boolean expectedContinue, String data)
         throws Exception
     {
@@ -96,18 +94,17 @@ public class ExpectContinue {
         HttpResponse<String> response = client.send(request,
                                                     BodyHandlers.ofString());
         System.out.println("First response: " + response);
-        assertEquals(200, response.statusCode());
-        assertEquals(data, response.body());
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.body(), data);
 
         // again with the same request, to ensure no Expect header duplication
         response = client.send(request, BodyHandlers.ofString());
         System.out.println("Second response: " + response);
-        assertEquals(200, response.statusCode());
-        assertEquals(data, response.body());
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.body(), data);
     }
 
-    @ParameterizedTest
-    @MethodSource("positive")
+    @Test(dataProvider = "positive")
     void testAsync(String uriString, boolean expectedContinue, String data) {
         out.printf("test(%s, %s, %s): starting%n", uriString, expectedContinue, data);
         HttpClient client = HttpClient.newBuilder()
@@ -123,14 +120,14 @@ public class ExpectContinue {
         HttpResponse<String> response = client.sendAsync(request,
                 BodyHandlers.ofString()).join();
         System.out.println("First response: " + response);
-        assertEquals(200, response.statusCode());
-        assertEquals(data, response.body());
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.body(), data);
 
         // again with the same request, to ensure no Expect header duplication
         response = client.sendAsync(request, BodyHandlers.ofString()).join();
         System.out.println("Second response: " + response);
-        assertEquals(200, response.statusCode());
-        assertEquals(data, response.body());
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.body(), data);
     }
 
     // -- Infrastructure
@@ -140,8 +137,12 @@ public class ExpectContinue {
                 + server.getAddress().getPort();
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpServer.create(sa, 0);
         httpTestServer.createContext("/http1/ec", new Http1ExpectContinueHandler());
@@ -156,8 +157,8 @@ public class ExpectContinue {
         httpsTestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         httpTestServer.stop(0);
         httpsTestServer.stop(0);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  */
 
 
-/*
+/**
  * This is not a test. Actual tests are implemented by concrete subclasses.
  * The abstract class AbstractThrowingPushPromises provides a base framework
  * to test what happens when push promise handlers and their
@@ -62,6 +62,7 @@ import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.PushPromiseHandler;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -97,15 +98,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.extension.TestWatcher;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractThrowingPushPromises implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    static SSLContext sslContext;
     static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
     static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
     static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
@@ -191,9 +194,14 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
 
 
     @AfterAll
-    static void printFailedTests() {
+    static final void printFailedTests() {
         out.println("\n=========================");
         try {
+            // Exceptions should already have been added to FAILURES
+            // var failed = context.getFailedTests().getAllResults().stream()
+            //        .collect(Collectors.toMap(r -> name(r), ITestResult::getThrowable));
+            // FAILURES.putAll(failed);
+
             out.printf("%n%sCreated %d servers and %d clients%n",
                     now(), serverCount.get(), clientCount.get());
             if (FAILURES.isEmpty()) return;
@@ -332,7 +340,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
             HttpRequest req = request(uri);
 
             BodyHandler<Stream<String>> handler =
-                    new ThrowingBodyHandler<>((w) -> {},
+                    new ThrowingBodyHandler((w) -> {},
                                             BodyHandlers.ofLines());
             Map<HttpRequest, CompletableFuture<HttpResponse<Stream<String>>>> pushPromises =
                     new ConcurrentHashMap<>();
@@ -380,9 +388,9 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
     }
 
     // @Test(dataProvider = "variants")
-    void testThrowingAsStringImpl(String uri,
-                                  boolean sameClient,
-                                  Thrower thrower)
+    protected void testThrowingAsStringImpl(String uri,
+                                     boolean sameClient,
+                                     Thrower thrower)
             throws Exception
     {
         String test = format("testThrowingAsString(%s, %b, %s)",
@@ -392,7 +400,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
     }
 
     //@Test(dataProvider = "variants")
-    void testThrowingAsLinesImpl(String uri,
+    protected void testThrowingAsLinesImpl(String uri,
                                     boolean sameClient,
                                     Thrower thrower)
             throws Exception
@@ -404,9 +412,9 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
     }
 
     //@Test(dataProvider = "variants")
-    void testThrowingAsInputStreamImpl(String uri,
-                                       boolean sameClient,
-                                       Thrower thrower)
+    protected void testThrowingAsInputStreamImpl(String uri,
+                                          boolean sameClient,
+                                          Thrower thrower)
             throws Exception
     {
         String test = format("testThrowingAsInputStream(%s, %b, %s)",
@@ -417,7 +425,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
 
     private <T,U> void testThrowing(String name, String uri, boolean sameClient,
                                     Supplier<BodyHandler<T>> handlers,
-                                    Finisher<T,U> finisher, Thrower thrower)
+                                    Finisher finisher, Thrower thrower)
             throws Exception
     {
         out.printf("%n%s%s%n", now(), name);
@@ -431,7 +439,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
 
     private <T,U> void testThrowing(String uri, boolean sameClient,
                                     Supplier<BodyHandler<T>> handlers,
-                                    Finisher<T,U> finisher, Thrower thrower)
+                                    Finisher finisher, Thrower thrower)
             throws Exception
     {
         HttpClient client = null;
@@ -445,7 +453,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
             ConcurrentMap<HttpRequest, CompletableFuture<HttpResponse<T>>> promiseMap =
                     new ConcurrentHashMap<>();
             Supplier<BodyHandler<T>> throwing = () ->
-                    new ThrowingBodyHandler<>(where.select(thrower), handlers.get());
+                    new ThrowingBodyHandler(where.select(thrower), handlers.get());
             PushPromiseHandler<T> pushHandler = new ThrowingPromiseHandler<>(
                     where.select(thrower),
                     PushPromiseHandler.of((r) -> throwing.get(), promiseMap));
@@ -533,7 +541,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
         return check(w, reqURI, resp, thrower, promises, extractor);
     }
 
-    private <T> List<String> check(Where w, URI reqURI,
+    private final <T> List<String> check(Where w, URI reqURI,
                                  HttpResponse<T> resp,
                                  Thrower thrower,
                                  Map<HttpRequest, CompletableFuture<HttpResponse<T>>> promises,
@@ -690,7 +698,7 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
         public BodySubscriber<T> apply(HttpResponse.ResponseInfo rinfo) {
             throwing.accept(Where.BODY_HANDLER);
             BodySubscriber<T> subscriber = bodyHandler.apply(rinfo);
-            return new ThrowingBodySubscriber<>(throwing, subscriber);
+            return new ThrowingBodySubscriber(throwing, subscriber);
         }
     }
 
@@ -750,6 +758,10 @@ public abstract class AbstractThrowingPushPromises implements HttpServerAdapters
 
     @BeforeAll
     public static void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         // HTTP/2
         HttpTestHandler fixedLengthHandler = new HTTP_FixedLengthHandler();
         HttpTestHandler chunkedHandler = new HTTP_ChunkedHandler();

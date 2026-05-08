@@ -58,7 +58,7 @@ class VariableDeclarationBlockFactory extends Factory<VariableDeclarationBlock> 
                 .setOperatorLimit(operatorLimit)
                 .setIsLocal(false)
                 .setExceptionSafe(exceptionSafe)
-                .getConstantDeclarationFactory();
+                .getDeclarationFactory();
         for (int i = 0; i < limit; i++) {
             try {
                 content.add(declFactory.produce());

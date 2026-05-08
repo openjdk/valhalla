@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,10 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.http2.Http2TestServer jdk.test.lib.net.SimpleSSLContext
  *        ReferenceTracker
- * @run junit/othervm
+ * @run testng/othervm
  *       -Djdk.internal.httpclient.debug=true
  *       -Djdk.httpclient.HttpClient.log=trace,headers,requests
- *       ${test.main.class}
+ *       ExecutorShutdown
  */
 // -Djdk.internal.httpclient.debug=true
 
@@ -65,6 +65,10 @@ import javax.net.ssl.SSLContext;
 
 import jdk.test.lib.RandomFactory;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import static java.lang.System.out;
 import static java.net.http.HttpClient.Builder.NO_PROXY;
@@ -74,13 +78,8 @@ import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 public class ExecutorShutdown implements HttpServerAdapters {
 
@@ -89,25 +88,26 @@ public class ExecutorShutdown implements HttpServerAdapters {
     }
     static final Random RANDOM = RandomFactory.getRandom();
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;        // HTTP/1.1    [ 6 servers ]
-    private static HttpTestServer httpsTestServer;       // HTTPS/1.1
-    private static HttpTestServer http2TestServer;       // HTTP/2 ( h2c   )
-    private static HttpTestServer https2TestServer;      // HTTP/2 ( h2    )
-    private static HttpTestServer h2h3TestServer;        // HTTP/2 ( h2+h3 )
-    private static HttpTestServer h3TestServer;          // HTTP/2 ( h3    )
-    private static String httpURI;
-    private static String httpsURI;
-    private static String http2URI;
-    private static String https2URI;
-    private static String h2h3URI;
-    private static String h3URI;
-    private static String h2h3Head;
+    SSLContext sslContext;
+    HttpTestServer httpTestServer;        // HTTP/1.1    [ 6 servers ]
+    HttpTestServer httpsTestServer;       // HTTPS/1.1
+    HttpTestServer http2TestServer;       // HTTP/2 ( h2c   )
+    HttpTestServer https2TestServer;      // HTTP/2 ( h2    )
+    HttpTestServer h2h3TestServer;        // HTTP/2 ( h2+h3 )
+    HttpTestServer h3TestServer;          // HTTP/2 ( h3    )
+    String httpURI;
+    String httpsURI;
+    String http2URI;
+    String https2URI;
+    String h2h3URI;
+    String h3URI;
+    String h2h3Head;
 
     static final String MESSAGE = "ExecutorShutdown message body";
     static final int ITERATIONS = 3;
 
-    public static Object[][] positive() {
+    @DataProvider(name = "positive")
+    public Object[][] positive() {
         return new Object[][] {
                 { h2h3URI,   HTTP_3,   h2h3TestServer.h3DiscoveryConfig() },
                 { h3URI,     HTTP_3,   h3TestServer.h3DiscoveryConfig() },
@@ -119,7 +119,7 @@ public class ExecutorShutdown implements HttpServerAdapters {
     }
 
     static final AtomicLong requestCounter = new AtomicLong();
-    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
     static Throwable getCause(Throwable t) {
         while (t instanceof CompletionException || t instanceof ExecutionException) {
@@ -158,8 +158,7 @@ public class ExecutorShutdown implements HttpServerAdapters {
         throw new AssertionError(what + ": Unexpected exception: " + cause, cause);
     }
 
-    @ParameterizedTest
-    @MethodSource("positive")
+    @Test(dataProvider = "positive")
     void testConcurrent(String uriString, Version version, Http3DiscoveryMode config) throws Exception {
         out.printf("%n---- starting (%s) ----%n", uriString);
         ExecutorService executorService = Executors.newCachedThreadPool();
@@ -210,9 +209,9 @@ public class ExecutorShutdown implements HttpServerAdapters {
                 var cf = responseCF.thenApply((response) -> {
                     out.println(si + ":  Got response: " + response);
                     out.println(si + ":  Got body Path: " + response.body());
-                    assertEquals(200, response.statusCode());
-                    if (si >= head) assertEquals(version, response.version());
-                    assertEquals(MESSAGE, response.body());
+                    assertEquals(response.statusCode(), 200);
+                    if (si >= head) assertEquals(response.version(), version);
+                    assertEquals(response.body(), MESSAGE);
                     return response;
                 }).exceptionally((t) -> {
                     Throwable cause = getCause(t);
@@ -229,8 +228,7 @@ public class ExecutorShutdown implements HttpServerAdapters {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("positive")
+    @Test(dataProvider = "positive")
     void testSequential(String uriString, Version version, Http3DiscoveryMode config) throws Exception {
         out.printf("%n---- starting (%s, %s, %s) ----%n%n", uriString, version, config);
         ExecutorService executorService = Executors.newCachedThreadPool();
@@ -274,9 +272,9 @@ public class ExecutorShutdown implements HttpServerAdapters {
                 responseCF.thenApply((response) -> {
                     out.println(si + ":  Got response: " + response);
                     out.println(si + ":  Got body Path: " + response.body());
-                    assertEquals(200, response.statusCode());
-                    if (si > 0) assertEquals(version, response.version());
-                    assertEquals(MESSAGE, response.body());
+                    assertEquals(response.statusCode(), 200);
+                    if (si > 0) assertEquals(response.version(), version);
+                    assertEquals(response.body(), MESSAGE);
                     return response;
                 }).handle((r,t) -> {
                     if (t != null) {
@@ -307,12 +305,16 @@ public class ExecutorShutdown implements HttpServerAdapters {
                 .HEAD()
                 .build();
         var resp = client.send(request, BodyHandlers.discarding());
-        assertEquals(200, resp.statusCode());
+        assertEquals(resp.statusCode(), 200);
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         out.println("\n**** Setup ****\n");
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         httpTestServer = HttpTestServer.create(HTTP_1_1);
         httpTestServer.addHandler(new ServerRequestHandler(), "/http1/exec/");
         httpURI = "http://" + httpTestServer.serverAuthority() + "/http1/exec/retry";
@@ -344,8 +346,8 @@ public class ExecutorShutdown implements HttpServerAdapters {
         h3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         Thread.sleep(100);
         AssertionError fail = TRACKER.check(5000);
         try {

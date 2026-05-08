@@ -368,15 +368,12 @@ int ZeroInterpreter::native_entry(Method* method, intptr_t UNUSED, TRAPS) {
     goto unlock_unwind_and_return;
 
   void **arguments;
-  // These locals must remain on stack until call completes
-  void *mirror;
-  void *env;
-  {
+  void *mirror; {
     arguments =
       (void **) stack->alloc(handler->argument_count() * sizeof(void **));
     void **dst = arguments;
 
-    env = thread->jni_environment();
+    void *env = thread->jni_environment();
     *(dst++) = &env;
 
     if (method->is_static()) {

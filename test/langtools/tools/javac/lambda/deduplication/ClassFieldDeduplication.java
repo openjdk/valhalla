@@ -24,6 +24,7 @@
 /*
  * @test
  * @bug 8202141
+ * @enablePreview
  * @summary Verify that .class synthetic Symbols are not duplicated.
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.api

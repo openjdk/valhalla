@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,16 @@ import java.lang.reflect.*;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 /*
  * @test
  * @bug 8159746
  * @summary Test invoking a default method in a non-public proxy interface
  * @build p.Foo p.Bar p.ProxyMaker
- * @run junit DefaultMethodProxy
+ * @run testng DefaultMethodProxy
  */
 public class DefaultMethodProxy {
     public interface I {
@@ -43,7 +42,7 @@ public class DefaultMethodProxy {
     }
 
     @Test
-    public void publicInterface() throws ReflectiveOperationException {
+    public static void publicInterface() throws ReflectiveOperationException {
         // create a proxy instance of a public proxy interface should succeed
         Proxy proxy = (Proxy)Proxy.newProxyInstance(DefaultMethodProxy.class.getClassLoader(),
                 new Class<?>[] { I.class }, IH);
@@ -51,9 +50,11 @@ public class DefaultMethodProxy {
         testDefaultMethod(proxy, "I");
 
         // can get the invocation handler
-        assertSame(IH, Proxy.getInvocationHandler(proxy));
+        assertTrue(Proxy.getInvocationHandler(proxy) == IH);
     }
 
+
+    @DataProvider(name = "nonPublicIntfs")
     private static Object[][] nonPublicIntfs() throws ClassNotFoundException {
         Class<?> fooClass = Class.forName("p.Foo");
         Class<?> barClass = Class.forName("p.Bar");
@@ -64,9 +65,8 @@ public class DefaultMethodProxy {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("nonPublicIntfs")
-    public void hasPackageAccess(Class<?>[] intfs, String expected) throws ReflectiveOperationException {
+    @Test(dataProvider = "nonPublicIntfs")
+    public static void hasPackageAccess(Class<?>[] intfs, String expected) throws ReflectiveOperationException {
         Proxy proxy = (Proxy)Proxy.newProxyInstance(DefaultMethodProxy.class.getClassLoader(), intfs, IH);
         testDefaultMethod(proxy, expected);
 
@@ -75,13 +75,19 @@ public class DefaultMethodProxy {
     }
 
     // IAE thrown at invocation time
-    @ParameterizedTest
-    @MethodSource("nonPublicIntfs")
-    public void noPackageAccess(Class<?>[] intfs, String ignored) throws Throwable {
+    @Test(dataProvider = "nonPublicIntfs", expectedExceptions = {IllegalAccessException.class})
+    public static void noPackageAccess(Class<?>[] intfs, String ignored) throws Throwable {
         Proxy proxy = (Proxy)Proxy.newProxyInstance(DefaultMethodProxy.class.getClassLoader(), intfs, IH_NO_ACCESS);
-        InvocationTargetException ite = assertThrows(InvocationTargetException.class, () -> testDefaultMethod(proxy, "dummy"));
-        var ute = assertInstanceOf(UndeclaredThrowableException.class, ite.getCause(), "unwrap the InvocationTargetException");
-        assertInstanceOf(IllegalAccessException.class, ute.getCause(), "unwrap the UndeclaredThrowableException");
+        try {
+            testDefaultMethod(proxy, "dummy");
+        } catch (InvocationTargetException e) {
+            // unwrap the exception
+            if (e.getCause() instanceof UndeclaredThrowableException) {
+                Throwable cause = e.getCause();
+                throw cause.getCause();
+            }
+            throw e;
+        }
     }
 
     /*

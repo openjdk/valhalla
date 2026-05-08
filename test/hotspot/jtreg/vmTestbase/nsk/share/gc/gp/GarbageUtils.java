@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,12 @@
 
 package nsk.share.gc.gp;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.invoke.*;
 import java.util.*;
 import jdk.test.whitebox.WhiteBox;
-import nsk.share.gc.DefaultProducer;
 import nsk.share.gc.gp.array.*;
 import nsk.share.gc.gp.string.*;
 import nsk.share.gc.gp.list.*;
@@ -47,7 +47,7 @@ public final class GarbageUtils {
         private static GarbageProducers garbageProducers;
         private static List<GarbageProducer> primitiveArrayProducers;
         private static List<GarbageProducer> arrayProducers;
-        private static final GarbageProducer defaultProducer = new DefaultProducer();
+        private static final GarbageProducer  byteArrayProducer = new ByteArrayProducer();
         public static enum OOM_TYPE {
             ANY (),
             HEAP("Java heap space"),
@@ -102,7 +102,7 @@ public final class GarbageUtils {
             Object referenceArray[] = new Object[YOUNG_GC_ITERATIONS];
 
             while (iteration < YOUNG_GC_ITERATIONS) {
-                referenceArray[iteration++] = defaultProducer.create(memChunk);
+                referenceArray[iteration++] = byteArrayProducer.create(memChunk);
                 WhiteBox.getWhiteBox().youngGC();
             }
             WhiteBox.getWhiteBox().fullGC();
@@ -152,7 +152,7 @@ public final class GarbageUtils {
          * @return number of OOME occured
          */
         public static int eatMemory(ExecutionController stresser) {
-            return eatMemory(stresser, defaultProducer, 50, 100, 2, OOM_TYPE.ANY);
+            return eatMemory(stresser, byteArrayProducer, 50, 100, 2, OOM_TYPE.ANY);
         }
 
         /**
@@ -181,7 +181,10 @@ public final class GarbageUtils {
          * Eat memory using default(byte[]) garbage producer.
          *
          * Note that this method can throw Failure if any exception
-         * is thrown while eating memory.
+         * is thrown while eating memory. To avoid OOM while allocating
+         * exception we preallocate it before the lunch starts. It means
+         * that exception stack trace does not correspond to the place
+         * where exception is thrown, but points at start of the method.
          *
          * @param stresser stresser
          * @param initialFactor determines which portion of initial memory initial chunk will be
@@ -190,14 +193,17 @@ public final class GarbageUtils {
          * @return number of OOME occured
          */
         public static int eatMemory(ExecutionController stresser,long initialFactor, long minMemoryChunk, long factor) {
-            return eatMemory(stresser, defaultProducer, initialFactor, minMemoryChunk, factor, OOM_TYPE.ANY);
+            return eatMemory(stresser, byteArrayProducer, initialFactor, minMemoryChunk, factor, OOM_TYPE.ANY);
         }
 
         /**
          * Eat memory using given garbage producer.
          *
          * Note that this method can throw Failure if any exception
-         * is thrown while eating memory.
+         * is thrown while eating memory. To avoid OOM while allocating
+         * exception we preallocate it before the lunch starts. It means
+         * that exception stack trace does not correspond to the place
+         * where exception is thrown, but points at start of the method.
          *
          * @param stresser stresser to use
          * @param gp garbage producer
@@ -264,7 +270,10 @@ public final class GarbageUtils {
          * Eat memory using given garbage producer.
          *
          * Note that this method can throw Failure if any exception
-         * is thrown while eating memory.
+         * is thrown while eating memory. To avoid OOM while allocating
+         * exception we preallocate it before the lunch starts. It means
+         * that exception stack trace does not correspond to the place
+         * where exception is thrown, but points at start of the method.
          *
          * @param stresser stresser to use
          * @param gp garbage producer
@@ -394,12 +403,6 @@ public final class GarbageUtils {
                         return new FloatArrayProducer();
                 else if (id.equals("doubleArr"))
                         return new DoubleArrayProducer();
-                else if (id.equals("BooleanObjArr"))
-                    return new BooleanObjArrayProducer();
-                else if (id.equals("ByteObjArr"))
-                    return new BooleanObjArrayProducer();
-                else if (id.equals("IntegerObjArr"))
-                    return new IntegerObjArrayProducer();
                 else if (id.equals("objectArr"))
                         return new ObjectArrayProducer();
                 else if (id.equals("randomString"))

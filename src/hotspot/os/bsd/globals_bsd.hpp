@@ -28,7 +28,6 @@
 //
 // Declare Bsd specific flags. They are not available on other platforms.
 //
-#ifdef AARCH64
 #define RUNTIME_OS_FLAGS(develop,                                       \
                          develop_pd,                                    \
                          product,                                       \
@@ -36,21 +35,9 @@
                          range,                                         \
                          constraint)                                    \
                                                                         \
-  develop(bool, TraceWXHealing, false,                                  \
-          "track occurrences of W^X mode healing")                      \
-  develop(bool, UseOldWX, false,                                        \
-          "Choose old W^X implementation.")                             \
-  product(bool, StressWXHealing, false, DIAGNOSTIC,                     \
-          "Stress W xor X healing on MacOS")
-
-#else
-#define RUNTIME_OS_FLAGS(develop,                                       \
-                         develop_pd,                                    \
-                         product,                                       \
-                         product_pd,                                    \
-                         range,                                         \
-                         constraint)
-#endif
+  AARCH64_ONLY(develop(bool, AssertWXAtThreadSync, true,                \
+          "Conservatively check W^X thread state at possible safepoint" \
+          "or handshake"))
 
 // end of RUNTIME_OS_FLAGS
 

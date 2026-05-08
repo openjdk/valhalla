@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.common.HttpServerAdapters jdk.test.lib.net.SimpleSSLContext
  *        DependentPromiseActionsTest
- * @run junit/othervm -Djdk.internal.httpclient.debug=true ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true DependentPromiseActionsTest
  */
 
 import java.io.BufferedReader;
@@ -37,6 +37,11 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.lang.StackWalker.StackFrame;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -88,26 +93,21 @@ import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class DependentPromiseActionsTest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
-    private static String http2URI_fixed;
-    private static String http2URI_chunk;
-    private static String https2URI_fixed;
-    private static String https2URI_chunk;
-    private static String http3URI_fixed;
-    private static String http3URI_chunk;
+    SSLContext sslContext;
+    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
+    String http2URI_fixed;
+    String http2URI_chunk;
+    String https2URI_fixed;
+    String https2URI_chunk;
+    String http3URI_fixed;
+    String http3URI_chunk;
 
     static final StackWalker WALKER =
             StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
@@ -129,7 +129,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    private static volatile HttpClient sharedClient;
+    private volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -155,7 +155,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         }
     }
 
-    @AfterAll
+    @AfterClass
     static final void printFailedTests() {
         out.println("\n=========================");
         try {
@@ -176,7 +176,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         }
     }
 
-    private static String[] uris() {
+    private String[] uris() {
         return new String[] {
                 http3URI_fixed,
                 http3URI_chunk,
@@ -201,7 +201,8 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         }
     }
 
-    public static Object[][] noThrows() {
+    @DataProvider(name = "noStalls")
+    public Object[][] noThrows() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         int i = 0;
@@ -214,7 +215,8 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         return result;
     }
 
-    public static Object[][] variants() {
+    @DataProvider(name = "variants")
+    public Object[][] variants() {
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         int i = 0;
@@ -269,8 +271,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         return builder.build();
     }
 
-    @ParameterizedTest
-    @MethodSource("noThrows")
+    @Test(dataProvider = "noStalls")
     public void testNoStalls(String rootUri, boolean sameClient)
             throws Exception {
         if (!FAILURES.isEmpty()) return;
@@ -286,7 +287,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
                 HttpRequest req = request(uri);
 
                 BodyHandler<Stream<String>> handler =
-                        new StallingBodyHandler<>((w) -> {},
+                        new StallingBodyHandler((w) -> {},
                                 BodyHandlers.ofLines());
                 Map<HttpRequest, CompletableFuture<HttpResponse<Stream<String>>>> pushPromises =
                         new ConcurrentHashMap<>();
@@ -303,13 +304,13 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
                 HttpResponse<Stream<String>> response =
                         client.sendAsync(req, BodyHandlers.ofLines(), pushHandler).get();
                 String body = response.body().collect(Collectors.joining("|"));
-                assertEquals(URI.create(uri).getPath(), URI.create(body).getPath());
+                assertEquals(URI.create(body).getPath(), URI.create(uri).getPath());
                 for (HttpRequest promised : pushPromises.keySet()) {
                     out.printf("%s Received promise: %s%n\tresponse: %s%n",
                             now(), promised, pushPromises.get(promised).get());
                     String promisedBody = pushPromises.get(promised).get().body()
                             .collect(Collectors.joining("|"));
-                    assertEquals(promised.uri().toASCIIString(), promisedBody);
+                    assertEquals(promisedBody, promised.uri().toASCIIString());
                 }
                 assertEquals(3, pushPromises.size());
             }
@@ -320,9 +321,8 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
-    void testAsStringAsync(String uri,
+    @Test(dataProvider = "variants")
+    public void testAsStringAsync(String uri,
                                   boolean sameClient,
                                   Supplier<Staller> stallers)
             throws Exception
@@ -334,9 +334,8 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
                 SubscriberType.EAGER);
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
-    void testAsLinesAsync(String uri,
+    @Test(dataProvider = "variants")
+    public void testAsLinesAsync(String uri,
                                  boolean sameClient,
                                  Supplier<Staller> stallers)
             throws Exception
@@ -348,9 +347,8 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
                 SubscriberType.LAZZY);
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
-    void testAsInputStreamAsync(String uri,
+    @Test(dataProvider = "variants")
+    public void testAsInputStreamAsync(String uri,
                                        boolean sameClient,
                                        Supplier<Staller> stallers)
             throws Exception
@@ -364,7 +362,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
 
     private <T,U> void testDependent(String name, String uri, boolean sameClient,
                                      Supplier<BodyHandler<T>> handlers,
-                                     Finisher<T> finisher,
+                                     Finisher finisher,
                                      Extractor<T> extractor,
                                      Supplier<Staller> stallers,
                                      SubscriberType subscriberType)
@@ -386,7 +384,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
 
     private <T,U> void testDependent(String rootUri, boolean sameClient,
                                      Supplier<BodyHandler<T>> handlers,
-                                     Finisher<T> finisher,
+                                     Finisher finisher,
                                      Extractor<T> extractor,
                                      Supplier<Staller> stallers,
                                      SubscriberType subscriberType)
@@ -426,7 +424,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
     enum Where {
         ON_PUSH_PROMISE, BODY_HANDLER, ON_SUBSCRIBE, ON_NEXT, ON_COMPLETE, ON_ERROR, GET_BODY, BODY_CF;
         public Consumer<Where> select(Consumer<Where> consumer) {
-            return new Consumer<>() {
+            return new Consumer<Where>() {
                 @Override
                 public void accept(Where where) {
                     if (Where.this == where) {
@@ -477,10 +475,10 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
             staller.acquire();
             assert staller.willStall();
             try {
-                BodyHandler<T> handler = new StallingBodyHandler<>(
+                BodyHandler handler = new StallingBodyHandler<>(
                         where.select(staller), handlers.get());
                 CompletableFuture<HttpResponse<T>> cf = acceptor.apply(handler);
-                Tuple<T> tuple = new Tuple<>(failed, cf, staller);
+                Tuple<T> tuple = new Tuple(failed, cf, staller);
                 promiseMap.putIfAbsent(pushPromiseRequest, tuple);
                 CompletableFuture<?> done = cf.whenComplete(
                         (r, t) -> checkThreadAndStack(thread, failed, r, t));
@@ -569,7 +567,7 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
                 throw new RuntimeException("Test failed in "
                         + w + ": " + uri, error);
             }
-            assertEquals(List.of(response.request().uri().toASCIIString()), result);
+            assertEquals(result, List.of(response.request().uri().toASCIIString()));
         } finally {
             staller.reset();
         }
@@ -584,10 +582,10 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         for (HttpRequest req : ph.promiseMap.keySet()) {
             finish(w, ph.promiseMap.get(req), extractor);
         }
-        assertEquals(3, ph.promiseMap.size(),
+        assertEquals(ph.promiseMap.size(), 3,
                 "Expected 3 push promises for " + w + " in "
                         + response.request().uri());
-        assertEquals(List.of(response.request().uri().toASCIIString()), result);
+        assertEquals(result, List.of(response.request().uri().toASCIIString()));
 
     }
 
@@ -701,8 +699,12 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
     }
 
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         // HTTP/2
         HttpTestHandler fixedLengthHandler = new HTTP_FixedLengthHandler();
         HttpTestHandler chunkedHandler = new HTTP_ChunkedHandler();
@@ -731,8 +733,8 @@ public class DependentPromiseActionsTest implements HttpServerAdapters {
         http3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         if (sharedClient != null) {
             sharedClient.close();
         }

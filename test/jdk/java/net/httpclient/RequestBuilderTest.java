@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @bug 8276559
  * @summary HttpRequest[.Builder] API and behaviour checks
- * @run junit ${test.main.class}
+ * @run testng RequestBuilderTest
  */
 
 import java.net.URI;
@@ -49,9 +49,9 @@ import static java.time.Duration.ofNanos;
 import static java.time.Duration.ofMinutes;
 import static java.time.Duration.ofSeconds;
 import static java.time.Duration.ZERO;
+import static org.testng.Assert.*;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 public class RequestBuilderTest {
 
@@ -70,12 +70,12 @@ public class RequestBuilderTest {
                                                      newBuilder(uri).copy());
         for (HttpRequest.Builder builder : builders) {
             assertFalse(builder.build().expectContinue());
-            assertEquals("GET", builder.build().method());
+            assertEquals(builder.build().method(), "GET");
             assertFalse(builder.build().bodyPublisher().isPresent());
             assertFalse(builder.build().version().isPresent());
             assertFalse(builder.build().timeout().isPresent());
             assertTrue(builder.build().headers() != null);
-            assertEquals(0, builder.build().headers().map().size());
+            assertEquals(builder.build().headers().map().size(), 0);
         }
     }
 
@@ -128,61 +128,61 @@ public class RequestBuilderTest {
             assertThrows(IAE, () -> newBuilder().uri(u));
         }
 
-        assertEquals(uri, newBuilder(uri).build().uri());
-        assertEquals(uri, newBuilder().uri(uri).build().uri());
+        assertEquals(newBuilder(uri).build().uri(), uri);
+        assertEquals(newBuilder().uri(uri).build().uri(), uri);
         URI https = URI.create("https://foo.com");
-        assertEquals(https, newBuilder(https).build().uri());
-        assertEquals(https, newBuilder().uri(https).build().uri());
+        assertEquals(newBuilder(https).build().uri(), https);
+        assertEquals(newBuilder().uri(https).build().uri(), https);
     }
 
     @Test
     public void testMethod() {
         HttpRequest request = newBuilder(uri).build();
-        assertEquals("GET", request.method());
+        assertEquals(request.method(), "GET");
         assertTrue(!request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).GET().build();
-        assertEquals("GET", request.method());
+        assertEquals(request.method(), "GET");
         assertTrue(!request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).POST(BodyPublishers.ofString("")).GET().build();
-        assertEquals("GET", request.method());
+        assertEquals(request.method(), "GET");
         assertTrue(!request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).PUT(BodyPublishers.ofString("")).GET().build();
-        assertEquals("GET", request.method());
+        assertEquals(request.method(), "GET");
         assertTrue(!request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).DELETE().GET().build();
-        assertEquals("GET", request.method());
+        assertEquals(request.method(), "GET");
         assertTrue(!request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).POST(BodyPublishers.ofString("")).build();
-        assertEquals("POST", request.method());
+        assertEquals(request.method(), "POST");
         assertTrue(request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).PUT(BodyPublishers.ofString("")).build();
-        assertEquals("PUT", request.method());
+        assertEquals(request.method(), "PUT");
         assertTrue(request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).DELETE().build();
-        assertEquals("DELETE", request.method());
+        assertEquals(request.method(), "DELETE");
         assertTrue(!request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).HEAD().build();
-        assertEquals("HEAD", request.method());
+        assertEquals(request.method(), "HEAD");
         assertFalse(request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).GET().POST(BodyPublishers.ofString("")).build();
-        assertEquals("POST", request.method());
+        assertEquals(request.method(), "POST");
         assertTrue(request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).GET().PUT(BodyPublishers.ofString("")).build();
-        assertEquals("PUT", request.method());
+        assertEquals(request.method(), "PUT");
         assertTrue(request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).GET().DELETE().build();
-        assertEquals("DELETE", request.method());
+        assertEquals(request.method(), "DELETE");
         assertTrue(!request.bodyPublisher().isPresent());
 
         // CONNECT is disallowed in the implementation, since it is used for
@@ -190,11 +190,11 @@ public class RequestBuilderTest {
         assertThrows(IAE, () -> newBuilder(uri).method("CONNECT", BodyPublishers.noBody()).build());
 
         request = newBuilder(uri).method("GET", BodyPublishers.noBody()).build();
-        assertEquals("GET", request.method());
+        assertEquals(request.method(), "GET");
         assertTrue(request.bodyPublisher().isPresent());
 
         request = newBuilder(uri).method("POST", BodyPublishers.ofString("")).build();
-        assertEquals("POST", request.method());
+        assertEquals(request.method(), "POST");
         assertTrue(request.bodyPublisher().isPresent());
     }
 
@@ -202,11 +202,12 @@ public class RequestBuilderTest {
     public void testHeaders() {
         HttpRequest.Builder builder = newBuilder(uri);
 
+        String[] empty = new String[0];
+        assertThrows(IAE, () -> builder.headers(empty).build());
         assertThrows(IAE, () -> builder.headers("1").build());
         assertThrows(IAE, () -> builder.headers("1", "2", "3").build());
         assertThrows(IAE, () -> builder.headers("1", "2", "3", "4", "5").build());
-        assertEquals(0, builder.headers(new String[0]).build().headers().map().size());
-        assertEquals(0, builder.build().headers().map().size());
+        assertEquals(builder.build().headers().map().size(),0);
 
         List<HttpRequest> requests = List.of(
                 // same header built from different combinations of the API
@@ -218,13 +219,13 @@ public class RequestBuilderTest {
         );
 
         for (HttpRequest r : requests) {
-            assertEquals(1, r.headers().map().size());
+            assertEquals(r.headers().map().size(), 1);
             assertTrue(r.headers().firstValue("A").isPresent());
             assertTrue(r.headers().firstValue("a").isPresent());
-            assertEquals("B", r.headers().firstValue("A").get());
-            assertEquals(List.of("B"), r.headers().allValues("A"));
-            assertEquals(0, r.headers().allValues("C").size());
-            assertEquals(List.of("B"), r.headers().map().get("A"));
+            assertEquals(r.headers().firstValue("A").get(), "B");
+            assertEquals(r.headers().allValues("A"), List.of("B"));
+            assertEquals(r.headers().allValues("C").size(), 0);
+            assertEquals(r.headers().map().get("A"), List.of("B"));
             assertThrows(NFE, () -> r.headers().firstValueAsLong("A"));
             assertFalse(r.headers().firstValue("C").isPresent());
             // a non-exhaustive list of mutators
@@ -264,14 +265,14 @@ public class RequestBuilderTest {
         );
 
         for (HttpRequest r : requests) {
-            assertEquals(2, r.headers().map().size());
+            assertEquals(r.headers().map().size(), 2);
             assertTrue(r.headers().firstValue("A").isPresent());
-            assertEquals("B", r.headers().firstValue("A").get());
-            assertEquals(List.of("B"), r.headers().allValues("A"));
+            assertEquals(r.headers().firstValue("A").get(), "B");
+            assertEquals(r.headers().allValues("A"), List.of("B"));
             assertTrue(r.headers().firstValue("C").isPresent());
-            assertEquals("D", r.headers().firstValue("C").get());
-            assertEquals(List.of("D"), r.headers().allValues("C"));
-            assertEquals(List.of("D"), r.headers().map().get("C"));
+            assertEquals(r.headers().firstValue("C").get(), "D");
+            assertEquals(r.headers().allValues("C"), List.of("D"));
+            assertEquals(r.headers().map().get("C"), List.of("D"));
             assertThrows(NFE, () -> r.headers().firstValueAsLong("C"));
             assertFalse(r.headers().firstValue("E").isPresent());
             // a smaller non-exhaustive list of mutators
@@ -303,11 +304,11 @@ public class RequestBuilderTest {
         );
 
         for (HttpRequest r : requests) {
-            assertEquals(1, r.headers().map().size());
+            assertEquals(r.headers().map().size(), 1);
             assertTrue(r.headers().firstValue("A").isPresent());
             assertTrue(r.headers().allValues("A").containsAll(List.of("B", "C")));
-            assertEquals(0, r.headers().allValues("C").size());
-            assertEquals(List.of("B", "C"), r.headers().map().get("A"));
+            assertEquals(r.headers().allValues("C").size(), 0);
+            assertEquals(r.headers().map().get("A"), List.of("B", "C"));
             assertThrows(NFE, () -> r.headers().firstValueAsLong("A"));
             assertFalse(r.headers().firstValue("C").isPresent());
             // a non-exhaustive list of mutators
@@ -339,11 +340,11 @@ public class RequestBuilderTest {
                                        "aCCept-EnCODing", "accepT-encodinG")) {
                 assertTrue(r.headers().firstValue(name).isPresent());
                 assertTrue(r.headers().allValues(name).contains("gzip, deflate"));
-                assertEquals("gzip, deflate", r.headers().firstValue(name).get());
-                assertEquals(1, r.headers().allValues(name).size());
-                assertEquals(1, r.headers().map().size());
-                assertEquals(1, r.headers().map().get(name).size());
-                assertEquals("gzip, deflate", r.headers().map().get(name).get(0));
+                assertEquals(r.headers().firstValue(name).get(), "gzip, deflate");
+                assertEquals(r.headers().allValues(name).size(), 1);
+                assertEquals(r.headers().map().size(), 1);
+                assertEquals(r.headers().map().get(name).size(), 1);
+                assertEquals(r.headers().map().get(name).get(0), "gzip, deflate");
             }
         }
     }
@@ -390,7 +391,7 @@ public class RequestBuilderTest {
                         .GET(), "x-" + name, value).build();
                 String v = req.headers().firstValue("x-" + name).orElseThrow(
                         () -> new RuntimeException("header x-" + name + " not set"));
-                assertEquals(value, v);
+                assertEquals(v, value);
                 try {
                     f.withHeader(HttpRequest.newBuilder(uri)
                             .GET(), name, value).build();
@@ -418,27 +419,27 @@ public class RequestBuilderTest {
         builder.GET().timeout(ofSeconds(5)).version(HTTP_2).setHeader("A", "C");
 
         HttpRequest copyRequest = copy.build();
-        assertEquals(uri, copyRequest.uri());
-        assertEquals(true, copyRequest.expectContinue());
-        assertEquals(List.of("B"), copyRequest.headers().map().get("A"));
-        assertEquals("POST", copyRequest.method());
-        assertEquals(true, copyRequest.bodyPublisher().isPresent());
-        assertEquals(ofSeconds(30), copyRequest.timeout().get());
+        assertEquals(copyRequest.uri(), uri);
+        assertEquals(copyRequest.expectContinue(), true);
+        assertEquals(copyRequest.headers().map().get("A"), List.of("B"));
+        assertEquals(copyRequest.method(), "POST");
+        assertEquals(copyRequest.bodyPublisher().isPresent(), true);
+        assertEquals(copyRequest.timeout().get(), ofSeconds(30));
         assertTrue(copyRequest.version().isPresent());
-        assertEquals(HTTP_1_1, copyRequest.version().get());
+        assertEquals(copyRequest.version().get(), HTTP_1_1);
         assertTrue(copyRequest.getOption(H3_DISCOVERY).isPresent());
-        assertEquals(HTTP_3_URI_ONLY, copyRequest.getOption(H3_DISCOVERY).get());
+        assertEquals(copyRequest.getOption(H3_DISCOVERY).get(), HTTP_3_URI_ONLY);
 
         // lazy set URI ( maybe builder as a template )
         copyRequest = newBuilder().copy().uri(uri).build();
-        assertEquals(uri, copyRequest.uri());
+        assertEquals(copyRequest.uri(), uri);
 
         builder = newBuilder().header("C", "D");
         copy = builder.copy();
         copy.uri(uri);
         copyRequest = copy.build();
-        assertEquals(uri, copyRequest.uri());
-        assertEquals("D", copyRequest.headers().firstValue("C").get());
+        assertEquals(copyRequest.uri(), uri);
+        assertEquals(copyRequest.headers().firstValue("C").get(), "D");
     }
 
     @Test
@@ -448,41 +449,42 @@ public class RequestBuilderTest {
         assertThrows(IAE, () -> builder.timeout(ofSeconds(0)));
         assertThrows(IAE, () -> builder.timeout(ofSeconds(-1)));
         assertThrows(IAE, () -> builder.timeout(ofNanos(-100)));
-        assertEquals(ofNanos(15), builder.timeout(ofNanos(15)).build().timeout().get());
-        assertEquals(ofSeconds(50), builder.timeout(ofSeconds(50)).build().timeout().get());
-        assertEquals(ofMinutes(30), builder.timeout(ofMinutes(30)).build().timeout().get());
+        assertEquals(builder.timeout(ofNanos(15)).build().timeout().get(), ofNanos(15));
+        assertEquals(builder.timeout(ofSeconds(50)).build().timeout().get(), ofSeconds(50));
+        assertEquals(builder.timeout(ofMinutes(30)).build().timeout().get(), ofMinutes(30));
     }
 
     @Test
     public void testExpect() {
         HttpRequest.Builder builder = newBuilder(uri);
-        assertEquals(false, builder.build().expectContinue());
-        assertEquals(true, builder.expectContinue(true).build().expectContinue());
-        assertEquals(false, builder.expectContinue(false).build().expectContinue());
-        assertEquals(true, builder.expectContinue(true).build().expectContinue());
+        assertEquals(builder.build().expectContinue(), false);
+        assertEquals(builder.expectContinue(true).build().expectContinue(), true);
+        assertEquals(builder.expectContinue(false).build().expectContinue(), false);
+        assertEquals(builder.expectContinue(true).build().expectContinue(), true);
     }
 
     @Test
     public void testEquals() {
-        assertNotEquals(                        newBuilder(URI.create("http://bar.com")), newBuilder(URI.create("http://foo.com")));
+        assertNotEquals(newBuilder(URI.create("http://foo.com")),
+                        newBuilder(URI.create("http://bar.com")));
 
         HttpRequest.Builder builder = newBuilder(uri);
         assertEquals(builder.build(), builder.build());
-        assertEquals(newBuilder(uri).build(), builder.build());
+        assertEquals(builder.build(), newBuilder(uri).build());
 
         builder.POST(BodyPublishers.noBody());
         assertEquals(builder.build(), builder.build());
-        assertEquals(newBuilder(uri).POST(BodyPublishers.noBody()).build(), builder.build());
-        assertEquals(newBuilder(uri).POST(BodyPublishers.ofString("")).build(), builder.build());
-        assertNotEquals(newBuilder(uri).build(), builder.build());
-        assertNotEquals(newBuilder(uri).GET().build(), builder.build());
-        assertNotEquals(newBuilder(uri).PUT(BodyPublishers.noBody()).build(), builder.build());
+        assertEquals(builder.build(), newBuilder(uri).POST(BodyPublishers.noBody()).build());
+        assertEquals(builder.build(), newBuilder(uri).POST(BodyPublishers.ofString("")).build());
+        assertNotEquals(builder.build(), newBuilder(uri).build());
+        assertNotEquals(builder.build(), newBuilder(uri).GET().build());
+        assertNotEquals(builder.build(), newBuilder(uri).PUT(BodyPublishers.noBody()).build());
 
         builder = newBuilder(uri).header("x", "y");
         assertEquals(builder.build(), builder.build());
-        assertEquals(newBuilder(uri).header("x", "y").build(), builder.build());
-        assertNotEquals(newBuilder(uri).header("x", "Z").build(), builder.build());
-        assertNotEquals(newBuilder(uri).header("z", "y").build(), builder.build());
+        assertEquals(builder.build(), newBuilder(uri).header("x", "y").build());
+        assertNotEquals(builder.build(), newBuilder(uri).header("x", "Z").build());
+        assertNotEquals(builder.build(), newBuilder(uri).header("z", "y").build());
     }
 
     @Test

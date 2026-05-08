@@ -598,6 +598,7 @@ void CollectedHeap::initialize_reserved_region(const ReservedHeapSpace& rs) {
 
 void CollectedHeap::post_initialize() {
   StringDedup::initialize();
+  initialize_serviceability();
 }
 
 bool CollectedHeap::is_shutting_down() {

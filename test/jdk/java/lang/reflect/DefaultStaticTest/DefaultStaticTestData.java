@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,11 @@
  * @author Yong Lu
  */
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.testng.annotations.DataProvider;
+import org.testng.collections.Lists;
 
 import static helper.Mod.*;
 import static helper.Declared.*;
@@ -377,6 +379,7 @@ public class DefaultStaticTestData {
      * data is the name of the class under test Second data used in test as the
      * arguments used for the method call.
      */
+    @DataProvider
     static Object[][] testClasses() {
         return new Object[][]{
             {"TestClass1", null},
@@ -405,6 +408,7 @@ public class DefaultStaticTestData {
      * data is the name of the interface under test Second data used in test as
      * the arguments used for the method call.
      */
+    @DataProvider
     static Object[][] testInterfaces() {
         return new Object[][]{
             {"TestIF1", null},
@@ -433,5 +437,13 @@ public class DefaultStaticTestData {
             {"TestIF20", null},
             {"TestIF21", null},
         };
+    }
+
+    @DataProvider
+    static Object[][] testCasesAll() {
+        List<Object[]> result = Lists.newArrayList();
+        result.addAll(Arrays.asList(testClasses()));
+        result.addAll(Arrays.asList(testInterfaces()));
+        return result.toArray(new Object[result.size()][]);
     }
 }

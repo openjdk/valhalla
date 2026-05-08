@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -37,13 +38,9 @@ import jdk.test.lib.Asserts;
  */
 
 class A {
+    @Strict
     @NullRestricted
-    Point p;
-
-    A() {
-        p = new Point(1, 2);
-        super();
-    }
+    Point p = new Point(1, 2);
 }
 
 class B extends A {
@@ -59,13 +56,9 @@ class D {
 }
 
 class E extends D {
+    @Strict
     @NullRestricted
-    Point p1;
-
-    E() {
-        p1 = new Point(3, 4);
-        super();
-    }
+    Point p1 = new Point(3, 4);
 }
 
 class F extends E {
@@ -73,13 +66,9 @@ class F extends E {
 }
 
 class G extends F {
+    @Strict
     @NullRestricted
-    Point p2;
-
-    G() {
-        p2 = new Point(5, 6);
-        super();
-    }
+    Point p2 = new Point(5, 6);
 }
 
 public class TestInheritedInlineTypeFields {

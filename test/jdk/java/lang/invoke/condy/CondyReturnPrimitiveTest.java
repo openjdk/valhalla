@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,23 +25,22 @@
  * @test
  * @bug 8186046
  * @summary Test for condy BSMs returning primitive values or null
- * @run junit CondyReturnPrimitiveTest
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyReturnPrimitiveTest
+ * @run testng CondyReturnPrimitiveTest
+ * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyReturnPrimitiveTest
  */
 
 import java.lang.classfile.ClassFile;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
 import java.lang.constant.*;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
+@Test
 public class CondyReturnPrimitiveTest {
     // Counter for number of BSM calls
     // Use of an AtomicInteger is not strictly necessary in this test
@@ -50,7 +49,7 @@ public class CondyReturnPrimitiveTest {
     // constant so care should be taken if a BSM operates on shared state
     static final AtomicInteger callCount = new AtomicInteger();
     // Generated class with methods containing condy ldc
-    static Class<?> gc;
+    Class<?> gc;
 
     // Bootstrap method used to represent primitive values
     // that cannot be represented directly in the constant pool,
@@ -91,8 +90,8 @@ public class CondyReturnPrimitiveTest {
         }
     }
 
-    @BeforeAll
-    public static void generateClass() throws Exception {
+    @BeforeClass
+    public void generateClass() throws Exception {
         String genClassName = CondyReturnPrimitiveTest.class.getSimpleName() + "$Code";
         String bsmClassDesc = CondyReturnPrimitiveTest.class.descriptorString();
         String bsmMethodName = "intConversion";
@@ -294,7 +293,7 @@ public class CondyReturnPrimitiveTest {
         // Ensure when run a second time that the bootstrap method is not
         // invoked and the constants are cached
         testConstants();
-        assertEquals(expectedCallCount, callCount.get());
+        Assert.assertEquals(callCount.get(), expectedCallCount);
     }
 
     @Test
@@ -319,16 +318,11 @@ public class CondyReturnPrimitiveTest {
         testConstant("S", Short.MAX_VALUE);
         testConstant("Z_F", false);
         testConstant("Z_T", true);
-        testConstant("null", (Object) null);
+        testConstant("null", null);
     }
 
     void testConstant(String name, Object expected) throws Exception {
         Method m = gc.getDeclaredMethod(name);
-        assertEquals(expected, m.invoke(null));
-    }
-
-    void testConstant(String name, Object[] expected) throws Exception {
-        Method m = gc.getDeclaredMethod(name);
-        assertArrayEquals(expected, (Object[]) m.invoke(null));
+        Assert.assertEquals(m.invoke(null), expected);
     }
 }

@@ -72,7 +72,7 @@ public class ReversedSourcePositions {
             public Void scan(Tree node, Void aVoid) {
                 if (node instanceof JCTree tree) {
                     int start = tree.getStartPosition();
-                    int end = tree.getEndPosition();
+                    int end = tree.getEndPosition(unit.endPositions);
                     if (start >= end) {
                         throw new AssertionError(
                           String.format("[%d, %d] %s %s\n", start, end, tree.getKind(), tree));

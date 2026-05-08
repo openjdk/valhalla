@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,7 +56,7 @@ void PhaseMacroExpand::insert_mem_bar(Node** ctrl, Node** mem, int opcode, int a
   }
 }
 
-Node* PhaseMacroExpand::array_element_address(Node* ary, Node* idx, BasicType elembt, bool raw_base) {
+Node* PhaseMacroExpand::array_element_address(Node* ary, Node* idx, BasicType elembt) {
   uint shift  = exact_log2(type2aelembytes(elembt));
   const TypeAryPtr* array_type = _igvn.type(ary)->isa_aryptr();
   if (array_type != nullptr && array_type->is_aryptr()->is_flat()) {
@@ -64,7 +64,7 @@ Node* PhaseMacroExpand::array_element_address(Node* ary, Node* idx, BasicType el
     elembt = T_FLAT_ELEMENT;
   }
   uint header = arrayOopDesc::base_offset_in_bytes(elembt);
-  Node* base =  basic_plus_adr(ary, header, raw_base);
+  Node* base =  basic_plus_adr(ary, header);
 #ifdef _LP64
   // see comment in GraphKit::array_element_address
   int index_max = max_jint - 1;  // array size is max_jint, index is one less
@@ -73,7 +73,7 @@ Node* PhaseMacroExpand::array_element_address(Node* ary, Node* idx, BasicType el
 #endif
   Node* scale = new LShiftXNode(idx, intcon(shift));
   transform_later(scale);
-  return basic_plus_adr(raw_base ? top() : ary, base, scale);
+  return basic_plus_adr(ary, base, scale);
 }
 
 Node* PhaseMacroExpand::ConvI2L(Node* offset) {
@@ -294,7 +294,7 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
 
 Node* PhaseMacroExpand::mark_word_test(Node** ctrl, Node* obj, MergeMemNode* mem, uintptr_t mask_val, RegionNode* region) {
   // Load markword and check if obj is locked
-  Node* mark = make_load_raw(nullptr, mem->memory_at(Compile::AliasIdxRaw), obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
+  Node* mark = make_load(nullptr, mem->memory_at(Compile::AliasIdxRaw), obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
   Node* locked_bit = MakeConX(markWord::unlocked_value);
   locked_bit = transform_later(new AndXNode(locked_bit, mark));
   Node* cmp = transform_later(new CmpXNode(locked_bit, MakeConX(0)));
@@ -312,7 +312,7 @@ Node* PhaseMacroExpand::mark_word_test(Node** ctrl, Node* obj, MergeMemNode* mem
   // Make loads control dependent to make sure they are only executed if array is locked
   Node* klass_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
   Node* klass = transform_later(LoadKlassNode::make(_igvn, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
-  Node* proto_adr = basic_plus_adr(top(), klass, in_bytes(Klass::prototype_header_offset()));
+  Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
   Node* proto = transform_later(LoadNode::make(_igvn, *ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
 
   locked_region->init_req(2, *ctrl);
@@ -430,16 +430,15 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                                            Node* dest, Node* dest_offset,
                                            Node* copy_length,
                                            Node* dest_length,
-                                           bool raw_base,
                                            bool disjoint_bases,
                                            bool length_never_negative,
                                            RegionNode* slow_region) {
-  Node* orig_dest = dest;
   if (slow_region == nullptr) {
     slow_region = new RegionNode(1);
     transform_later(slow_region);
   }
 
+  Node* original_dest = dest;
   bool  dest_needs_zeroing   = false;
   bool  acopy_to_uninitialized = false;
   Node* init_value = nullptr;
@@ -469,8 +468,6 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
       assert(dest->is_CheckCastPP(), "sanity");
       assert(dest->in(0)->in(0) == init, "dest pinned");
       adr_type = TypeRawPtr::BOTTOM;  // all initializations are into raw memory
-      raw_base = true;
-      dest = dest->in(1); // writing to raw memory requires a raw base
       // From this point on, every exit path is responsible for
       // initializing any non-copied parts of the object to zero.
       // Also, if this flag is set we make sure that arraycopy interacts properly
@@ -485,6 +482,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // No zeroing elimination needed here.
     alloc                  = nullptr;
     acopy_to_uninitialized = false;
+    //original_dest        = dest;
     //dest_needs_zeroing   = false;
   }
 
@@ -556,7 +554,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                              init_value, raw_init_value,
                              basic_elem_type,
                              intcon(0), nullptr,
-                             alloc->in(AllocateNode::AllocSize), raw_base);
+                             alloc->in(AllocateNode::AllocSize));
         // Use a secondary InitializeNode as raw memory barrier.
         // Currently it is needed only on this path since other
         // paths have stub or runtime calls as raw memory barriers.
@@ -594,7 +592,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                            init_value, raw_init_value,
                            basic_elem_type,
                            intcon(0), dest_offset,
-                           nullptr, raw_base);
+                           nullptr);
     }
 
     // Next, perform a dynamic check on the tail length.
@@ -619,9 +617,10 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
         MergeMemNode* local_mem = MergeMemNode::make(mem);
         transform_later(local_mem);
 
-        didit = generate_block_arraycopy(&local_ctrl, &local_mem, adr_type,
-                                         basic_elem_type, src, src_offset,
-                                         dest, dest_offset, dest_size, acopy_to_uninitialized, raw_base);
+        didit = generate_block_arraycopy(&local_ctrl, &local_mem, local_io,
+                                         adr_type, basic_elem_type, alloc,
+                                         src, src_offset, dest, dest_offset,
+                                         dest_size, acopy_to_uninitialized);
         if (didit) {
           // Present the results of the block-copying fast call.
           result_region->init_req(bcopy_path, local_ctrl);
@@ -644,7 +643,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                              init_value, raw_init_value,
                              basic_elem_type,
                              dest_tail, nullptr,
-                             dest_size, raw_base);
+                             dest_size);
       } else {
         // Make a local merge.
         Node* done_ctl = transform_later(new RegionNode(3));
@@ -656,7 +655,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                              init_value, raw_init_value,
                              basic_elem_type,
                              dest_tail, nullptr,
-                             dest_size, raw_base);
+                             dest_size);
         done_ctl->init_req(2, *ctrl);
         done_mem->init_req(2, mem->memory_at(alias_idx));
         *ctrl = done_ctl;
@@ -706,14 +705,14 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
 
         // (At this point we can assume disjoint_bases, since types differ.)
         int ek_offset = in_bytes(ObjArrayKlass::element_klass_offset());
-        Node* p1 = off_heap_plus_addr(dest_klass, ek_offset);
+        Node* p1 = basic_plus_adr(dest_klass, ek_offset);
         Node* n1 = LoadKlassNode::make(_igvn, C->immutable_memory(), p1, TypeRawPtr::BOTTOM);
         Node* dest_elem_klass = transform_later(n1);
         Node* cv = generate_checkcast_arraycopy(&local_ctrl, &local_mem,
                                                 adr_type,
                                                 dest_elem_klass,
                                                 src, src_offset, dest, dest_offset,
-                                                ConvI2X(copy_length), acopy_to_uninitialized, raw_base);
+                                                ConvI2X(copy_length), acopy_to_uninitialized);
         if (cv == nullptr)  cv = intcon(-1);  // failure (no stub available)
         checked_control = local_ctrl;
         checked_i_o     = *io;
@@ -740,8 +739,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     generate_unchecked_arraycopy(&local_ctrl, &local_mem,
                                  adr_type, copy_type, disjoint_bases,
                                  src, src_offset, dest, dest_offset,
-                                 ConvI2X(copy_length), acopy_to_uninitialized,
-                                 raw_base);
+                                 ConvI2X(copy_length), acopy_to_uninitialized);
 
     // Present the results of the fast call.
     result_region->init_req(fast_path, local_ctrl);
@@ -836,14 +834,13 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                            init_value, raw_init_value,
                            basic_elem_type,
                            intcon(0), nullptr,
-                           alloc->in(AllocateNode::AllocSize),
-                           raw_base);
+                           alloc->in(AllocateNode::AllocSize));
     }
 
     local_mem = generate_slow_arraycopy(ac,
                                         &local_ctrl, local_mem, &local_io,
                                         adr_type,
-                                        src, src_offset, orig_dest, dest_offset,
+                                        src, src_offset, dest, dest_offset,
                                         copy_length, /*dest_uninitialized*/false);
 
     result_region->init_req(slow_call_path, local_ctrl);
@@ -878,7 +875,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
   // But with low number of register or when some registers are used or killed
   // by arraycopy calls it causes registers spilling on stack. See 6544710.
   // The next memory barrier is added to avoid it. If the arraycopy can be
-  // optimized away (which it can, sometimes) then we can manually remove  // Do not let reads from the cloned object float above the arrayco
+  // optimized away (which it can, sometimes) then we can manually remove
   // the membar also.
   //
   // Do not let reads from the cloned object float above the arraycopy.
@@ -911,7 +908,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
   _igvn.replace_node(_callprojs->fallthrough_catchproj, *ctrl);
 
 #ifdef ASSERT
-  const TypeOopPtr* dest_t = _igvn.type(orig_dest)->is_oopptr();
+  const TypeOopPtr* dest_t = _igvn.type(dest)->is_oopptr();
   if (dest_t->is_known_instance()) {
     ArrayCopyNode* ac = nullptr;
     assert(ArrayCopyNode::may_modify(dest_t, (*ctrl)->in(0)->as_MemBar(), &_igvn, ac), "dependency on arraycopy lost");
@@ -953,8 +950,7 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
                                             BasicType basic_elem_type,
                                             Node* slice_idx,
                                             Node* slice_len,
-                                            Node* dest_size,
-                                            const bool raw_base) {
+                                            Node* dest_size) {
   // one or the other but not both of slice_len and dest_size:
   assert((slice_len != nullptr? 1: 0) + (dest_size != nullptr? 1: 0) == 1, "");
   if (slice_len == nullptr)  slice_len = top();
@@ -990,12 +986,12 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
   if (start_con >= 0 && end_con >= 0) {
     // Constant start and end.  Simple.
     mem = ClearArrayNode::clear_memory(ctrl, mem, dest, val, raw_val,
-                                       start_con, end_con, raw_base, &_igvn);
+                                       start_con, end_con, &_igvn);
   } else if (start_con >= 0 && dest_size != top()) {
     // Constant start, pre-rounded end after the tail of the array.
     Node* end = dest_size;
     mem = ClearArrayNode::clear_memory(ctrl, mem, dest, val, raw_val,
-                                       start_con, end, raw_base, &_igvn);
+                                       start_con, end, &_igvn);
   } else if (start_con >= 0 && slice_len != top()) {
     // Constant start, non-constant end.  End needs rounding up.
     // End offset = round_up(abase + ((slice_idx_con + slice_len) << scale), 8)
@@ -1008,7 +1004,7 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
     end = transform_later(new AddXNode(end, MakeConX(end_base)) );
     end = transform_later(new AndXNode(end, MakeConX(~end_round)) );
     mem = ClearArrayNode::clear_memory(ctrl, mem, dest, val, raw_val,
-                                       start_con, end, raw_base, &_igvn);
+                                       start_con, end, &_igvn);
   } else if (start_con < 0 && dest_size != top()) {
     // Non-constant start, pre-rounded end after the tail of the array.
     // This is almost certainly a "round-to-end" operation.
@@ -1035,7 +1031,7 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
       if (bump_bit != 0) {
         // Store a zero to the immediately preceding jint:
         Node* x1 = transform_later(new AddXNode(start, MakeConX(-bump_bit)) );
-        Node* p1 = basic_plus_adr(dest, x1, raw_base);
+        Node* p1 = basic_plus_adr(dest, x1);
         if (val == nullptr) {
           assert(raw_val == nullptr, "val may not be null");
           mem = StoreNode::make(_igvn, ctrl, mem, p1, adr_type, intcon(0), T_INT, MemNode::unordered);
@@ -1048,7 +1044,7 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
     }
     Node* end = dest_size; // pre-rounded
     mem = ClearArrayNode::clear_memory(ctrl, mem, dest, raw_val,
-                                       start, end, raw_base, &_igvn);
+                                       start, end, &_igvn);
   } else {
     // Non-constant start, unrounded non-constant end.
     // (Nobody zeroes a random midsection of an array using this routine.)
@@ -1059,13 +1055,13 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
   merge_mem->set_memory_at(alias_idx, mem);
 }
 
-bool PhaseMacroExpand::generate_block_arraycopy(Node** ctrl, MergeMemNode** mem,
+bool PhaseMacroExpand::generate_block_arraycopy(Node** ctrl, MergeMemNode** mem, Node* io,
                                                 const TypePtr* adr_type,
                                                 BasicType basic_elem_type,
-                                                Node* src, Node* src_offset,
+                                                AllocateNode* alloc,
+                                                Node* src,  Node* src_offset,
                                                 Node* dest, Node* dest_offset,
-                                                Node* dest_size, bool dest_uninitialized,
-                                                const bool raw_base) {
+                                                Node* dest_size, bool dest_uninitialized) {
   // See if there is an advantage from block transfer.
   int scale = exact_log2(type2aelembytes(basic_elem_type));
   if (scale >= LogBytesPerLong)
@@ -1091,7 +1087,7 @@ bool PhaseMacroExpand::generate_block_arraycopy(Node** ctrl, MergeMemNode** mem,
     if (((src_off | dest_off) & (BytesPerLong-1)) == BytesPerInt &&
         ((src_off ^ dest_off) & (BytesPerLong-1)) == 0) {
       Node* sptr = basic_plus_adr(src,  src_off);
-      Node* dptr = basic_plus_adr(dest, dest_off, raw_base);
+      Node* dptr = basic_plus_adr(dest, dest_off);
       const TypePtr* s_adr_type = _igvn.type(sptr)->is_ptr();
       assert(s_adr_type->isa_aryptr(), "impossible slice");
       uint s_alias_idx = C->get_alias_index(s_adr_type);
@@ -1119,7 +1115,7 @@ bool PhaseMacroExpand::generate_block_arraycopy(Node** ctrl, MergeMemNode** mem,
 
   // Do this copy by giant steps.
   Node* sptr  = basic_plus_adr(src,  src_off);
-  Node* dptr  = basic_plus_adr(dest, dest_off, raw_base);
+  Node* dptr  = basic_plus_adr(dest, dest_off);
   Node* countx = dest_size;
   countx = transform_later(new SubXNode(countx, MakeConX(dest_off)));
   countx = transform_later(new URShiftXNode(countx, intcon(LogBytesPerLong)));
@@ -1127,7 +1123,7 @@ bool PhaseMacroExpand::generate_block_arraycopy(Node** ctrl, MergeMemNode** mem,
   bool disjoint_bases = true;   // since alloc isn't null
   generate_unchecked_arraycopy(ctrl, mem,
                                adr_type, T_LONG, disjoint_bases,
-                               sptr, nullptr, dptr, nullptr, countx, dest_uninitialized, raw_base);
+                               sptr, nullptr, dptr, nullptr, countx, dest_uninitialized);
 
   return true;
 }
@@ -1198,8 +1194,7 @@ Node* PhaseMacroExpand::generate_checkcast_arraycopy(Node** ctrl, MergeMemNode**
                                                      Node* dest_elem_klass,
                                                      Node* src,  Node* src_offset,
                                                      Node* dest, Node* dest_offset,
-                                                     Node* copy_length, bool dest_uninitialized,
-                                                     const bool raw_base) {
+                                                     Node* copy_length, bool dest_uninitialized) {
   if ((*ctrl)->is_top())  return nullptr;
 
   address copyfunc_addr = StubRoutines::checkcast_arraycopy(dest_uninitialized);
@@ -1212,13 +1207,13 @@ Node* PhaseMacroExpand::generate_checkcast_arraycopy(Node** ctrl, MergeMemNode**
   // look in each non-null element's class, at the desired klass's
   // super_check_offset, for the desired klass.
   int sco_offset = in_bytes(Klass::super_check_offset_offset());
-  Node* p3 = off_heap_plus_addr(dest_elem_klass, sco_offset);
+  Node* p3 = basic_plus_adr(dest_elem_klass, sco_offset);
   Node* n3 = new LoadINode(nullptr, *mem /*memory(p3)*/, p3, _igvn.type(p3)->is_ptr(), TypeInt::INT, MemNode::unordered);
   Node* check_offset = ConvI2X(transform_later(n3));
   Node* check_value  = dest_elem_klass;
 
-  Node* src_start  = array_element_address(src,  src_offset,  T_OBJECT, false);
-  Node* dest_start = array_element_address(dest, dest_offset, T_OBJECT, raw_base);
+  Node* src_start  = array_element_address(src,  src_offset,  T_OBJECT);
+  Node* dest_start = array_element_address(dest, dest_offset, T_OBJECT);
 
   const TypeFunc* call_type = OptoRuntime::checkcast_arraycopy_Type();
   Node* call = make_leaf_call(*ctrl, *mem, call_type, copyfunc_addr, "checkcast_arraycopy", adr_type,
@@ -1265,8 +1260,7 @@ void PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
                                                     bool disjoint_bases,
                                                     Node* src,  Node* src_offset,
                                                     Node* dest, Node* dest_offset,
-                                                    Node* copy_length, bool dest_uninitialized,
-                                                    const bool raw_base) {
+                                                    Node* copy_length, bool dest_uninitialized) {
   if ((*ctrl)->is_top()) {
     return;
   }
@@ -1274,8 +1268,8 @@ void PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
   Node* src_start  = src;
   Node* dest_start = dest;
   if (src_offset != nullptr || dest_offset != nullptr) {
-    src_start =  array_element_address(src, src_offset, basic_elem_type, false);
-    dest_start = array_element_address(dest, dest_offset, basic_elem_type, raw_base);
+    src_start =  array_element_address(src, src_offset, basic_elem_type);
+    dest_start = array_element_address(dest, dest_offset, basic_elem_type);
   }
 
   // Figure out which arraycopy runtime method to call.
@@ -1321,11 +1315,10 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
                                                        Node*& dest_offset, Node*& length, BasicType& dest_elem,
                                                        Node*& dest_length) {
 #ifdef ASSERT
-  assert(top_dest->elem()->make_ptr()->is_instptr()->is_inlinetypeptr(), "must be concrete value klass");
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bool needs_barriers = top_dest->elem()->inline_klass()->contains_oops() &&
     bs->array_copy_requires_gc_barriers(dest_length != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization);
-  assert(!needs_barriers || StressReflectiveCode, "Flat arraycopy would require GC barriers");
+  assert(!needs_barriers || StressReflectiveCode, "Flat arracopy would require GC barriers");
 #endif
   int elem_size = top_dest->flat_elem_size();
   if (elem_size >= 8) {
@@ -1398,7 +1391,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     Node* mem = ac->in(TypeFunc::Memory);
     const TypePtr* adr_type = nullptr;
-    bool raw_base = false;
     if (top_dest != nullptr && top_dest->is_flat()) {
       assert(dest_length != nullptr || StressReflectiveCode, "must be tightly coupled");
       // Copy to a flat array modifies multiple memory slices. Conservatively insert a barrier
@@ -1416,7 +1408,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
       }
       if (ac->_src_type != ac->_dest_type) {
         adr_type = TypeRawPtr::BOTTOM;
-        raw_base = true;
       }
     }
     merge_mem = MergeMemNode::make(mem);
@@ -1426,7 +1417,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
                        adr_type, dest_elem,
                        src, src_offset, dest, dest_offset, length,
                        dest_length,
-                       raw_base, true, ac->has_negative_length_guard());
+                       true, ac->has_negative_length_guard());
 
     return;
   }
@@ -1483,7 +1474,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
                        nullptr,
                        // If a  negative length guard was generated for the ArrayCopyNode,
                        // the length of the array can never be negative.
-                       true, false, ac->has_negative_length_guard());
+                       false, ac->has_negative_length_guard());
     return;
   }
 
@@ -1492,35 +1483,19 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
   //
+  // We have no stub to copy flat inline type arrays with oop
+  // fields if we need to emit write barriers.
   //
-  // Go to the slow path but avoid the native method wrapper to JVM_ArrayCopy when:
-  // 1) The component types are not the same or void.
-  // 2) src and dest do not have the same flatness.
-  // 3) src or dest is a flat abstract value class array (we don't know the exact layout and cannot use the stub).
-  // 4) src or dest is a flat value class array with oop fields and requires to emit barriers (we don't have such a stub).
-  // TODO 8251971: This does not handle atomicity. We should probably match on layouts which makes this code easier
-  //               and handles all cases.
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bool go_to_slow_path = false;
-  if (src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID) {
-    // 1) and 2)
-    go_to_slow_path = true;
-  } else if ((top_src->is_flat() && !top_src->elem()->is_inlinetypeptr()) ||
-             (top_dest->is_flat() && !top_dest->elem()->is_inlinetypeptr())) {
-    // 3)
-    go_to_slow_path = true;
-  } else if (top_dest->is_flat() &&
-             bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization) &&
-             top_dest->elem()->inline_klass()->contains_oops()) {
-    // 4)
-    assert(top_src->is_flat() && top_src->elem()->inline_klass()->contains_oops(), "must match");
-    go_to_slow_path = true;
-  }
-
-  if (go_to_slow_path) {
-    // Avoid the native method wrapper to JVM_ArrayCopy.
-    Node* mem = ac->in(TypeFunc::Memory);
-    merge_mem = generate_slow_arraycopy(ac, &ctrl, mem, &io, TypePtr::BOTTOM, src, src_offset, dest, dest_offset, length, false);
+  if (src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID ||
+      (top_src->is_flat() && top_dest->elem()->inline_klass()->contains_oops() &&
+       bs->array_copy_requires_gc_barriers(alloc != nullptr, T_OBJECT, false, false, BarrierSetC2::Optimization))) {
+    // The component types are not the same or are not recognized.  Punt.
+    // (But, avoid the native method wrapper to JVM_ArrayCopy.)
+    {
+      Node* mem = ac->in(TypeFunc::Memory);
+      merge_mem = generate_slow_arraycopy(ac, &ctrl, mem, &io, TypePtr::BOTTOM, src, src_offset, dest, dest_offset, length, false);
+    }
 
     _igvn.replace_node(_callprojs->fallthrough_memproj, merge_mem);
     if (_callprojs->fallthrough_ioproj != nullptr) {
@@ -1558,8 +1533,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
   RegionNode* slow_region = new RegionNode(1);
   transform_later(slow_region);
-  const bool same_nullness = top_src->is_null_free() == top_dest->is_null_free();
-  const bool flat_and_same_nullness = top_src->is_flat() && same_nullness;
 
   if (!ac->is_arraycopy_validated()) {
     // (3) operands must not be null
@@ -1598,10 +1571,9 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
 
-    // TODO 8251971 This is too strong
+    // TODO 8350865 This is too strong
     // We need to be careful here because 'adjust_for_flat_array' will adjust offsets/length etc. which then does not work anymore for the slow call to SharedRuntime::slow_arraycopy_C.
-    assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
-    if (!flat_and_same_nullness) {
+    if (!(top_src->is_flat() && top_dest->is_flat() && top_src->is_null_free() == top_dest->is_null_free())) {
       generate_flat_array_guard(&ctrl, src, merge_mem, slow_region);
       generate_flat_array_guard(&ctrl, dest, merge_mem, slow_region);
       generate_null_free_array_guard(&ctrl, dest, merge_mem, slow_region);
@@ -1611,8 +1583,9 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // This is where the memory effects are placed:
   const TypePtr* adr_type = nullptr;
   Node* dest_length = (alloc != nullptr) ? alloc->in(AllocateNode::ALength) : nullptr;
-  assert(top_src->is_flat() == top_dest->is_flat(), "must have bailed out before");
-  if (flat_and_same_nullness) {
+
+  if (top_src->is_flat() && top_dest->is_flat() &&
+      top_src->is_null_free() == top_dest->is_null_free()) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
@@ -1626,6 +1599,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
                      dest_length,
                      // If a  negative length guard was generated for the ArrayCopyNode,
                      // the length of the array can never be negative.
-                     false, false, ac->has_negative_length_guard(),
+                     false, ac->has_negative_length_guard(),
                      slow_region);
 }

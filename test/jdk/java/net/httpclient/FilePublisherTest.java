@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,14 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.common.HttpServerAdapters
  *        jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm FilePublisherTest
  */
 
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -54,27 +58,22 @@ import static java.lang.System.out;
 import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpClient.Version.HTTP_2;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
 
 public class FilePublisherTest implements HttpServerAdapters {
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;    // HTTP/1.1      [ 4 servers ]
-    private static HttpTestServer httpsTestServer;   // HTTPS/1.1
-    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    private static String httpURI;
-    private static String httpsURI;
-    private static String http2URI;
-    private static String https2URI;
+    SSLContext sslContext;
+    HttpServerAdapters.HttpTestServer httpTestServer;    // HTTP/1.1      [ 4 servers ]
+    HttpServerAdapters.HttpTestServer httpsTestServer;   // HTTPS/1.1
+    HttpServerAdapters.HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    HttpServerAdapters.HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    String httpURI;
+    String httpsURI;
+    String http2URI;
+    String https2URI;
 
-    private static FileSystem zipFs;
-    private static Path defaultFsPath;
-    private static Path zipFsPath;
+    FileSystem zipFs;
+    Path defaultFsPath;
+    Path zipFsPath;
 
     // Default file system set up
     static final String DEFAULT_FS_MSG = "default fs";
@@ -85,11 +84,12 @@ public class FilePublisherTest implements HttpServerAdapters {
             Files.createFile(file);
             Files.writeString(file, DEFAULT_FS_MSG);
         }
-        assertEquals(DEFAULT_FS_MSG, Files.readString(file));
+        assertEquals(Files.readString(file), DEFAULT_FS_MSG);
         return file;
     }
 
-    public static Object[][] defaultFsData() {
+    @DataProvider(name = "defaultFsData")
+    public Object[][] defaultFsData() {
         return new Object[][]{
                 { httpURI,   defaultFsPath, DEFAULT_FS_MSG, true  },
                 { httpsURI,  defaultFsPath, DEFAULT_FS_MSG, true  },
@@ -102,8 +102,7 @@ public class FilePublisherTest implements HttpServerAdapters {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("defaultFsData")
+    @Test(dataProvider = "defaultFsData")
     public void testDefaultFs(String uriString,
                               Path path,
                               String expectedMsg,
@@ -127,11 +126,12 @@ public class FilePublisherTest implements HttpServerAdapters {
             Files.createFile(file);
             Files.writeString(file, ZIP_FS_MSG);
         }
-        assertEquals(ZIP_FS_MSG, Files.readString(file));
+        assertEquals(Files.readString(file), ZIP_FS_MSG);
         return file;
     }
 
-    public static Object[][] zipFsData() {
+    @DataProvider(name = "zipFsData")
+    public Object[][] zipFsData() {
         return new Object[][]{
                 { httpURI,   zipFsPath, ZIP_FS_MSG, true  },
                 { httpsURI,  zipFsPath, ZIP_FS_MSG, true  },
@@ -144,8 +144,7 @@ public class FilePublisherTest implements HttpServerAdapters {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("zipFsData")
+    @Test(dataProvider = "zipFsData")
     public void testZipFs(String uriString,
                           Path path,
                           String expectedMsg,
@@ -177,13 +176,17 @@ public class FilePublisherTest implements HttpServerAdapters {
             var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
             out.println("Got response: " + resp);
             out.println("Got body: " + resp.body());
-            assertEquals(200, resp.statusCode());
-            assertEquals(expectedMsg, resp.body());
+            assertEquals(resp.statusCode(), 200);
+            assertEquals(resp.body(), expectedMsg);
         }
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         defaultFsPath = defaultFsFile();
         zipFs = newZipFs();
         zipFsPath = zipFsFile(zipFs);
@@ -210,8 +213,8 @@ public class FilePublisherTest implements HttpServerAdapters {
         https2TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         httpTestServer.stop();
         httpsTestServer.stop();
         http2TestServer.stop();

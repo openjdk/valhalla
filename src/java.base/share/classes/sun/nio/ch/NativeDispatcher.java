@@ -27,6 +27,8 @@ package sun.nio.ch;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import jdk.internal.access.JavaIOFileDescriptorAccess;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * Allows different platforms to call different native methods
@@ -34,6 +36,7 @@ import java.io.IOException;
  */
 
 abstract class NativeDispatcher {
+    private static final JavaIOFileDescriptorAccess JIOFDA = SharedSecrets.getJavaIOFileDescriptorAccess();
 
     abstract int read(FileDescriptor fd, long address, int len)
         throws IOException;
@@ -75,17 +78,12 @@ abstract class NativeDispatcher {
      * if a platform thread is blocked on the file descriptor then the file descriptor is
      * dup'ed to a special fd and the thread signalled so that the syscall fails with EINTR.
      */
-    final void preClose(FileDescriptor fd, Thread reader, Thread writer) throws IOException {
-        if (reader != null && reader.isVirtual()) {
-            NativeThread.signal(reader);  // unparks virtual thread
-            reader = null;
+    final void preClose(FileDescriptor fd, long reader, long writer) throws IOException {
+        if (NativeThread.isVirtualThread(reader) || NativeThread.isVirtualThread(writer)) {
+            int fdVal = JIOFDA.get(fd);
+            Poller.stopPoll(fdVal);
         }
-        if (writer != null && writer.isVirtual()) {
-            NativeThread.signal(writer);  // unparks virtual thread
-            writer = null;
-        }
-        // dup2 and signal platform threads
-        if (reader != null || writer != null) {
+        if (NativeThread.isNativeThread(reader) || NativeThread.isNativeThread(writer)) {
             implPreClose(fd, reader, writer);
         }
     }
@@ -94,7 +92,8 @@ abstract class NativeDispatcher {
      * This method does nothing by default. On Unix systems the file descriptor is dup'ed
      * to a special fd and native threads signalled.
      */
-    void implPreClose(FileDescriptor fd, Thread reader, Thread writer) throws IOException {
+
+    void implPreClose(FileDescriptor fd, long reader, long writer) throws IOException {
         // Do nothing by default; this is only needed on Unix
     }
 

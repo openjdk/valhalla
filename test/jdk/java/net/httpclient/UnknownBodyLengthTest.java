@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,19 +47,19 @@ import jdk.test.lib.net.SimpleSSLContext;
  * @library /test/lib
  * @build jdk.test.lib.net.SimpleSSLContext
  * @run main/othervm -Djdk.httpclient.enableAllMethodRetry
- *                   -Djdk.tls.acknowledgeCloseNotify=true ${test.main.class} plain false
+ *                   -Djdk.tls.acknowledgeCloseNotify=true UnknownBodyLengthTest plain false
  * @run main/othervm -Djdk.httpclient.enableAllMethodRetry
- *                   -Djdk.tls.acknowledgeCloseNotify=true ${test.main.class} SSL false
+ *                   -Djdk.tls.acknowledgeCloseNotify=true UnknownBodyLengthTest SSL false
  * @run main/othervm -Djdk.httpclient.enableAllMethodRetry
- *                   -Djdk.tls.acknowledgeCloseNotify=true ${test.main.class} plain true
+ *                   -Djdk.tls.acknowledgeCloseNotify=true UnknownBodyLengthTest plain true
  * @run main/othervm -Djdk.httpclient.enableAllMethodRetry
- *                   -Djdk.tls.acknowledgeCloseNotify=true ${test.main.class} SSL true
+ *                   -Djdk.tls.acknowledgeCloseNotify=true UnknownBodyLengthTest SSL true
  */
 
 public class UnknownBodyLengthTest {
     static final byte[] BUF = new byte[32 * 10234 + 2];
 
-    private static final SSLContext ctx = SimpleSSLContext.findSSLContext();
+    volatile SSLContext ctx;
     volatile ServerSocketFactory factory;
     volatile String clientURL;
     volatile int port;
@@ -67,6 +67,7 @@ public class UnknownBodyLengthTest {
     final List<Socket> acceptedList = new CopyOnWriteArrayList<>();
 
     UnknownBodyLengthTest(boolean useSSL) throws Exception {
+        ctx = new SimpleSSLContext().get();
         SSLContext.setDefault(ctx);
         factory = useSSL ? SSLServerSocketFactory.getDefault()
                          : ServerSocketFactory.getDefault();

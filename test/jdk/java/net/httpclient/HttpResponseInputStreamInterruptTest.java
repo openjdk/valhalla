@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @bug 8294047
  * @library /test/lib
- * @run junit ${test.main.class}
+ * @run junit HttpResponseInputStreamInterruptTest
  */
 
 import com.sun.net.httpserver.HttpExchange;
@@ -35,6 +35,7 @@ import jdk.test.lib.net.URIBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,17 +53,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class HttpResponseInputStreamInterruptTest {
 
-    private static HttpServer server;
-    private static int port;
-    private static final CountDownLatch interruptReadyLatch = new CountDownLatch(2);
-    private static final CountDownLatch interruptDoneLatch = new CountDownLatch(1);
+    HttpServer server;
+    int port;
+    private final CountDownLatch interruptReadyLatch = new CountDownLatch(2);
+    private final CountDownLatch interruptDoneLatch = new CountDownLatch(1);
     static final String FIRST_MESSAGE = "Should be received";
     static final String SECOND_MESSAGE = "Shouldn't be received";
 
     @BeforeAll
-    static void before() throws Exception {
+    void before() throws Exception {
         InetAddress loopback = InetAddress.getLoopbackAddress();
         InetSocketAddress addr = new InetSocketAddress(loopback, 0);
         server = HttpServer.create(addr, 0);
@@ -73,7 +75,7 @@ public class HttpResponseInputStreamInterruptTest {
     }
 
     @AfterAll
-    static void after() throws Exception {
+    void after() throws Exception {
         server.stop(0);
     }
 

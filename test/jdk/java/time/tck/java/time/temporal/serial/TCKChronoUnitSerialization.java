@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,21 +74,21 @@ import static java.time.temporal.ChronoUnit.YEARS;
 import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import tck.java.time.AbstractTCKTest;
 
 /**
  * Test.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKChronoUnitSerialization extends AbstractTCKTest {
 
     //-----------------------------------------------------------------------
     // ChronoUnits
     //-----------------------------------------------------------------------
+    @DataProvider(name="chronoUnit")
     Object[][] data_chronoUnit() {
         return new Object[][] {
                 {FOREVER},
@@ -112,8 +112,7 @@ public class TCKChronoUnitSerialization extends AbstractTCKTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_chronoUnit")
+    @Test(dataProvider = "chronoUnit")
     public void test_unitType(ChronoUnit unit) throws IOException, ClassNotFoundException {
         assertSerializableSame(unit);
     }

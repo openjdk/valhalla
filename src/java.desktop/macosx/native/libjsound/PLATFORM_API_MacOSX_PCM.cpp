@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -162,7 +162,8 @@ void DAUDIO_GetFormats(INT32 mixerIndex, INT32 deviceID, int isSource, void* cre
                 sampleRate,                 // sample rate
                 DAUDIO_PCM,                 // only accept PCM
                 bits == 8 ? FALSE : TRUE,   // signed
-                FALSE);                     // all supported macOS versions run on LE
+                bits == 8 ? FALSE           // little-endian for 8bit
+                    : UTIL_IsBigEndianPlatform());
         }
     }
     // add default format
@@ -174,7 +175,7 @@ void DAUDIO_GetFormats(INT32 mixerIndex, INT32 deviceID, int isSource, void* cre
             defSampleRate,                  // sample rate
             DAUDIO_PCM,                     // PCM
             TRUE,                           // signed
-            FALSE);                         // native endianness; all supported macOS versions run on LE
+            UTIL_IsBigEndianPlatform());    // native endianness
     }
 
     TRACE0("<<DAUDIO_GetFormats\n");

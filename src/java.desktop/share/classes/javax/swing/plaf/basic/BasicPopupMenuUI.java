@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,8 @@ import java.util.*;
 
 import sun.swing.UIAction;
 
+import sun.awt.AppContext;
+
 /**
  * A Windows L&amp;F implementation of PopupMenuUI.  This implementation
  * is a "combined" view/controller.
@@ -50,9 +52,10 @@ import sun.swing.UIAction;
  * @author Arnaud Weber
  */
 public class BasicPopupMenuUI extends PopupMenuUI {
-
-    static MouseGrabber mouseGrabber = new MouseGrabber();
-    static MenuKeyboardHelper menuKeyboardHelper = null;
+    static final StringBuilder MOUSE_GRABBER_KEY = new StringBuilder(
+                   "javax.swing.plaf.basic.BasicPopupMenuUI.MouseGrabber");
+    static final StringBuilder MENU_KEYBOARD_HELPER_KEY = new StringBuilder(
+                   "javax.swing.plaf.basic.BasicPopupMenuUI.MenuKeyboardHelper");
 
     /**
      * The instance of {@code JPopupMenu}.
@@ -123,18 +126,23 @@ public class BasicPopupMenuUI extends PopupMenuUI {
         }
         popupMenu.addMenuKeyListener(menuKeyListener);
 
-        synchronized (MouseGrabber.class) {
-           if (mouseGrabber == null) mouseGrabber = new MouseGrabber();
+        AppContext context = AppContext.getAppContext();
+        synchronized (MOUSE_GRABBER_KEY) {
+            MouseGrabber mouseGrabber = (MouseGrabber)context.get(
+                                                     MOUSE_GRABBER_KEY);
+            if (mouseGrabber == null) {
+                mouseGrabber = new MouseGrabber();
+                context.put(MOUSE_GRABBER_KEY, mouseGrabber);
+            }
         }
-
-        synchronized (BasicPopupMenuUI.class) {
-            MenuKeyboardHelper helper = menuKeyboardHelper;
+        synchronized (MENU_KEYBOARD_HELPER_KEY) {
+            MenuKeyboardHelper helper =
+                    (MenuKeyboardHelper)context.get(MENU_KEYBOARD_HELPER_KEY);
             if (helper == null) {
                 helper = new MenuKeyboardHelper();
+                context.put(MENU_KEYBOARD_HELPER_KEY, helper);
                 MenuSelectionManager msm = MenuSelectionManager.defaultManager();
                 msm.addChangeListener(helper);
-                menuKeyboardHelper = helper;
-
             }
         }
     }
@@ -760,10 +768,10 @@ public class BasicPopupMenuUI extends PopupMenuUI {
         }
 
         void uninstall() {
-            synchronized (MouseGrabber.class) {
+            synchronized (MOUSE_GRABBER_KEY) {
                 MenuSelectionManager.defaultManager().removeChangeListener(this);
                 ungrabWindow();
-                mouseGrabber = null;
+                AppContext.getAppContext().remove(MOUSE_GRABBER_KEY);
             }
         }
 
@@ -908,7 +916,7 @@ public class BasicPopupMenuUI extends PopupMenuUI {
         }
 
         boolean isInPopup(Component src) {
-            for (Component c = src; c != null; c = c.getParent()) {
+            for (Component c=src; c!=null; c=c.getParent()) {
                 if (c instanceof Window) {
                     break;
                 } else if (c instanceof JPopupMenu) {
@@ -1225,8 +1233,9 @@ public class BasicPopupMenuUI extends PopupMenuUI {
         }
 
         void uninstall() {
-            synchronized (BasicPopupMenuUI.class) {
+            synchronized (MENU_KEYBOARD_HELPER_KEY) {
                 MenuSelectionManager.defaultManager().removeChangeListener(this);
+                AppContext.getAppContext().remove(MENU_KEYBOARD_HELPER_KEY);
             }
         }
     }

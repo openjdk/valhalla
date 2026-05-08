@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2022, 2023, Arm Limited. All rights reserved.
- * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +23,6 @@
 
 /*
  * @test
- * @bug 8183390 8342095
  * @summary Vectorization test on basic short operations
  * @library /test/lib /
  *
@@ -212,10 +210,10 @@ public class BasicShortOpTest extends VectorizationTestRunner {
         return res;
     }
 
-    // Min/Max vectorization requires a cast from subword to int and back to subword, to avoid losing the higher order bits.
-
     @Test
-    @IR(applyIfCPUFeature = { "avx", "true" }, counts = { IRNode.VECTOR_CAST_I2S, IRNode.VECTOR_SIZE + "min(max_int, max_short)", ">0" })
+    // Note that min operations on subword types cannot be vectorized
+    // because higher bits will be lost.
+    @IR(failOn = {IRNode.STORE_VECTOR})
     public short[] vectorMin() {
         short[] res = new short[SIZE];
         for (int i = 0; i < SIZE; i++) {
@@ -225,7 +223,9 @@ public class BasicShortOpTest extends VectorizationTestRunner {
     }
 
     @Test
-    @IR(applyIfCPUFeature = { "avx", "true" }, counts = { IRNode.VECTOR_CAST_I2S, IRNode.VECTOR_SIZE + "min(max_int, max_short)", ">0" })
+    // Note that max operations on subword types cannot be vectorized
+    // because higher bits will be lost.
+    @IR(failOn = {IRNode.STORE_VECTOR})
     public short[] vectorMax() {
         short[] res = new short[SIZE];
         for (int i = 0; i < SIZE; i++) {

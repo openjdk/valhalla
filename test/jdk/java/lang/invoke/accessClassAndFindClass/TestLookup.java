@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,15 @@
 
 /* @test
  * @compile TestLookup.java TestCls.java
- * @run junit/othervm -ea -esa test.java.lang.invoke.TestLookup
+ * @run testng/othervm -ea -esa test.java.lang.invoke.TestLookup
  */
 package test.java.lang.invoke;
 
+import org.testng.annotations.Test;
+
 import static java.lang.invoke.MethodHandles.*;
 
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.AssertJUnit.*;
 
 public class TestLookup {
 
@@ -43,10 +43,10 @@ public class TestLookup {
         assertNull(lookup2.lookupClass().getClassLoader());
     }
 
-    @Test
+    @Test(expectedExceptions = {ClassNotFoundException.class})
     public void testPublicCannotLoadUserClass() throws IllegalAccessException, ClassNotFoundException {
         Lookup lookup = publicLookup();
-        assertThrows(ClassNotFoundException.class, () -> lookup.findClass("test.java.lang.invoke.TestCls"));
+        lookup.findClass("test.java.lang.invoke.TestCls");
     }
 
     @Test

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -234,8 +234,8 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
     ciField* field = ik->nonstatic_field_at(i);
     const TypePtr* adr_type = phase->C->alias_type(field)->adr_type();
     Node* off = phase->MakeConX(field->offset_in_bytes());
-    Node* next_src = phase->transform(AddPNode::make_with_base(base_src, off));
-    Node* next_dest = phase->transform(AddPNode::make_with_base(base_dest, off));
+    Node* next_src = phase->transform(new AddPNode(base_src,base_src,off));
+    Node* next_dest = phase->transform(new AddPNode(base_dest,base_dest,off));
     assert(phase->C->get_alias_index(adr_type) == phase->C->get_alias_index(phase->type(next_src)->isa_ptr()),
       "slice of address and input slice don't match");
     assert(phase->C->get_alias_index(adr_type) == phase->C->get_alias_index(phase->type(next_dest)->isa_ptr()),
@@ -264,19 +264,6 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
   }
 
   return mem;
-}
-
-// We may have narrowed the type of base because this runs with PhaseIterGVN::_delay_transform true, explicitly
-// update the type of the AddP so it's consistent with its base and load() picks the right memory slice.
-Node* ArrayCopyNode::make_and_transform_addp(PhaseGVN* phase, Node* base, Node* offset) {
-  return make_and_transform_addp(phase, base, base, offset);
-}
-
-Node* ArrayCopyNode::make_and_transform_addp(PhaseGVN* phase, Node* base, Node* ptr, Node* offset) {
-  assert(phase->is_IterGVN() == nullptr || phase->is_IterGVN()->delay_transform(), "helper method when delay transform is set");
-  Node* addp = phase->transform(AddPNode::make_with_base(base, ptr, offset));
-  phase->set_type(addp, addp->Value(phase));
-  return addp;
 }
 
 bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
@@ -312,7 +299,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
     if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
 
-    // TODO 8251971 What about atomicity?
+    // TODO 8350865 What about atomicity?
     if (src_elem != dest_elem || ary_src->is_null_free() != ary_dest->is_null_free() || ary_src->is_flat() != ary_dest->is_flat() || dest_elem == T_VOID) {
       // We don't know if arguments are arrays of the same type
       return false;
@@ -362,11 +349,12 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     Node* dest_scale = phase->transform(new LShiftXNode(dest_offset, phase->intcon(shift)));
 
-    adr_src = make_and_transform_addp(phase, base_src, src_scale);
-    adr_dest = make_and_transform_addp(phase, base_dest, dest_scale);
+    adr_src          = phase->transform(new AddPNode(base_src, base_src, src_scale));
+    adr_dest         = phase->transform(new AddPNode(base_dest, base_dest, dest_scale));
 
-    adr_src = make_and_transform_addp(phase, base_src, adr_src, phase->MakeConX(header));
-    adr_dest = make_and_transform_addp(phase, base_dest, adr_dest, phase->MakeConX(header));
+    adr_src          = phase->transform(new AddPNode(base_src, adr_src, phase->MakeConX(header)));
+    adr_dest         = phase->transform(new AddPNode(base_dest, adr_dest, phase->MakeConX(header)));
+
     copy_type = dest_elem;
   } else {
     assert(ary_src != nullptr, "should be a clone");
@@ -392,8 +380,8 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
-    adr_src = make_and_transform_addp(phase, base_src, src_offset);
-    adr_dest = make_and_transform_addp(phase, base_dest, dest_offset);
+    adr_src  = phase->transform(new AddPNode(base_src, base_src, src_offset));
+    adr_dest = phase->transform(new AddPNode(base_dest, base_dest, dest_offset));
 
     // The address is offsetted to an aligned address where a raw copy would start.
     // If the clone copy is decomposed into load-stores - the address is adjusted to
@@ -403,8 +391,8 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     int diff = arrayOopDesc::base_offset_in_bytes(elem) - offset;
     assert(diff >= 0, "clone should not start after 1st array element");
     if (diff > 0) {
-      adr_src = make_and_transform_addp(phase, base_src, adr_src, phase->MakeConX(diff));
-      adr_dest = make_and_transform_addp(phase, base_dest, adr_dest, phase->MakeConX(diff));
+      adr_src = phase->transform(new AddPNode(base_src, adr_src, phase->MakeConX(diff)));
+      adr_dest = phase->transform(new AddPNode(base_dest, adr_dest, phase->MakeConX(diff)));
     }
     copy_type = elem;
     value_type = ary_src->elem();
@@ -418,10 +406,6 @@ const TypeAryPtr* ArrayCopyNode::get_address_type(PhaseGVN* phase, const TypePtr
   }
   // adjust atp to be the correct array element address type
   return atp->add_offset(Type::OffsetBot)->is_aryptr();
-}
-
-const TypePtr* ArrayCopyNode::get_src_adr_type(PhaseGVN* phase) const {
-  return get_address_type(phase, _src_type, in(Src));
 }
 
 void ArrayCopyNode::array_copy_test_overlap(GraphKit& kit, bool disjoint_bases, int count, Node*& backward_ctl) {
@@ -466,15 +450,15 @@ void ArrayCopyNode::copy(GraphKit& kit,
       const Type* rt = Type::get_const_type(ft);
       const TypePtr* adr_type = atp_src->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
       assert(!bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), bt, false, false, BarrierSetC2::Optimization), "GC barriers required");
-      Node* next_src = make_and_transform_addp(&kit.gvn(), base_src, adr_src, off);
-      Node* next_dest = make_and_transform_addp(&kit.gvn(), base_dest, adr_dest, off);
+      Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
+      Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
       Node* v = load(bs, &kit.gvn(), ctl, kit.merged_memory(), next_src, adr_type, rt, bt);
       store(bs, &kit.gvn(), ctl, kit.merged_memory(), next_dest, adr_type, v, rt, bt);
     }
   } else {
     Node* off = kit.MakeConX(type2aelembytes(copy_type) * i);
-    Node* next_src = make_and_transform_addp(&kit.gvn(), base_src, adr_src, off);
-    Node* next_dest = make_and_transform_addp(&kit.gvn(), base_dest, adr_dest, off);
+    Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
+    Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
     Node* v = load(bs, &kit.gvn(), ctl, kit.merged_memory(), next_src, atp_src, value_type, copy_type);
     store(bs, &kit.gvn(), ctl, kit.merged_memory(), next_dest, atp_dest, v, value_type, copy_type);
   }
@@ -521,6 +505,7 @@ void ArrayCopyNode::array_copy_backward(GraphKit& kit,
                                         int count) {
   if (!kit.stopped()) {
     // copy backward
+    PhaseGVN& gvn = kit.gvn();
 
     if (count > 0) {
       for (int i = count-1; i >= 0; i--) {
@@ -661,35 +646,11 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   const Type* value_type = nullptr;
   bool disjoint_bases = false;
 
-  // EA may have moved an input to a new slice. EA stores the new address types in the ArrayCopy node itself
-  // (_src_type/_dest_type). phase->type(src) and _src_type or phase->type(dest) and _dest_type may be different
-  // when this transformation runs if igvn hasn't had a chance to propagate the new types yet. Make sure the new
-  // types are taken into account so new Load/Store nodes are created on the right slice.
-  const TypeAryPtr* atp_src = get_address_type(phase, _src_type, src);
-  const TypeAryPtr* atp_dest = get_address_type(phase, _dest_type, dest);
-  phase->set_type(src, phase->type(src)->join_speculative(atp_src));
-  phase->set_type(dest, phase->type(dest)->join_speculative(atp_dest));
-
-  // Control flow is going to be created, it's easier to do with _delay_transform set to true.
-
-  // prepare_array_copy() doesn't build control flow, but it creates AddP nodes. The src/dest type possibly gets
-  // narrowed above. If a newly created AddP node is commoned with a pre-existing one, then the type narrowing is lost.
-  // Setting _delay_transform before prepare_array_copy() guarantees this doesn't happen.
-  if (can_reshape) {
-    assert(!phase->is_IterGVN()->delay_transform(), "cannot delay transforms");
-    phase->is_IterGVN()->set_delay_transform(true);
-  }
-
   if (!prepare_array_copy(phase, can_reshape,
                           adr_src, base_src, adr_dest, base_dest,
                           copy_type, value_type, disjoint_bases)) {
     assert(adr_src == nullptr, "no node can be left behind");
     assert(adr_dest == nullptr, "no node can be left behind");
-    if (can_reshape) {
-      assert(phase->is_IterGVN()->delay_transform(), "cannot delay transforms");
-      phase->is_IterGVN()->set_delay_transform(false);
-    }
-
     return nullptr;
   }
 
@@ -711,6 +672,14 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   new_map->set_memory(MergeMemNode::make(in(TypeFunc::Memory)));
   new_map->set_i_o(in(TypeFunc::I_O));
   phase->record_for_igvn(new_map);
+
+  const TypeAryPtr* atp_src = get_address_type(phase, _src_type, src);
+  const TypeAryPtr* atp_dest = get_address_type(phase, _dest_type, dest);
+
+  if (can_reshape) {
+    assert(!phase->is_IterGVN()->delay_transform(), "cannot delay transforms");
+    phase->is_IterGVN()->set_delay_transform(true);
+  }
 
   GraphKit kit(new_jvms, phase);
 
@@ -777,7 +746,7 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   return mem;
 }
 
-bool ArrayCopyNode::may_modify(const TypeOopPtr* t_oop, PhaseValues* phase) const {
+bool ArrayCopyNode::may_modify(const TypeOopPtr* t_oop, PhaseValues* phase) {
   Node* dest = in(ArrayCopyNode::Dest);
   if (dest->is_top()) {
     return false;

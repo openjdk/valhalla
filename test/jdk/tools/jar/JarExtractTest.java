@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -68,12 +65,12 @@ public class JarExtractTest {
     private static final byte[] FILE_CONTENT = "Hello world!!!".getBytes(StandardCharsets.UTF_8);
     // the jar that will get extracted in the tests
     private Path testJarPath;
-    private static final Collection<Path> filesToDelete = new ArrayList<>();
+    private static Collection<Path> filesToDelete = new ArrayList<>();
 
     @BeforeEach
     public void createTestJar() throws Exception {
-        final Path tmpDir = Files.createTempDirectory(Path.of("."), "8173970-");
-        testJarPath = tmpDir.resolve("8173970-test.jar");
+        final String tmpDir = Files.createTempDirectory("8173970-").toString();
+        testJarPath = Path.of(tmpDir, "8173970-test.jar");
         final JarBuilder builder = new JarBuilder(testJarPath.toString());
         // d1
         //  |--- d2
@@ -276,34 +273,22 @@ public class JarExtractTest {
      * Tests that extracting a jar using {@code -P} flag and without any explicit destination
      * directory works correctly if the jar contains entries with leading slashes and/or {@code ..}
      * parts preserved.
-     * The test creates a JAR file with an entry which has a leading slash in its name and
-     * another entry that has ".." in its entry name. jar tool is then used to extract that JAR file
-     * with the "-P" option which is to preserve leading '/' (absolute path)
-     * and ".." (parent directory) components when extracting those entries. This test then verifies
-     * that after successfully extracting that JAR file, these entries are present at the expected
-     * paths on the filesystem.
      */
     @Test
     public void testExtractNoDestDirWithPFlag() throws Exception {
-        // This test requires that the entry in the JAR file have a leading slash, which
-        // upon extraction of that JAR file will correspond to a filesystem path. Not all
-        // environments may have a writable location that starts with "/". "/tmp" is one
-        // commonly available filesystem directory which is usually writable. Here we check the
-        // presence of "/tmp" directory and verify that files can be created in that directory.
-        // If we can't, then we skip this test.
+        // run this test only on those systems where "/tmp" directory is available and we
+        // can write to it
         Assumptions.assumeTrue(Files.isDirectory(Path.of("/tmp")),
                 "skipping test, since /tmp isn't a directory");
-        final Path tempTestDir;
+        // try and write into "/tmp"
+        final Path tmpDir;
         try {
-            // create a test specific directory in "/tmp" directory
-            tempTestDir = Files.createTempDirectory(Path.of("/tmp"), "8173970-");
+            tmpDir = Files.createTempDirectory(Path.of("/tmp"), "8173970-").toAbsolutePath();
         } catch (IOException ioe) {
             Assumptions.abort("skipping test, since /tmp cannot be written to: " + ioe);
-            // The above Assumptions.abort(...) call makes this "return" unreachable, but we keep
-            // the "return" for code clarity.
             return;
         }
-        final String leadingSlashEntryName = tempTestDir.toString() + "/foo/f1.txt";
+        final String leadingSlashEntryName = tmpDir.toString() + "/foo/f1.txt";
         // create a jar which has leading slash (/) and dot-dot (..) preserved in entry names
         final Path jarPath = createJarWithPFlagSemantics(leadingSlashEntryName);
         final List<String[]> cmdArgs = new ArrayList<>();
@@ -330,9 +315,8 @@ public class JarExtractTest {
                         "Unexpected content in file " + f2);
             }
         } finally {
-            // clean up the temp directory created by this test under "/tmp/...." directory
-            System.err.println("Deleting directory: " + tempTestDir);
-            deleteRecursively(tempTestDir);
+            // clean up the file that might have been extracted into "/tmp/...." directory
+            Files.deleteIfExists(Path.of(leadingSlashEntryName));
         }
     }
 
@@ -529,27 +513,5 @@ public class JarExtractTest {
 
     private static void printJarCommand(final String[] cmdArgs) {
         System.out.println("Running 'jar " + String.join(" ", cmdArgs) + "'");
-    }
-
-    private static void deleteRecursively(final Path dir) throws IOException {
-        Files.walkFileTree(dir, new FileVisitor<>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-                return FileVisitResult.CONTINUE;
-            }
-            @Override public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                    throws IOException {
-                Files.delete(file); // delete the file
-                return FileVisitResult.CONTINUE;
-            }
-            @Override public FileVisitResult visitFileFailed(Path file, IOException exc) {
-                return FileVisitResult.CONTINUE;
-            }
-            @Override public FileVisitResult postVisitDirectory(Path dir, IOException exc)
-                    throws IOException {
-                Files.delete(dir); // delete the (empty) directory
-                return FileVisitResult.CONTINUE;
-            }
-        });
     }
 }

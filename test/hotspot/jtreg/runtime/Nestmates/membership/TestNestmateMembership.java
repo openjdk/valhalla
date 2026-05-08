@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -680,7 +680,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNoHost with private access";
+            "TestNestmateMembership$TargetNoHost with modifiers \"private static\"";
         try {
             Caller.invokeTargetNoHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -729,7 +729,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetSelfHost with private access";
+            "TestNestmateMembership$TargetSelfHost with modifiers \"private static\"";
         try {
             Caller.invokeTargetSelfHostReflectively();
             throw new Error("Missing IllegalAccessError: " + msg);
@@ -776,7 +776,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class" +
-            " TestNestmateMembership$TargetMissingHost with private access";
+            " TestNestmateMembership$TargetMissingHost with modifiers \"private static\"";
         try {
             Caller.invokeTargetMissingHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -831,7 +831,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class "+
-            "TestNestmateMembership$TargetNotInstanceHost with private access";
+            "TestNestmateMembership$TargetNotInstanceHost with modifiers \"private static\"";
         try {
             Caller.invokeTargetNotInstanceHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -878,7 +878,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNotOurHost with private access";
+            "TestNestmateMembership$TargetNotOurHost with modifiers \"private static\"";
         try {
             Caller.invokeTargetNotOurHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -956,7 +956,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNoHost with private access";
+            "TestNestmateMembership$TargetNoHost with modifiers \"private\"";
         try {
             Caller.newTargetNoHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1005,7 +1005,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetSelfHost with private access";
+            "TestNestmateMembership$TargetSelfHost with modifiers \"private\"";
         try {
             Caller.newTargetSelfHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1052,7 +1052,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetMissingHost with private access";
+            "TestNestmateMembership$TargetMissingHost with modifiers \"private\"";
         try {
             Caller.newTargetMissingHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1099,7 +1099,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNotInstanceHost with private access";
+            "TestNestmateMembership$TargetNotInstanceHost with modifiers \"private\"";
         try {
             Caller.newTargetNotInstanceHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1146,7 +1146,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNotOurHost with private access";
+            "TestNestmateMembership$TargetNotOurHost with modifiers \"private\"";
         try {
             Caller.newTargetNotOurHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1226,7 +1226,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNoHost with private access";
+            "TestNestmateMembership$TargetNoHost with modifiers \"private static\"";
         try {
             Caller.getFieldTargetNoHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1275,7 +1275,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetSelfHost with private access";
+            "TestNestmateMembership$TargetSelfHost with modifiers \"private static\"";
         try {
             Caller.getFieldTargetSelfHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1323,7 +1323,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetMissingHost with private access";
+            "TestNestmateMembership$TargetMissingHost with modifiers \"private static\"";
         try {
             Caller.getFieldTargetMissingHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1371,7 +1371,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNotInstanceHost with private access";
+            "TestNestmateMembership$TargetNotInstanceHost with modifiers \"private static\"";
         try {
             Caller.getFieldTargetNotInstanceHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1419,7 +1419,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNotOurHost with private access";
+            "TestNestmateMembership$TargetNotOurHost with modifiers \"private static\"";
         try {
             Caller.getFieldTargetNotOurHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1496,7 +1496,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNoHost with private access";
+            "TestNestmateMembership$TargetNoHost with modifiers \"private static\"";
         try {
             Caller.putFieldTargetNoHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1545,7 +1545,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetSelfHost with private access";
+            "TestNestmateMembership$TargetSelfHost with modifiers \"private static\"";
         try {
             Caller.putFieldTargetSelfHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1593,7 +1593,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetMissingHost with private access";
+            "TestNestmateMembership$TargetMissingHost with modifiers \"private static\"";
         try {
             Caller.putFieldTargetMissingHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1640,7 +1640,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNotInstanceHost with private access";
+            "TestNestmateMembership$TargetNotInstanceHost with modifiers \"private static\"";
         try {
             Caller.putFieldTargetNotInstanceHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);
@@ -1688,7 +1688,7 @@ public class TestNestmateMembership {
             check_expected(expected, msg);
         }
         msg = "class TestNestmateMembership$Caller cannot access a member of class " +
-            "TestNestmateMembership$TargetNotOurHost with private access";
+            "TestNestmateMembership$TargetNotOurHost with modifiers \"private static\"";
         try {
             Caller.putFieldTargetNotOurHostReflectively();
             throw new Error("Missing IllegalAccessException: " + msg);

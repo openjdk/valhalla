@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Rectangle;
 import java.awt.event.PaintEvent;
+import sun.awt.AppContext;
 import sun.awt.SunToolkit;
 import sun.awt.event.IgnorePaintEvent;
 
@@ -51,10 +52,12 @@ class SwingPaintEventDispatcher extends sun.awt.PaintEventDispatcher {
     public PaintEvent createPaintEvent(Component component, int x, int y,
                                          int w, int h) {
         if (component instanceof RootPaneContainer) {
-            RepaintManager rm = RepaintManager.currentManager(component);
+            AppContext appContext = SunToolkit.targetToAppContext(component);
+            RepaintManager rm = RepaintManager.currentManager(appContext);
             if (!SHOW_FROM_DOUBLE_BUFFER ||
                   !rm.show((Container)component, x, y, w, h)) {
-                rm.nativeAddDirtyRegion((Container)component, x, y, w, h);
+                rm.nativeAddDirtyRegion(appContext, (Container)component,
+                                        x, y, w, h);
             }
             // For backward compatibility generate an empty paint
             // event.  Not doing this broke parts of Netbeans.
@@ -62,8 +65,10 @@ class SwingPaintEventDispatcher extends sun.awt.PaintEventDispatcher {
                                         new Rectangle(x, y, w, h));
         }
         else if (component instanceof SwingHeavyWeight) {
-            RepaintManager rm = RepaintManager.currentManager(component);
-            rm.nativeAddDirtyRegion((Container)component, x, y, w, h);
+            AppContext appContext = SunToolkit.targetToAppContext(component);
+            RepaintManager rm = RepaintManager.currentManager(appContext);
+            rm.nativeAddDirtyRegion(appContext, (Container)component,
+                                    x, y, w, h);
             return new IgnorePaintEvent(component, PaintEvent.PAINT,
                                         new Rectangle(x, y, w, h));
         }
@@ -76,7 +81,9 @@ class SwingPaintEventDispatcher extends sun.awt.PaintEventDispatcher {
 
     public boolean queueSurfaceDataReplacing(Component c, Runnable r) {
         if (c instanceof RootPaneContainer) {
-            RepaintManager.currentManager(c).nativeQueueSurfaceDataRunnable(c, r);
+            AppContext appContext = SunToolkit.targetToAppContext(c);
+            RepaintManager.currentManager(appContext).
+                    nativeQueueSurfaceDataRunnable(appContext, c, r);
             return true;
         }
         return super.queueSurfaceDataReplacing(c, r);

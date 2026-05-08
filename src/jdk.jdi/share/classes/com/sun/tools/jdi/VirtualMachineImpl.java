@@ -835,10 +835,6 @@ class VirtualMachineImpl extends MirrorImpl
         return versionInfo().jdwpMajor >= 19;
     }
 
-    public boolean supportsValueClasses() {
-        return versionInfo().jdwpMajor >= 27;
-    }
-
     public void setDebugTraceMode(int traceFlags) {
         validateVM();
         this.traceFlags = traceFlags;

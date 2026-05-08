@@ -247,6 +247,7 @@ public class Symtab {
     public final Type valueBasedInternalType;
     public final Type migratedValueClassType;
     public final Type migratedValueClassInternalType;
+    public final Type strictType;
     /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
     public final Type numberType;
@@ -637,6 +638,7 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
+        strictType = enterClass("jdk.internal.vm.annotation.Strict");
         migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
         migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
         requiresIdentityType = enterClass("jdk.internal.RequiresIdentity");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@ import java.util.regex.Pattern;
  * A utility class for PEM format encoding.
  */
 public class Pem {
+    private static final char WS = 0x20;  // Whitespace
     private static final byte[] CRLF = new byte[] {'\r', '\n'};
 
     // Default algorithm from jdk.epkcs8.defaultAlgorithm in java.security
@@ -57,9 +58,6 @@ public class Pem {
 
     // Pattern matching for stripping whitespace.
     private static final Pattern STRIP_WHITESPACE_PATTERN;
-
-    // Pattern matching for inserting line breaks.
-    private static final Pattern LINE_WRAP_64_PATTERN;
 
     // Lazy initialized PBES2 OID value
     private static ObjectIdentifier PBES2OID;
@@ -74,7 +72,6 @@ public class Pem {
         PBE_PATTERN = Pattern.compile("^PBEWith.*And.*",
             Pattern.CASE_INSENSITIVE);
         STRIP_WHITESPACE_PATTERN = Pattern.compile("\\s+");
-        LINE_WRAP_64_PATTERN = Pattern.compile("(.{64})");
     }
 
     public static final String CERTIFICATE = "CERTIFICATE";
@@ -237,21 +234,20 @@ public class Pem {
         sb = new StringBuilder(1024);
 
         // Determine the line break using the char after the last hyphen
-        while (eol == 0) {
-            switch (is.read()) {
-                case '\s', '\t' -> {} // skip whitespace or tab
-                case '\r' -> {
-                    c = is.read();
-                    if (c == '\n') {
-                        eol = '\n';
-                    } else {
-                        eol = '\r';
-                        sb.append((char) c);
-                    }
+        switch (is.read()) {
+            case WS -> {} // skip whitespace
+            case '\r' -> {
+                c = is.read();
+                if (c == '\n') {
+                    eol = '\n';
+                } else {
+                    eol = '\r';
+                    sb.append((char) c);
                 }
-                case '\n' -> eol = '\n';
-                default -> throw new IOException("No EOL character found");
             }
+            case '\n' -> eol = '\n';
+            default ->
+                throw new IOException("No EOL character found");
         }
 
         // Read data until we find the first footer hyphen.
@@ -260,7 +256,7 @@ public class Pem {
                 case -1 ->
                     throw new EOFException("Incomplete header");
                 case '-' -> hyphen++;
-                case '\s', '\t', '\r', '\n' -> {} // skip whitespace and tab
+                case WS, '\t', '\r', '\n' -> {} // skip whitespace and tab
                 default -> sb.append((char) c);
             }
         } while (hyphen == 0);
@@ -298,7 +294,7 @@ public class Pem {
             }
         } while (hyphen < 5);
 
-        while ((c = is.read()) != eol && c != -1 && c != '\s' && c != '\t') {
+        while ((c = is.read()) != eol && c != -1 && c != WS) {
             // skip when eol is '\n', the line separator is likely "\r\n".
             if (c == '\r') {
                 continue;
@@ -363,7 +359,7 @@ public class Pem {
      * @return PEM in a string
      */
     public static String pemEncoded(PEM pem) {
-        String p = LINE_WRAP_64_PATTERN.matcher(pem.content()).replaceAll("$1\r\n");
+        String p = pem.content().replaceAll("(.{64})", "$1\r\n");
         return pemEncoded(pem.type(), p);
     }
 

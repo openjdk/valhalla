@@ -34,7 +34,6 @@
  * @library /test/lib
  * @run junit/othervm/native -Djdk.pollerMode=1 --enable-native-access=ALL-UNNAMED SelectorOps
  * @run junit/othervm/native -Djdk.pollerMode=2 --enable-native-access=ALL-UNNAMED SelectorOps
- * @run junit/othervm/native -Djdk.pollerMode=3 --enable-native-access=ALL-UNNAMED SelectorOps
  */
 
 /*

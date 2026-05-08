@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@ import java.util.HashSet;
 
 import java.io.IOException;
 
+import sun.awt.AppContext;
 import sun.awt.PeerEvent;
 import sun.awt.SunToolkit;
 
@@ -59,11 +60,16 @@ import sun.awt.SunToolkit;
  *
  * @since 1.3
  */
-public abstract class SunClipboard extends Clipboard {
+public abstract class SunClipboard extends Clipboard
+    implements PropertyChangeListener {
+
+    private AppContext contentsContext = null;
+
+    private final Object CLIPBOARD_FLAVOR_LISTENER_KEY;
 
     /**
      * A number of {@code FlavorListener}s currently registered
-     * on this clipboard
+     * on this clipboard across all {@code AppContext}s.
      */
     private volatile int numberOfFlavorListeners;
 
@@ -76,6 +82,7 @@ public abstract class SunClipboard extends Clipboard {
 
     public SunClipboard(String name) {
         super(name);
+        CLIPBOARD_FLAVOR_LISTENER_KEY = new StringBuffer(name + "_CLIPBOARD_FLAVOR_LISTENER_KEY");
     }
 
     public synchronized void setContents(Transferable contents,
@@ -85,6 +92,8 @@ public abstract class SunClipboard extends Clipboard {
         if (contents == null) {
             throw new NullPointerException("contents");
         }
+
+        initContext();
 
         final ClipboardOwner oldOwner = this.owner;
         final Transferable oldContents = this.contents;
@@ -101,6 +110,27 @@ public abstract class SunClipboard extends Clipboard {
         }
     }
 
+    private synchronized void initContext() {
+        final AppContext context = AppContext.getAppContext();
+
+        if (contentsContext != context) {
+            // Need to synchronize on the AppContext to guarantee that it cannot
+            // be disposed after the check, but before the listener is added.
+            synchronized (context) {
+                if (context.isDisposed()) {
+                    throw new IllegalStateException("Can't set contents from disposed AppContext");
+                }
+                context.addPropertyChangeListener
+                    (AppContext.DISPOSED_PROPERTY_NAME, this);
+            }
+            if (contentsContext != null) {
+                contentsContext.removePropertyChangeListener
+                    (AppContext.DISPOSED_PROPERTY_NAME, this);
+            }
+            contentsContext = context;
+        }
+    }
+
     public synchronized Transferable getContents(Object requestor) {
         if (contents != null) {
             return contents;
@@ -110,11 +140,13 @@ public abstract class SunClipboard extends Clipboard {
 
 
     /**
-     * @return the contents of this clipboard if it has been set or null otherwise
+     * @return the contents of this clipboard if it has been set from the same
+     *         AppContext as it is currently retrieved or null otherwise
      * @since 1.5
      */
     protected synchronized Transferable getContextContents() {
-        return contents;
+        AppContext context = AppContext.getAppContext();
+        return (context == contentsContext) ? contents : null;
     }
 
 
@@ -216,8 +248,16 @@ public abstract class SunClipboard extends Clipboard {
 
     public abstract long getID();
 
+    public void propertyChange(PropertyChangeEvent evt) {
+        if (AppContext.DISPOSED_PROPERTY_NAME.equals(evt.getPropertyName()) &&
+            Boolean.TRUE.equals(evt.getNewValue())) {
+            final AppContext disposedContext = (AppContext)evt.getSource();
+            lostOwnershipLater(disposedContext);
+        }
+    }
+
     protected void lostOwnershipImpl() {
-        lostOwnershipLater();
+        lostOwnershipLater(null);
     }
 
     /**
@@ -226,30 +266,50 @@ public abstract class SunClipboard extends Clipboard {
      * argument is not {@code null} and is not equal to the current
      * contents context.
      *
+     * @param disposedContext the AppContext that is disposed or
+     *        {@code null} if the ownership is lost because another
+     *        application acquired ownership.
      */
-    protected void lostOwnershipLater() {
-        SunToolkit.postEvent(new PeerEvent(this, () -> lostOwnershipNow(),
-                                           PeerEvent.PRIORITY_EVENT));
+    protected void lostOwnershipLater(final AppContext disposedContext) {
+        final AppContext context = this.contentsContext;
+        if (context == null) {
+            return;
+        }
+
+        SunToolkit.postEvent(context, new PeerEvent(this, () -> lostOwnershipNow(disposedContext),
+                                                    PeerEvent.PRIORITY_EVENT));
     }
 
-
-    protected void lostOwnershipNow() {
-
+    protected void lostOwnershipNow(final AppContext disposedContext) {
         final SunClipboard sunClipboard = SunClipboard.this;
         ClipboardOwner owner = null;
         Transferable contents = null;
 
         synchronized (sunClipboard) {
-            owner = sunClipboard.owner;
-            contents = sunClipboard.contents;
-            sunClipboard.owner = null;
-            sunClipboard.contents = null;
-            sunClipboard.clearNativeContext();
+            final AppContext context = sunClipboard.contentsContext;
+
+            if (context == null) {
+                return;
+            }
+
+            if (disposedContext == null || context == disposedContext) {
+                owner = sunClipboard.owner;
+                contents = sunClipboard.contents;
+                sunClipboard.contentsContext = null;
+                sunClipboard.owner = null;
+                sunClipboard.contents = null;
+                sunClipboard.clearNativeContext();
+                context.removePropertyChangeListener
+                        (AppContext.DISPOSED_PROPERTY_NAME, sunClipboard);
+            } else {
+                return;
+            }
         }
         if (owner != null) {
             owner.lostOwnership(sunClipboard, contents);
         }
     }
+
 
     protected abstract void clearNativeContext();
 
@@ -283,8 +343,11 @@ public abstract class SunClipboard extends Clipboard {
         if (listener == null) {
             return;
         }
+        AppContext appContext = AppContext.getAppContext();
+        Set<FlavorListener> flavorListeners = getFlavorListeners(appContext);
         if (flavorListeners == null) {
             flavorListeners = new HashSet<>();
+            appContext.put(CLIPBOARD_FLAVOR_LISTENER_KEY, flavorListeners);
         }
         flavorListeners.add(listener);
 
@@ -299,6 +362,7 @@ public abstract class SunClipboard extends Clipboard {
         if (listener == null) {
             return;
         }
+        Set<FlavorListener> flavorListeners = getFlavorListeners(AppContext.getAppContext());
         if (flavorListeners == null){
             //else we throw NullPointerException, but it is forbidden
             return;
@@ -309,8 +373,13 @@ public abstract class SunClipboard extends Clipboard {
         }
     }
 
-    private static Set<FlavorListener> flavorListeners;
+    @SuppressWarnings("unchecked")
+    private Set<FlavorListener> getFlavorListeners(AppContext appContext) {
+        return (Set<FlavorListener>)appContext.get(CLIPBOARD_FLAVOR_LISTENER_KEY);
+    }
+
     public synchronized FlavorListener[] getFlavorListeners() {
+        Set<FlavorListener> flavorListeners = getFlavorListeners(AppContext.getAppContext());
         return flavorListeners == null ? new FlavorListener[0]
                 : flavorListeners.toArray(new FlavorListener[flavorListeners.size()]);
     }
@@ -325,7 +394,8 @@ public abstract class SunClipboard extends Clipboard {
 
     /**
      * Checks change of the {@code DataFlavor}s and, if necessary,
-     * posts notifications on {@code FlavorEvent}s to the EDT's.
+     * posts notifications on {@code FlavorEvent}s to the
+     * AppContexts' EDTs.
      * The parameter {@code formats} is null iff we have just
      * failed to get formats available on the clipboard.
      *
@@ -341,13 +411,19 @@ public abstract class SunClipboard extends Clipboard {
         }
         currentFormats = formats;
 
-        if (flavorListeners != null) {
-            for (FlavorListener listener : flavorListeners) {
-                if (listener != null) {
-                    PeerEvent peerEvent = new PeerEvent(this,
-                            () -> listener.flavorsChanged(new FlavorEvent(SunClipboard.this)),
-                            PeerEvent.PRIORITY_EVENT);
-                    SunToolkit.postEvent(peerEvent);
+        for (final AppContext appContext : AppContext.getAppContexts()) {
+            if (appContext == null || appContext.isDisposed()) {
+                continue;
+            }
+            Set<FlavorListener> flavorListeners = getFlavorListeners(appContext);
+            if (flavorListeners != null) {
+                for (FlavorListener listener : flavorListeners) {
+                    if (listener != null) {
+                        PeerEvent peerEvent = new PeerEvent(this,
+                                () -> listener.flavorsChanged(new FlavorEvent(SunClipboard.this)),
+                                PeerEvent.PRIORITY_EVENT);
+                        SunToolkit.postEvent(appContext, peerEvent);
+                    }
                 }
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ import java.util.WeakHashMap;
 
 import sun.util.logging.PlatformLogger;
 
+import sun.awt.AppContext;
 import sun.awt.SunToolkit;
 import sun.awt.KeyboardFocusManagerPeerProvider;
 import sun.awt.AWTAccessor;
@@ -126,6 +127,9 @@ public abstract class KeyboardFocusManager
                 public void setMostRecentFocusOwner(Window window, Component component) {
                     KeyboardFocusManager.setMostRecentFocusOwner(window, component);
                 }
+                public KeyboardFocusManager getCurrentKeyboardFocusManager(AppContext ctx) {
+                    return KeyboardFocusManager.getCurrentKeyboardFocusManager(ctx);
+                }
                 public Container getCurrentFocusCycleRoot() {
                     return KeyboardFocusManager.currentFocusCycleRoot;
                 }
@@ -179,40 +183,53 @@ public abstract class KeyboardFocusManager
 
     static final int TRAVERSAL_KEY_LENGTH = DOWN_CYCLE_TRAVERSAL_KEYS + 1;
 
-    private static KeyboardFocusManager manager;
-
     /**
-     * Returns the current KeyboardFocusManager instance
+     * Returns the current KeyboardFocusManager instance for the calling
+     * thread's context.
      *
-     * @return the current KeyboardFocusManager
+     * @return this thread's context's KeyboardFocusManager
      * @see #setCurrentKeyboardFocusManager
      */
-    public static synchronized KeyboardFocusManager getCurrentKeyboardFocusManager() {
+    public static KeyboardFocusManager getCurrentKeyboardFocusManager() {
+        return getCurrentKeyboardFocusManager(AppContext.getAppContext());
+    }
+
+    static synchronized KeyboardFocusManager
+        getCurrentKeyboardFocusManager(AppContext appcontext)
+    {
+        KeyboardFocusManager manager = (KeyboardFocusManager)
+            appcontext.get(KeyboardFocusManager.class);
         if (manager == null) {
             manager = new DefaultKeyboardFocusManager();
+            appcontext.put(KeyboardFocusManager.class, manager);
         }
         return manager;
     }
 
     /**
-     * Sets the current KeyboardFocusManager instance.
-     * If null is specified, then the current KeyboardFocusManager
+     * Sets the current KeyboardFocusManager instance for the calling thread's
+     * context. If null is specified, then the current KeyboardFocusManager
      * is replaced with a new instance of DefaultKeyboardFocusManager.
      *
-     * @param newManager the new KeyboardFocusManager
+     * @param newManager the new KeyboardFocusManager for this thread's context
      * @see #getCurrentKeyboardFocusManager
      * @see DefaultKeyboardFocusManager
      */
     public static void setCurrentKeyboardFocusManager(KeyboardFocusManager newManager) {
 
-        KeyboardFocusManager oldManager = manager;
-
-        if (newManager == null) {
-             newManager = new DefaultKeyboardFocusManager();
-        }
+        KeyboardFocusManager oldManager = null;
 
         synchronized (KeyboardFocusManager.class) {
-             manager = newManager;
+            AppContext appcontext = AppContext.getAppContext();
+
+            if (newManager != null) {
+                oldManager = getCurrentKeyboardFocusManager(appcontext);
+
+                appcontext.put(KeyboardFocusManager.class, newManager);
+            } else {
+                oldManager = getCurrentKeyboardFocusManager(appcontext);
+                appcontext.remove(KeyboardFocusManager.class);
+            }
         }
 
         if (oldManager != null) {
@@ -327,7 +344,7 @@ public abstract class KeyboardFocusManager
     private static java.util.Map<Window, WeakReference<Component>> mostRecentFocusOwners = new WeakHashMap<>();
 
     /*
-     * SequencedEvent which is currently dispatched.
+     * SequencedEvent which is currently dispatched in AppContext.
      */
     transient SequencedEvent currentSequencedEvent = null;
 
@@ -414,7 +431,13 @@ public abstract class KeyboardFocusManager
      */
     public Component getFocusOwner() {
         synchronized (KeyboardFocusManager.class) {
-            return focusOwner;
+            if (focusOwner == null) {
+                return null;
+            }
+
+            return (focusOwner.appContext == AppContext.getAppContext())
+                ? focusOwner
+                : null;
         }
     }
 
@@ -576,32 +599,42 @@ public abstract class KeyboardFocusManager
     }
 
     /**
-     * Returns the permanent focus owner. The permanent focus owner is
+     * Returns the permanent focus owner, if the permanent focus owner is in
+     * the same context as the calling thread. The permanent focus owner is
      * defined as the last Component in an application to receive a permanent
      * FOCUS_GAINED event. The focus owner and permanent focus owner are
      * equivalent unless a temporary focus change is currently in effect. In
      * such a situation, the permanent focus owner will again be the focus
      * owner when the temporary focus change ends.
      *
-     * @return the permanent focus owner, or null if there is none
+     * @return the permanent focus owner, or null if the permanent focus owner
+     *         is not a member of the calling thread's context
      * @see #getGlobalPermanentFocusOwner
      * @see #setGlobalPermanentFocusOwner
      */
     public Component getPermanentFocusOwner() {
         synchronized (KeyboardFocusManager.class) {
-            return permanentFocusOwner;
+            if (permanentFocusOwner == null) {
+                return null;
+            }
+
+            return (permanentFocusOwner.appContext ==
+                    AppContext.getAppContext())
+                ? permanentFocusOwner
+                : null;
         }
     }
 
     /**
-     * Returns the permanent focus owner. The permanent focus
+     * Returns the permanent focus owner, even if the calling thread is in a
+     * different context than the permanent focus owner. The permanent focus
      * owner is defined as the last Component in an application to receive a
      * permanent FOCUS_GAINED event. The focus owner and permanent focus owner
      * are equivalent unless a temporary focus change is currently in effect.
      * In such a situation, the permanent focus owner will again be the focus
      * owner when the temporary focus change ends.
      *
-     * @return the permanent focus owner, or null if there is none
+     * @return the permanent focus owner
      * @see #getPermanentFocusOwner
      * @see #setGlobalPermanentFocusOwner
      */
@@ -668,16 +701,24 @@ public abstract class KeyboardFocusManager
     }
 
     /**
-     * Returns the focused Window.
-     * The focused Window is the Window that is or contains the focus owner.
+     * Returns the focused Window, if the focused Window is in the same context
+     * as the calling thread. The focused Window is the Window that is or
+     * contains the focus owner.
      *
-     * @return the focused Window, or null if there is none
+     * @return the focused Window, or null if the focused Window is not a
+     *         member of the calling thread's context
      * @see #getGlobalFocusedWindow
      * @see #setGlobalFocusedWindow
      */
     public Window getFocusedWindow() {
         synchronized (KeyboardFocusManager.class) {
-            return focusedWindow;
+            if (focusedWindow == null) {
+                return null;
+            }
+
+            return (focusedWindow.appContext == AppContext.getAppContext())
+                ? focusedWindow
+                : null;
         }
     }
 
@@ -744,19 +785,27 @@ public abstract class KeyboardFocusManager
     }
 
     /**
-     * Returns the active Window. Only a Frame or a Dialog can be the active
+     * Returns the active Window, if the active Window is in the same context
+     * as the calling thread. Only a Frame or a Dialog can be the active
      * Window. The native windowing system may denote the active Window or its
      * children with special decorations, such as a highlighted title bar.
      * The active Window is always either the focused Window, or the first
      * Frame or Dialog that is an owner of the focused Window.
      *
-     * @return the active Window, or null if there is none
+     * @return the active Window, or null if the active Window is not a member
+     *         of the calling thread's context
      * @see #getGlobalActiveWindow
      * @see #setGlobalActiveWindow
      */
     public Window getActiveWindow() {
         synchronized (KeyboardFocusManager.class) {
-            return activeWindow;
+            if (activeWindow == null) {
+                return null;
+            }
+
+            return (activeWindow.appContext == AppContext.getAppContext())
+                ? activeWindow
+                : null;
         }
     }
 
@@ -1051,7 +1100,14 @@ public abstract class KeyboardFocusManager
      */
     public Container getCurrentFocusCycleRoot() {
         synchronized (KeyboardFocusManager.class) {
-            return currentFocusCycleRoot;
+            if (currentFocusCycleRoot == null) {
+                return null;
+            }
+
+            return (currentFocusCycleRoot.appContext ==
+                    AppContext.getAppContext())
+                ? currentFocusCycleRoot
+                : null;
         }
     }
 
@@ -2103,7 +2159,7 @@ public abstract class KeyboardFocusManager
             descendant = heavyweight;
         }
 
-        KeyboardFocusManager manager = getCurrentKeyboardFocusManager();
+        KeyboardFocusManager manager = getCurrentKeyboardFocusManager(SunToolkit.targetToAppContext(descendant));
 
         FocusEvent currentFocusOwnerEvent = null;
         FocusEvent newFocusOwnerEvent = null;
@@ -2212,7 +2268,8 @@ public abstract class KeyboardFocusManager
             descendant = heavyweight;
         }
 
-        KeyboardFocusManager manager = getCurrentKeyboardFocusManager();
+        KeyboardFocusManager manager =
+            getCurrentKeyboardFocusManager(SunToolkit.targetToAppContext(descendant));
         KeyboardFocusManager thisManager = getCurrentKeyboardFocusManager();
         Component currentFocusOwner = thisManager.getGlobalFocusOwner();
         Component nativeFocusOwner = thisManager.getNativeFocusOwner();
@@ -2264,14 +2321,15 @@ public abstract class KeyboardFocusManager
                                        temporary, descendant, cause);
                     // Fix 5028014. Rolled out.
                     // SunToolkit.postPriorityEvent(currentFocusOwnerEvent);
-                    SunToolkit.postEvent(currentFocusOwnerEvent);
+                    SunToolkit.postEvent(currentFocusOwner.appContext,
+                                         currentFocusOwnerEvent);
                 }
                 FocusEvent newFocusOwnerEvent =
                     new FocusEvent(descendant, FocusEvent.FOCUS_GAINED,
                                    temporary, currentFocusOwner, cause);
                 // Fix 5028014. Rolled out.
                 // SunToolkit.postPriorityEvent(newFocusOwnerEvent);
-                SunToolkit.postEvent(newFocusOwnerEvent);
+                SunToolkit.postEvent(descendant.appContext, newFocusOwnerEvent);
 
                 if (focusLog.isLoggable(PlatformLogger.Level.FINEST))
                     focusLog.finest("2. SNFH_HANDLED for {0}", String.valueOf(descendant));
@@ -2425,6 +2483,16 @@ public abstract class KeyboardFocusManager
     static void processCurrentLightweightRequests() {
         KeyboardFocusManager manager = getCurrentKeyboardFocusManager();
         LinkedList<LightweightFocusRequest> localLightweightRequests = null;
+
+        Component globalFocusOwner = manager.getGlobalFocusOwner();
+        if ((globalFocusOwner != null) &&
+            (globalFocusOwner.appContext != AppContext.getAppContext()))
+        {
+            // The current app context differs from the app context of a focus
+            // owner (and all pending lightweight requests), so we do nothing
+            // now and wait for a next event.
+            return;
+        }
 
         synchronized(heavyweightRequests) {
             if (currentLightweightRequests != null) {

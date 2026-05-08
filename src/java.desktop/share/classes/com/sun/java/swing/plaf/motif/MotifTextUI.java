@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,7 +75,6 @@ public class MotifTextUI {
          * @param e the focus event
          * @see FocusListener#focusGained
          */
-        @Override
         public void focusGained(FocusEvent e) {
             super.focusGained(e);
             getComponent().repaint();
@@ -89,7 +88,6 @@ public class MotifTextUI {
          * @param e the focus event
          * @see FocusListener#focusLost
          */
-        @Override
         public void focusLost(FocusEvent e) {
             super.focusLost(e);
             getComponent().repaint();
@@ -103,7 +101,6 @@ public class MotifTextUI {
          * @param r  the current location of the caret, does nothing if null
          * @see #paint
          */
-        @Override
         protected void damage(Rectangle r) {
             if (r != null) {
                 x = r.x - IBeamOverhang - 1;
@@ -124,7 +121,6 @@ public class MotifTextUI {
          * @param g the graphics context
          * @see #damage
          */
-        @Override
         @SuppressWarnings("deprecation")
         public void paint(Graphics g) {
             if(isVisible()) {

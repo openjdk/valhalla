@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,8 @@ import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.util.List;
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
 
 public class DefaultProxy {
 
@@ -43,7 +42,7 @@ public class DefaultProxy {
     public void testDefault() {
         ProxySelector ps = getProxySelector();
         System.out.println("HttpClientImpl proxySelector:" + ps);
-        assertEquals(ProxySelector.getDefault(), ps);
+        assertEquals(ps, ProxySelector.getDefault());
     }
 
     // From the test driver
@@ -57,21 +56,21 @@ public class DefaultProxy {
         URI uri = URI.create("http://foo.com/example.html");
         List<Proxy> plist = ps.select(uri);
         System.out.println("proxy list for " + uri + " : " + plist);
-        assertEquals(1, plist.size());
+        assertEquals(plist.size(), 1);
         Proxy proxy = plist.get(0);
-        assertEquals(Proxy.Type.HTTP, proxy.type());
+        assertEquals(proxy.type(), Proxy.Type.HTTP);
         InetSocketAddress expectedAddr =
                 InetSocketAddress.createUnresolved("foo.proxy.com", 9876);
-        assertEquals(expectedAddr, proxy.address());
+        assertEquals(proxy.address(), expectedAddr);
 
         // nonProxyHosts
         uri = URI.create("http://foo.direct.com/example.html");
         plist = ps.select(uri);
         System.out.println("proxy list for " + uri + " : " + plist);
-        assertEquals(1, plist.size());
+        assertEquals(plist.size(), 1);
         proxy = plist.get(0);
-        assertEquals(Proxy.Type.DIRECT, proxy.type());
-        assertEquals(null, proxy.address());
+        assertEquals(proxy.type(), Proxy.Type.DIRECT);
+        assertEquals(proxy.address(), null);
     }
 
     // From the test driver
@@ -84,21 +83,21 @@ public class DefaultProxy {
         URI uri = URI.create("https://foo.com/example.html");
         List<Proxy> plist = ps.select(uri);
         System.out.println("proxy list for " + uri + " : " + plist);
-        assertEquals(1, plist.size());
+        assertEquals(plist.size(), 1);
         Proxy proxy = plist.get(0);
-        assertEquals(Proxy.Type.HTTP, proxy.type());
+        assertEquals(proxy.type(), Proxy.Type.HTTP);
         InetSocketAddress expectedAddr =
                 InetSocketAddress.createUnresolved("secure.proxy.com", 5443);
-        assertEquals(expectedAddr, proxy.address());
+        assertEquals(proxy.address(), expectedAddr);
 
         // nonProxyHosts
         uri = URI.create("https://foo.direct.com/example.html");
         plist = ps.select(uri);
         System.out.println("proxy list for " + uri + " : " + plist);
-        assertEquals(1, plist.size());
+        assertEquals(plist.size(), 1);
         proxy = plist.get(0);
-        assertEquals(Proxy.Type.DIRECT, proxy.type());
-        assertEquals(null, proxy.address());
+        assertEquals(proxy.type(), Proxy.Type.DIRECT);
+        assertEquals(proxy.address(), null);
     }
 
 }

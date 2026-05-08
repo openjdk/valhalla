@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,12 @@
 #define SHARE_RUNTIME_SHAREDRUNTIME_HPP
 
 #include "asm/codeBuffer.hpp"
+#include "classfile/compactHashtable.hpp"
 #include "code/codeBlob.hpp"
 #include "code/vmreg.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/allStatic.hpp"
+#include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/signature.hpp"
@@ -38,8 +40,6 @@
 
 class AdapterHandlerEntry;
 class AdapterFingerPrint;
-class MetaspaceClosure;
-class SerializeClosure;
 class vframeStream;
 class SigEntry;
 
@@ -580,7 +580,7 @@ class SharedRuntime: AllStatic {
   static address handle_wrong_method_abstract(JavaThread* current);
   static address handle_wrong_method_ic_miss(JavaThread* current);
   static void allocate_inline_types(JavaThread* current, Method* callee, bool allocate_receiver);
-  static oop allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, bool from_c1, TRAPS);
+  static oop allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, TRAPS);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
 
@@ -735,7 +735,6 @@ class AdapterHandlerEntry : public MetaspaceObj {
 
   // Support for scalarized inline type calling convention
   const GrowableArray<SigEntry>* _sig_cc;
-  const GrowableArray<SigEntry>* _sig_cc_ro;
 
 #ifdef ASSERT
   // Captures code and signature used to generate this adapter when
@@ -749,8 +748,7 @@ class AdapterHandlerEntry : public MetaspaceObj {
     _adapter_blob(nullptr),
     _id(id),
     _linked(false),
-    _sig_cc(nullptr),
-    _sig_cc_ro(nullptr)
+    _sig_cc(nullptr)
 #ifdef ASSERT
     , _saved_code(nullptr),
     _saved_code_length(0)
@@ -850,16 +848,8 @@ class AdapterHandlerEntry : public MetaspaceObj {
   bool is_linked() const { return _linked; }
 
   // Support for scalarized inline type calling convention
-  void set_sig_cc(const GrowableArray<SigEntry>* sig) {
-    assert(_sig_cc == nullptr, "Already initialized");
-    _sig_cc = sig;
-  }
-  const GrowableArray<SigEntry>* get_sig_cc() const { return _sig_cc; }
-  void set_sig_cc_ro(const GrowableArray<SigEntry>* sig) {
-    assert(_sig_cc_ro == nullptr, "Already initialized");
-    _sig_cc_ro = sig;
-  }
-  const GrowableArray<SigEntry>* get_sig_cc_ro() const { return _sig_cc_ro; }
+  void set_sig_cc(const GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
+  const GrowableArray<SigEntry>* get_sig_cc()    const { return _sig_cc; }
 
   uint id() const { return _id; }
   AdapterFingerPrint* fingerprint() const { return _fingerprint; }
@@ -948,7 +938,6 @@ class AdapterHandlerLibrary: public AllStatic {
 //     Method::_from_compiled_inline_ro_entry     - sig_cc_ro
 //     Method::_from_compiled_inline_entry        - sig
 class CompiledEntrySignature : public StackObj {
-private:
   Method* _method;
   int  _num_inline_args;
   bool _has_inline_recv;
@@ -967,7 +956,6 @@ private:
   bool _c2_needs_stack_repair;
 
   GrowableArray<Method*>* _supers;
-  GrowableArray<Method*>* get_supers();
 
 public:
   Method* method()                     const { return _method; }
@@ -996,6 +984,8 @@ public:
   bool c1_needs_stack_repair()         const { return _c1_needs_stack_repair; }
   bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
   CodeOffsets::Entries c1_inline_ro_entry_type() const;
+
+  GrowableArray<Method*>* get_supers();
 
   CompiledEntrySignature(Method* method = nullptr);
   void compute_calling_conventions(bool init = true);

@@ -27,8 +27,8 @@
 
 /*
  * This class helps to avoid loading more than one flag in some
- * operations that require checking UseCompactObjectHeaders and - in the future -
- * possibly more.
+ * operations that require checking UseCompressedClassPointers,
+ * UseCompactObjectHeaders and possibly more.
  *
  * This is important on some performance critical paths, e.g. where
  * the Klass* is accessed frequently, especially by GC oop iterators
@@ -37,10 +37,12 @@
 class ObjLayout {
 public:
   enum Mode {
-    // +UseCompactObjectHeaders
+    // +UseCompactObjectHeaders (implies +UseCompressedClassPointers)
     Compact,
-    // -UseCompactObjectHeaders (compressed Klass pointers)
+    // +UseCompressedClassPointers (-UseCompactObjectHeaders)
     Compressed,
+    // -UseCompressedClassPointers (-UseCompactObjectHeaders)
+    Uncompressed,
     // Not yet initialized
     Undefined
   };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #ifndef SHARE_OOPS_ARRAYKLASS_HPP
 #define SHARE_OOPS_ARRAYKLASS_HPP
 
-#include "oops/arrayProperties.hpp"
 #include "oops/klass.hpp"
 #include "oops/layoutKind.hpp"
 
@@ -39,25 +38,42 @@ class ArrayKlass: public Klass {
   friend class VMStructs;
 
  public:
+  enum ArrayProperties : uint32_t {
+    DEFAULT         = 0,          // NULLABLE and ATOMIC
+    NULL_RESTRICTED = 1 << 0,
+    NON_ATOMIC      = 1 << 1,
+    // FINAL           = 1 << 2,
+    // VOLATILE        = 1 << 3
+    INVALID         = 1 << 4,
+    DUMMY           = 1 << 5      // Just to transition the code, to be removed ASAP
+  };
+
+  static bool is_null_restricted(ArrayProperties props) { return (props & NULL_RESTRICTED) != 0; }
+  static bool is_non_atomic(ArrayProperties props) { return (props & NON_ATOMIC) != 0; }
+
   static ArrayProperties array_properties_from_layout(LayoutKind lk);
+  static const char* array_properties_as_string(ArrayProperties props);
 
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ArrayKlass::metaspace_pointers_do().
-  int                     _dimension;         // This is n'th-dimensional array.
+  int      _dimension;         // This is n'th-dimensional array.
+  ArrayProperties _properties;
   ObjArrayKlass* volatile _higher_dimension;  // Refers the (n+1)'th-dimensional array (if present).
   ArrayKlass* volatile    _lower_dimension;   // Refers the (n-1)'th-dimensional array (if present).
-
-  const ArrayProperties   _properties;
 
  protected:
   // Constructors
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
-  ArrayKlass(int n, Symbol* name, KlassKind kind, ArrayProperties props);
+  ArrayKlass(Symbol* name, KlassKind kind, ArrayProperties props, markWord prototype_header = markWord::prototype());
   ArrayKlass();
 
+  // Create array_name for element klass
+  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
+
  public:
+
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const override { return true; })
 
@@ -71,9 +87,11 @@ class ArrayKlass: public Klass {
 
   // Instance variables
   int dimension() const                 { return _dimension;      }
+  void set_dimension(int dimension)     { _dimension = dimension; }
 
-  ArrayProperties properties() const    { return _properties; }
-  static ByteSize properties_offset()   { return byte_offset_of(ArrayKlass, _properties); }
+  ArrayProperties properties() const { return _properties; }
+  void set_properties(ArrayProperties props) { _properties = props; }
+  static ByteSize properties_offset() { return byte_offset_of(ArrayKlass, _properties); }
 
   ObjArrayKlass* higher_dimension() const     { return _higher_dimension; }
   inline ObjArrayKlass* higher_dimension_acquire() const; // load with acquire semantics
@@ -154,19 +172,18 @@ class ArrayKlass: public Klass {
 class ArrayDescription : public StackObj {
 public:
   Klass::KlassKind _kind;
-  ArrayProperties  _properties;
-  LayoutKind       _layout_kind;
-
-  ArrayDescription(Klass::KlassKind k, ArrayProperties p, LayoutKind lk) {
+  ArrayKlass::ArrayProperties _properties;
+  LayoutKind _layout_kind;
+  ArrayDescription(Klass::KlassKind k, ArrayKlass::ArrayProperties p, LayoutKind lk) {
     _kind = k;
     _layout_kind = lk;
-    assert(lk == LayoutKind::REFERENCE || k != Klass::KlassKind::RefArrayKlassKind, "Sanity check");
-    assert(lk != LayoutKind::UNKNOWN, "Sanity check");
 
-    // Atomicity depends on the layout kind, which might be different than what
-    // the given properties says
-    const bool non_atomic = lk != LayoutKind::REFERENCE && !LayoutKindHelper::is_atomic_flat(lk);
-    _properties = p.with_non_atomic(non_atomic);
+    if (lk == LayoutKind::REFERENCE || LayoutKindHelper::is_atomic_flat(lk)) {
+      p = (ArrayKlass::ArrayProperties) (p &~ ArrayKlass::NON_ATOMIC);
+    } else {
+      p = (ArrayKlass::ArrayProperties) (p | ArrayKlass::NON_ATOMIC);
+    }
+    _properties = p;
   }
  };
 

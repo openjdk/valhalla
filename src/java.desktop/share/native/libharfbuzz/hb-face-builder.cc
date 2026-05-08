@@ -169,7 +169,8 @@ _hb_face_builder_get_table_tags (const hb_face_t *face HB_UNUSED,
 
   if (unlikely (start_offset >= population))
   {
-    *table_count = 0;
+    if (table_count)
+      *table_count = 0;
     return population;
   }
 

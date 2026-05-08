@@ -75,13 +75,8 @@ public class CDSArchiveUtils {
         "ro",          // ReadOnly
         "bm",          // relocation bitmaps
         "hp",          // heap
-        "ac",          // aot code
     };
     private static int num_regions = shared_region_name.length;
-
-    public static String[] getRegions() {
-        return shared_region_name;
-    }
 
     static {
         WhiteBox wb;

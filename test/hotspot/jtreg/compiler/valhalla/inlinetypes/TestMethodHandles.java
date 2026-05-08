@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_ARRAY_OF_MYVALUE_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
@@ -222,19 +223,6 @@ public class TestMethodHandles {
         }
     }
 
-    public TestMethodHandles() {
-        test1_vt = MyValue3.create();
-        test2_vt = MyValue3.create();
-        test3_vt = MyValue3.create();
-        test5_vt = MyValue1.createWithFieldsInline(rI, rL);
-        test6_vt1 = MyValue3.create();
-        test6_vt2 = MyValue3.create();
-        test9_vt1 = MyValue3.create();
-        test9_vt2 = MyValue3.create();
-        test9_vt3 = MyValue3.create();
-        super();
-    }
-
     public static void main(String[] args) {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
 
@@ -256,8 +244,9 @@ public class TestMethodHandles {
     }
 
     // Everything inlined
+    @Strict
     @NullRestricted
-    final MyValue3 test1_vt;
+    final MyValue3 test1_vt = MyValue3.create();
 
     @ForceInline
     MyValue3 test1_target() {
@@ -270,9 +259,7 @@ public class TestMethodHandles {
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, STATIC_CALL})
     @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1"})
-// TODO: JDK-8380875
-//                STORE_OF_ANY_KLASS, "= 14"})
+        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", STORE_OF_ANY_KLASS, "= 14"})
     public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
     }
@@ -285,8 +272,9 @@ public class TestMethodHandles {
     }
 
     // Leaf method not inlined but returned type is known
+    @Strict
     @NullRestricted
-    final MyValue3 test2_vt;
+    final MyValue3 test2_vt = MyValue3.create();
 
     @DontInline
     MyValue3 test2_target() {
@@ -313,8 +301,9 @@ public class TestMethodHandles {
     }
 
     // Leaf method not inlined and returned type not known
+    @Strict
     @NullRestricted
-    final MyValue3 test3_vt;
+    final MyValue3 test3_vt = MyValue3.create();
 
     @DontInline
     MyValue3 test3_target() {
@@ -346,6 +335,7 @@ public class TestMethodHandles {
         return vt.x;
     }
 
+    @Strict
     @NullRestricted
     static MyValue1 test4_vt = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -373,8 +363,9 @@ public class TestMethodHandles {
 
     static final MethodHandle test5_mh;
 
+    @Strict
     @NullRestricted
-    MyValue1 test5_vt;
+    MyValue1 test5_vt = MyValue1.createWithFieldsInline(rI, rL);
 
     @Test
     public int test5() throws Throwable {
@@ -389,16 +380,18 @@ public class TestMethodHandles {
 
     // Return of target1 and target2 merged in a Lambda Form as an
     // Object. Shouldn't cause any allocation
+    @Strict
     @NullRestricted
-    final MyValue3 test6_vt1;
+    final MyValue3 test6_vt1 = MyValue3.create();
 
     @ForceInline
     MyValue3 test6_target1() {
         return test6_vt1;
     }
 
+    @Strict
     @NullRestricted
-    final MyValue3 test6_vt2;
+    final MyValue3 test6_vt2 = MyValue3.create();
 
     @ForceInline
     MyValue3 test6_target2() {
@@ -495,24 +488,27 @@ public class TestMethodHandles {
 
     // Return of target1, target2 and target3 merged in Lambda Forms
     // as an Object. Shouldn't cause any allocation
+    @Strict
     @NullRestricted
-    final MyValue3 test9_vt1;
+    final MyValue3 test9_vt1 = MyValue3.create();
 
     @ForceInline
     MyValue3 test9_target1() {
         return test9_vt1;
     }
 
+    @Strict
     @NullRestricted
-    final MyValue3 test9_vt2;
+    final MyValue3 test9_vt2 = MyValue3.create();
 
     @ForceInline
     MyValue3 test9_target2() {
         return test9_vt2;
     }
 
+    @Strict
     @NullRestricted
-    final MyValue3 test9_vt3;
+    final MyValue3 test9_vt3 = MyValue3.create();
 
     @ForceInline
     MyValue3 test9_target3() {

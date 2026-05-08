@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,34 +32,33 @@ import java.util.concurrent.SubmissionPublisher;
 import java.util.function.IntSupplier;
 import java.util.stream.IntStream;
 import java.net.http.HttpResponse.BodySubscriber;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.Long.MAX_VALUE;
 import static java.lang.Long.MIN_VALUE;
 import static java.lang.System.out;
 import static java.nio.ByteBuffer.wrap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.net.http.HttpResponse.BodySubscribers.buffering;
-
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.*;
 
 /*
  * @test
  * @summary Direct test for HttpResponse.BodySubscriber.buffering() cancellation
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm BufferingSubscriberCancelTest
  */
 
 public class BufferingSubscriberCancelTest {
 
-    public static Object[][] bufferSizes() {
+    @DataProvider(name = "bufferSizes")
+    public Object[][] bufferSizes() {
         return new Object[][]{
             // bufferSize should be irrelevant
             {1}, {100}, {511}, {512}, {513}, {1024}, {2047}, {2048}
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("bufferSizes")
+    @Test(dataProvider = "bufferSizes")
     public void cancelWithoutAnyItemsPublished(int bufferSize) throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         SubmissionPublisher<List<ByteBuffer>> publisher =
@@ -86,7 +85,8 @@ public class BufferingSubscriberCancelTest {
         executor.shutdown();
     }
 
-    public static Object[][] sizeAndItems() {
+    @DataProvider(name = "sizeAndItems")
+    public Object[][] sizeAndItems() {
         return new Object[][] {
             // bufferSize and item bytes must be equal to count onNext calls
             // bufferSize        items
@@ -103,8 +103,7 @@ public class BufferingSubscriberCancelTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("sizeAndItems")
+    @Test(dataProvider = "sizeAndItems")
     public void cancelWithItemsPublished(int bufferSize, List<ByteBuffer> items)
         throws Exception
     {
@@ -126,13 +125,12 @@ public class BufferingSubscriberCancelTest {
         IntStream.range(0, ITERATION_TIMES+1).forEach(x -> publisher.submit(items));
 
         assertEqualsWithRetry(publisher::getNumberOfSubscribers, 0);
-        assertEquals(ITERATION_TIMES, exposingSubscriber.onNextInvocations);
+        assertEquals(exposingSubscriber.onNextInvocations, ITERATION_TIMES);
         executor.shutdown();
     }
 
     // same as above but with more racy conditions, do not wait on the gate
-    @ParameterizedTest
-    @MethodSource("sizeAndItems")
+    @Test(dataProvider = "sizeAndItems")
     public void cancelWithItemsPublishedNoWait(int bufferSize, List<ByteBuffer> items)
         throws Exception
     {
@@ -214,6 +212,6 @@ public class BufferingSubscriberCancelTest {
                 return;
             Thread.sleep(100);
         }
-        assertEquals(expected, actual); // will fail with the usual junit message
+        assertEquals(actual, expected); // will fail with the usual testng message
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,13 +39,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jdk.test.lib.net.URIBuilder;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * @test
@@ -54,19 +53,19 @@ import org.junit.jupiter.api.Test;
  * @modules java.net.http
  * @library /test/lib
  * @build DateFormatterTest
- * @run junit/othervm DateFormatterTest
+ * @run testng/othervm DateFormatterTest
  */
 public class DateFormatterTest {
 
-    private static HttpServer server;
+    private HttpServer server;
 
     static URI httpURI;
     static final Integer ITERATIONS = 10;
     static String format;
     static Pattern pattern;
 
-    @BeforeAll
-    public static void setUp() throws IOException, URISyntaxException {
+    @BeforeTest
+    public void setUp() throws IOException, URISyntaxException {
         String days = "(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(,)";
         String dayNo = "(\\s\\d\\d\\s)";
         String month = "(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)";
@@ -86,8 +85,8 @@ public class DateFormatterTest {
         server.start();
     }
 
-    @AfterAll
-    public static void cleanUp() {
+    @AfterTest
+    public void cleanUp() {
         server.stop(0);
     }
 

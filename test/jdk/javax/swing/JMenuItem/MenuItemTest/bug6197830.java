@@ -49,7 +49,6 @@ public class bug6197830 {
                 .columns(35)
                 .testUI(bug6197830::createTestUI)
                 .positionTestUIBottomRowCentered()
-                .logArea()
                 .build()
                 .awaitAndCheck();
     }

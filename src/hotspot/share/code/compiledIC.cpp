@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,7 +76,11 @@ CompiledICData::CompiledICData()
 // Inline cache callsite info is initialized once the first time it is resolved
 void CompiledICData::initialize(CallInfo* call_info, Klass* receiver_klass) {
   _speculated_method = call_info->selected_method();
-  _speculated_klass = (uintptr_t)CompressedKlassPointers::encode_not_null(receiver_klass);
+  if (UseCompressedClassPointers) {
+    _speculated_klass = (uintptr_t)CompressedKlassPointers::encode_not_null(receiver_klass);
+  } else {
+    _speculated_klass = (uintptr_t)receiver_klass;
+  }
   if (call_info->call_kind() == CallInfo::itable_call) {
     assert(call_info->resolved_method() != nullptr, "virtual or interface method must be found");
     _itable_defc_klass = call_info->resolved_method()->method_holder();
@@ -129,7 +133,12 @@ Klass* CompiledICData::speculated_klass() const {
   if (is_speculated_klass_unloaded()) {
     return nullptr;
   }
-  return CompressedKlassPointers::decode_not_null((narrowKlass)_speculated_klass);
+
+  if (UseCompressedClassPointers) {
+    return CompressedKlassPointers::decode_not_null((narrowKlass)_speculated_klass);
+  } else {
+    return (Klass*)_speculated_klass;
+  }
 }
 
 //-----------------------------------------------------------------------------

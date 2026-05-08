@@ -50,16 +50,13 @@ final class LauncherBuilder {
 
         final var fa = createFileAssociations(faSources, Optional.ofNullable(faTraits).orElse(DEFAULT_FA_TRAITS));
 
+        Objects.requireNonNull(defaultIconResourceName);
+
         final var nonNullName = deriveNonNullName();
 
-        return new Stub(
-                nonNullName,
-                Optional.ofNullable(startupInfo),
-                fa,
-                isService,
-                Optional.ofNullable(description).orElse(nonNullName),
-                Optional.ofNullable(icon),
-                Optional.ofNullable(defaultIconResourceName).orElseGet(LauncherBuilder::defaultIconResourceName),
+        return new Stub(nonNullName, Optional.ofNullable(startupInfo), fa,
+                isService, Optional.ofNullable(description).orElse(nonNullName),
+                Optional.ofNullable(icon), defaultIconResourceName,
                 Optional.ofNullable(extraAppImageFileData).orElseGet(Map::of));
     }
 
@@ -171,23 +168,6 @@ final class LauncherBuilder {
         }
 
         return FileAssociationGroup.flatMap(groups.stream()).toList();
-    }
-
-    private static String defaultIconResourceName() {
-        switch (OperatingSystem.current()) {
-            case WINDOWS -> {
-                return "JavaApp.ico";
-            }
-            case LINUX -> {
-                return "JavaApp.png";
-            }
-            case MACOS -> {
-                return "JavaApp.icns";
-            }
-            default -> {
-                throw new UnsupportedOperationException();
-            }
-        }
     }
 
     private String name;

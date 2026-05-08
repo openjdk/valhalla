@@ -975,5 +975,4 @@ public:
   virtual VTransformApplyResult apply(VTransformApplyState& apply_state) const override;
   NOT_PRODUCT(virtual const char* name() const override { return "StoreVector"; };)
 };
-
 #endif // SHARE_OPTO_VTRANSFORM_HPP

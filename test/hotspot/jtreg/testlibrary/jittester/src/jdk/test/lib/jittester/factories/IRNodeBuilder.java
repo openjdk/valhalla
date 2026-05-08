@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,6 @@ import jdk.test.lib.jittester.classes.ClassDefinitionBlock;
 import jdk.test.lib.jittester.classes.Interface;
 import jdk.test.lib.jittester.classes.Klass;
 import jdk.test.lib.jittester.classes.MainKlass;
-import jdk.test.lib.jittester.classes.ValueKlass;
 import jdk.test.lib.jittester.functions.ArgumentDeclaration;
 import jdk.test.lib.jittester.functions.ConstructorDefinition;
 import jdk.test.lib.jittester.functions.ConstructorDefinitionBlock;
@@ -111,7 +110,6 @@ public class IRNodeBuilder {
     private Optional<LocalVariable> localVariable = Optional.empty();
     private Optional<Boolean> isLocal = Optional.empty();
     private Optional<Boolean> isStatic = Optional.empty();
-    private boolean isSynchronizedAllowed = false;
     private Optional<Boolean> isConstant = Optional.empty();
     private Optional<Boolean> isInitialized = Optional.empty();
     private Optional<String> name = Optional.empty();
@@ -310,11 +308,6 @@ public class IRNodeBuilder {
                 getIsLocal(), getExceptionSafe());
     }
 
-    public Factory<Declaration> getConstantDeclarationFactory() {
-        return new DeclarationFactory(getOwnerClass(), getComplexityLimit(), getOperatorLimit(),
-                getIsLocal(), getExceptionSafe(), true);
-    }
-
     public Factory<DoWhile> getDoWhileFactory() {
         return new DoWhileFactory(getOwnerClass(), getResultType(), getComplexityLimit(),
                 getStatementLimit(), getOperatorLimit(), getLevel(), getCanHaveReturn());
@@ -357,12 +350,9 @@ public class IRNodeBuilder {
     }
 
     public Factory<FunctionDefinitionBlock> getFunctionDefinitionBlockFactory() {
-        Factory<FunctionDefinitionBlock> result =
-            new FunctionDefinitionBlockFactory(getOwnerClass(), getMemberFunctionsLimit(),
+        return new FunctionDefinitionBlockFactory(getOwnerClass(), getMemberFunctionsLimit(),
                 getMemberFunctionsArgLimit(), getComplexityLimit(), getStatementLimit(),
-                getOperatorLimit(), getLevel(), getFlags(), isSynchronizedAllowed);
-        isSynchronizedAllowed = true;
-        return result;
+                getOperatorLimit(), getLevel(), getFlags());
     }
 
     public Factory<FunctionDefinition> getFunctionDefinitionFactory() {
@@ -395,12 +385,6 @@ public class IRNodeBuilder {
 
     public Factory<Klass> getKlassFactory() {
         return new KlassFactory(getName(), getComplexityLimit(),
-                getMemberFunctionsLimit(), getMemberFunctionsArgLimit(), getStatementLimit(),
-                getOperatorLimit(), getLevel());
-    }
-
-    public Factory<ValueKlass> getValueKlassFactory() {
-        return new ValueKlassFactory(getName(), getComplexityLimit(),
                 getMemberFunctionsLimit(), getMemberFunctionsArgLimit(), getStatementLimit(),
                 getOperatorLimit(), getLevel());
     }
@@ -470,16 +454,6 @@ public class IRNodeBuilder {
     }
 
     public Factory<VariableDeclarationBlock> getVariableDeclarationBlockFactory() {
-        return new VariableDeclarationBlockFactory(getOwnerClass(), getComplexityLimit(),
-                getOperatorLimit(), getLevel(), getExceptionSafe());
-    }
-
-    /**
-     * Creates a variable declaration block factory constrained to constants.
-     *
-     * @return constant-only declaration block factory
-     */
-    public Factory<VariableDeclarationBlock> getConstantVariableDeclarationBlockFactory() {
         return new VariableDeclarationBlockFactory(getOwnerClass(), getComplexityLimit(),
                 getOperatorLimit(), getLevel(), getExceptionSafe());
     }
@@ -620,11 +594,6 @@ public class IRNodeBuilder {
         return this;
     }
 
-    public IRNodeBuilder setIsSynchronizedAllowed(boolean value) {
-        isSynchronizedAllowed = value;
-        return this;
-    }
-
     public IRNodeBuilder setIsInitialized(boolean value) {
         isInitialized = Optional.of(value);
         return this;
@@ -735,10 +704,6 @@ public class IRNodeBuilder {
 
     private boolean getIsStatic() {
         return isStatic.orElseThrow(() -> new IllegalArgumentException("isStatic wasn't set"));
-    }
-
-    private boolean getIsSynchronizedAllowed() {
-        return isSynchronizedAllowed;
     }
 
     private boolean getIsInitialized() {

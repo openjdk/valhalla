@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,17 +27,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import jdk.internal.net.http.quic.packets.QuicPacketNumbers;
+import org.testng.SkipException;
+import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
 
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.expectThrows;
 
-/*
+/**
  * @test
- * @run junit ${test.main.class}
+ * @run testng PacketNumbersTest
  */
 public class PacketNumbersTest {
 
@@ -86,7 +85,8 @@ public class PacketNumbersTest {
         }
     }
 
-    public static Object[][] encode() {
+    @DataProvider
+    public Object[][] encode() {
         return List.of(
                 // these first three test cases are extracted from RFC 9000, appendix A.2 and A.3
                 new TestCase("success",  0xa82f9b32L, 0xa82f30eaL, EncodeResult.success(0x9b32)),
@@ -127,18 +127,19 @@ public class PacketNumbersTest {
                 .toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("encode")
+    @Test(dataProvider = "encode")
     public void testEncodePacketNumber(TestCase test) {
         System.out.println(test);
         if (test.result().assertion()) {
-            Assumptions.assumeFalse(!QuicPacketNumbers.class.desiredAssertionStatus(), "needs assertion enabled (-esa)");
-            Throwable t = Assertions.assertThrows(test.result().failure(), test::encode);
+            if (!QuicPacketNumbers.class.desiredAssertionStatus()) {
+                throw new SkipException("needs assertion enabled (-esa)");
+            }
+            Throwable t = expectThrows(test.result().failure(), test::encode);
             System.out.println("Got expected assertion: " + t);
             return;
         }
         if (test.result().fail()) {
-            Throwable t = Assertions.assertThrows(test.result().failure(), test::encode);
+            Throwable t = expectThrows(test.result().failure(), test::encode);
             System.out.println("Got expected exception: " + t);
             return;
 
@@ -151,8 +152,8 @@ public class PacketNumbersTest {
         }
 
         // encode the full PN - check that the truncated PN == expected
-        assertEquals(test.result().expected(), truncated);
+        assertEquals(truncated, test.result().expected());
         // check that decode(encoded) == fullPN
-        assertEquals(test.fullPN(), test.decode());
+        assertEquals(test.decode(), test.fullPN());
     }
 }

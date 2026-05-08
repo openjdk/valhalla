@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,8 @@ import static java.time.temporal.IsoFields.DAY_OF_QUARTER;
 import static java.time.temporal.IsoFields.QUARTER_OF_YEAR;
 import static java.time.temporal.IsoFields.WEEK_BASED_YEAR;
 import static java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.time.LocalDate;
 import java.time.chrono.ChronoLocalDate;
@@ -39,16 +38,15 @@ import java.time.temporal.TemporalField;
 import java.time.temporal.ValueRange;
 import java.util.List;
 
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Tests fields in IsoFields class are supported in Japanese/Minguo/ThaiBuddhist
  * date classes
  * @bug 8279185
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestIsoFields {
     private static final LocalDate ld = LocalDate.of(2022, 2, 25);
     private static final ChronoLocalDate J_DATE = JapaneseDate.from(ld);
@@ -56,6 +54,7 @@ public class TestIsoFields {
     private static final ChronoLocalDate TB_DATE = ThaiBuddhistDate.from(ld);
     private static final List<ChronoLocalDate> CLDATES = List.of(J_DATE, M_DATE, TB_DATE);
 
+    @DataProvider(name = "isSupported")
     Object[][] data_isSupported() {
         return new Object[][]{
                 {DAY_OF_QUARTER},
@@ -65,6 +64,7 @@ public class TestIsoFields {
         };
     }
 
+    @DataProvider(name = "range")
     Object[][] data_range() {
         return new Object[][]{
                 {J_DATE, DAY_OF_QUARTER, ValueRange.of(1, 90)},
@@ -82,6 +82,7 @@ public class TestIsoFields {
         };
     }
 
+    @DataProvider(name = "with_getLong")
     Object[][] data_with_getLong() {
         return new Object[][]{
                 {DAY_OF_QUARTER, 45},
@@ -91,27 +92,24 @@ public class TestIsoFields {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_isSupported")
+    @Test(dataProvider = "isSupported")
     public void test_isSupported(TemporalField f) {
         CLDATES.forEach(d -> assertTrue(d.isSupported(f)));
     }
 
-    @ParameterizedTest
-    @MethodSource("data_range")
+    @Test(dataProvider = "range")
     public void test_range(ChronoLocalDate cld, TemporalField f, ValueRange r) {
-        assertEquals(r, cld.range(f));
+        assertEquals(cld.range(f), r);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_with_getLong")
+    @Test(dataProvider = "with_getLong")
     public void test_with_getLong(TemporalField f, long val) {
         CLDATES.forEach(d -> {
             var min = d.range(f).getMinimum();
             var max = d.range(f).getMaximum();
-            assertEquals(min, d.with(f, min).getLong(f));
-            assertEquals(max, d.with(f, max).getLong(f));
-            assertEquals(val, d.with(f, val).getLong(f));
+            assertEquals(d.with(f, min).getLong(f), min);
+            assertEquals(d.with(f, max).getLong(f), max);
+            assertEquals(d.with(f, val).getLong(f), val);
         });
     }
 }

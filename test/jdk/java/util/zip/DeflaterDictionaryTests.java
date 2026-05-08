@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,26 +21,23 @@
  * questions.
  */
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.stream.IntStream;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testng.Assert.assertThrows;
 
 /**
  * @test
  * @bug 8252739
  * @summary Verify Deflater.setDictionary(dictionary, offset, length) uses the offset
- * @run junit/othervm DeflaterDictionaryTests
+ * @run testng/othervm DeflaterDictionaryTests
  */
 public class DeflaterDictionaryTests {
     // Output buffer size
@@ -53,21 +50,31 @@ public class DeflaterDictionaryTests {
     private static final int DICTIONARY_LENGTH = 3;
 
     /**
-     * MethodSource with offsets which should be valid for setDictionary
+     * DataProvider with offsets which should be valid for setDictionary
      *
-     * @return Stream of valid offset values
+     * @return valid offset values
      */
-    protected static IntStream validDictionaryOffsets() {
-        return IntStream.of(0, DICTIONARY_OFFSET, DICTIONARY_LENGTH);
+    @DataProvider(name = "validDictionaryOffsets")
+    protected Object[][] validDictionaryOffsets() {
+        return new Object[][]{
+                {0},
+                {DICTIONARY_OFFSET},
+                {DICTIONARY_LENGTH}
+        };
     }
 
     /**
-     * MethodSource with invalid offsets for setDictionary
+     * DataProvider with  invalid offsets for setDictionary
      *
-     * @return Stream of invalid offset values
+     * @return invalid offset values
      */
-    protected static IntStream invalidDictionaryOffsets() {
-        return IntStream.of(-1, DICTIONARY_LENGTH + 2, DICTIONARY.length());
+    @DataProvider(name = "invalidDictionaryOffsets")
+    protected Object[][] invalidDictionaryOffsets() {
+        return new Object[][]{
+                {-1},
+                {DICTIONARY_LENGTH + 2},
+                {DICTIONARY.length()}
+        };
     }
 
     /**
@@ -76,8 +83,7 @@ public class DeflaterDictionaryTests {
      * @param dictionary_offset offset value to be used
      * @throws Exception if an error occurs
      */
-    @ParameterizedTest
-    @MethodSource("validDictionaryOffsets")
+    @Test(dataProvider = "validDictionaryOffsets")
     public void testByteArray(int dictionary_offset) throws Exception {
         byte[] input = SRC_DATA.getBytes(UTF_8);
         byte[] output = new byte[RESULT_SIZE];
@@ -109,8 +115,8 @@ public class DeflaterDictionaryTests {
             System.out.printf("Inflater::getAdler:%d, length: %d%n",
                     inflater.getAdler(), resultLength);
 
-            assertEquals(SRC_DATA.length(), resultLength);
-            assertArrayEquals(input, Arrays.copyOf(result, resultLength));
+            Assert.assertEquals(SRC_DATA.length(), resultLength);
+            Assert.assertEquals(input, Arrays.copyOf(result, resultLength));
         } finally {
             // Release Resources
             deflater.end();
@@ -157,8 +163,8 @@ public class DeflaterDictionaryTests {
             System.out.printf("Inflater::getAdler:%d, length: %d%n",
                     inflater.getAdler(), resultLength);
 
-            assertEquals(resultLength, SRC_DATA.length());
-            assertArrayEquals(Arrays.copyOf(result, resultLength), input);
+            Assert.assertEquals(SRC_DATA.length(), resultLength);
+            Assert.assertEquals(input, Arrays.copyOf(result, resultLength));
         } finally {
             // Release Resources
             deflater.end();
@@ -211,8 +217,8 @@ public class DeflaterDictionaryTests {
             System.out.printf("Inflater::getAdler:%d, length: %d%n",
                     inflater.getAdler(), resultLength);
 
-            assertEquals(resultLength, SRC_DATA.length());
-            assertArrayEquals(Arrays.copyOf(result, resultLength), input);
+            Assert.assertEquals(SRC_DATA.length(), resultLength);
+            Assert.assertEquals(input, Arrays.copyOf(result, resultLength));
         } finally {
             // Release Resources
             deflater.end();
@@ -226,8 +232,7 @@ public class DeflaterDictionaryTests {
      *
      * @param dictionary_offset offset value to be used
      */
-    @ParameterizedTest
-    @MethodSource("invalidDictionaryOffsets")
+    @Test(dataProvider = "invalidDictionaryOffsets")
     public void testInvalidOffsets(int dictionary_offset) {
         byte[] dictionary = DICTIONARY.getBytes(UTF_8);
 

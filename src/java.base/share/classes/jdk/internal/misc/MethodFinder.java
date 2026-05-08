@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package jdk.internal.misc;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Objects;
 
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
@@ -89,27 +88,21 @@ public class MethodFinder {
             mainMethod = JLA.findMethod(cls, false, "main", String[].class);
         }
 
-        if (mainMethod == null || !isValidMainMethod(cls, mainMethod)) {
+        if (mainMethod == null || !isValidMainMethod(mainMethod)) {
             mainMethod = JLA.findMethod(cls, false, "main");
         }
 
-        if (mainMethod == null || !isValidMainMethod(cls, mainMethod)) {
+        if (mainMethod == null || !isValidMainMethod(mainMethod)) {
             return null;
         }
 
         return mainMethod;
     }
 
-    private static boolean isValidMainMethod(Class<?> initialClass, Method mainMethodCandidate) {
+    private static boolean isValidMainMethod(Method mainMethodCandidate) {
         return mainMethodCandidate.getReturnType() == void.class &&
-               !Modifier.isPrivate(mainMethodCandidate.getModifiers()) &&
-               (Modifier.isPublic(mainMethodCandidate.getModifiers()) ||
-                Modifier.isProtected(mainMethodCandidate.getModifiers()) ||
-                isInSameRuntimePackage(initialClass, mainMethodCandidate.getDeclaringClass()));
+               !Modifier.isPrivate(mainMethodCandidate.getModifiers());
+
     }
 
-    private static boolean isInSameRuntimePackage(Class<?> c1, Class<?> c2) {
-        return Objects.equals(c1.getPackageName(), c2.getPackageName()) &&
-               c1.getClassLoader() == c2.getClassLoader();
-    }
 }

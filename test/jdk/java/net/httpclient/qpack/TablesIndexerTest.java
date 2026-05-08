@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @modules java.net.http/jdk.internal.net.http.qpack
- * @run junit/othervm -Djdk.internal.httpclient.qpack.log.level=INFO ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.qpack.log.level=INFO TablesIndexerTest
  */
 
 import jdk.internal.net.http.qpack.DynamicTable;
@@ -33,6 +33,9 @@ import jdk.internal.net.http.qpack.QPACK;
 import jdk.internal.net.http.qpack.StaticTable;
 import jdk.internal.net.http.qpack.TableEntry;
 import jdk.internal.net.http.qpack.TablesIndexer;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,14 +44,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static jdk.internal.net.http.qpack.TableEntry.EntryType;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TablesIndexerTest {
 
+    @DataProvider(name = "indicesLookupData")
     public Object[][] indicesData() {
         List<Object[]> tcs = new ArrayList<>();
 
@@ -69,8 +68,7 @@ public class TablesIndexerTest {
         return tcs.toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("indicesData")
+    @Test(dataProvider = "indicesLookupData")
     public void checkIndicesLookup(String name, String value,
                                    String dynamicTableValue,
                                    Set<Long> indices, EntryType type) {
@@ -90,46 +88,45 @@ public class TablesIndexerTest {
                 IGNORE_RECEIVED_COUNT_CHECK);
 
         // TableEntry should be for static table only
-        Assertions.assertTrue(tableEntry.isStaticTable());
+        Assert.assertTrue(tableEntry.isStaticTable());
 
         // If value is not equal to dynamicTableValue, the full name:dynamicTableValue
         // should be found in the dynamic table with index 0
         if (!value.equals(dynamicTableValue)) {
             TableEntry dtEntry = tablesIndexer.entryOf(name, dynamicTableValue,
                     IGNORE_RECEIVED_COUNT_CHECK);
-            Assertions.assertFalse(dtEntry.isStaticTable());
-            Assertions.assertEquals(EntryType.NAME_VALUE, dtEntry.type());
-            Assertions.assertEquals(0L, dtEntry.index());
+            Assert.assertFalse(dtEntry.isStaticTable());
+            Assert.assertEquals(dtEntry.type(), EntryType.NAME_VALUE);
+            Assert.assertEquals(dtEntry.index(), 0L);
         }
 
         // Check that found index is contained in a set and returned indices match
-        Assertions.assertTrue(indices.contains(tableEntry.index()));
+        Assert.assertTrue(indices.contains(tableEntry.index()));
 
         // Check that entry type matches
-        Assertions.assertEquals(type, tableEntry.type());
+        Assert.assertEquals(tableEntry.type(), type);
 
         var headerField = STATIC_TABLE.get(tableEntry.index());
         // Check that name and/or value matches the one that can be acquired by
         // using looked-up index
         if (tableEntry.type() == EntryType.NAME) {
-            Assertions.assertEquals(name, headerField.name());
+            Assert.assertEquals(headerField.name(), name);
             // If only name entry is found huffmanName should be set to false
-            Assertions.assertFalse(tableEntry.huffmanName());
+            Assert.assertFalse(tableEntry.huffmanName());
         } else if (tableEntry.type() == EntryType.NAME_VALUE) {
-            Assertions.assertEquals(name, headerField.name());
-            Assertions.assertEquals(value, headerField.value());
+            Assert.assertEquals(headerField.name(), name);
+            Assert.assertEquals(headerField.value(), value);
             // If "name:value" match is found huffmanName and huffmanValue should
             // be set to false
-            Assertions.assertFalse(tableEntry.huffmanName());
-            Assertions.assertFalse(tableEntry.huffmanValue());
+            Assert.assertFalse(tableEntry.huffmanName());
+            Assert.assertFalse(tableEntry.huffmanValue());
 
         } else {
-            Assertions.fail("Unexpected TableEntry type returned:" + tableEntry);
+            Assert.fail("Unexpected TableEntry type returned:" + tableEntry);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("unacknowledgedEntriesLookupData")
+    @Test(dataProvider = "unacknowledgedEntriesLookupData")
     public void unacknowledgedEntryLookup(String headerName, String headerValue,
                                           boolean staticEntryExpected,
                                           EntryType expectedType) {
@@ -140,11 +137,12 @@ public class TablesIndexerTest {
         // Search for an entry in the dynamic and the static tables
         var entry = tablesIndexer.entryOf(headerName, headerValue, TEST_KNOWN_RECEIVED_COUNT);
         // Check that entry references expected table
-        Assertions.assertEquals(staticEntryExpected, entry.isStaticTable());
+        Assert.assertEquals(entry.isStaticTable(), staticEntryExpected);
         // And the type of found entry matches expectations
-        Assertions.assertEquals(expectedType, entry.type());
+        Assert.assertEquals(entry.type(), expectedType);
     }
 
+    @DataProvider
     public Object[][] unacknowledgedEntriesLookupData() {
         List<Object[]> data = new ArrayList<>();
         data.add(new Object[]{USER_AGENT_ST_NAME, "not-in-dynamic", true, EntryType.NAME});

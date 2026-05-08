@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #ifndef SHARE_CDS_RUNTIMECLASSINFO_HPP
 #define SHARE_CDS_RUNTIMECLASSINFO_HPP
 
-#include "cds/aotCompressedPointers.hpp"
 #include "cds/aotMetaspace.hpp"
 #include "cds/archiveBuilder.hpp"
 #include "cds/archiveUtils.hpp"
@@ -42,10 +41,8 @@ class Method;
 class Symbol;
 
 class RunTimeClassInfo {
-  using narrowPtr = AOTCompressedPointers::narrowPtr;
-
-public:
-  enum : char {
+ public:
+ enum : char {
     FROM_FIELD_IS_PROTECTED = 1 << 0,
     FROM_IS_ARRAY           = 1 << 1,
     FROM_IS_OBJECT          = 1 << 2
@@ -59,19 +56,19 @@ public:
   // This is different than DumpTimeClassInfo::DTVerifierConstraint. We use
   // u4 instead of Symbol* to save space on 64-bit CPU.
   struct RTVerifierConstraint {
-    narrowPtr _name;
-    narrowPtr _from_name;
-    Symbol* name() { return AOTCompressedPointers::decode_not_null<Symbol*>(_name); }
+    u4 _name;
+    u4 _from_name;
+    Symbol* name() { return ArchiveUtils::offset_to_archived_address<Symbol*>(_name); }
     Symbol* from_name() {
-      return AOTCompressedPointers::decode<Symbol*>(_from_name);
+      return (_from_name == 0) ? nullptr : ArchiveUtils::offset_to_archived_address<Symbol*>(_from_name);
     }
   };
 
   struct RTLoaderConstraint {
-    narrowPtr   _name;
+    u4   _name;
     char _loader_type1;
     char _loader_type2;
-    Symbol* constraint_name() { return AOTCompressedPointers::decode_not_null<Symbol*>(_name); }
+    Symbol* constraint_name() { return ArchiveUtils::offset_to_archived_address<Symbol*>(_name); }
   };
   struct RTEnumKlassStaticFields {
     int _num;
@@ -79,8 +76,8 @@ public:
   };
 
 private:
-  narrowPtr _klass;
-  narrowPtr _nest_host;
+  u4 _klass_offset;
+  u4 _nest_host_offset;
   int _num_verifier_constraints;
   int _num_loader_constraints;
 
@@ -188,7 +185,7 @@ public:
 
   InstanceKlass* nest_host() {
     assert(!ArchiveBuilder::is_active(), "not called when dumping archive");
-    return AOTCompressedPointers::decode<InstanceKlass*>(_nest_host); // may be null
+    return ArchiveUtils::offset_to_archived_address_or_null<InstanceKlass*>(_nest_host_offset);
   }
 
   RTLoaderConstraint* loader_constraints() {

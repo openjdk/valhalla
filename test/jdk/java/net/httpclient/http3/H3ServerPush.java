@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,10 @@
  *        jdk.httpclient.test.lib.http2.PushHandler
  *        jdk.test.lib.Utils
  *        jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm/timeout=960
+ * @run testng/othervm/timeout=960
  *      -Djdk.httpclient.HttpClient.log=errors,requests,headers
  *      -Djdk.internal.httpclient.debug=false
- *      ${test.main.class}
+ *      H3ServerPush
  * @summary This is a clone of http2/ServerPush but for HTTP/3
  */
 
@@ -66,14 +66,13 @@ import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.httpclient.test.lib.http2.Http2TestServer;
 import jdk.httpclient.test.lib.http2.PushHandler;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static jdk.test.lib.Utils.createTempFileOfSize;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
 
 public class H3ServerPush implements HttpServerAdapters {
 
@@ -82,16 +81,16 @@ public class H3ServerPush implements HttpServerAdapters {
     static final int LOOPS = 13;
     static final int FILE_SIZE = 512 * 1024 + 343;
 
-    private static Path tempFile;
+    static Path tempFile;
 
-    private static HttpTestServer server;
-    private static URI uri;
-    private static URI headURI;
+    HttpTestServer server;
+    URI uri;
+    URI headURI;
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         tempFile = createTempFileOfSize(CLASS_NAME, ".dat", FILE_SIZE);
-        var sslContext = SimpleSSLContext.findSSLContext();
+        var sslContext = new SimpleSSLContext().get();
         var h2Server = new Http2TestServer(true, sslContext);
         h2Server.enableH3AltServiceOnSamePort();
         h2Server.addHandler(new PushHandler(tempFile, LOOPS), "/foo/");
@@ -110,12 +109,12 @@ public class H3ServerPush implements HttpServerAdapters {
         HttpRequest headRequest = HttpRequest.newBuilder(headURI)
                 .HEAD().version(Version.HTTP_2).build();
         var headResponse = client.send(headRequest, BodyHandlers.ofString());
-        assertEquals(200, headResponse.statusCode());
-        assertEquals(Version.HTTP_2, headResponse.version());
+        assertEquals(headResponse.statusCode(), 200);
+        assertEquals(headResponse.version(), Version.HTTP_2);
     }
 
-    @AfterAll
-    public static void teardown() {
+    @AfterTest
+    public void teardown() {
         server.stop();
     }
 
@@ -134,7 +133,7 @@ public class H3ServerPush implements HttpServerAdapters {
         };
 
         try (HttpClient client = newClientBuilderForH3().proxy(Builder.NO_PROXY)
-                .sslContext(SimpleSSLContext.findSSLContext())
+                .sslContext(new SimpleSSLContext().get())
                 .version(Version.HTTP_3).build()) {
             sendHeadRequest(client);
 
@@ -145,7 +144,7 @@ public class H3ServerPush implements HttpServerAdapters {
             resultMap.put(request, cf);
             System.out.println("waiting for response");
             var resp = cf.join();
-            assertEquals(Version.HTTP_3, resp.version());
+            assertEquals(resp.version(), Version.HTTP_3);
             var seen = new HashSet<>();
             resultMap.forEach((k, v) -> {
                 if (seen.add(k)) {
@@ -159,16 +158,16 @@ public class H3ServerPush implements HttpServerAdapters {
             for (HttpRequest r : resultMap.keySet()) {
                 System.out.println("Checking " + r);
                 HttpResponse<String> response = resultMap.get(r).join();
-                assertEquals(200, response.statusCode());
-                assertEquals(Version.HTTP_3, response.version());
-                assertEquals(tempFileAsString, response.body());
+                assertEquals(response.statusCode(), 200);
+                assertEquals(response.version(), Version.HTTP_3);
+                assertEquals(response.body(), tempFileAsString);
             }
             resultMap.forEach((k, v) -> {
                 if (seen.add(k)) {
                     System.out.println("Got " + v.join());
                 }
             });
-            assertEquals(LOOPS + 1, resultMap.size());
+            assertEquals(resultMap.size(), LOOPS + 1);
         }
     }
 
@@ -184,7 +183,7 @@ public class H3ServerPush implements HttpServerAdapters {
                 PushPromiseHandler.of(pushPromise -> BodyHandlers.ofString(UTF_8), resultMap);
 
         try (HttpClient client = newClientBuilderForH3().proxy(Builder.NO_PROXY)
-                .sslContext(SimpleSSLContext.findSSLContext())
+                .sslContext(new SimpleSSLContext().get())
                 .version(Version.HTTP_3).build()) {
             sendHeadRequest(client);
             HttpRequest request = HttpRequest.newBuilder(uri).GET().build();
@@ -195,11 +194,11 @@ public class H3ServerPush implements HttpServerAdapters {
             System.err.println("results.size: " + resultMap.size());
             for (HttpRequest r : resultMap.keySet()) {
                 HttpResponse<String> response = resultMap.get(r).join();
-                assertEquals(200, response.statusCode());
-                assertEquals(Version.HTTP_3, response.version());
-                assertEquals(tempFileAsString, response.body());
+                assertEquals(response.statusCode(), 200);
+                assertEquals(response.version(), Version.HTTP_3);
+                assertEquals(response.body(), tempFileAsString);
             }
-            assertEquals(LOOPS + 1, resultMap.size());
+            assertEquals(resultMap.size(), LOOPS + 1);
         }
     }
 
@@ -232,7 +231,7 @@ public class H3ServerPush implements HttpServerAdapters {
         };
 
         try (HttpClient client = newClientBuilderForH3().proxy(Builder.NO_PROXY)
-                .sslContext(SimpleSSLContext.findSSLContext())
+                .sslContext(new SimpleSSLContext().get())
                 .version(Version.HTTP_3).build()) {
             sendHeadRequest(client);
 
@@ -243,12 +242,12 @@ public class H3ServerPush implements HttpServerAdapters {
             resultsMap.put(request, cf);
             for (HttpRequest r : resultsMap.keySet()) {
                 HttpResponse<Path> response = resultsMap.get(r).join();
-                assertEquals(200, response.statusCode());
-                assertEquals(Version.HTTP_3, response.version());
+                assertEquals(response.statusCode(), 200);
+                assertEquals(response.version(), Version.HTTP_3);
                 String fileAsString = Files.readString(response.body());
-                assertEquals(tempFileAsString, fileAsString);
+                assertEquals(fileAsString, tempFileAsString);
             }
-            assertEquals(LOOPS + 1, resultsMap.size());
+            assertEquals(resultsMap.size(), LOOPS + 1);
         }
     }
 
@@ -264,7 +263,7 @@ public class H3ServerPush implements HttpServerAdapters {
                 PushPromiseHandler.of(H3ServerPush::requestToPath, resultsMap);
 
         try (HttpClient client = newClientBuilderForH3().proxy(Builder.NO_PROXY)
-                .sslContext(SimpleSSLContext.findSSLContext())
+                .sslContext(new SimpleSSLContext().get())
                 .version(Version.HTTP_3).build()) {
             sendHeadRequest(client);
 
@@ -275,12 +274,12 @@ public class H3ServerPush implements HttpServerAdapters {
             resultsMap.put(request, cf);
             for (HttpRequest r : resultsMap.keySet()) {
                 HttpResponse<Path> response = resultsMap.get(r).join();
-                assertEquals(200, response.statusCode());
-                assertEquals(Version.HTTP_3, response.version());
+                assertEquals(response.statusCode(), 200);
+                assertEquals(response.version(), Version.HTTP_3);
                 String fileAsString = Files.readString(response.body());
-                assertEquals(tempFileAsString, fileAsString);
+                assertEquals(fileAsString, tempFileAsString);
             }
-            assertEquals(LOOPS + 1, resultsMap.size());
+            assertEquals(resultsMap.size(), LOOPS + 1);
         }
     }
 
@@ -317,7 +316,7 @@ public class H3ServerPush implements HttpServerAdapters {
                 = new ConcurrentHashMap<>();
 
         try (HttpClient client = newClientBuilderForH3().proxy(Builder.NO_PROXY)
-                .sslContext(SimpleSSLContext.findSSLContext())
+                .sslContext(new SimpleSSLContext().get())
                 .version(Version.HTTP_3).build()) {
             sendHeadRequest(client);
 
@@ -341,13 +340,13 @@ public class H3ServerPush implements HttpServerAdapters {
             resultsMap.put(request, cf);
             for (HttpRequest r : resultsMap.keySet()) {
                 HttpResponse<Void> response = resultsMap.get(r).join();
-                assertEquals(200, response.statusCode());
-                assertEquals(Version.HTTP_3, response.version());
+                assertEquals(response.statusCode(), 200);
+                assertEquals(response.version(), Version.HTTP_3);
                 byte[] ba = byteArrayConsumerMap.get(r).getAccumulatedBytes();
                 String result = new String(ba, UTF_8);
-                assertEquals(tempFileAsString, result);
+                assertEquals(result, tempFileAsString);
             }
-            assertEquals(LOOPS + 1, resultsMap.size());
+            assertEquals(resultsMap.size(), LOOPS + 1);
         }
     }
 
@@ -362,7 +361,7 @@ public class H3ServerPush implements HttpServerAdapters {
                 = new ConcurrentHashMap<>();
 
         try (HttpClient client = newClientBuilderForH3().proxy(Builder.NO_PROXY)
-                .sslContext(SimpleSSLContext.findSSLContext())
+                .sslContext(new SimpleSSLContext().get())
                 .version(Version.HTTP_3).build()) {
             sendHeadRequest(client);
 
@@ -385,13 +384,13 @@ public class H3ServerPush implements HttpServerAdapters {
             resultsMap.put(request, cf);
             for (HttpRequest r : resultsMap.keySet()) {
                 HttpResponse<Void> response = resultsMap.get(r).join();
-                assertEquals(200, response.statusCode());
-                assertEquals(Version.HTTP_3, response.version());
+                assertEquals(response.statusCode(), 200);
+                assertEquals(response.version(), Version.HTTP_3);
                 byte[] ba = byteArrayConsumerMap.get(r).getAccumulatedBytes();
                 String result = new String(ba, UTF_8);
-                assertEquals(tempFileAsString, result);
+                assertEquals(result, tempFileAsString);
             }
-            assertEquals(LOOPS + 1, resultsMap.size());
+            assertEquals(resultsMap.size(), LOOPS + 1);
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,7 @@ import javax.swing.plaf.UIResource;
 import javax.swing.plaf.basic.BasicLookAndFeel;
 import javax.swing.text.DefaultEditorKit;
 
+import sun.awt.AppContext;
 import sun.awt.OSInfo;
 import sun.awt.SunToolkit;
 import sun.swing.DefaultLayoutStyle;
@@ -706,11 +707,6 @@ public class MetalLookAndFeel extends BasicLookAndFeel
         // DEFAULTS TABLE
         //
 
-        Object commonInputMap = new UIDefaults.LazyInputMap(new Object[] {
-                "SPACE", "pressed",
-                "released SPACE", "released"
-        });
-
         Object[] defaults = {
             // *** Auditory Feedback
             "AuditoryCues.defaultCueList", defaultCueList,
@@ -796,8 +792,6 @@ public class MetalLookAndFeel extends BasicLookAndFeel
               }),
 
 
-
-
             // Buttons
             "Button.defaultButtonFollowsFocus", Boolean.FALSE,
             "Button.disabledText", inactiveControlTextColor,
@@ -805,8 +799,10 @@ public class MetalLookAndFeel extends BasicLookAndFeel
             "Button.border", buttonBorder,
             "Button.font", controlTextValue,
             "Button.focus", focusColor,
-            "Button.focusInputMap", commonInputMap,
-
+            "Button.focusInputMap", new UIDefaults.LazyInputMap(new Object[] {
+                          "SPACE", "pressed",
+                 "released SPACE", "released"
+              }),
             // Button default margin is (2, 14, 2, 14), defined in
             // BasicLookAndFeel via "Button.margin" UI property.
 
@@ -815,8 +811,11 @@ public class MetalLookAndFeel extends BasicLookAndFeel
             "CheckBox.font", controlTextValue,
             "CheckBox.focus", focusColor,
             "CheckBox.icon",(LazyValue) t -> MetalIconFactory.getCheckBoxIcon(),
-            "CheckBox.focusInputMap", commonInputMap,
-
+            "CheckBox.focusInputMap",
+               new UIDefaults.LazyInputMap(new Object[] {
+                            "SPACE", "pressed",
+                   "released SPACE", "released"
+                 }),
             // margin is 2 all the way around, BasicBorders.RadioButtonBorder
             // (checkbox uses RadioButtonBorder) is 2 all the way around too.
             "CheckBox.totalInsets", new Insets(4, 4, 4, 4),
@@ -826,7 +825,11 @@ public class MetalLookAndFeel extends BasicLookAndFeel
             "RadioButton.icon",(LazyValue) t -> MetalIconFactory.getRadioButtonIcon(),
             "RadioButton.font", controlTextValue,
             "RadioButton.focus", focusColor,
-            "RadioButton.focusInputMap", commonInputMap,
+            "RadioButton.focusInputMap",
+               new UIDefaults.LazyInputMap(new Object[] {
+                          "SPACE", "pressed",
+                 "released SPACE", "released"
+              }),
             // margin is 2 all the way around, BasicBorders.RadioButtonBorder
             // is 2 all the way around too.
             "RadioButton.totalInsets", new Insets(4, 4, 4, 4),
@@ -836,7 +839,11 @@ public class MetalLookAndFeel extends BasicLookAndFeel
             "ToggleButton.focus", focusColor,
             "ToggleButton.border", toggleButtonBorder,
             "ToggleButton.font", controlTextValue,
-            "ToggleButton.focusInputMap", commonInputMap,
+            "ToggleButton.focusInputMap",
+              new UIDefaults.LazyInputMap(new Object[] {
+                            "SPACE", "pressed",
+                   "released SPACE", "released"
+                }),
 
 
             // File View
@@ -1593,8 +1600,6 @@ public class MetalLookAndFeel extends BasicLookAndFeel
         super.provideErrorFeedback(component);
     }
 
-    private static MetalTheme currentMetalTheme;
-
     /**
      * Set the theme used by <code>MetalLookAndFeel</code>.
      * <p>
@@ -1624,7 +1629,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
         if (theme == null) {
             throw new NullPointerException("Can't have null theme");
         }
-        currentMetalTheme = theme;
+        AppContext.getAppContext().put( "currentMetalTheme", theme );
     }
 
     /**
@@ -1636,10 +1641,15 @@ public class MetalLookAndFeel extends BasicLookAndFeel
      * @since 1.5
      */
     public static MetalTheme getCurrentTheme() {
-        MetalTheme currentTheme = currentMetalTheme;
+        MetalTheme currentTheme;
+        AppContext context = AppContext.getAppContext();
+        currentTheme = (MetalTheme) context.get( "currentMetalTheme" );
         if (currentTheme == null) {
-            //   This will happen when MetalLookAndFeel is first being initialized.
-            //   Rather than invoke a method on the UIManager, which would trigger the loading
+            // This will happen in two cases:
+            // . When MetalLookAndFeel is first being initialized.
+            // . When a new AppContext has been created that hasn't
+            //   triggered UIManager to load a LAF. Rather than invoke
+            //   a method on the UIManager, which would trigger the loading
             //   of a potentially different LAF, we directly set the
             //   Theme here.
             if (useHighContrastTheme()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,20 +30,20 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestUtil
  *        jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Djdk.httpclient.retryOnStreamlimit=20
  *                     -Djdk.httpclient.redirects.retrylimit=21
  *                     -Dsimpleget.repeat=1 -Dsimpleget.chunks=1 -Dsimpleget.requests=1000
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Dsimpleget.requests=150
  *                     -Dsimpleget.chunks=16384
  *                     -Djdk.httpclient.retryOnStreamlimit=5
  *                     -Djdk.httpclient.redirects.retrylimit=6
  *                     -Djdk.httpclient.quic.defaultMTU=16336
- *                      ${test.main.class}
+ *                      H3SimpleGet
  */
 
 /*
@@ -53,20 +53,20 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestUtil
  *        jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Djdk.httpclient.retryOnStreamlimit=20
  *                     -Djdk.httpclient.redirects.retrylimit=21
  *                     -Dsimpleget.repeat=1 -Dsimpleget.chunks=1 -Dsimpleget.requests=1000
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Dsimpleget.requests=150
  *                     -Dsimpleget.chunks=16384
  *                     -Djdk.httpclient.retryOnStreamlimit=5
  *                     -Djdk.httpclient.redirects.retrylimit=6
  *                     -Djdk.httpclient.quic.defaultMTU=8192
- *                      ${test.main.class}
+ *                      H3SimpleGet
  */
 
 /*
@@ -77,23 +77,23 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestUtil
  *        jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -XX:+UnlockExperimentalVMOptions -XX:-VMContinuations
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -XX:+UnlockExperimentalVMOptions -XX:-VMContinuations
  *                     -Djdk.httpclient.retryOnStreamlimit=20
  *                     -Djdk.httpclient.redirects.retrylimit=21
  *                     -Dsimpleget.repeat=1 -Dsimpleget.chunks=1 -Dsimpleget.requests=1000
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -XX:+UnlockExperimentalVMOptions -XX:-VMContinuations
  *                     -Dsimpleget.requests=150
  *                     -Dsimpleget.chunks=16384
  *                     -Djdk.httpclient.retryOnStreamlimit=5
  *                     -Djdk.httpclient.redirects.retrylimit=6
  *                     -Djdk.httpclient.quic.defaultMTU=16336
- *                      ${test.main.class}
+ *                      H3SimpleGet
  */
 
 /*
@@ -103,23 +103,23 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestUtil
  *        jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Djdk.internal.httpclient.quic.useNioSelector=true
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Djdk.internal.httpclient.quic.useNioSelector=true
  *                     -Djdk.httpclient.retryOnStreamlimit=20
  *                     -Djdk.httpclient.redirects.retrylimit=21
  *                     -Dsimpleget.repeat=1 -Dsimpleget.chunks=1 -Dsimpleget.requests=1000
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Djdk.internal.httpclient.quic.useNioSelector=true
  *                     -Dsimpleget.requests=150
  *                     -Dsimpleget.chunks=16384
  *                     -Djdk.httpclient.retryOnStreamlimit=5
  *                     -Djdk.httpclient.redirects.retrylimit=6
  *                     -Djdk.httpclient.quic.defaultMTU=16336
- *                      ${test.main.class}
+ *                      H3SimpleGet
  */
 
 /*
@@ -129,23 +129,23 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestUtil
  *        jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Djdk.internal.httpclient.quic.useNioSelector=true
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Djdk.internal.httpclient.quic.useNioSelector=true
  *                     -Djdk.httpclient.retryOnStreamlimit=20
  *                     -Djdk.httpclient.redirects.retrylimit=21
  *                     -Dsimpleget.repeat=1 -Dsimpleget.chunks=1 -Dsimpleget.requests=1000
- *                     ${test.main.class}
- * @run junit/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
+ *                     H3SimpleGet
+ * @run testng/othervm/timeout=480 -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
  *                     -Djdk.internal.httpclient.quic.useNioSelector=true
  *                     -Dsimpleget.requests=150
  *                     -Dsimpleget.chunks=16384
  *                     -Djdk.httpclient.retryOnStreamlimit=5
  *                     -Djdk.httpclient.redirects.retrylimit=6
  *                     -Djdk.httpclient.quic.defaultMTU=8192
- *                      ${test.main.class}
+ *                      H3SimpleGet
  */
 
 /*
@@ -154,8 +154,8 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.TestUtil
  *        jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm/timeout=480 -Djdk.internal.httpclient.quic.congestionController=reno
- *                     ${test.main.class}
+ * @run testng/othervm/timeout=480 -Djdk.internal.httpclient.quic.congestionController=reno
+ *                     H3SimpleGet
  * @summary send multiple GET requests using Reno congestion controller
  */
 
@@ -198,18 +198,17 @@ import javax.net.ssl.SSLContext;
 
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 public class H3SimpleGet implements HttpServerAdapters {
     static HttpTestServer httpsServer;
     static HttpClient client = null;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    static SSLContext sslContext;
     static String httpsURIString;
     static ExecutorService serverExec =
             Executors.newThreadPerTaskExecutor(Thread.ofVirtual()
@@ -217,6 +216,8 @@ public class H3SimpleGet implements HttpServerAdapters {
 
     static void initialize() throws Exception {
         try {
+            SimpleSSLContext sslct = new SimpleSSLContext();
+            sslContext = sslct.get();
             client = getClient();
 
             httpsServer = HttpTestServer.create(HTTP_3_URI_ONLY, sslContext, serverExec);
@@ -233,6 +234,9 @@ public class H3SimpleGet implements HttpServerAdapters {
     }
 
     private static void warmup() throws Exception {
+        SimpleSSLContext sslct = new SimpleSSLContext();
+        var sslContext = sslct.get();
+
         // warmup server
         try (var client2 = createClient(sslContext, Executors.newThreadPerTaskExecutor(
                 Thread.ofVirtual().name("client-2-vt-worker", 1).factory()))) {
@@ -262,13 +266,13 @@ public class H3SimpleGet implements HttpServerAdapters {
     }
 
     public static void main(String[] args) throws Exception {
-        new H3SimpleGet().test();
+        test();
     }
 
     static volatile boolean waitBeforeTest = false;
 
     @Test
-    public void test() throws Exception {
+    public static void test() throws Exception {
         try {
             if (waitBeforeTest) {
                 Thread.sleep(20000);
@@ -284,7 +288,7 @@ public class H3SimpleGet implements HttpServerAdapters {
                     .GET().build();
             long start = System.nanoTime();
             var resp = client.send(request, BodyHandlers.ofByteArrayConsumer(b-> {}));
-            Assertions.assertEquals(200, resp.statusCode());
+            Assert.assertEquals(resp.statusCode(), 200);
             long elapsed = System.nanoTime() - start;
             System.out.println("Stat: First request took: " + elapsed
                     + " nanos (" + TimeUnit.NANOSECONDS.toMillis(elapsed) + " ms)");
@@ -315,7 +319,7 @@ public class H3SimpleGet implements HttpServerAdapters {
                             + connections.size() + " connections");
                 }
             }
-            list.forEach((cf) -> Assertions.assertEquals(200, cf.join().statusCode()));
+            list.forEach((cf) -> Assert.assertEquals(cf.join().statusCode(), 200));
         } catch (Throwable tt) {
             System.err.println("tt caught");
             tt.printStackTrace();

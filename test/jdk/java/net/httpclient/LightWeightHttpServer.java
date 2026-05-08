@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,9 @@
 /**
  * library /test/lib /
  * build jdk.test.lib.net.SimpleSSLContext ProxyServer
+ * compile ../../../com/sun/net/httpserver/LogFilter.java
+ * compile ../../../com/sun/net/httpserver/EchoHandler.java
+ * compile ../../../com/sun/net/httpserver/FileServerHandler.java
  */
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpContext;
@@ -36,7 +39,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.http.HttpClient.Version;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.concurrent.BrokenBarrierException;
@@ -48,21 +50,14 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLContext;
 
-import jdk.httpclient.test.lib.common.HttpServerAdapters;
-import jdk.httpclient.test.lib.common.HttpServerAdapters.HttpTestContext;
-import jdk.httpclient.test.lib.common.HttpServerAdapters.HttpTestEchoHandler;
-import jdk.httpclient.test.lib.common.HttpServerAdapters.HttpTestExchange;
-import jdk.httpclient.test.lib.common.HttpServerAdapters.HttpTestFileServerHandler;
-import jdk.httpclient.test.lib.common.HttpServerAdapters.HttpTestHandler;
-import jdk.httpclient.test.lib.common.HttpServerAdapters.HttpTestServer;
 import jdk.httpclient.test.lib.common.TestServerConfigurator;
 import jdk.test.lib.net.SimpleSSLContext;
 
 public class LightWeightHttpServer {
 
-    static final SSLContext ctx = SimpleSSLContext.findSSLContext();
-    static HttpTestServer httpServer;
-    static HttpTestServer httpsServer;
+    static SSLContext ctx;
+    static HttpServer httpServer;
+    static HttpsServer httpsServer;
     static ExecutorService executor;
     static int port;
     static int httpsport;
@@ -87,31 +82,37 @@ public class LightWeightHttpServer {
         ch.setLevel(Level.ALL);
         logger.addHandler(ch);
 
-        executor = Executors.newCachedThreadPool();
-
         String root = System.getProperty("test.src", ".") + "/docs";
         InetSocketAddress addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-        httpServer = HttpTestServer.create(Version.HTTP_1_1, null, executor);
-        httpsServer = HttpTestServer.create(Version.HTTP_1_1, ctx, executor);
-        HttpTestHandler h = new HttpTestFileServerHandler(root);
+        httpServer = HttpServer.create(addr, 0);
+        if (httpServer instanceof HttpsServer) {
+            throw new RuntimeException("should not be httpsserver");
+        }
+        httpsServer = HttpsServer.create(addr, 0);
+        HttpHandler h = new FileServerHandler(root);
 
-        HttpTestContext c1 = httpServer.createContext("/files", h);
-        HttpTestContext c2 = httpsServer.createContext("/files", h);
-        HttpTestContext c3 = httpServer.createContext("/echo", new EchoHandler());
+        HttpContext c1 = httpServer.createContext("/files", h);
+        HttpContext c2 = httpsServer.createContext("/files", h);
+        HttpContext c3 = httpServer.createContext("/echo", new EchoHandler());
         redirectHandler = new RedirectHandler("/redirect");
         redirectHandlerSecure = new RedirectHandler("/redirect");
-        HttpTestContext c4 = httpServer.createContext("/redirect", redirectHandler);
-        HttpTestContext c41 = httpsServer.createContext("/redirect", redirectHandlerSecure);
-        HttpTestContext c5 = httpsServer.createContext("/echo", new EchoHandler());
-        HttpTestContext c6 = httpServer.createContext("/keepalive", new KeepAliveHandler());
+        HttpContext c4 = httpServer.createContext("/redirect", redirectHandler);
+        HttpContext c41 = httpsServer.createContext("/redirect", redirectHandlerSecure);
+        HttpContext c5 = httpsServer.createContext("/echo", new EchoHandler());
+        HttpContext c6 = httpServer.createContext("/keepalive", new KeepAliveHandler());
         redirectErrorHandler = new RedirectErrorHandler("/redirecterror");
         redirectErrorHandlerSecure = new RedirectErrorHandler("/redirecterror");
-        HttpTestContext c7 = httpServer.createContext("/redirecterror", redirectErrorHandler);
-        HttpTestContext c71 = httpsServer.createContext("/redirecterror", redirectErrorHandlerSecure);
+        HttpContext c7 = httpServer.createContext("/redirecterror", redirectErrorHandler);
+        HttpContext c71 = httpsServer.createContext("/redirecterror", redirectErrorHandlerSecure);
         delayHandler = new DelayHandler();
-        HttpTestContext c8 = httpServer.createContext("/delay", delayHandler);
-        HttpTestContext c81 = httpsServer.createContext("/delay", delayHandler);
+        HttpContext c8 = httpServer.createContext("/delay", delayHandler);
+        HttpContext c81 = httpsServer.createContext("/delay", delayHandler);
 
+        executor = Executors.newCachedThreadPool();
+        httpServer.setExecutor(executor);
+        httpsServer.setExecutor(executor);
+        ctx = new SimpleSSLContext().get();
+        httpsServer.setHttpsConfigurator(new TestServerConfigurator(addr.getAddress(), ctx));
         httpServer.start();
         httpsServer.start();
 
@@ -136,10 +137,10 @@ public class LightWeightHttpServer {
 
     public static void stop() throws IOException {
         if (httpServer != null) {
-            httpServer.stop();
+            httpServer.stop(0);
         }
         if (httpsServer != null) {
-            httpsServer.stop();
+            httpsServer.stop(0);
         }
         if (proxy != null) {
             proxy.close();
@@ -149,14 +150,7 @@ public class LightWeightHttpServer {
         }
     }
 
-    static class EchoHandler extends HttpServerAdapters.HttpTestEchoHandler {
-        @Override
-        protected boolean useXFixed() {
-            return true;
-        }
-    }
-
-    static class RedirectErrorHandler implements HttpTestHandler {
+    static class RedirectErrorHandler implements HttpHandler {
 
         String root;
         volatile int count = 1;
@@ -174,23 +168,23 @@ public class LightWeightHttpServer {
         }
 
         @Override
-        public synchronized void handle(HttpTestExchange t)
+        public synchronized void handle(HttpExchange t)
                 throws IOException {
             byte[] buf = new byte[2048];
             try (InputStream is = t.getRequestBody()) {
                 while (is.read(buf) != -1) ;
             }
 
-            var map = t.getResponseHeaders();
-            String redirect = root + "/foo/" + count;
+            Headers map = t.getResponseHeaders();
+            String redirect = root + "/foo/" + Integer.toString(count);
             increment();
-            map.addHeader("Location", redirect);
-            t.sendResponseHeaders(301, HttpTestExchange.RSPBODY_EMPTY);
+            map.add("Location", redirect);
+            t.sendResponseHeaders(301, -1);
             t.close();
         }
     }
 
-    static class RedirectHandler implements HttpTestHandler {
+    static class RedirectHandler implements HttpHandler {
 
         String root;
         volatile int count = 0;
@@ -200,21 +194,21 @@ public class LightWeightHttpServer {
         }
 
         @Override
-        public synchronized void handle(HttpTestExchange t)
+        public synchronized void handle(HttpExchange t)
                 throws IOException {
             byte[] buf = new byte[2048];
             try (InputStream is = t.getRequestBody()) {
                 while (is.read(buf) != -1) ;
             }
 
-            var map = t.getResponseHeaders();
+            Headers map = t.getResponseHeaders();
 
             if (count++ < 1) {
-                map.addHeader("Location", root + "/foo/" + count);
+                map.add("Location", root + "/foo/" + count);
             } else {
-                map.addHeader("Location", SmokeTest.midSizedFilename);
+                map.add("Location", SmokeTest.midSizedFilename);
             }
-            t.sendResponseHeaders(301, HttpTestExchange.RSPBODY_EMPTY);
+            t.sendResponseHeaders(301, -1);
             t.close();
         }
 
@@ -227,7 +221,7 @@ public class LightWeightHttpServer {
         }
     }
 
-    static class KeepAliveHandler implements HttpTestHandler {
+    static class KeepAliveHandler implements HttpHandler {
 
         volatile int counter = 0;
         HashSet<Integer> portSet = new HashSet<>();
@@ -241,7 +235,7 @@ public class LightWeightHttpServer {
         }
 
         @Override
-        public synchronized void handle(HttpTestExchange t)
+        public synchronized void handle(HttpExchange t)
                 throws IOException {
             int remotePort = t.getRemoteAddress().getPort();
             String result = "OK";
@@ -293,15 +287,14 @@ public class LightWeightHttpServer {
             try (InputStream is = t.getRequestBody()) {
                 while (is.read(buf) != -1) ;
             }
-            byte[] bytes = result.getBytes("US-ASCII");
-            t.sendResponseHeaders(200, HttpTestExchange.fixedRsp(bytes.length));
+            t.sendResponseHeaders(200, result.length());
             OutputStream o = t.getResponseBody();
-            o.write(bytes);
+            o.write(result.getBytes("US-ASCII"));
             t.close();
         }
     }
 
-    static class DelayHandler implements HttpTestHandler {
+    static class DelayHandler implements HttpHandler {
 
         CyclicBarrier bar1 = new CyclicBarrier(2);
         CyclicBarrier bar2 = new CyclicBarrier(2);
@@ -316,7 +309,7 @@ public class LightWeightHttpServer {
         }
 
         @Override
-        public synchronized void handle(HttpTestExchange he) throws IOException {
+        public synchronized void handle(HttpExchange he) throws IOException {
             try(InputStream is = he.getRequestBody()) {
                 is.readAllBytes();
                 bar1.await();
@@ -324,7 +317,7 @@ public class LightWeightHttpServer {
             } catch (InterruptedException | BrokenBarrierException e) {
                 throw new IOException(e);
             }
-            he.sendResponseHeaders(200, HttpTestExchange.RSPBODY_EMPTY); // will probably fail
+            he.sendResponseHeaders(200, -1); // will probably fail
             he.close();
         }
     }

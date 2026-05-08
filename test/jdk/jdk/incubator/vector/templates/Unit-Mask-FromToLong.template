@@ -5,10 +5,10 @@
         int i = 0;
         try {
             for (; i < a.length; i++) {
-                assertEquals(r[i], a[i] & bits);
+                Assert.assertEquals(r[i], a[i] & bits);
             }
         } catch (AssertionError e) {
-            assertEquals(r[i], a[i] & bits, "(" + a[i] + ") at index #" + i);
+            Assert.assertEquals(r[i], a[i] & bits, "(" + a[i] + ") at index #" + i);
         }
     }
 

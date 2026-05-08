@@ -27,5 +27,5 @@ package jdk.jpackage.internal.model;
 /**
  * A generic bundle specification.
  */
-public sealed interface BundleSpec permits Application, Package {
+public interface BundleSpec {
 }

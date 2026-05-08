@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,23 +25,22 @@
 package jdk.jpackage.internal.model;
 
 import java.nio.file.Path;
-import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
-import jdk.jpackage.internal.util.RootedPath;
 
 public interface MacDmgPackageMixin {
 
     Optional<Path> icon();
 
     /**
-     * Returns the source paths that should be copied into the top-level directory of a DMG package.
+     * Returns additional top=level content for DMG package.
      * <p>
      * Each item in the list can be a directory or a file.
      *
-     * @return the source paths of additional top-level content for DMG package
+     * @return the additional top=level content for DMG package
      */
-    Collection<RootedPath> dmgRootDirSources();
+    List<Path> content();
 
-    record Stub(Optional<Path> icon, Collection<RootedPath> dmgRootDirSources) implements MacDmgPackageMixin {
+    record Stub(Optional<Path> icon, List<Path> content) implements MacDmgPackageMixin {
     }
 }

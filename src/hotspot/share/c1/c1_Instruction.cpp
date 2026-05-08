@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,7 +133,7 @@ bool Instruction::is_loaded_flat_array() const {
   return false;
 }
 
-bool Instruction::maybe_flat_array() const {
+bool Instruction::maybe_flat_array() {
   if (UseArrayFlattening) {
     ciType* type = declared_type();
     if (type != nullptr) {
@@ -160,12 +160,10 @@ bool Instruction::maybe_flat_array() const {
   return false;
 }
 
-bool Instruction::maybe_null_free_array() const {
+bool Instruction::maybe_null_free_array() {
   ciType* type = declared_type();
   if (type != nullptr) {
-    if (type->is_loaded() && type->is_array_klass() && type->as_array_klass()->is_refined()) {
-      return type->as_array_klass()->is_elem_null_free();
-    } else if (type->is_obj_array_klass()) {
+    if (type->is_obj_array_klass()) {
       // Due to array covariance, the runtime type might be a null-free array.
       if (type->as_obj_array_klass()->can_be_inline_array_klass()) {
         return true;
@@ -290,8 +288,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  // Returns the refined type
-  return ciObjArrayKlass::make(klass());
+  return ciArrayKlass::make(klass());
 }
 
 ciType* NewMultiArray::exact_type() const {
@@ -434,14 +431,13 @@ StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt
 // Implementation of Invoke
 
 
-Invoke::Invoke(Bytecodes::Code code, ciType* return_type, Value recv, Values* args,
+Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
                ciMethod* target, ValueStack* state_before)
-  : StateSplit(as_ValueType(return_type), state_before)
+  : StateSplit(result_type, state_before)
   , _code(code)
   , _recv(recv)
   , _args(args)
   , _target(target)
-  , _return_type(return_type)
 {
   set_flag(TargetIsLoadedFlag,   target->is_loaded());
   set_flag(TargetIsFinalFlag,    target_is_loaded() && target->is_final_method());
@@ -473,8 +469,10 @@ void Invoke::state_values_do(ValueVisitor* f) {
 }
 
 ciType* Invoke::declared_type() const {
-  assert(_return_type->basic_type() != T_VOID, "need return value of void method?");
-  return _return_type;
+  ciSignature* declared_signature = state()->scope()->method()->get_declared_signature_at_bci(state()->bci());
+  ciType *t = declared_signature->return_type();
+  assert(t->basic_type() != T_VOID, "need return value of void method?");
+  return t;
 }
 
 // Implementation of Constant

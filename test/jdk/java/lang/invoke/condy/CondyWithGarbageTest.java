@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,20 +27,21 @@
  * @summary Stress test ldc to ensure HotSpot correctly manages oop maps
  * @library /java/lang/invoke/common
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run junit CondyWithGarbageTest
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyWithGarbageTest
+ * @run testng CondyWithGarbageTest
+ * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyWithGarbageTest
  */
+
 
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeBuilder;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import java.lang.constant.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 
 import static java.lang.invoke.MethodType.methodType;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
 
 public class CondyWithGarbageTest {
@@ -53,7 +54,7 @@ public class CondyWithGarbageTest {
         for (int i = 0; i < 100000; i++) {
             l += +((String) mh.invoke()).length();
         }
-        assertTrue(l > 0);
+        Assert.assertTrue(l > 0);
     }
 
     public static Object bsmString(MethodHandles.Lookup l,
@@ -132,7 +133,7 @@ public class CondyWithGarbageTest {
         for (int i = 0; i < 100000; i++) {
             l += +((String) mh.invoke()).length();
         }
-        assertTrue(l > 0);
+        Assert.assertTrue(l > 0);
     }
 
     public static Object bsmStringArray(MethodHandles.Lookup l,

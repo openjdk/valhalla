@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import jdk.internal.net.http.common.FlowTube;
 import jdk.internal.net.http.common.SSLTube;
 import jdk.internal.net.http.common.SequentialScheduler;
 import jdk.internal.net.http.common.Utils;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -43,8 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-import org.junit.jupiter.api.Test;
-
+@Test
 public class SSLEchoTubeTest extends AbstractSSLTubeTest {
 
     @Test

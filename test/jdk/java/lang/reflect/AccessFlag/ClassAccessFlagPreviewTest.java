@@ -29,6 +29,7 @@
  * @enablePreview false
  * @run main ClassAccessFlagPreviewTest
  * @enablePreview true
+ * @compile -XDforcePreview ClassAccessFlagPreviewTest.java
  * @run main ClassAccessFlagPreviewTest
  */
 

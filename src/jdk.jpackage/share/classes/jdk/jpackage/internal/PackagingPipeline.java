@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,9 @@ import static java.util.stream.Collectors.toMap;
 import static jdk.jpackage.internal.model.AppImageLayout.toPathGroup;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -39,16 +39,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 import jdk.jpackage.internal.model.AppImageLayout;
 import jdk.jpackage.internal.model.Application;
 import jdk.jpackage.internal.model.ApplicationLayout;
-import jdk.jpackage.internal.model.JPackageException;
 import jdk.jpackage.internal.model.Package;
 import jdk.jpackage.internal.pipeline.DirectedEdge;
 import jdk.jpackage.internal.pipeline.FixedDAG;
@@ -101,7 +97,7 @@ final class PackagingPipeline {
     /**
      * The way to access packaging build environment before building a package in a pipeline.
      */
-    sealed interface StartupParameters {
+    interface StartupParameters {
         BuildEnv packagingEnv();
     }
 
@@ -131,7 +127,6 @@ final class PackagingPipeline {
     enum PackageTaskID implements TaskID {
         RUN_POST_IMAGE_USER_SCRIPT,
         CREATE_CONFIG_FILES,
-        DELETE_OLD_PACKAGE_FILE,
         CREATE_PACKAGE_FILE
     }
 
@@ -188,11 +183,9 @@ final class PackagingPipeline {
         void execute() throws IOException;
     }
 
-    record TaskConfig(Optional<TaskAction> action, Optional<TaskAction> beforeAction, Optional<TaskAction> afterAction) {
+    record TaskConfig(Optional<TaskAction> action) {
         TaskConfig {
             Objects.requireNonNull(action);
-            Objects.requireNonNull(beforeAction);
-            Objects.requireNonNull(afterAction);
         }
     }
 
@@ -203,64 +196,47 @@ final class PackagingPipeline {
 
         final class TaskBuilder extends TaskSpecBuilder<TaskID> {
 
+            private TaskBuilder(TaskID id) {
+                super(id);
+            }
+
+            private TaskBuilder(TaskID id, TaskConfig config) {
+                this(id);
+                config.action().ifPresent(this::setAction);
+            }
+
+            private TaskBuilder setAction(TaskAction v) {
+                action = v;
+                return this;
+            }
+
             TaskBuilder noaction() {
-                return setAction(ActionRole.WORKLOAD, null);
+                action = null;
+                return this;
             }
 
             <T extends Application, U extends ApplicationLayout> TaskBuilder applicationAction(ApplicationImageTaskAction<T, U> action) {
-                return applicationAction(ActionRole.WORKLOAD, action);
+                return setAction(action);
             }
 
             <T extends Application, U extends AppImageLayout> TaskBuilder appImageAction(AppImageTaskAction<T, U> action) {
-                return appImageAction(ActionRole.WORKLOAD, action);
+                return setAction(action);
             }
 
             <T extends Package> TaskBuilder copyAction(CopyAppImageTaskAction<T> action) {
-                return copyAction(ActionRole.WORKLOAD, action);
+                return setAction(action);
             }
 
             <T extends Package, U extends AppImageLayout> TaskBuilder packageAction(PackageTaskAction<T, U> action) {
-                return packageAction(ActionRole.WORKLOAD, action);
+                return setAction(action);
             }
 
             TaskBuilder action(NoArgTaskAction action) {
-                return action(ActionRole.WORKLOAD, action);
-            }
-
-            <T extends Application, U extends AppImageLayout> TaskBuilder logAppImageActionBegin(String keyId, Function<AppImageBuildEnv<T, U>, Object[]> formatArgsSupplier) {
-                return logAppImageAction(ActionRole.BEFORE, keyId, formatArgsSupplier);
-            }
-
-            <T extends Application, U extends AppImageLayout> TaskBuilder logAppImageActionEnd(String keyId, Function<AppImageBuildEnv<T, U>, Object[]> formatArgsSupplier) {
-                return logAppImageAction(ActionRole.AFTER, keyId, formatArgsSupplier);
-            }
-
-            <T extends Package, U extends AppImageLayout> TaskBuilder logPackageActionBegin(String keyId, Function<PackageBuildEnv<T, U>, Object[]> argsSupplier) {
-                return logPackageAction(ActionRole.BEFORE, keyId, argsSupplier);
-            }
-
-            <T extends Package, U extends AppImageLayout> TaskBuilder logPackageActionEnd(String keyId, Function<PackageBuildEnv<T, U>, Object[]> argsSupplier) {
-                return logPackageAction(ActionRole.AFTER, keyId, argsSupplier);
-            }
-
-            TaskBuilder logActionBegin(String keyId, Supplier<Object[]> formatArgsSupplier) {
-                return logAction(ActionRole.BEFORE, keyId, formatArgsSupplier);
-            }
-
-            TaskBuilder logActionBegin(String keyId, Object... formatArgsSupplier) {
-                return logAction(ActionRole.BEFORE, keyId, () -> formatArgsSupplier);
-            }
-
-            TaskBuilder logActionEnd(String keyId, Supplier<Object[]> formatArgsSupplier) {
-                return logAction(ActionRole.AFTER, keyId, formatArgsSupplier);
-            }
-
-            TaskBuilder logActionEnd(String keyId, Object... formatArgsSupplier) {
-                return logAction(ActionRole.AFTER, keyId, () -> formatArgsSupplier);
+                return setAction(action);
             }
 
             boolean hasAction() {
-                return workloadAction != null;
+                return action != null;
             }
 
             @Override
@@ -296,109 +272,13 @@ final class PackagingPipeline {
             }
 
             Builder add() {
-                final var config = new TaskConfig(
-                        Optional.ofNullable(workloadAction),
-                        Optional.ofNullable(beforeAction),
-                        Optional.ofNullable(afterAction));
+                final var config = new TaskConfig(Optional.ofNullable(action));
                 taskConfig.put(task(), config);
                 createLinks().forEach(Builder.this::linkTasks);
                 return Builder.this;
             }
 
-
-            private enum ActionRole {
-                WORKLOAD(TaskBuilder::setWorkloadAction),
-                BEFORE(TaskBuilder::setBeforeAction),
-                AFTER(TaskBuilder::setAfterAction),
-                ;
-
-                ActionRole(BiConsumer<TaskBuilder, TaskAction> actionSetter) {
-                    this.actionSetter = Objects.requireNonNull(actionSetter);
-                }
-
-                TaskBuilder setAction(TaskBuilder taskBuilder, TaskAction action) {
-                    actionSetter.accept(taskBuilder, action);
-                    return taskBuilder;
-                }
-
-                private final BiConsumer<TaskBuilder, TaskAction> actionSetter;
-            }
-
-
-            private TaskBuilder(TaskID id) {
-                super(id);
-            }
-
-            private TaskBuilder(TaskID id, TaskConfig config) {
-                this(id);
-                config.action().ifPresent(this::setWorkloadAction);
-                config.beforeAction().ifPresent(this::setBeforeAction);
-                config.afterAction().ifPresent(this::setAfterAction);
-            }
-
-            private TaskBuilder setAction(ActionRole role, TaskAction v) {
-                return role.setAction(this, v);
-            }
-
-            private TaskBuilder setWorkloadAction(TaskAction v) {
-                workloadAction = v;
-                return this;
-            }
-
-            private TaskBuilder setBeforeAction(TaskAction v) {
-                beforeAction = v;
-                return this;
-            }
-
-            private TaskBuilder setAfterAction(TaskAction v) {
-                afterAction = v;
-                return this;
-            }
-
-            private <T extends Application, U extends ApplicationLayout> TaskBuilder applicationAction(ActionRole role, ApplicationImageTaskAction<T, U> action) {
-                return setAction(role, action);
-            }
-
-            private <T extends Application, U extends AppImageLayout> TaskBuilder appImageAction(ActionRole role, AppImageTaskAction<T, U> action) {
-                return setAction(role, action);
-            }
-
-            private <T extends Package> TaskBuilder copyAction(ActionRole role, CopyAppImageTaskAction<T> action) {
-                return setAction(role, action);
-            }
-
-            private <T extends Package, U extends AppImageLayout> TaskBuilder packageAction(ActionRole role, PackageTaskAction<T, U> action) {
-                return setAction(role, action);
-            }
-
-            private TaskBuilder action(ActionRole role, NoArgTaskAction action) {
-                return setAction(role, action);
-            }
-
-            private <T extends Application, U extends AppImageLayout> TaskBuilder logAppImageAction(ActionRole role, String keyId, Function<AppImageBuildEnv<T, U>, Object[]> formatArgsSupplier) {
-                Objects.requireNonNull(keyId);
-                return appImageAction(role, (AppImageBuildEnv<T, U> env) -> {
-                    Log.verbose(I18N.format(keyId, formatArgsSupplier.apply(env)));
-                });
-            }
-
-            private <T extends Package, U extends AppImageLayout> TaskBuilder logPackageAction(ActionRole role, String keyId, Function<PackageBuildEnv<T, U>, Object[]> formatArgsSupplier) {
-                Objects.requireNonNull(keyId);
-                return packageAction(role, (PackageBuildEnv<T, U> env) -> {
-                    Log.verbose(I18N.format(keyId, formatArgsSupplier.apply(env)));
-                });
-            }
-
-            private TaskBuilder logAction(ActionRole role, String keyId, Supplier<Object[]> formatArgsSupplier) {
-                Objects.requireNonNull(keyId);
-                return action(role, () -> {
-                    Log.verbose(I18N.format(keyId, formatArgsSupplier.get()));
-                });
-            }
-
-            private TaskAction workloadAction;
-            private TaskAction beforeAction;
-            private TaskAction afterAction;
+            private TaskAction action;
         }
 
         Builder linkTasks(DirectedEdge<TaskID> edge) {
@@ -414,17 +294,19 @@ final class PackagingPipeline {
         }
 
         TaskBuilder task(TaskID id) {
-            return Optional.ofNullable(taskConfig.get(id)).map(taskConfig -> {
-                return new TaskBuilder(id, taskConfig);
-            }).orElseGet(() -> {
-                return new TaskBuilder(id);
-            });
+            return new TaskBuilder(id);
         }
 
         Stream<TaskBuilder> configuredTasks() {
             return taskConfig.entrySet().stream().map(e -> {
                 return new TaskBuilder(e.getKey(), e.getValue());
             });
+        }
+
+        Builder excludeDirFromCopying(Path path) {
+            Objects.requireNonNull(path);
+            excludeCopyDirs.add(path);
+            return this;
         }
 
         Builder contextMapper(UnaryOperator<TaskContext> v) {
@@ -449,6 +331,7 @@ final class PackagingPipeline {
         }
 
         private final FixedDAG.Builder<TaskID> taskGraphBuilder = FixedDAG.build();
+        private final List<Path> excludeCopyDirs = new ArrayList<>();
         private final Map<TaskID, TaskConfig> taskConfig = new HashMap<>();
         private UnaryOperator<TaskContext> contextMapper;
         private FixedDAG<TaskID> taskGraphSnapshot;
@@ -482,7 +365,7 @@ final class PackagingPipeline {
 
         builder.task(BuildApplicationTaskID.CONTENT)
                 .addDependent(BuildApplicationTaskID.APP_IMAGE_FILE)
-                .applicationAction(ApplicationImageUtils.createCopyContentAction()).add();
+                .applicationAction(ApplicationImageUtils.createCopyContentAction(() -> builder.excludeCopyDirs)).add();
 
         return builder;
     }
@@ -509,8 +392,6 @@ final class PackagingPipeline {
 
         builder.task(PackageTaskID.CREATE_PACKAGE_FILE)
                 .addDependent(PrimaryTaskID.PACKAGE)
-                .logActionBegin("message.create-package")
-                .logActionEnd("message.package-created")
                 .add();
 
         builder.task(PrimaryTaskID.PACKAGE).add();
@@ -542,17 +423,6 @@ final class PackagingPipeline {
                 .setScriptNameSuffix("post-image")
                 .setEnvironmentVariable("JpAppImageDir", appImageDir.toAbsolutePath().toString())
                 .run(env.env(), env.pkg().app().name());
-    }
-
-    static void deleteOutputBundle(PackageBuildEnv<Package, AppImageLayout> env) throws IOException {
-
-        var outputBundle = env.outputDir().resolve(env.pkg().packageFileNameWithSuffix());
-
-        try {
-            Files.deleteIfExists(outputBundle);
-        } catch (IOException ex) {
-            throw new JPackageException(I18N.format("error.output-bundle-cannot-be-overwritten", outputBundle.toAbsolutePath()), ex);
-        }
     }
 
     private PackagingPipeline(FixedDAG<TaskID> taskGraph, Map<TaskID, TaskConfig> taskConfig,
@@ -762,7 +632,7 @@ final class PackagingPipeline {
             final var accepted = withAction && context.test(id);
 
             if (TRACE_TASK_ACTION) {
-                var sb = new StringBuilder();
+                var sb = new StringBuffer();
                 sb.append("Execute task=[").append(id).append("]: ");
                 if (!withAction) {
                     sb.append("no action");
@@ -775,13 +645,7 @@ final class PackagingPipeline {
             }
 
             if (accepted) {
-                if (config.beforeAction.isPresent()) {
-                    context.execute(config.beforeAction.orElseThrow());
-                }
                 context.execute(config.action.orElseThrow());
-                if (config.afterAction.isPresent()) {
-                    context.execute(config.afterAction.orElseThrow());
-                }
             }
 
             return null;

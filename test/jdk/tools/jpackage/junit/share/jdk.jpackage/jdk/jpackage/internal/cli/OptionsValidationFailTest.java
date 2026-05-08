@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,10 +40,12 @@ import java.util.stream.Stream;
 import jdk.internal.util.OperatingSystem;
 import jdk.jpackage.internal.model.BundlingOperationDescriptor;
 import jdk.jpackage.internal.util.Result;
-import jdk.jpackage.internal.util.function.ExceptionBox;
 import jdk.jpackage.test.JPackageCommand;
 import jdk.jpackage.test.JUnitAdapter;
+import jdk.jpackage.test.JavaTool;
 import jdk.jpackage.test.TKit;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -86,8 +88,9 @@ import org.junit.jupiter.api.condition.EnabledIf;
 @EnabledIf("jtregErrorTestAvailable")
 public class OptionsValidationFailTest {
 
-    private static ToolProvider createToolProvider() {
-        return new ToolProvider() {
+    @BeforeAll
+    public static void setCustomJPackageToolProvider() {
+        JPackageCommand.useToolProviderByDefault(new ToolProvider() {
 
             @Override
             public String name() {
@@ -99,13 +102,13 @@ public class OptionsValidationFailTest {
 
                 var errorReporter = new Main.ErrorReporter(ex -> {
                     ex.printStackTrace(err);
-                }, err::println, false);
+                }, out::append);
 
                 return parse(args).peekErrors(errors -> {
                     final var firstErr = errors.stream().findFirst().orElseThrow();
                     errorReporter.reportError(firstErr);
                 }).map(builder -> {
-                    var result = new OptionsProcessor(builder, OperatingSystem.current(), bundlingEnv).validate();
+                    var result = new OptionsProcessor(builder, bundlingEnv).validate();
                     if (result.hasValue()) {
                         return 0;
                     } else {
@@ -147,7 +150,13 @@ public class OptionsValidationFailTest {
                 }
 
             };
-        };
+        });
+    }
+
+    @AfterAll
+    public static void resetJPackageToolProvider() {
+        Optional.ofNullable(JavaTool.JPACKAGE.asToolProvider()).ifPresentOrElse(
+                JPackageCommand::useToolProviderByDefault, JPackageCommand::useExecutableByDefault);
     }
 
     @TestFactory
@@ -192,24 +201,11 @@ public class OptionsValidationFailTest {
             return "--jpt-include=" + testDesc;
         });
 
-        final var jpackageToolProviderMock = createToolProvider();
-
         return JUnitAdapter.createJPackageTests(testClassloader, Stream.of(
                 defaultExcludes,
                 defaultIncludes,
                 Stream.of("--jpt-run=ErrorTest")
-        ).flatMap(x -> x).toArray(String[]::new)).map(dynamicTest -> {
-            return DynamicTest.dynamicTest(dynamicTest.getDisplayName(), () -> {
-                TKit.withNewState(() -> {
-                    JPackageCommand.useToolProviderByDefault(jpackageToolProviderMock);
-                    try {
-                        dynamicTest.getExecutable().execute();
-                    } catch (Throwable t) {
-                        throw ExceptionBox.toUnchecked(ExceptionBox.unbox(t));
-                    }
-                });
-            });
-        });
+        ).flatMap(x -> x).toArray(String[]::new));
     }
 
     private static boolean jtregErrorTestAvailable() {

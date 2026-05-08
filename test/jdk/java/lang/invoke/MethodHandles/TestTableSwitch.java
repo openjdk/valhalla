@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,13 @@
 
 /*
  * @test
- * @run junit/othervm -Xverify:all TestTableSwitch
+ * @run testng/othervm -Xverify:all TestTableSwitch
  */
 
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import javax.management.ObjectName;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -34,11 +38,7 @@ import java.util.List;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.assertEquals;
 
 public class TestTableSwitch {
 
@@ -111,6 +111,7 @@ public class TestTableSwitch {
         return args;
     }
 
+    @DataProvider
     public static Object[][] nonVoidCases() {
         List<Object[]> tests = new ArrayList<>();
 
@@ -125,11 +126,10 @@ public class TestTableSwitch {
     }
 
     private static void check(List<Object> testValues, Object[] collectedValues) {
-        assertArrayEquals(testValues.toArray(), collectedValues);
+        assertEquals(collectedValues, testValues.toArray());
     }
 
-    @ParameterizedTest
-    @MethodSource("nonVoidCases")
+    @Test(dataProvider = "nonVoidCases")
     public void testNonVoidHandles(Class<?> type, int numCases, List<Class<?>> additionalTypes) throws Throwable {
         MethodHandle collector = MH_check;
         List<Object> testArguments = new ArrayList<>();
@@ -158,19 +158,19 @@ public class TestTableSwitch {
             testArguments.add(testValue(additionalType));
         }
 
-        assertEquals(defaultReturnValue, mhSwitch.invokeWithArguments(testArguments(-1, testArguments)));
+        assertEquals(mhSwitch.invokeWithArguments(testArguments(-1, testArguments)), defaultReturnValue);
 
         for (int i = 0; i < numCases; i++) {
-            assertEquals(returnValues[i], mhSwitch.invokeWithArguments(testArguments(i, testArguments)));
+            assertEquals(mhSwitch.invokeWithArguments(testArguments(i, testArguments)), returnValues[i]);
         }
 
-        assertEquals(defaultReturnValue, mhSwitch.invokeWithArguments(testArguments(numCases, testArguments)));
+        assertEquals(mhSwitch.invokeWithArguments(testArguments(numCases, testArguments)), defaultReturnValue);
     }
 
     @Test
     public void testVoidHandles() throws Throwable {
         IntFunction<MethodHandle> makeTestCase = expectedIndex -> {
-            IntConsumer test = actualIndex -> assertEquals(expectedIndex, actualIndex);
+            IntConsumer test = actualIndex -> assertEquals(actualIndex, expectedIndex);
             return MH_IntConsumer_accept.bindTo(test);
         };
 
@@ -187,48 +187,48 @@ public class TestTableSwitch {
         mhSwitch.invokeExact((int) 2);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void testNullDefaultHandle() {
-        assertThrows(NullPointerException.class, () -> MethodHandles.tableSwitch(null, simpleTestCase("test")));
+        MethodHandles.tableSwitch(null, simpleTestCase("test"));
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void testNullCases() {
         MethodHandle[] cases = null;
-        assertThrows(NullPointerException.class, () ->
-                MethodHandles.tableSwitch(simpleTestCase("default"), cases));
+        MethodHandles.tableSwitch(simpleTestCase("default"), cases);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void testNullCase() {
-        assertThrows(NullPointerException.class, () -> MethodHandles.tableSwitch(simpleTestCase("default"), simpleTestCase("case"), null));
+        MethodHandles.tableSwitch(simpleTestCase("default"), simpleTestCase("case"), null);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class,
+          expectedExceptionsMessageRegExp = ".*Not enough cases.*")
     public void testNotEnoughCases() {
-        assertThrows(IllegalArgumentException.class, () -> MethodHandles.tableSwitch(simpleTestCase("default")));
+        MethodHandles.tableSwitch(simpleTestCase("default"));
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class,
+          expectedExceptionsMessageRegExp = ".*Case actions must have int as leading parameter.*")
     public void testNotEnoughParameters() {
         MethodHandle empty = MethodHandles.empty(MethodType.methodType(void.class));
-        assertThrows(IllegalArgumentException.class, () ->
-                MethodHandles.tableSwitch(empty, empty, empty));
+        MethodHandles.tableSwitch(empty, empty, empty);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class,
+          expectedExceptionsMessageRegExp = ".*Case actions must have int as leading parameter.*")
     public void testNoLeadingIntParameter() {
         MethodHandle empty = MethodHandles.empty(MethodType.methodType(void.class, double.class));
-        assertThrows(IllegalArgumentException.class, () ->
-                MethodHandles.tableSwitch(empty, empty, empty));
+        MethodHandles.tableSwitch(empty, empty, empty);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class,
+          expectedExceptionsMessageRegExp = ".*Case actions must have the same type.*")
     public void testWrongCaseType() {
         // doesn't return a String
         MethodHandle wrongType = MethodHandles.empty(MethodType.methodType(void.class, int.class));
-        assertThrows(IllegalArgumentException.class, () ->
-                MethodHandles.tableSwitch(simpleTestCase("default"), simpleTestCase("case"), wrongType));
+        MethodHandles.tableSwitch(simpleTestCase("default"), simpleTestCase("case"), wrongType);
     }
 
 }

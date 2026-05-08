@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,10 @@
  * @test
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.HttpClient.log=errors,requests,responses,trace
- *      ${test.main.class}
+ *      H3ImplicitPushCancel
  * @summary This is a clone of http2/ImplicitPushCancel but for HTTP/3
  */
 
@@ -56,18 +56,17 @@ import java.util.concurrent.ConcurrentMap;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.internal.net.http.common.Utils;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpOption.Http3DiscoveryMode.ANY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
 
 public class H3ImplicitPushCancel implements HttpServerAdapters {
 
-    static final Map<String,String> PUSH_PROMISES = Map.of(
+    static Map<String,String> PUSH_PROMISES = Map.of(
             "/x/y/z/1", "the first push promise body",
             "/x/y/z/2", "the second push promise body",
             "/x/y/z/3", "the third push promise body",
@@ -80,13 +79,13 @@ public class H3ImplicitPushCancel implements HttpServerAdapters {
     );
     static final String MAIN_RESPONSE_BODY = "the main response body";
 
-    private static HttpTestServer server;
-    private static URI uri;
-    private static URI headURI;
+    HttpTestServer  server;
+    URI uri;
+    URI headURI;
 
-    @BeforeAll
-    public static void setup() throws Exception {
-        server = HttpTestServer.create(ANY, SimpleSSLContext.findSSLContext());
+    @BeforeTest
+    public void setup() throws Exception {
+        server = HttpTestServer.create(ANY, new SimpleSSLContext().get());
         HttpTestHandler pushHandler = new ServerPushHandler(MAIN_RESPONSE_BODY,
                                                      PUSH_PROMISES);
         server.addHandler(pushHandler, "/push/");
@@ -97,14 +96,14 @@ public class H3ImplicitPushCancel implements HttpServerAdapters {
         headURI = new URI("https://" + server.serverAuthority() + "/head/x");
     }
 
-    @AfterAll
-    public static void teardown() {
+    @AfterTest
+    public void teardown() {
         server.stop();
     }
 
     static <T> HttpResponse<T> assert200ResponseCode(HttpResponse<T> response) {
-        assertEquals(200, response.statusCode());
-        assertEquals(Version.HTTP_3, response.version());
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.version(), Version.HTTP_3);
         return response;
     }
 
@@ -112,8 +111,8 @@ public class H3ImplicitPushCancel implements HttpServerAdapters {
         HttpRequest headRequest = HttpRequest.newBuilder(headURI)
                 .HEAD().version(Version.HTTP_2).build();
         var headResponse = client.send(headRequest, BodyHandlers.ofString());
-        assertEquals(200, headResponse.statusCode());
-        assertEquals(Version.HTTP_2, headResponse.version());
+        assertEquals(headResponse.statusCode(), 200);
+        assertEquals(headResponse.version(), Version.HTTP_2);
     }
 
     /*
@@ -126,7 +125,7 @@ public class H3ImplicitPushCancel implements HttpServerAdapters {
         try (HttpClient client = newClientBuilderForH3()
                 .proxy(Builder.NO_PROXY)
                 .version(Version.HTTP_3)
-                .sslContext(SimpleSSLContext.findSSLContext())
+                .sslContext(new SimpleSSLContext().get())
                 .build()) {
 
             sendHeadRequest(client);
@@ -137,7 +136,7 @@ public class H3ImplicitPushCancel implements HttpServerAdapters {
                                 .build(), BodyHandlers.ofString())
                         .thenApply(H3ImplicitPushCancel::assert200ResponseCode)
                         .thenApply(HttpResponse::body)
-                        .thenAccept(body -> assertEquals(MAIN_RESPONSE_BODY, body))
+                        .thenAccept(body -> assertEquals(body, MAIN_RESPONSE_BODY))
                         .join();
                 System.out.println("Got result before error was raised");
                 throw new AssertionError("should have failed");
@@ -172,14 +171,14 @@ public class H3ImplicitPushCancel implements HttpServerAdapters {
             promises.putIfAbsent(main.request(), CompletableFuture.completedFuture(main));
             promises.forEach((request, value) -> {
                 HttpResponse<String> response = value.join();
-                assertEquals(200, response.statusCode());
+                assertEquals(response.statusCode(), 200);
                 if (PUSH_PROMISES.containsKey(request.uri().getPath())) {
-                    assertEquals(PUSH_PROMISES.get(request.uri().getPath()), response.body());
+                    assertEquals(response.body(), PUSH_PROMISES.get(request.uri().getPath()));
                 } else {
-                    assertEquals(MAIN_RESPONSE_BODY, response.body());
+                    assertEquals(response.body(), MAIN_RESPONSE_BODY);
                 }
             });
-            assertEquals(PUSH_PROMISES.size() + 1, promises.size());
+            assertEquals(promises.size(), PUSH_PROMISES.size() + 1);
 
             promises.clear();
 
@@ -188,13 +187,13 @@ public class H3ImplicitPushCancel implements HttpServerAdapters {
                 client.sendAsync(HttpRequest.newBuilder(uri).build(), BodyHandlers.ofString())
                         .thenApply(H3ImplicitPushCancel::assert200ResponseCode)
                         .thenApply(HttpResponse::body)
-                        .thenAccept(body -> assertEquals(MAIN_RESPONSE_BODY, body))
+                        .thenAccept(body -> assertEquals(body, MAIN_RESPONSE_BODY))
                         .join();
             } catch (CompletionException c) {
                 throw new AssertionError(c.getCause());
             }
 
-            assertEquals(0, promises.size());
+            assertEquals(promises.size(), 0);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,10 +89,6 @@ import static jdk.internal.jimage.ImageLocation.PREVIEW_INFIX;
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
 public final class ImageReader implements AutoCloseable {
-
-    // For resource paths, there's no leading '/'.
-    private static final String PREVIEW_RESOURCE_PREFIX = PREVIEW_INFIX.substring(1);
-
     private final SharedImageReader reader;
 
     private volatile boolean closed;
@@ -211,7 +207,20 @@ public final class ImageReader implements AutoCloseable {
     }
 
     /**
-     * Returns the content of a resource node in a newly allocated byte buffer.
+     * Releases a (possibly cached) {@link ByteBuffer} obtained via
+     * {@link #getResourceBuffer(Node)}.
+     *
+     * <p>Note that no testing is performed to check whether the buffer about
+     * to be released actually came from a call to {@code getResourceBuffer()}.
+     */
+    public static void releaseByteBuffer(ByteBuffer buffer) {
+        BasicImageReader.releaseByteBuffer(buffer);
+    }
+
+    /**
+     * Returns the content of a resource node in a possibly cached byte buffer.
+     * Callers of this method must call {@link #releaseByteBuffer(ByteBuffer)}
+     * when they are finished with it.
      */
     public ByteBuffer getResourceBuffer(Node node) {
         requireOpen();
@@ -474,22 +483,12 @@ public final class ImageReader implements AutoCloseable {
             if (moduleName.indexOf('/') >= 0) {
                 throw new IllegalArgumentException("invalid module name: " + moduleName);
             }
-            if (resourcePath.startsWith(PREVIEW_RESOURCE_PREFIX)) {
-                return null;
-            }
             String nodeName = MODULES_PREFIX + "/" + moduleName + "/" + resourcePath;
             // Synchronize as tightly as possible to reduce locking contention.
             synchronized (this) {
                 Node node = nodes.get(nodeName);
                 if (node == null) {
-                    ImageLocation loc = null;
-                    if (previewMode) {
-                        // We must test preview location first (if in preview mode).
-                        loc = findLocation(moduleName, PREVIEW_RESOURCE_PREFIX + resourcePath);
-                    }
-                    if (loc == null) {
-                        loc = findLocation(moduleName, resourcePath);
-                    }
+                    ImageLocation loc = findLocation(moduleName, resourcePath);
                     if (loc != null && loc.getType() == RESOURCE) {
                         node = newResource(nodeName, loc);
                         nodes.put(node.getName(), node);
@@ -515,12 +514,8 @@ public final class ImageReader implements AutoCloseable {
             if (moduleName.indexOf('/') >= 0) {
                 throw new IllegalArgumentException("invalid module name: " + moduleName);
             }
-            if (resourcePath.startsWith(PREVIEW_RESOURCE_PREFIX)) {
-                return false;
-            }
             // In preview mode, preview-only resources are eagerly added to the
             // cache, so we must check that first.
-            ImageLocation loc = null;
             if (previewMode) {
                 String nodeName = MODULES_PREFIX + "/" + moduleName + "/" + resourcePath;
                 // Synchronize as tightly as possible to reduce locking contention.
@@ -530,11 +525,8 @@ public final class ImageReader implements AutoCloseable {
                         return node.isResource();
                     }
                 }
-                loc = findLocation(moduleName, PREVIEW_RESOURCE_PREFIX + resourcePath);
             }
-            if (loc == null) {
-                loc = findLocation(moduleName, resourcePath);
-            }
+            ImageLocation loc = findLocation(moduleName, resourcePath);
             return loc != null && loc.getType() == RESOURCE;
         }
 

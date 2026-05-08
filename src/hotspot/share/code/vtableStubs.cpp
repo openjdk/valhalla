@@ -51,9 +51,6 @@ VMReg   VtableStub::_receiver_location = VMRegImpl::Bad();
 void* VtableStub::operator new(size_t size, int code_size) throw() {
   assert_lock_strong(VtableStubs_lock);
   assert(size == sizeof(VtableStub), "mismatched size");
-
-  MACOS_AARCH64_ONLY(os::thread_wx_enable_write());
-
   // compute real VtableStub size (rounded to nearest word)
   const int real_size = align_up(code_size + (int)sizeof(VtableStub), wordSize);
   // malloc them in chunks to minimize header overhead
@@ -239,8 +236,7 @@ address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index, bool calle
       // all locks. Only post this event if a new state is not required. Creating a new state would
       // cause a safepoint and the caller of this code has a NoSafepointVerifier.
       if (JvmtiExport::should_post_dynamic_code_generated()) {
-        // FIXME: Is it needed to pass caller_is_c1? Tracked by JDK-8383384
-        JvmtiExport::post_dynamic_code_generated_while_holding_locks(is_vtable_stub? "vtable stub": "itable stub",
+        JvmtiExport::post_dynamic_code_generated_while_holding_locks(is_vtable_stub? "vtable stub": "itable stub",  // FIXME: need to pass caller_is_c1??
                                                                      s->code_begin(), s->code_end());
       }
     }
@@ -259,15 +255,13 @@ inline uint VtableStubs::hash(bool is_vtable_stub, int vtable_index, bool caller
 }
 
 
-inline uint VtableStubs::unsafe_hash(address entry_point) {
+inline uint VtableStubs::unsafe_hash(address entry_point, bool caller_is_c1) {
   // The entrypoint may or may not be a VtableStub. Generate a hash as if it was.
   address vtable_stub_addr = entry_point - VtableStub::entry_offset();
   assert(CodeCache::contains(vtable_stub_addr), "assumed to always be the case");
   address vtable_type_addr = vtable_stub_addr + offset_of(VtableStub, _type);
-  address vtable_caller_type_addr = vtable_stub_addr + offset_of(VtableStub, _caller_type);
   address vtable_index_addr = vtable_stub_addr + offset_of(VtableStub, _index);
   bool is_vtable_stub = *vtable_type_addr == static_cast<uint8_t>(VtableStub::Type::vtable_stub);
-  bool caller_is_c1 = (*vtable_caller_type_addr == static_cast<uint8_t>(VtableStub::CallerType::c1));
   short vtable_index;
   static_assert(sizeof(VtableStub::_index) == sizeof(vtable_index), "precondition");
   memcpy(&vtable_index, vtable_index_addr, sizeof(vtable_index));
@@ -299,7 +293,8 @@ VtableStub* VtableStubs::entry_point(address pc) {
   // _table will only succeed if there is a VtableStub with an entry point at
   // the pc.
   MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
-  uint hash = VtableStubs::unsafe_hash(pc);
+  VtableStub* stub = (VtableStub*)(pc - VtableStub::entry_offset());
+  uint hash = VtableStubs::unsafe_hash(pc, stub->caller_is_c1());
   VtableStub* s;
   for (s = AtomicAccess::load(&_table[hash]); s != nullptr && s->entry_point() != pc; s = s->next()) {}
   return (s != nullptr && s->entry_point() == pc) ? s : nullptr;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,15 +30,21 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext ReferenceTracker
  *        jdk.httpclient.test.lib.common.HttpServerAdapters
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm InvalidSubscriptionRequest
  */
 
+import com.sun.net.httpserver.HttpServer;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -68,31 +74,26 @@ import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
 
 public class InvalidSubscriptionRequest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
-    private static HttpTestServer httpsTestServer;   // HTTPS/1.1
-    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
-    private static String httpURI_fixed;
-    private static String httpURI_chunk;
-    private static String httpsURI_fixed;
-    private static String httpsURI_chunk;
-    private static String http2URI_fixed;
-    private static String http2URI_chunk;
-    private static String https2URI_fixed;
-    private static String https2URI_chunk;
-    private static String http3URI_fixed;
-    private static String http3URI_chunk;
+    SSLContext sslContext;
+    HttpTestServer httpTestServer;    // HTTP/1.1    [ 4 servers ]
+    HttpTestServer httpsTestServer;   // HTTPS/1.1
+    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
+    String httpURI_fixed;
+    String httpURI_chunk;
+    String httpsURI_fixed;
+    String httpsURI_chunk;
+    String http2URI_fixed;
+    String http2URI_chunk;
+    String https2URI_fixed;
+    String https2URI_chunk;
+    String http3URI_fixed;
+    String http3URI_chunk;
 
     static final int ITERATION_COUNT = 3;
     // a shared executor helps reduce the amount of threads created by the test
@@ -125,7 +126,8 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
     static final Supplier<BodyHandler<Publisher<List<ByteBuffer>>>> OF_PUBLISHER_API =
             BHS.of(BodyHandlers::ofPublisher, "BodyHandlers::ofPublisher");
 
-    public static Object[][] variants() {
+    @DataProvider(name = "variants")
+    public Object[][] variants() {
         return new Object[][]{
                 { http3URI_fixed,   false, OF_PUBLISHER_API },
                 { http3URI_chunk,   false, OF_PUBLISHER_API },
@@ -152,7 +154,7 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
         };
     }
 
-    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
     HttpClient newHttpClient(String uri) {
         HttpClient.Builder builder = uri.contains("/http3/")
                 ? newClientBuilderForH3()
@@ -173,9 +175,8 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
         return builder;
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
-    void testNoBody(String uri, boolean sameClient, BHS handlers) throws Exception {
+    @Test(dataProvider = "variants")
+    public void testNoBody(String uri, boolean sameClient, BHS handlers) throws Exception {
         HttpClient client = null;
         Throwable failed = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
@@ -195,7 +196,7 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
             // Get the final result and compare it with the expected body
             try {
                 String body = ofString.getBody().toCompletableFuture().get();
-                assertEquals("", body);
+                assertEquals(body, "");
                 if (uri.endsWith("/chunk")
                         && response.version() == HTTP_1_1) {
                     // with /fixed and 0 length
@@ -230,9 +231,8 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
-    void testNoBodyAsync(String uri, boolean sameClient, BHS handlers) {
+    @Test(dataProvider = "variants")
+    public void testNoBodyAsync(String uri, boolean sameClient, BHS handlers) throws Exception {
         HttpClient client = null;
         Throwable failed = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
@@ -257,7 +257,7 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
                             });
             try {
                 // Get the final result and compare it with the expected body
-                assertEquals("", result.get());
+                assertEquals(result.get(), "");
                 if (uri.endsWith("/chunk")
                         && response.get().version() == HTTP_1_1) {
                     // with /fixed and 0 length
@@ -292,9 +292,8 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
-    void testAsString(String uri, boolean sameClient, BHS handlers) throws Exception {
+    @Test(dataProvider = "variants")
+    public void testAsString(String uri, boolean sameClient, BHS handlers) throws Exception {
         HttpClient client = null;
         Throwable failed = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
@@ -315,7 +314,7 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
             // Get the final result and compare it with the expected body
             try {
                 String body = ofString.getBody().toCompletableFuture().get();
-                assertEquals(WITH_BODY, body);
+                assertEquals(body, WITH_BODY);
                 throw new RuntimeException("Expected IAE not thrown");
             } catch (Exception x) {
                 Throwable cause = x;
@@ -345,9 +344,8 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
-    void testAsStringAsync(String uri, boolean sameClient, BHS handlers) {
+    @Test(dataProvider = "variants")
+    public void testAsStringAsync(String uri, boolean sameClient, BHS handlers) throws Exception {
         HttpClient client = null;
         Throwable failed = null;
         for (int i=0; i< ITERATION_COUNT; i++) {
@@ -371,7 +369,7 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
             // Get the final result and compare it with the expected body
             try {
                 String body = result.get();
-                assertEquals(WITH_BODY, body);
+                assertEquals(body, WITH_BODY);
                 throw new RuntimeException("Expected IAE not thrown");
             } catch (Exception x) {
                 Throwable cause = x;
@@ -456,8 +454,17 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
         }
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    static String serverAuthority(HttpServer server) {
+        return InetAddress.getLoopbackAddress().getHostName() + ":"
+                + server.getAddress().getPort();
+    }
+
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         // HTTP/1.1
         HttpTestHandler h1_fixedLengthHandler = new HTTP_FixedLengthHandler();
         HttpTestHandler h1_chunkHandler = new HTTP_VariableLengthHandler();
@@ -506,8 +513,8 @@ public class InvalidSubscriptionRequest implements HttpServerAdapters {
         http3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         AssertionError fail = TRACKER.check(500);
         try {
             httpTestServer.stop();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,35 +22,37 @@
  */
 
 import java.lang.invoke.TypeDescriptor;
+import java.lang.constant.ClassDesc;
+
+import org.testng.annotations.Test;
 
 import static java.lang.constant.ConstantDescs.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
-/*
+/**
  * @test
  * @compile TypeDescriptorTest.java
- * @run junit TypeDescriptorTest
+ * @run testng TypeDescriptorTest
  * @summary unit tests for implementations of java.lang.invoke.TypeDescriptor
  */
+@Test
 public class TypeDescriptorTest {
     private<F extends TypeDescriptor.OfField<F>> void testArray(F f, boolean isArray, F component, F array) {
         if (isArray) {
             assertTrue(f.isArray());
-            assertEquals(array, f.arrayType());
-            assertEquals(component, f.componentType());
+            assertEquals(f.arrayType(), array);
+            assertEquals(f.componentType(), component);
         }
         else {
             assertFalse(f.isArray());
-            assertEquals(array, f.arrayType());
+            assertEquals(f.arrayType(), array);
             assertNull(f.componentType());
         }
     }
 
-    @Test
     public void testClass() {
         testArray(int.class, false, null, int[].class);
         testArray(int[].class, true, int.class, int[][].class);
@@ -65,7 +67,6 @@ public class TypeDescriptorTest {
         assertFalse(String[].class.isPrimitive());
     }
 
-    @Test
     public void testClassDesc() {
 
         testArray(CD_int, false, null, CD_int.arrayType());

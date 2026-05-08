@@ -53,12 +53,16 @@ import static jdk.internal.util.Exceptions.formatMsg;
  * Wide Web. A resource can be something as simple as a file or a
  * directory, or it can be a reference to a more complicated object,
  * such as a query to a database or to a search engine. More
+ * information on the types of URLs and their formats can be found at:
+ * <a href=
+ * "http://web.archive.org/web/20051219043731/http://archive.ncsa.uiuc.edu/SDG/Software/Mosaic/Demo/url-primer.html">
+ * <i>Types of URL</i></a>
  * <p>
  * In general, a URL can be broken into several parts. Consider the
  * following example:
- * {@snippet lang="text" :
- * http://www.example.com/docs/resource1.html
- * }
+ * <blockquote><pre>
+ *     http://www.example.com/docs/resource1.html
+ * </pre></blockquote>
  * <p>
  * The URL above indicates that the protocol to use is
  * {@code http} (HyperText Transfer Protocol) and that the
@@ -76,9 +80,9 @@ import static jdk.internal.util.Exceptions.formatMsg;
  * the protocol is used instead. For example, the default port for
  * {@code http} is {@code 80}. An alternative port could be
  * specified as:
- * {@snippet lang="text" :
- * http://www.example.com:1080/docs/resource1.html
- * }
+ * <blockquote><pre>
+ *     http://www.example.com:1080/docs/resource1.html
+ * </pre></blockquote>
  * <p>
  * The syntax of {@code URL} is defined by  <a
  * href="http://www.ietf.org/rfc/rfc2396.txt"><i>RFC&nbsp;2396: Uniform
@@ -91,9 +95,9 @@ import static jdk.internal.util.Exceptions.formatMsg;
  * A URL may have appended to it a "fragment", also known
  * as a "ref" or a "reference". The fragment is indicated by the sharp
  * sign character "#" followed by more characters. For example,
- * {@snippet lang="text" :
- * http://www.example.com/index.html#chapter1
- * }
+ * <blockquote><pre>
+ *     http://www.example.com/index.html#chapter1
+ * </pre></blockquote>
  * <p>
  * This fragment is not technically part of the URL. Rather, it
  * indicates that after the specified resource is retrieved, the
@@ -105,17 +109,17 @@ import static jdk.internal.util.Exceptions.formatMsg;
  * which contains only enough information to reach the resource
  * relative to another URL. Relative URLs are frequently used within
  * HTML pages. For example, if the contents of the URL:
- * {@snippet lang="text" :
- * http://www.example.com/index.html
- * }
+ * <blockquote><pre>
+ *     http://www.example.com/index.html
+ * </pre></blockquote>
  * contained within it the relative URL:
- * {@snippet lang="text" :
- * FAQ.html
- * }
+ * <blockquote><pre>
+ *     FAQ.html
+ * </pre></blockquote>
  * it would be a shorthand for:
- * {@snippet lang="text" :
- * http://www.example.com/FAQ.html
- * }
+ * <blockquote><pre>
+ *     http://www.example.com/FAQ.html
+ * </pre></blockquote>
  * <p>
  * The relative URL need not specify all the components of a URL. If
  * the protocol, host name, or port number is missing, the value is
@@ -143,13 +147,13 @@ import static jdk.internal.util.Exceptions.formatMsg;
  * syntax specification.
  * <p>
  * The URL class does not itself encode or decode any URL components
- * according to the escaping mechanism defined in RFC&nbsp;2396. It is the
+ * according to the escaping mechanism defined in RFC2396. It is the
  * responsibility of the caller to encode any fields, which need to be
  * escaped prior to calling URL, and also to decode any escaped fields,
  * that are returned from URL. Furthermore, because URL has no knowledge
  * of URL escaping, it does not recognise equivalence between the encoded
- * or decoded form of the same URL. For example, the two URLs:
- * {@code http://foo.com/hello%20world} and {@code http://foo.com/hello world/}
+ * or decoded form of the same URL. For example, the two URLs:<br>
+ * <pre>    http://foo.com/hello world/ and http://foo.com/hello%20world</pre>
  * would be considered not equal to each other.
  * <p>
  * Note, the {@link java.net.URI} class does perform escaping of its
@@ -160,7 +164,7 @@ import static jdk.internal.util.Exceptions.formatMsg;
  * <p>
  * The {@link URLEncoder} and {@link URLDecoder} classes can also be
  * used, but only for HTML form encoding, which is not the same
- * as the encoding scheme defined in RFC&nbsp;2396.
+ * as the encoding scheme defined in RFC2396.
  *
  * @apiNote
  *
@@ -186,7 +190,7 @@ import static jdk.internal.util.Exceptions.formatMsg;
  * be abused to construct misleading URLs or URIs. Applications
  * that deal with URLs or URIs should take into account
  * the recommendations advised in <a
- * href="https://tools.ietf.org/html/rfc3986#section-7">RFC&nbsp;3986,
+ * href="https://tools.ietf.org/html/rfc3986#section-7">RFC3986,
  * Section 7, Security Considerations</a>.
  * <p>
  * All {@code URL} constructors may throw {@link MalformedURLException}.
@@ -568,10 +572,10 @@ public final class URL implements java.io.Serializable {
      *
      * The new URL is created from the given context URL and the spec
      * argument as described in
-     * RFC&nbsp;2396 &quot;Uniform Resource Identifiers : Generic Syntax&quot; :
-     * {@snippet lang="text" :
-     * <scheme>://<authority><path>?<query>#<fragment>
-     * }
+     * RFC2396 &quot;Uniform Resource Identifiers : Generic Syntax&quot; :
+     * <blockquote><pre>
+     *          &lt;scheme&gt;://&lt;authority&gt;&lt;path&gt;?&lt;query&gt;#&lt;fragment&gt;
+     * </pre></blockquote>
      * The reference is parsed into the scheme, authority, path, query and
      * fragment parts. If the path component is empty and the scheme,
      * authority, and query components are undefined, then the new URL is a
@@ -594,11 +598,11 @@ public final class URL implements java.io.Serializable {
      * path is treated as absolute and the spec path replaces the context path.
      * <p>
      * Otherwise, the path is treated as a relative path and is appended to the
-     * context path, as described in RFC&nbsp;2396. Also, in this case,
+     * context path, as described in RFC2396. Also, in this case,
      * the path is canonicalized through the removal of directory
      * changes made by occurrences of &quot;..&quot; and &quot;.&quot;.
      * <p>
-     * For a more detailed description of URL parsing, refer to RFC&nbsp;2396.
+     * For a more detailed description of URL parsing, refer to RFC2396.
      *
      * @implSpec Parsing the URL includes calling the {@link
      * URLStreamHandler#parseURL(URL, String, int, int) parseURL} method on the
@@ -1023,7 +1027,7 @@ public final class URL implements java.io.Serializable {
 
     /**
      * Gets the host name of this {@code URL}, if applicable.
-     * The format of the host conforms to RFC&nbsp;2732, i.e. for a
+     * The format of the host conforms to RFC 2732, i.e. for a
      * literal IPv6 address, this method will return the IPv6 address
      * enclosed in square brackets ({@code '['} and {@code ']'}).
      *
@@ -1153,12 +1157,12 @@ public final class URL implements java.io.Serializable {
     /**
      * Returns a {@link java.net.URI} equivalent to this URL.
      * This method functions in the same way as {@code new URI (this.toString())}.
-     * <p>Note, any URL instance that complies with RFC&nbsp;2396 can be converted
+     * <p>Note, any URL instance that complies with RFC 2396 can be converted
      * to a URI. However, some URLs that are not strictly in compliance
      * can not be converted to a URI.
      *
      * @throws    URISyntaxException if this URL is not formatted strictly according to
-     *            RFC&nbsp;2396 and cannot be converted to a URI.
+     *            RFC2396 and cannot be converted to a URI.
      *
      * @return    a URI instance equivalent to this URL.
      * @since 1.5
@@ -1247,9 +1251,9 @@ public final class URL implements java.io.Serializable {
      * Opens a connection to this {@code URL} and returns an
      * {@code InputStream} for reading from that connection. This
      * method is a shorthand for:
-     * {@snippet lang="java" :
-     * openConnection().getInputStream()
-     * }
+     * <blockquote><pre>
+     *     openConnection().getInputStream()
+     * </pre></blockquote>
      *
      * @return     an input stream for reading from the URL connection.
      * @throws     IOException  if an I/O exception occurs.
@@ -1262,9 +1266,9 @@ public final class URL implements java.io.Serializable {
 
     /**
      * Gets the contents of this URL. This method is a shorthand for:
-     * {@snippet lang="java" :
-     * openConnection().getContent()
-     * }
+     * <blockquote><pre>
+     *     openConnection().getContent()
+     * </pre></blockquote>
      *
      * @return     the contents of this URL.
      * @throws     IOException  if an I/O exception occurs.
@@ -1276,9 +1280,9 @@ public final class URL implements java.io.Serializable {
 
     /**
      * Gets the contents of this URL. This method is a shorthand for:
-     * {@snippet lang="java" :
-     * openConnection().getContent(classes)
-     * }
+     * <blockquote><pre>
+     *     openConnection().getContent(classes)
+     * </pre></blockquote>
      *
      * @param classes an array of Java types
      * @return     the content object of this URL that is the first match of

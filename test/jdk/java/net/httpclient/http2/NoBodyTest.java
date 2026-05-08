@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,9 @@
  * @bug 8087112
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors
+ * @run testng/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors
  *                     -Djdk.internal.httpclient.debug=true
- *                     ${test.main.class}
+ *                     NoBodyTest
  */
 
 import java.io.IOException;
@@ -47,23 +47,25 @@ import jdk.httpclient.test.lib.http2.Http2TestServer;
 import jdk.httpclient.test.lib.http2.Http2TestExchange;
 import jdk.httpclient.test.lib.http2.Http2Handler;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.Test;
 import static java.net.http.HttpClient.Version.HTTP_2;
 
-import org.junit.jupiter.api.Test;
-
+@Test
 public class NoBodyTest {
     static int httpPort, httpsPort;
     static Http2TestServer httpServer, httpsServer;
     static HttpClient client = null;
     static ExecutorService clientExec;
     static ExecutorService serverExec;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    static SSLContext sslContext;
     static String TEST_STRING = "The quick brown fox jumps over the lazy dog ";
 
     static String httpURIString, httpsURIString;
 
     static void initialize() throws Exception {
         try {
+            SimpleSSLContext sslct = new SimpleSSLContext();
+            sslContext = sslct.get();
             client = getClient();
             httpServer = new Http2TestServer(false, 0, serverExec, sslContext);
             httpServer.addHandler(new Handler(), "/");
@@ -86,7 +88,7 @@ public class NoBodyTest {
     }
 
     @Test
-    public void runtest() throws Exception {
+    public static void runtest() throws Exception {
         try {
             initialize();
             warmup(false);

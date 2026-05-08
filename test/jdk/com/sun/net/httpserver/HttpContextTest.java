@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug 8269692
  * @summary HttpContext::createContext should throw IllegalArgumentException
  *          if context already exists
- * @run junit/othervm HttpContextTest
+ * @run testng/othervm HttpContextTest
  */
 
 import java.io.IOException;
@@ -34,23 +34,22 @@ import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 
 public class HttpContextTest {
 
     static final Class<IllegalArgumentException> IAE = IllegalArgumentException.class;
 
     @Test
-    public void test() throws IOException {
+    public static void test() throws IOException {
         final var server = HttpServer.create(null, 0);
         final var path = "/foo/";
 
         assertThrows(IAE, () -> server.removeContext(path));
         HttpContext context = server.createContext(path);
-        assertEquals(path, context.getPath());
+        assertEquals(context.getPath(), path);
         assertThrows(IAE, () -> server.createContext(path));
         assertThrows(IAE, () -> server.createContext(path, new Handler()));
 
@@ -61,7 +60,7 @@ public class HttpContextTest {
         assertThrows(IAE, () -> server.removeContext(path));
 
         context = server.createContext(path, new Handler());
-        assertEquals(path, context.getPath());
+        assertEquals(context.getPath(), path);
         assertThrows(IAE, () -> server.createContext(path));
         assertThrows(IAE, () -> server.createContext(path, new Handler()));
         server.removeContext(path);
@@ -73,7 +72,7 @@ public class HttpContextTest {
      * shares the prefix of an existing context.
      */
     @Test
-    public void testSubcontext() throws IOException {
+    public static void testSubcontext() throws IOException {
         final var server = HttpServer.create(null, 0);
         server.createContext("/foo/bar/");
         server.createContext("/foo/");

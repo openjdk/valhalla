@@ -78,13 +78,12 @@ bool PSVirtualSpace::shrink_by(size_t bytes) {
   }
 
   char* const base_addr = committed_high_addr() - bytes;
-  if (!special()) {
-    os::uncommit_memory(base_addr, bytes);
+  bool result = special() || os::uncommit_memory(base_addr, bytes);
+  if (result) {
+    _committed_high_addr -= bytes;
   }
 
-  _committed_high_addr -= bytes;
-
-  return true;
+  return result;
 }
 
 #ifndef PRODUCT

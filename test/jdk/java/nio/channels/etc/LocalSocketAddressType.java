@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,39 +26,40 @@
  * @summary Test local address type
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
- * @run junit/othervm LocalSocketAddressType
- * @run junit/othervm -Djava.net.preferIPv4Stack=true LocalSocketAddressType
+ * @run testng/othervm LocalSocketAddressType
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true LocalSocketAddressType
  */
 
 import jdk.test.lib.NetworkConfiguration;
 import jdk.test.lib.net.IPSupport;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.net.*;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.lang.Boolean.parseBoolean;
+import static java.lang.System.getProperty;
 import static java.lang.System.out;
-
+import static jdk.test.lib.Asserts.assertEquals;
+import static jdk.test.lib.Asserts.assertTrue;
 import static jdk.test.lib.net.IPSupport.*;
-
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class LocalSocketAddressType {
 
-    @BeforeAll()
-    public static void setup() {
+    @BeforeTest()
+    public void setup() {
         IPSupport.printPlatformSupport(out);
-        diagnoseConfigurationIssue().ifPresent(Assumptions::abort);
+        throwSkippedExceptionIfNonOperational();
     }
 
+    @DataProvider(name = "addresses")
     public static Iterator<Object[]> addresses() throws Exception {
         NetworkConfiguration nc = NetworkConfiguration.probe();
         return Stream.concat(nc.ip4Addresses(), nc.ip6Addresses())
@@ -66,39 +67,36 @@ public class LocalSocketAddressType {
                 .iterator();
     }
 
-    @ParameterizedTest
-    @MethodSource("addresses")
-    public void testSocketChannel(InetSocketAddress addr) throws Exception {
+    @Test(dataProvider = "addresses")
+    public static void testSocketChannel(InetSocketAddress addr) throws Exception {
         try (var c = SocketChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
             InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
-            assertEquals(cls, ia.getClass());
+            assertEquals(ia.getClass(), cls);
             ia = c.socket().getLocalAddress();
-            assertEquals(cls, ia.getClass());
+            assertEquals(ia.getClass(), cls);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("addresses")
-    public void testServerSocketChannel(InetSocketAddress addr) throws Exception {
+    @Test(dataProvider = "addresses")
+    public static void testServerSocketChannel(InetSocketAddress addr) throws Exception {
         try (var c = ServerSocketChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
             InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
-            assertEquals(cls, ia.getClass());
+            assertEquals(ia.getClass(), cls);
             ia = c.socket().getInetAddress();
-            assertEquals(cls, ia.getClass());
+            assertEquals(ia.getClass(), cls);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("addresses")
-    public void testDatagramChannel(InetSocketAddress addr) throws Exception {
+    @Test(dataProvider = "addresses")
+    public static void testDatagramChannel(InetSocketAddress addr) throws Exception {
         try (var c = DatagramChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
             InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
-            assertEquals(cls, ia.getClass());
+            assertEquals(ia.getClass(), cls);
             ia = c.socket().getLocalAddress();
-            assertEquals(cls, ia.getClass());
+            assertEquals(ia.getClass(), cls);
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,16 +30,15 @@
  *          calling IIOWriteProgressListener.readAborted() for all readers.
  * @run     main WriteAbortTest
  */
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.nio.file.Files;
-
 import javax.imageio.ImageIO;
+import javax.imageio.stream.ImageInputStream;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.nio.file.Files;
 import javax.imageio.ImageWriter;
 import javax.imageio.event.IIOWriteProgressListener;
-import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.ImageOutputStream;
 
 public class WriteAbortTest implements IIOWriteProgressListener {
@@ -99,9 +98,7 @@ public class WriteAbortTest implements IIOWriteProgressListener {
                         + format);
             }
         } finally {
-            if (file != null && file.exists()) {
-                Files.delete(file.toPath());
-            }
+            Files.delete(file.toPath());
         }
     }
 

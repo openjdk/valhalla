@@ -21,7 +21,7 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 8142968 8300228
  * @library /test/lib
@@ -31,7 +31,7 @@
  * @build ModuleReaderTest
  *        jdk.test.lib.compiler.CompilerUtils
  *        jdk.test.lib.util.JarUtils
- * @run junit ModuleReaderTest
+ * @run testng ModuleReaderTest
  * @summary Basic tests for java.lang.module.ModuleReader
  */
 
@@ -45,32 +45,32 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.spi.ToolProvider;
 import java.util.stream.Stream;
 
 import jdk.internal.module.ModulePath;
-import jdk.test.lib.Utils;
 import jdk.test.lib.compiler.CompilerUtils;
 import jdk.test.lib.util.JarUtils;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 public class ModuleReaderTest {
-    private static final Path MODS_DIR = Paths.get("mods");
+    private static final String TEST_SRC = System.getProperty("test.src");
+
+    private static final Path USER_DIR   = Paths.get(System.getProperty("user.dir"));
+    private static final Path SRC_DIR    = Paths.get(TEST_SRC, "src");
+    private static final Path MODS_DIR   = Paths.get("mods");
 
     // the module name of the base module
     private static final String BASE_MODULE = "java.base";
@@ -117,11 +117,10 @@ public class ModuleReaderTest {
         "java\\lang\\Object.class"
     };
 
-    // Resources in test module (can't use module-info.class as a test
+    // resources in test module (can't use module-info.class as a test
     // resource as it will be modified by the jmod tool)
     private static final String[] TEST_RESOURCES = {
-            "p/Main.class",
-            "p/test.txt"
+        "p/Main.class"
     };
 
     // (directory) resources that may be in the test module
@@ -151,35 +150,12 @@ public class ModuleReaderTest {
         "p\\Main.class"
     };
 
-    @BeforeAll
-    public static void compileTestModules() throws Exception {
-        // Write simplest module-info class.
-        Path srcDir = Path.of("src", TEST_MODULE);
-        Files.createDirectories(srcDir);
-        Files.writeString(srcDir.resolve("module-info.java"), "module " + TEST_MODULE + " {}");
-
-        // Write and compile test class "p.Main".
-        Path pkgPath = Path.of("p");
-        Path javaSrc = srcDir.resolve(pkgPath).resolve("Main.java");
-        Files.createDirectories(javaSrc.getParent());
-        Files.writeString(javaSrc,
-                """
-                package p;
-                public class Main {
-                    public static void main(String[] args) { }
-                }
-                """);
-
-        // javac -d <outDir> <srcDir>/**
-        Path outDir = MODS_DIR.resolve(TEST_MODULE);
-        boolean compiled = CompilerUtils.compile(srcDir, outDir);
+    @BeforeTest
+    public void compileTestModule() throws Exception {
+        // javac -d mods/$TESTMODULE src/$TESTMODULE/**
+        boolean compiled = CompilerUtils.compile(SRC_DIR.resolve(TEST_MODULE),
+                                                 MODS_DIR.resolve(TEST_MODULE));
         assertTrue(compiled, "test module did not compile");
-
-        // Add two versions of a resource for preview mode testing.
-        Files.writeString(outDir.resolve(pkgPath).resolve("test.txt"), "Normal Version");
-        Path previewDir = outDir.resolve("META-INF", "preview").resolve(pkgPath);
-        Files.createDirectories(previewDir);
-        Files.writeString(previewDir.resolve("test.txt"), "Preview Version");
     }
 
     /**
@@ -211,29 +187,51 @@ public class ModuleReaderTest {
                 Optional<URI> ouri = reader.find(name);
                 ouri.ifPresent(uri -> {
                     if (name.endsWith("/"))
-                        assertTrue(uri.toString().endsWith("/"),
-                                "mismatched directory URI for '" + name + "': " + uri);
+                        assertTrue(uri.toString().endsWith("/"));
                 });
             }
 
             // test "not found" in java.base module
             for (String name : NOT_BASE_RESOURCES) {
-                assertFalse(reader.find(name).isPresent(), "Unexpected resource found: " + name);
-                assertFalse(reader.open(name).isPresent(), "Unexpected resource opened: " + name);
-                assertFalse(reader.read(name).isPresent(), "Unexpected resource read: " + name);
+                assertFalse(reader.find(name).isPresent());
+                assertFalse(reader.open(name).isPresent());
+                assertFalse(reader.read(name).isPresent());
             }
 
             // test nulls
-            assertThrows(NullPointerException.class, () -> reader.find(null));
-            assertThrows(NullPointerException.class, () -> reader.open(null));
-            assertThrows(NullPointerException.class, () -> reader.read(null));
-            assertThrows(NullPointerException.class, () -> reader.release(null));
+            try {
+                reader.find(null);
+                assertTrue(false);
+            } catch (NullPointerException expected) { }
+
+            try {
+                reader.open(null);
+                assertTrue(false);
+            } catch (NullPointerException expected) { }
+
+            try {
+                reader.read(null);
+                assertTrue(false);
+            } catch (NullPointerException expected) { }
+
+            try {
+                reader.release(null);
+                assertTrue(false);
+            } catch (NullPointerException expected) { }
+
         }
 
         // test closed ModuleReader
-        assertThrows(IOException.class, () -> reader.open(BASE_RESOURCES[0]));
-        assertThrows(IOException.class, () -> reader.read(BASE_RESOURCES[0]));
-        assertThrows(IOException.class, reader::list);
+        try {
+            reader.open(BASE_RESOURCES[0]);
+            assertTrue(false);
+        } catch (IOException expected) { }
+
+
+        try {
+            reader.read(BASE_RESOURCES[0]);
+            assertTrue(false);
+        } catch (IOException expected) { }
     }
 
     /**
@@ -245,59 +243,15 @@ public class ModuleReaderTest {
     }
 
     /**
-     * Test equivalent of the system ModuleReader with preview mode. This differs
-     * in behavior to other "exploded modules" because it supports preview mode.
-     * It also hides preview resources when preview mode is enabled.
-     *
-     * <p>Note: When preview mode is not enabled, preview resources are visible
-     * via their un-mapped path. This is not the same behavior as things like
-     * the JRT filesystem or non-exploded module readers, in which preview paths
-     * are always hidden.
-     */
-    @Test
-    public void testExplodedSystemModule() throws IOException {
-        ModuleFinder normalFinder = ModulePath.of(/* modulePatcher */ null, /* previewMode */ false, MODS_DIR);
-        try (ModuleReader reader = normalFinder.find(TEST_MODULE).get().open()) {
-            assertEquals("Normal Version", assertUtf8Resource(reader, "p/test.txt"));
-            // This file is not visible in an exploded image when using JRT filesystem.
-            assertEquals("Preview Version", assertUtf8Resource(reader, "META-INF/preview/p/test.txt"));
-        }
-        ModuleFinder previewFinder = ModulePath.of(/* modulePatcher */ null, /* previewMode */ true, MODS_DIR);
-        try (ModuleReader reader = previewFinder.find(TEST_MODULE).get().open()) {
-            assertEquals("Preview Version", assertUtf8Resource(reader, "p/test.txt"));
-            assertFalse(reader.find("META-INF/preview/p/test.txt").isPresent(), "unexpected preview resource");
-        }
-    }
-
-    private static String assertUtf8Resource(ModuleReader reader, String name) throws IOException {
-        // Check the resource can be found with the expected URI.
-        Optional<URI> uri = reader.find(name);
-        assertTrue(uri.isPresent(), "resource not found: " + name);
-        assertTrue(uri.get().getPath().endsWith(name), "unexpected path: " + uri.get());
-
-        // Open and read all resource bytes.
-        Optional<InputStream> is = reader.open(name);
-        assertTrue(is.isPresent(), "resource cannot be opened: " + name);
-        byte[] bytes = is.get().readAllBytes();
-
-        // Cross-check that read() returns the same bytes as open().
-        Optional<ByteBuffer> buffer = reader.read(name);
-        assertTrue(buffer.isPresent(), "resource cannot be read: " + name);
-        assertArrayEquals(buffer.get().array(), bytes, "resource bytes differ: " + name);
-        // Return the string of the UTF-8 bytes for checking the actual content.
-        return new String(bytes, StandardCharsets.UTF_8);
-    }
-
-    /**
      * Test ModuleReader with module in modular JAR.
      */
     @Test
     public void testModularJar() throws IOException {
-        Path dir = Utils.createTempDirectory("mlib");
+        Path dir = Files.createTempDirectory(USER_DIR, "mlib");
 
         // jar cf mlib/${TESTMODULE}.jar -C mods .
-        JarUtils.createJarFile(dir.resolve(TEST_MODULE + ".jar"),
-                MODS_DIR.resolve(TEST_MODULE));
+        JarUtils.createJarFile(dir.resolve("m.jar"),
+                               MODS_DIR.resolve(TEST_MODULE));
 
         test(dir);
     }
@@ -307,17 +261,17 @@ public class ModuleReaderTest {
      */
     @Test
     public void testJMod() throws IOException {
-        Path dir = Utils.createTempDirectory("mlib");
+        Path dir = Files.createTempDirectory(USER_DIR, "mlib");
 
         // jmod create --class-path mods/${TESTMODULE}  mlib/${TESTMODULE}.jmod
         String cp = MODS_DIR.resolve(TEST_MODULE).toString();
-        String jmod = dir.resolve(TEST_MODULE + ".jmod").toString();
-        String[] args = {"create", "--class-path", cp, jmod};
+        String jmod = dir.resolve("m.jmod").toString();
+        String[] args = { "create", "--class-path", cp, jmod };
         ToolProvider jmodTool = ToolProvider.findFirst("jmod")
-                .orElseThrow(() ->
-                        new RuntimeException("jmod tool not found")
-                );
-        assertEquals(0, jmodTool.run(System.out, System.out, args), "jmod tool failed");
+            .orElseThrow(() ->
+                new RuntimeException("jmod tool not found")
+            );
+        assertEquals(jmodTool.run(System.out, System.out, args), 0);
 
         test(dir);
     }
@@ -353,30 +307,57 @@ public class ModuleReaderTest {
                 Optional<URI> ouri = reader.find(name);
                 ouri.ifPresent(uri -> {
                     if (name.endsWith("/"))
-                        assertTrue(uri.toString().endsWith("/"),
-                                "mismatched directory URI for '" + name + "': " + uri);
+                        assertTrue(uri.toString().endsWith("/"));
                 });
             }
 
             // test "not found" in test module
             for (String name : NOT_TEST_RESOURCES) {
                 System.out.println("resource: " + name);
-                assertFalse(reader.find(name).isPresent(), "Unexpected resource found: " + name);
-                assertFalse(reader.open(name).isPresent(), "Unexpected resource open: " + name);
-                assertFalse(reader.read(name).isPresent(), "Unexpected resource read: " + name);
+                assertFalse(reader.find(name).isPresent());
+                assertFalse(reader.open(name).isPresent());
+                assertFalse(reader.read(name).isPresent());
             }
 
             // test nulls
-            assertThrows(NullPointerException.class, () -> reader.find(null));
-            assertThrows(NullPointerException.class, () -> reader.open(null));
-            assertThrows(NullPointerException.class, () -> reader.read(null));
-            assertThrows(NullPointerException.class, () -> reader.release(null));
+            try {
+                reader.find(null);
+                assertTrue(false);
+            } catch (NullPointerException expected) { }
+
+            try {
+                reader.open(null);
+                assertTrue(false);
+            } catch (NullPointerException expected) { }
+
+            try {
+                reader.read(null);
+                assertTrue(false);
+            } catch (NullPointerException expected) { }
+
+            try {
+                reader.release(null);
+                throw new RuntimeException();
+            } catch (NullPointerException expected) { }
+
         }
 
         // test closed ModuleReader
-        assertThrows(IOException.class, () -> reader.open(BASE_RESOURCES[0]));
-        assertThrows(IOException.class, () -> reader.read(BASE_RESOURCES[0]));
-        assertThrows(IOException.class, reader::list);
+        try {
+            reader.open(TEST_RESOURCES[0]);
+            assertTrue(false);
+        } catch (IOException expected) { }
+
+
+        try {
+            reader.read(TEST_RESOURCES[0]);
+            assertTrue(false);
+        } catch (IOException expected) { }
+
+        try {
+            reader.list();
+            assertTrue(false);
+        } catch (IOException expected) { }
     }
 
     /**
@@ -386,7 +367,7 @@ public class ModuleReaderTest {
         throws IOException
     {
         Optional<URI> ouri = reader.find(name);
-        assertTrue(ouri.isPresent(), "missing URI for: " + name);
+        assertTrue(ouri.isPresent());
 
         URL url = ouri.get().toURL();
         if (!url.getProtocol().equalsIgnoreCase("jmod")) {
@@ -394,7 +375,7 @@ public class ModuleReaderTest {
             uc.setUseCaches(false);
             try (InputStream in = uc.getInputStream()) {
                 byte[] bytes = in.readAllBytes();
-                assertArrayEquals(expectedBytes, bytes, "resource bytes differ for: " + name);
+                assertTrue(Arrays.equals(bytes, expectedBytes));
             }
         }
     }
@@ -406,10 +387,12 @@ public class ModuleReaderTest {
         throws IOException
     {
         Optional<InputStream> oin = reader.open(name);
-        assertTrue(oin.isPresent(), "missing input stream for: " + name);
-        try (InputStream in = oin.get()) {
+        assertTrue(oin.isPresent());
+
+        InputStream in = oin.get();
+        try (in) {
             byte[] bytes = in.readAllBytes();
-            assertArrayEquals(expectedBytes, bytes, "resource bytes differ for: " + name);
+            assertTrue(Arrays.equals(bytes, expectedBytes));
         }
     }
 
@@ -425,10 +408,10 @@ public class ModuleReaderTest {
         ByteBuffer bb = obb.get();
         try {
             int rem = bb.remaining();
-            assertEquals(expectedBytes.length, rem, "resource lengths differ: " + name);
+            assertTrue(rem == expectedBytes.length);
             byte[] bytes = new byte[rem];
             bb.get(bytes);
-            assertArrayEquals(expectedBytes, bytes, "resource bytes differ: " + name);
+            assertTrue(Arrays.equals(bytes, expectedBytes));
         } finally {
             reader.release(bb);
         }
@@ -443,14 +426,14 @@ public class ModuleReaderTest {
             list = stream.toList();
         }
         Set<String> names = new HashSet<>(list);
-        assertEquals(names.size(), list.size(), "resource list contains duplicates: " + list);
+        assertTrue(names.size() == list.size()); // no duplicates
 
-        assertTrue(names.contains("module-info.class"), "resource list did not contain 'module-info.class': " + list);
-        assertTrue(names.contains(name), "resource list did not contain '" + name + "'" + list);
+        assertTrue(names.contains("module-info.class"));
+        assertTrue(names.contains(name));
 
         // all resources should be locatable via find
         for (String e : names) {
-            assertTrue(reader.find(e).isPresent(), "resource not found: " + name);
+            assertTrue(reader.find(e).isPresent());
         }
     }
 

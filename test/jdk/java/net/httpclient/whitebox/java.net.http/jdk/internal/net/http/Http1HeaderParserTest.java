@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,22 +36,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import sun.net.www.MessageHeader;
+import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
 import static java.lang.System.out;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.util.stream.Collectors.toList;
-
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
 
 // Mostly verifies the "new" Http1HeaderParser returns the same results as the
 // tried and tested sun.net.www.MessageHeader.
 
 public class Http1HeaderParserTest {
 
-    public static Object[][] responses() {
+    @DataProvider(name = "responses")
+    public Object[][] responses() {
         List<String> responses = new ArrayList<>();
 
         String[] basic =
@@ -316,8 +316,7 @@ public class Http1HeaderParserTest {
     }
 
 
-    @ParameterizedTest
-    @MethodSource("responses")
+    @Test(dataProvider = "responses")
     public void verifyHeaders(String respString) throws Exception {
         System.out.println("\ntesting:\n\t" + respString
                 .replace("\r\n", "<CRLF>")
@@ -340,7 +339,7 @@ public class Http1HeaderParserTest {
         String statusLine1 = messageHeaderMap.get(null).get(0);
         String statusLine2 = decoder.statusLine();
         if (statusLine1.startsWith("HTTP")) {// skip the case where MH's messes up the status-line
-            assertEquals(statusLine1, statusLine2, "Status-line not equal");
+            assertEquals(statusLine2, statusLine1, "Status-line not equal");
         } else {
             assertTrue(statusLine2.startsWith("HTTP/1."), "Status-line not HTTP/1.");
         }
@@ -357,7 +356,7 @@ public class Http1HeaderParserTest {
         assertHeadersEqual(messageHeaderMap, decoderMap1,
                           "messageHeaderMap not equal to decoderMap1");
 
-        assertEquals(b.remaining(), availableBytes,
+        assertEquals(availableBytes, b.remaining(),
                 String.format("stream available (%d) not equal to remaining (%d)",
                         availableBytes, b.remaining()));
         // byte at a time
@@ -367,13 +366,14 @@ public class Http1HeaderParserTest {
                 .collect(toList());
         while (decoder.parse(buffers.remove(0)) != true);
         Map<String,List<String>> decoderMap2 = decoder.headers().map();
-        assertEquals(buffers.size(), availableBytes,
+        assertEquals(availableBytes, buffers.size(),
                      "stream available not equals to remaining buffers");
-        assertEquals(decoderMap2, decoderMap1, "decoder maps not equal");
+        assertEquals(decoderMap1, decoderMap2, "decoder maps not equal");
 
     }
 
-    public static Object[][] errors() {
+    @DataProvider(name = "errors")
+    public Object[][] errors() {
         List<String> responses = new ArrayList<>();
 
         // These responses are parsed, somewhat, by MessageHeaders but give
@@ -451,15 +451,12 @@ public class Http1HeaderParserTest {
         return responses.stream().map(p -> new Object[] { p }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("errors")
+    @Test(dataProvider = "errors", expectedExceptions = ProtocolException.class)
     public void errors(String respString) throws ProtocolException {
-        assertThrows(ProtocolException.class, () -> {
-            byte[] bytes = respString.getBytes(US_ASCII);
-            Http1HeaderParser decoder = new Http1HeaderParser();
-            ByteBuffer b = ByteBuffer.wrap(bytes);
-            decoder.parse(b);
-        });
+        byte[] bytes = respString.getBytes(US_ASCII);
+        Http1HeaderParser decoder = new Http1HeaderParser();
+        ByteBuffer b = ByteBuffer.wrap(bytes);
+        decoder.parse(b);
     }
 
     void assertHeadersEqual(Map<String,List<String>> expected,
@@ -469,7 +466,7 @@ public class Http1HeaderParserTest {
         if (expected.equals(actual))
             return;
 
-        assertEquals(actual.size(), expected.size(),
+        assertEquals(expected.size(), actual.size(),
                      format("%s. Expected size %d, actual size %s. %nexpected= %s,%n actual=%s.",
                             msg, expected.size(), actual.size(), mapToString(expected), mapToString(actual)));
 
@@ -482,7 +479,7 @@ public class Http1HeaderParserTest {
                 if (key.equalsIgnoreCase(other.getKey())) {
                     found = true;
                     List<String> otherValues = other.getValue();
-                    assertEquals(otherValues.size(), values.size(),
+                    assertEquals(values.size(), otherValues.size(),
                                  format("%s. Expected list size %d, actual size %s",
                                         msg, values.size(), otherValues.size()));
                     if (!(values.containsAll(otherValues) && otherValues.containsAll(values)))
@@ -511,11 +508,11 @@ public class Http1HeaderParserTest {
     public static void main(String... args) throws Exception  {
         Http1HeaderParserTest test = new Http1HeaderParserTest();
         int count = 0;
-        for (Object[] objs : Http1HeaderParserTest.responses()) {
+        for (Object[] objs : test.responses()) {
             out.println("Testing " + count++ + ", " + objs[0]);
             test.verifyHeaders((String) objs[0]);
         }
-        for (Object[] objs : Http1HeaderParserTest.errors()) {
+        for (Object[] objs : test.errors()) {
             out.println("Testing " + count++ + ", " + objs[0]);
             try {
                 test.errors((String) objs[0]);

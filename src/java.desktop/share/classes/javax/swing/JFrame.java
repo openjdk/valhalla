@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,6 +126,13 @@ public class JFrame  extends Frame implements WindowConstants,
                                               RootPaneContainer,
                               TransferHandler.HasGetTransferHandler
 {
+    /**
+     * Key into the AppContext, used to check if should provide decorations
+     * by default.
+     */
+    private static final Object defaultLookAndFeelDecoratedKey =
+            new StringBuffer("JFrame.defaultLookAndFeelDecorated");
+
     private int defaultCloseOperation = HIDE_ON_CLOSE;
 
     /**
@@ -748,8 +755,6 @@ public class JFrame  extends Frame implements WindowConstants,
         }
     }
 
-    private static boolean defaultLAFDecorated;
-
     /**
      * Provides a hint as to whether or not newly created <code>JFrame</code>s
      * should have their Window decorations (such as borders, widgets to
@@ -775,7 +780,11 @@ public class JFrame  extends Frame implements WindowConstants,
      * @since 1.4
      */
     public static void setDefaultLookAndFeelDecorated(boolean defaultLookAndFeelDecorated) {
-        defaultLAFDecorated = defaultLookAndFeelDecorated;
+        if (defaultLookAndFeelDecorated) {
+            SwingUtilities.appContextPut(defaultLookAndFeelDecoratedKey, Boolean.TRUE);
+        } else {
+            SwingUtilities.appContextPut(defaultLookAndFeelDecoratedKey, Boolean.FALSE);
+        }
     }
 
 
@@ -788,7 +797,12 @@ public class JFrame  extends Frame implements WindowConstants,
      * @since 1.4
      */
     public static boolean isDefaultLookAndFeelDecorated() {
-        return defaultLAFDecorated;
+        Boolean defaultLookAndFeelDecorated =
+            (Boolean) SwingUtilities.appContextGet(defaultLookAndFeelDecoratedKey);
+        if (defaultLookAndFeelDecorated == null) {
+            defaultLookAndFeelDecorated = Boolean.FALSE;
+        }
+        return defaultLookAndFeelDecorated.booleanValue();
     }
 
     /**

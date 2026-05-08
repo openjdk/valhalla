@@ -52,7 +52,8 @@ public class TestSelectiveBarrierFlags {
                 new String[] { "ShenandoahLoadRefBarrier" },
                 new String[] { "ShenandoahSATBBarrier" },
                 new String[] { "ShenandoahCASBarrier" },
-                new String[] { "ShenandoahCloneBarrier" }
+                new String[] { "ShenandoahCloneBarrier" },
+                new String[] { "ShenandoahStackWatermarkBarrier" }
         };
 
         int size = 1;

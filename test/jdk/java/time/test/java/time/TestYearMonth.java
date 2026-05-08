@@ -64,13 +64,15 @@ import java.io.ObjectStreamField;
 import java.time.LocalDate;
 import java.time.YearMonth;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 /**
  * Test YearMonth.
  */
+@Test
 public class TestYearMonth extends AbstractTest {
 
     //-----------------------------------------------------------------------
@@ -85,8 +87,8 @@ public class TestYearMonth extends AbstractTest {
         var osc = ObjectStreamClass.lookup(YearMonth.class);
         for (ObjectStreamField f : osc.getFields()) {
             switch (f.getName()) {
-                case "year" -> assertEquals(int.class, f.getType(), f.getName());
-                case "month" -> assertEquals(int.class, f.getType(), f.getName());
+                case "year" -> assertEquals(f.getType(), int.class, f.getName());
+                case "month" -> assertEquals(f.getType(), int.class, f.getName());
                 default -> fail("unknown field in YearMonth: " + f.getName());
             }
         }

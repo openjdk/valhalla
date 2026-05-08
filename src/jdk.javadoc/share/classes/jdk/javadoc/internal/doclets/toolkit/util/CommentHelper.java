@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -136,7 +136,10 @@ public class CommentHelper {
             return null;
         }
         DocTrees doctrees = configuration.docEnv.getDocTrees();
-        return doctrees.getElement(docTreePath);
+        // Workaround for JDK-8284193
+        // DocTrees.getElement(DocTreePath) returns javac-internal Symbols
+        var e = doctrees.getElement(docTreePath);
+        return e == null || e.getKind() == ElementKind.CLASS && e.asType().getKind() != TypeKind.DECLARED ? null : e;
     }
 
     public TypeMirror getType(ReferenceTree rtree) {

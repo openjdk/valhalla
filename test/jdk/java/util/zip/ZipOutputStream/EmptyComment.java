@@ -1,6 +1,5 @@
 /*
  * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
- * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,36 +21,34 @@
  * questions.
  */
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.io.ByteArrayOutputStream;
 import java.util.function.Consumer;
-import java.util.stream.IntStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertThrows;
 
 /**
  * @test
  * @bug 8277087
  * @summary Verifies various use cases when the zip comment should be empty
- * @run junit EmptyComment
+ * @run testng EmptyComment
  */
 public final class EmptyComment {
 
-    static IntStream longLengths() {
-        return IntStream.of(0xFFFF + 1, 0xFFFF + 2, 0xFFFF * 2);
+    @DataProvider()
+    Object[][] longLengths() {
+        return new Object[][]{{0xFFFF + 1}, {0xFFFF + 2}, {0xFFFF * 2}};
     }
 
     /**
      * Overflow, the text is too long to be stored as a comment.
      */
-    @ParameterizedTest
-    @MethodSource("longLengths")
+    @Test(dataProvider = "longLengths")
     void testOverflow(int length) throws Exception {
         test(zos -> assertThrows(IllegalArgumentException.class, () -> {
             zos.setComment("X".repeat(length));

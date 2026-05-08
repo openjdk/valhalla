@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,33 +25,23 @@
 #ifndef SHARE_VM_OOPS_FLATARRAYOOP_HPP
 #define SHARE_VM_OOPS_FLATARRAYOOP_HPP
 
+#include "oops/arrayOop.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/klass.hpp"
 #include "oops/objArrayOop.hpp"
-#include "utilities/globalDefinitions.hpp"
-
-class FlatArrayKlass;
+#include "runtime/handles.hpp"
 
 // A flatArrayOop points to a flat array containing inline types (no indirection).
 // It may include embedded oops in its elements.
 
 class flatArrayOopDesc : public objArrayOopDesc {
+
  public:
-  inline FlatArrayKlass* klass() const;
-
-  void* base() const;
-  static size_t base_offset_in_bytes();
+  void*  base() const;
   void* value_at_addr(int index, jint lh) const;
-  size_t value_offset(int index, jint lh) const;
-  size_t value_offset_from_base(int index, jint lh) const;
 
-  // oop obj_at(...) must always allocate when reading a non-null flat element,
-  // as such only obj_at(int, TRAPS) is provided. To null-check element without
-  // allocating use obj_at_is_null(int);
-  inline oop obj_at(int index) const = delete;
+  inline oop obj_at(int index) const;
   inline oop obj_at(int index, TRAPS) const;
-  inline bool obj_at_is_null(int index) const;
-  inline jboolean null_marker_of_obj_at(int index) const;
-  inline jboolean null_marker_of_obj_at(int index, TRAPS) const;
   inline void obj_at_put(int index, oop value);
   inline void obj_at_put(int index, oop value, TRAPS);
 
@@ -70,10 +60,6 @@ class flatArrayOopDesc : public objArrayOopDesc {
   }
 
   int object_size(int lh) const;
-
-  // Special iterators for an element index range.
-  template <typename OopClosureType>
-  void oop_iterate_elements_range(OopClosureType* blk, int start, int end);
 
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -154,7 +154,9 @@ class ChunkedOutputStream extends FilterOutputStream
         } finally {
             closed = true;
         }
-        t.postExchangeFinished(true);
+
+        Event e = new Event.WriteFinished(t);
+        t.getHttpContext().getServerImpl().addEvent(e);
     }
 
     public void flush() throws IOException {

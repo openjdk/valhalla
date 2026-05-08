@@ -168,8 +168,7 @@ final class SupportedVersionsExtension {
 
             // Is it a supported and enabled extension?
             if (!chc.sslConfig.isAvailable(CH_SUPPORTED_VERSIONS)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "Ignore unavailable extension: " +
                         CH_SUPPORTED_VERSIONS.name);
@@ -217,8 +216,7 @@ final class SupportedVersionsExtension {
 
             // Is it a supported and enabled extension?
             if (!shc.sslConfig.isAvailable(CH_SUPPORTED_VERSIONS)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "Ignore unavailable extension: " +
                         CH_SUPPORTED_VERSIONS.name);
@@ -310,8 +308,7 @@ final class SupportedVersionsExtension {
                     shc.handshakeExtensions.get(CH_SUPPORTED_VERSIONS);
             if (svs == null) {
                 // Unlikely, no key_share extension requested.
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.warning(
                             "Ignore unavailable supported_versions extension");
                 }
@@ -320,8 +317,7 @@ final class SupportedVersionsExtension {
 
             // Is it a supported and enabled extension?
             if (!shc.sslConfig.isAvailable(SH_SUPPORTED_VERSIONS)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "Ignore unavailable extension: " +
                         SH_SUPPORTED_VERSIONS.name);
@@ -360,8 +356,7 @@ final class SupportedVersionsExtension {
 
             // Is it a supported and enabled extension?
             if (!chc.sslConfig.isAvailable(SH_SUPPORTED_VERSIONS)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "Ignore unavailable extension: " +
                         SH_SUPPORTED_VERSIONS.name);
@@ -404,8 +399,7 @@ final class SupportedVersionsExtension {
 
             // Is it a supported and enabled extension?
             if (!shc.sslConfig.isAvailable(HRR_SUPPORTED_VERSIONS)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "Ignore unavailable extension: " +
                         HRR_SUPPORTED_VERSIONS.name);
@@ -447,8 +441,7 @@ final class SupportedVersionsExtension {
 
             // Is it a supported and enabled extension?
             if (!chc.sslConfig.isAvailable(HRR_SUPPORTED_VERSIONS)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "Ignore unavailable extension: " +
                         HRR_SUPPORTED_VERSIONS.name);
@@ -490,8 +483,7 @@ final class SupportedVersionsExtension {
 
             // Is it a supported and enabled extension?
             if (!shc.sslConfig.isAvailable(HRR_SUPPORTED_VERSIONS)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "[Reproduce] Ignore unavailable extension: " +
                         HRR_SUPPORTED_VERSIONS.name);

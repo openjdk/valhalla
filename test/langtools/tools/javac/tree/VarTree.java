@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,27 +52,27 @@ public class VarTree {
     public static void main(String... args) throws Exception {
         VarTree test = new VarTree();
         test.run("|var testVar = 0;| ",
-                 "var testVar = 0");
+                 "int testVar = 0");
         test.run("|var testVar = 0;| undef undef;",
-                 "var testVar = 0");
+                 "int testVar = 0");
         test.run("|final var testVar = 0;| ",
-                 "final var testVar = 0");
+                 "final int testVar = 0");
         test.run("for (|var testVar| : java.util.Arrays.asList(0, 1)) {}",
-                 "var testVar");
+                 "java.lang.Integer testVar");
         test.run("for (|final var testVar| : java.util.Arrays.asList(0, 1)) {}",
-                 "final var testVar");
+                 "final java.lang.Integer testVar");
         test.run("java.util.function.Consumer<String> c = |testVar| -> {};",
-                 "/*missing*/ testVar"); //TODO: is the /*missing*/ here ideal?
+                 "java.lang.String testVar");
         test.run("java.util.function.Consumer<String> c = (|testVar|) -> {};",
-                 "/*missing*/ testVar"); //TODO: is the /*missing*/ here ideal?
+                 "java.lang.String testVar");
         test.run("java.util.function.Consumer<String> c = (|var testVar|) -> {};",
-                 "var testVar");
+                 "java.lang.String testVar");
         test.run("java.util.function.Consumer<String> c = (|final var testVar|) -> {};",
-                 "final var testVar");
+                 "final java.lang.String testVar");
         test.run("record Rec(int x) { }; switch (null) { case Rec(|var testVar|) -> {} default -> {} };",
-                 "var testVar");
+                 "int testVar");
         test.run("record Rec(int x) { }; switch (null) { case Rec(|final var testVar|) -> {} default -> {} };",
-                 "final var testVar");
+                 "final int testVar");
     }
 
     void run(String code, String expected) throws IOException {
@@ -136,13 +136,11 @@ public class VarTree {
                             throw new AssertionError("Unexpected span: " + snip);
                         }
 
-                        if (node.getType() != null) {
-                            int typeStart = (int) trees.getSourcePositions().getStartPosition(cut, node.getType());
-                            int typeEnd   = (int) trees.getSourcePositions().getEndPosition(cut, node.getType());
+                        int typeStart = (int) trees.getSourcePositions().getStartPosition(cut, node.getType());
+                        int typeEnd   = (int) trees.getSourcePositions().getEndPosition(cut, node.getType());
 
-                            if (typeStart + 3 != typeEnd) {
-                                throw new AssertionError("Unexpected type position: " + typeStart + ", " + typeEnd);
-                            }
+                        if (typeStart != (-1) && typeEnd != (-1)) {
+                            throw new AssertionError("Unexpected type position: " + typeStart + ", " + typeEnd);
                         }
 
                         found[0] = true;

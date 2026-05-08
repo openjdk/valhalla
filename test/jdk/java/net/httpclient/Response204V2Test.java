@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,9 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext
  *       ReferenceTracker jdk.httpclient.test.lib.common.HttpServerAdapters
- * @run junit/othervm -Djdk.internal.httpclient.debug=true
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true
  *                     -Djdk.httpclient.HttpClient.log=requests,responses,errors
- *                     ${test.main.class}
+ *                     Response204V2Test
  * @summary Tests that streams are closed after receiving a 204 response.
  *          This test uses the OperationsTracker and will fail in
  *          teardown if the tracker reports that some HTTP/2 streams
@@ -44,6 +44,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -51,9 +52,19 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.ITestContext;
+import org.testng.ITestResult;
+import org.testng.SkipException;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 
@@ -63,25 +74,15 @@ import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.extension.BeforeEachCallback;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.extension.TestWatcher;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 public class Response204V2Test implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
-    private static String http2URI;
-    private static String https2URI;
-    private static String http3URI;
+    SSLContext sslContext;
+    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
+    String http2URI;
+    String https2URI;
+    String http3URI;
 
     static final int RESPONSE_CODE = 204;
     static final int ITERATION_COUNT = 4;
@@ -100,8 +101,8 @@ public class Response204V2Test implements HttpServerAdapters {
         return String.format("[%d s, %d ms, %d ns] ", secs, mill, nan);
     }
 
-    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
-    private static volatile HttpClient sharedClient;
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    private volatile HttpClient sharedClient;
 
     static class TestExecutor implements Executor {
         final AtomicLong tasks = new AtomicLong();
@@ -127,40 +128,40 @@ public class Response204V2Test implements HttpServerAdapters {
         }
     }
 
-    private static boolean stopAfterFirstFailure() {
+    protected boolean stopAfterFirstFailure() {
         return Boolean.getBoolean("jdk.internal.httpclient.debug");
     }
 
-    static final class TestStopper implements TestWatcher, BeforeEachCallback {
-        final AtomicReference<String> failed = new AtomicReference<>();
-        TestStopper() { }
-        @Override
-        public void testFailed(ExtensionContext context, Throwable cause) {
-            if (stopAfterFirstFailure()) {
-                String msg = "Aborting due to: " + cause;
-                failed.compareAndSet(null, msg);
-                FAILURES.putIfAbsent(context.getDisplayName(), cause);
-                System.out.printf("%nTEST FAILED: %s%s%n\tAborting due to %s%n%n",
-                        now(), context.getDisplayName(), cause);
-                System.err.printf("%nTEST FAILED: %s%s%n\tAborting due to %s%n%n",
-                        now(), context.getDisplayName(), cause);
-            }
-        }
+    final AtomicReference<SkipException> skiptests = new AtomicReference<>();
+    void checkSkip() {
+        var skip = skiptests.get();
+        if (skip != null) throw skip;
+    }
+    static String name(ITestResult result) {
+        var params = result.getParameters();
+        return result.getName()
+                + (params == null ? "()" : Arrays.toString(result.getParameters()));
+    }
 
-        @Override
-        public void beforeEach(ExtensionContext context) {
-            String msg = failed.get();
-            Assumptions.assumeTrue(msg == null, msg);
+    @BeforeMethod
+    void beforeMethod(ITestContext context) {
+        if (stopAfterFirstFailure() && context.getFailedTests().size() > 0) {
+            if (skiptests.get() == null) {
+                SkipException skip = new SkipException("some tests failed");
+                skip.setStackTrace(new StackTraceElement[0]);
+                skiptests.compareAndSet(null, skip);
+            }
         }
     }
 
-    @RegisterExtension
-    static final TestStopper stopper = new TestStopper();
-
-    @AfterAll
-    static final void printFailedTests() {
+    @AfterClass
+    static final void printFailedTests(ITestContext context) {
         out.println("\n=========================");
         try {
+            var failed = context.getFailedTests().getAllResults().stream()
+                    .collect(Collectors.toMap(r -> name(r), ITestResult::getThrowable));
+            FAILURES.putAll(failed);
+
             out.printf("%n%sCreated %d servers and %d clients%n",
                     now(), serverCount.get(), clientCount.get());
             if (FAILURES.isEmpty()) return;
@@ -178,7 +179,7 @@ public class Response204V2Test implements HttpServerAdapters {
         }
     }
 
-    private static String[] uris() {
+    private String[] uris() {
         return new String[] {
                 http3URI,
                 http2URI,
@@ -186,7 +187,13 @@ public class Response204V2Test implements HttpServerAdapters {
         };
     }
 
-    public static Object[][] variants() {
+    static AtomicLong URICOUNT = new AtomicLong();
+
+    @DataProvider(name = "variants")
+    public Object[][] variants(ITestContext context) {
+        if (stopAfterFirstFailure() && context.getFailedTests().size() > 0) {
+            return new Object[0][];
+        }
         String[] uris = uris();
         Object[][] result = new Object[uris.length * 2][];
         int i = 0;
@@ -225,6 +232,23 @@ public class Response204V2Test implements HttpServerAdapters {
         }
     }
 
+
+    static void checkStatus(int expected, int found) throws Exception {
+        if (expected != found) {
+            System.err.printf ("Test failed: wrong status code %d/%d\n",
+                expected, found);
+            throw new RuntimeException("Test failed");
+        }
+    }
+
+    static void checkStrings(String expected, String found) throws Exception {
+        if (!expected.equals(found)) {
+            System.err.printf ("Test failed: wrong string %s/%s\n",
+                expected, found);
+            throw new RuntimeException("Test failed");
+        }
+    }
+
     private HttpRequest.Builder newRequestBuilder(URI uri) {
         var builder = HttpRequest.newBuilder(uri);
         if (uri.getRawPath().contains("/http3/")) {
@@ -234,10 +258,10 @@ public class Response204V2Test implements HttpServerAdapters {
         return builder;
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void test(String uri, boolean sameClient) throws Exception {
-        out.printf("%n%s-- test sameClient=%s, uri=%s%n%n", now(), sameClient, uri);
+        checkSkip();
+        out.println("Request to " + uri);
 
         HttpClient client = newHttpClient(uri, sameClient);
 
@@ -258,8 +282,12 @@ public class Response204V2Test implements HttpServerAdapters {
         out.println("test: DONE");
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         // HTTP/2
         HttpTestHandler handler204 = new Handler204();
 
@@ -281,8 +309,8 @@ public class Response204V2Test implements HttpServerAdapters {
         http3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         String sharedClientName =
                 sharedClient == null ? null : sharedClient.toString();
         sharedClient = null;

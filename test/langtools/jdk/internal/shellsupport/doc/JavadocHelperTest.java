@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.jshell/jdk.internal.shellsupport.doc
  * @build toolbox.ToolBox toolbox.JarTask toolbox.JavacTask
- * @run junit JavadocHelperTest
+ * @run testng JavadocHelperTest
  * @key randomness
  */
 
@@ -69,13 +69,13 @@ import javax.tools.ToolProvider;
 
 import com.sun.source.util.JavacTask;
 import jdk.internal.shellsupport.doc.JavadocHelper;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
+@Test
 public class JavadocHelperTest {
 
-    @Test
     public void testJavadoc() throws Exception {
         doTestJavadoc("",
                       t -> t.getElements().getTypeElement("test.Super"),
@@ -93,7 +93,6 @@ public class JavadocHelperTest {
                       " @return value\n");
     }
 
-    @Test
     public void testInheritNoJavadoc() throws Exception {
         doTestJavadoc("",
                       getSubTest,
@@ -108,7 +107,6 @@ public class JavadocHelperTest {
                       " @return value\n");
     }
 
-    @Test
     public void testInheritFull() throws Exception {
         doTestJavadoc("    /**\n" +
                       "     * Prefix {@inheritDoc} suffix.\n" +
@@ -133,7 +131,6 @@ public class JavadocHelperTest {
                       " @return prefix value suffix\n");
     }
 
-    @Test
     public void testInheritMissingParam() throws Exception {
         doTestJavadoc("    /**\n" +
                       "     * Prefix {@inheritDoc} suffix.\n" +
@@ -157,7 +154,6 @@ public class JavadocHelperTest {
                       " @return prefix value suffix\n");
     }
 
-    @Test
     public void testInheritMissingFirstParam() throws Exception {
         doTestJavadoc("    /**\n" +
                       "     * Prefix {@inheritDoc} suffix.\n" +
@@ -181,7 +177,6 @@ public class JavadocHelperTest {
                       " @return prefix value suffix\n");
     }
 
-    @Test
     public void testInheritMissingThrows() throws Exception {
         doTestJavadoc("    /**\n" +
                       "     * Prefix {@inheritDoc} suffix.\n" +
@@ -205,7 +200,6 @@ public class JavadocHelperTest {
                       " @return prefix value suffix\n");
     }
 
-    @Test
     public void testInheritMissingReturn() throws Exception {
         doTestJavadoc("    /**\n" +
                       "     * Prefix {@inheritDoc} suffix.\n" +
@@ -229,7 +223,6 @@ public class JavadocHelperTest {
                       "@return value\n");
     }
 
-    @Test
     public void testInheritAllButOne() throws Exception {
         doTestJavadoc("    /**\n" +
                       "     * @throws IllegalArgumentException {@inheritDoc}\n" +
@@ -245,7 +238,6 @@ public class JavadocHelperTest {
                       "@return value\n");
     }
 
-    @Test
     public void testInheritEmpty() throws Exception {
         doTestJavadoc("    /**\n" +
                       "     */\n",
@@ -268,7 +260,6 @@ public class JavadocHelperTest {
                       "@return \n");
     }
 
-    @Test
     public void testEmptyValue() throws Exception {
         doTestJavadoc("    /**\n" +
                       "     */\n",
@@ -291,7 +282,6 @@ public class JavadocHelperTest {
                       "@return \n");
     }
 
-    @Test
     public void testShortComment() throws Exception {
         doTestJavadoc("    /**Test.*/\n",
                       getSubTest,
@@ -305,7 +295,6 @@ public class JavadocHelperTest {
                       "@return value\n");
     }
 
-    @Test
     public void testMarkdown() throws Exception {
         doTestJavadoc("""
                       /// Prefix {@inheritDoc} suffix.
@@ -339,7 +328,6 @@ public class JavadocHelperTest {
                       @return prefix value suffix""");
     }
 
-    @Test
     public void testMarkdown2() throws Exception {
         doTestJavadoc("""
                       /// {@inheritDoc}
@@ -364,7 +352,6 @@ public class JavadocHelperTest {
                       @since snc""");
     }
 
-    @Test
     public void testMarkdown3() throws Exception {
         doTestJavadoc("""
                       /// {@inheritDoc}
@@ -386,7 +373,6 @@ public class JavadocHelperTest {
                       """);
     }
 
-    @Test
     public void testMarkdown4() throws Exception {
         doTestJavadoc("""
                       /// {@inheritDoc}
@@ -411,7 +397,6 @@ public class JavadocHelperTest {
                       @since snc""");
     }
 
-    @Test
     public void testMarkdown5() throws Exception {
         doTestJavadoc("""
                       ///[define classes][java.lang.invoke.MethodHandles.Lookup#defineClass(byte\\[\\])]
@@ -432,7 +417,6 @@ public class JavadocHelperTest {
                        @since snc""");
     }
 
-    @Test
     public void testMarkdown6() throws Exception {
         doTestJavadoc("""
                       ///Text1 [define classes][java.lang.invoke.MethodHandles.Lookup#defineClass(byte\\[\\])]
@@ -519,7 +503,7 @@ public class JavadocHelperTest {
             try (JavadocHelper helper = JavadocHelper.create(task, Arrays.asList(srcZip))) {
                 String javadoc = helper.getResolvedDocComment(el);
 
-                assertEquals(expectedJavadoc, javadoc);
+                assertEquals(javadoc, expectedJavadoc);
             }
         }
     }
@@ -563,7 +547,6 @@ public class JavadocHelperTest {
      * Set the system property `seed` to a random seed to reproduce
      * a specific run of this test.
      */
-    @Test
     public void testRandomDocs() throws IOException {
         Random random = new Random(getSeed());
         // Run test on 2% of classes, which corresponds to ~ 140 classes

@@ -23,32 +23,32 @@
 
 package catalog;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static catalog.CatalogTestUtils.catalogResolver;
+import static catalog.ResolutionChecker.checkPubIdResolution;
 
 import javax.xml.catalog.CatalogResolver;
 
-import static catalog.CatalogTestUtils.catalogResolver;
-import static catalog.ResolutionChecker.checkPubIdResolution;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.UrnUnwrappingTest
+ * @run testng/othervm catalog.UrnUnwrappingTest
  * @summary If the passed public identifier is started with "urn:publicid:",
  *          it has to be regarded as URN and normalized. And then the catalog
  *          resolver uses the normalized stuff to do matching.
  */
 public class UrnUnwrappingTest {
 
-    @ParameterizedTest
-    @MethodSource("data")
+    @Test(dataProvider = "urn-matchedUri")
     public void testUnwrapping(String urn, String matchedUri) {
         checkPubIdResolution(createResolver(), urn, matchedUri);
     }
 
-    public static Object[][] data() {
+    @DataProvider(name = "urn-matchedUri")
+    public Object[][] data() {
         return new Object[][] {
                 // The specified public id is URN format.
                 { "urn:publicid:-:REMOTE:DTD+ALICE+DOCALICE+XML:EN",
@@ -60,7 +60,7 @@ public class UrnUnwrappingTest {
                         "http://local/base/dtd/docBobPub.dtd" } };
     }
 
-    private static CatalogResolver createResolver() {
+    private CatalogResolver createResolver() {
         return catalogResolver("urnUnwrapping.xml");
     }
 }

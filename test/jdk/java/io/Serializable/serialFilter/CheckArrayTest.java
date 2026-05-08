@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,15 +30,15 @@ import java.io.InvalidClassException;
 
 import jdk.internal.access.SharedSecrets;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import org.testng.Assert;
 
 /* @test
  * @build CheckArrayTest SerialFilterTest
  * @bug 8203368
  * @modules java.base/jdk.internal.access
- * @run junit CheckArrayTest
+ * @run testng CheckArrayTest
  *
  * @summary Test the SharedSecret access to ObjectInputStream.checkArray works
  *      with overridden subclasses.
@@ -53,8 +53,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 public class CheckArrayTest {
 
-    // Test patterns for arrays
-    private static Object[][] patterns() {
+    @DataProvider(name = "Patterns")
+    Object[][] patterns() {
         return new Object[][]{
                 new Object[]{"maxarray=10", 10, new String[10]},    // successful
                 new Object[]{"maxarray=10", 11, new String[11]},    // exception expected
@@ -64,8 +64,7 @@ public class CheckArrayTest {
     /**
      * Test SharedSecrets checkArray with unmodified ObjectInputStream.
      */
-    @ParameterizedTest
-    @MethodSource("patterns")
+    @Test(dataProvider = "Patterns")
     public void normalOIS(String pattern, int arraySize, Object[] array) throws IOException {
         ObjectInputFilter filter = ObjectInputFilter.Config.createFilter(pattern);
         byte[] bytes = SerialFilterTest.writeObjects(array);
@@ -76,10 +75,10 @@ public class CheckArrayTest {
                 ois.setObjectInputFilter(filter);
                 SharedSecrets.getJavaObjectInputStreamAccess()
                         .checkArray(ois, array.getClass(), arraySize);
-                Assertions.assertTrue(array.length >= arraySize,
+                Assert.assertTrue(array.length >= arraySize,
                         "Should have thrown InvalidClassException due to array size");
             } catch (InvalidClassException ice) {
-                Assertions.assertFalse(array.length > arraySize,
+                Assert.assertFalse(array.length > arraySize,
                         "Should NOT have thrown InvalidClassException due to array size");
             }
         }
@@ -89,8 +88,7 @@ public class CheckArrayTest {
      * Test SharedSecrets checkArray with an ObjectInputStream subclassed to
      * handle all input stream functions.
      */
-    @ParameterizedTest
-    @MethodSource("patterns")
+    @Test(dataProvider = "Patterns")
     public void subclassedOIS(String pattern, int arraySize, Object[] array) throws IOException {
         byte[] bytes = SerialFilterTest.writeObjects(array);
         try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
@@ -100,10 +98,10 @@ public class CheckArrayTest {
             ois.setObjectInputFilter(filter);
             SharedSecrets.getJavaObjectInputStreamAccess()
                     .checkArray(ois, array.getClass(), arraySize);
-            Assertions.assertTrue(array.length >= arraySize,
+            Assert.assertTrue(array.length >= arraySize,
                     "Should have thrown InvalidClassException due to array size");
         } catch (InvalidClassException ice) {
-            Assertions.assertFalse(array.length > arraySize,
+            Assert.assertFalse(array.length > arraySize,
                     "Should NOT have thrown InvalidClassException due to array size");
         }
     }

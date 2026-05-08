@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,10 +61,9 @@ package tck.java.time;
 
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -95,22 +94,19 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test MonthDay.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKMonthDay extends AbstractDateTimeTest {
 
     private MonthDay TEST_07_15;
 
-    @BeforeEach
+    @BeforeMethod
     public void setUp() {
         TEST_07_15 = MonthDay.of(7, 15);
     }
@@ -118,7 +114,7 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     //-----------------------------------------------------------------------
     @Override
     protected List<TemporalAccessor> samples() {
-        TemporalAccessor[] array = {MonthDay.of(7, 15), };
+        TemporalAccessor[] array = {TEST_07_15, };
         return Arrays.asList(array);
     }
 
@@ -143,8 +139,8 @@ public class TCKMonthDay extends AbstractDateTimeTest {
 
     //-----------------------------------------------------------------------
     void check(MonthDay test, int m, int d) {
-        assertEquals(m, test.getMonth().getValue());
-        assertEquals(d, test.getDayOfMonth());
+        assertEquals(test.getMonth().getValue(), m);
+        assertEquals(test.getDayOfMonth(), d);
     }
 
     //-----------------------------------------------------------------------
@@ -161,15 +157,15 @@ public class TCKMonthDay extends AbstractDateTimeTest {
             expected = MonthDay.now(Clock.systemDefaultZone());
             test = MonthDay.now();
         }
-        assertEquals(expected, test);
+        assertEquals(test, expected);
     }
 
     //-----------------------------------------------------------------------
     // now(ZoneId)
     //-----------------------------------------------------------------------
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void now_ZoneId_nullZoneId() {
-        Assertions.assertThrows(NullPointerException.class, () -> MonthDay.now((ZoneId) null));
+        MonthDay.now((ZoneId) null);
     }
 
     @Test
@@ -184,7 +180,7 @@ public class TCKMonthDay extends AbstractDateTimeTest {
             expected = MonthDay.now(Clock.system(zone));
             test = MonthDay.now(zone);
         }
-        assertEquals(expected, test);
+        assertEquals(test, expected);
     }
 
     //-----------------------------------------------------------------------
@@ -195,34 +191,34 @@ public class TCKMonthDay extends AbstractDateTimeTest {
         Instant instant = LocalDateTime.of(2010, 12, 31, 0, 0).toInstant(ZoneOffset.UTC);
         Clock clock = Clock.fixed(instant, ZoneOffset.UTC);
         MonthDay test = MonthDay.now(clock);
-        assertEquals(Month.DECEMBER, test.getMonth());
-        assertEquals(31, test.getDayOfMonth());
+        assertEquals(test.getMonth(), Month.DECEMBER);
+        assertEquals(test.getDayOfMonth(), 31);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void now_Clock_nullClock() {
-        Assertions.assertThrows(NullPointerException.class, () -> MonthDay.now((Clock) null));
+        MonthDay.now((Clock) null);
     }
 
     //-----------------------------------------------------------------------
     @Test
     public void factory_intMonth() {
-        assertEquals(MonthDay.of(Month.JULY, 15), TEST_07_15);
+        assertEquals(TEST_07_15, MonthDay.of(Month.JULY, 15));
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_factory_intMonth_dayTooLow() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(Month.JANUARY, 0));
+        MonthDay.of(Month.JANUARY, 0);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_factory_intMonth_dayTooHigh() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(Month.JANUARY, 32));
+        MonthDay.of(Month.JANUARY, 32);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void factory_intMonth_nullMonth() {
-        Assertions.assertThrows(NullPointerException.class, () -> MonthDay.of(null, 15));
+        MonthDay.of(null, 15);
     }
 
     //-----------------------------------------------------------------------
@@ -231,46 +227,47 @@ public class TCKMonthDay extends AbstractDateTimeTest {
         check(TEST_07_15, 7, 15);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_factory_ints_dayTooLow() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(1, 0));
+        MonthDay.of(1, 0);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_factory_ints_dayTooHigh() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(1, 32));
+        MonthDay.of(1, 32);
     }
 
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_factory_ints_monthTooLow() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(0, 1));
+        MonthDay.of(0, 1);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_factory_ints_monthTooHigh() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(13, 1));
+        MonthDay.of(13, 1);
     }
 
     //-----------------------------------------------------------------------
     @Test
     public void test_factory_CalendricalObject() {
-        assertEquals(TEST_07_15, MonthDay.from(LocalDate.of(2007, 7, 15)));
+        assertEquals(MonthDay.from(LocalDate.of(2007, 7, 15)), TEST_07_15);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_factory_CalendricalObject_invalid_noDerive() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.from(LocalTime.of(12, 30)));
+        MonthDay.from(LocalTime.of(12, 30));
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_factory_CalendricalObject_null() {
-        Assertions.assertThrows(NullPointerException.class, () -> MonthDay.from((TemporalAccessor) null));
+        MonthDay.from((TemporalAccessor) null);
     }
 
     //-----------------------------------------------------------------------
     // parse()
     //-----------------------------------------------------------------------
+    @DataProvider(name="goodParseData")
     Object[][] provider_goodParseData() {
         return new Object[][] {
                 {"--01-01", MonthDay.of(1, 1)},
@@ -300,14 +297,14 @@ public class TCKMonthDay extends AbstractDateTimeTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_goodParseData")
+    @Test(dataProvider="goodParseData")
     public void factory_parse_success(String text, MonthDay expected) {
         MonthDay monthDay = MonthDay.parse(text);
-        assertEquals(expected, monthDay);
+        assertEquals(monthDay, expected);
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="badParseData")
     Object[][] provider_badParseData() {
         return new Object[][] {
                 {"", 0},
@@ -318,40 +315,38 @@ public class TCKMonthDay extends AbstractDateTimeTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_badParseData")
+    @Test(dataProvider="badParseData", expectedExceptions=DateTimeParseException.class)
     public void factory_parse_fail(String text, int pos) {
-        Assertions.assertThrows(DateTimeParseException.class, () -> {
-            try {
-                MonthDay.parse(text);
-                fail(String.format("Parse should have failed for %s at position %d", text, pos));
-            } catch (DateTimeParseException ex) {
-                assertEquals(text, ex.getParsedString());
-                assertEquals(pos, ex.getErrorIndex());
-                throw ex;
-            }
-        });
+        try {
+            MonthDay.parse(text);
+            fail(String.format("Parse should have failed for %s at position %d", text, pos));
+        }
+        catch (DateTimeParseException ex) {
+            assertEquals(ex.getParsedString(), text);
+            assertEquals(ex.getErrorIndex(), pos);
+            throw ex;
+        }
     }
 
     //-----------------------------------------------------------------------
-    @Test
+    @Test(expectedExceptions=DateTimeParseException.class)
     public void factory_parse_illegalValue_Day() {
-        Assertions.assertThrows(DateTimeParseException.class, () -> MonthDay.parse("--06-32"));
+        MonthDay.parse("--06-32");
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeParseException.class)
     public void factory_parse_invalidValue_Day() {
-        Assertions.assertThrows(DateTimeParseException.class, () -> MonthDay.parse("--06-31"));
+        MonthDay.parse("--06-31");
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeParseException.class)
     public void factory_parse_illegalValue_Month() {
-        Assertions.assertThrows(DateTimeParseException.class, () -> MonthDay.parse("--13-25"));
+        MonthDay.parse("--13-25");
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void factory_parse_nullText() {
-        Assertions.assertThrows(NullPointerException.class, () -> MonthDay.parse(null));
+        MonthDay.parse(null);
     }
 
     //-----------------------------------------------------------------------
@@ -361,20 +356,18 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     public void factory_parse_formatter() {
         DateTimeFormatter f = DateTimeFormatter.ofPattern("M d");
         MonthDay test = MonthDay.parse("12 3", f);
-        assertEquals(MonthDay.of(12, 3), test);
+        assertEquals(test, MonthDay.of(12, 3));
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void factory_parse_formatter_nullText() {
-        Assertions.assertThrows(NullPointerException.class, () -> {
-            DateTimeFormatter f = DateTimeFormatter.ofPattern("M d");
-            MonthDay.parse((String) null, f);
-        });
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("M d");
+        MonthDay.parse((String) null, f);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void factory_parse_formatter_nullFormatter() {
-        Assertions.assertThrows(NullPointerException.class, () -> MonthDay.parse("ANY", null));
+        MonthDay.parse("ANY", null);
     }
 
     //-----------------------------------------------------------------------
@@ -382,37 +375,37 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     //-----------------------------------------------------------------------
     @Test
     public void test_isSupported_TemporalField() {
-        assertEquals(false, TEST_07_15.isSupported((TemporalField) null));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.NANO_OF_SECOND));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.NANO_OF_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.MICRO_OF_SECOND));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.MICRO_OF_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.MILLI_OF_SECOND));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.MILLI_OF_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.SECOND_OF_MINUTE));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.SECOND_OF_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.MINUTE_OF_HOUR));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.MINUTE_OF_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.HOUR_OF_AMPM));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.CLOCK_HOUR_OF_AMPM));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.HOUR_OF_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.CLOCK_HOUR_OF_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.AMPM_OF_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.DAY_OF_WEEK));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.ALIGNED_DAY_OF_WEEK_IN_YEAR));
-        assertEquals(true, TEST_07_15.isSupported(ChronoField.DAY_OF_MONTH));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.DAY_OF_YEAR));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.EPOCH_DAY));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.ALIGNED_WEEK_OF_MONTH));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.ALIGNED_WEEK_OF_YEAR));
-        assertEquals(true, TEST_07_15.isSupported(ChronoField.MONTH_OF_YEAR));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.PROLEPTIC_MONTH));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.YEAR));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.YEAR_OF_ERA));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.ERA));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.INSTANT_SECONDS));
-        assertEquals(false, TEST_07_15.isSupported(ChronoField.OFFSET_SECONDS));
+        assertEquals(TEST_07_15.isSupported((TemporalField) null), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.NANO_OF_SECOND), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.NANO_OF_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.MICRO_OF_SECOND), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.MICRO_OF_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.MILLI_OF_SECOND), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.MILLI_OF_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.SECOND_OF_MINUTE), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.SECOND_OF_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.MINUTE_OF_HOUR), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.MINUTE_OF_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.HOUR_OF_AMPM), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.CLOCK_HOUR_OF_AMPM), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.HOUR_OF_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.CLOCK_HOUR_OF_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.AMPM_OF_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.DAY_OF_WEEK), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.ALIGNED_DAY_OF_WEEK_IN_MONTH), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.ALIGNED_DAY_OF_WEEK_IN_YEAR), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.DAY_OF_MONTH), true);
+        assertEquals(TEST_07_15.isSupported(ChronoField.DAY_OF_YEAR), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.EPOCH_DAY), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.ALIGNED_WEEK_OF_MONTH), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.ALIGNED_WEEK_OF_YEAR), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.MONTH_OF_YEAR), true);
+        assertEquals(TEST_07_15.isSupported(ChronoField.PROLEPTIC_MONTH), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.YEAR), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.YEAR_OF_ERA), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.ERA), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.INSTANT_SECONDS), false);
+        assertEquals(TEST_07_15.isSupported(ChronoField.OFFSET_SECONDS), false);
     }
 
     //-----------------------------------------------------------------------
@@ -420,19 +413,20 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     //-----------------------------------------------------------------------
     @Test
     public void test_get_TemporalField() {
-        assertEquals(15, TEST_07_15.get(ChronoField.DAY_OF_MONTH));
-        assertEquals(7, TEST_07_15.get(ChronoField.MONTH_OF_YEAR));
+        assertEquals(TEST_07_15.get(ChronoField.DAY_OF_MONTH), 15);
+        assertEquals(TEST_07_15.get(ChronoField.MONTH_OF_YEAR), 7);
     }
 
     @Test
     public void test_getLong_TemporalField() {
-        assertEquals(15, TEST_07_15.getLong(ChronoField.DAY_OF_MONTH));
-        assertEquals(7, TEST_07_15.getLong(ChronoField.MONTH_OF_YEAR));
+        assertEquals(TEST_07_15.getLong(ChronoField.DAY_OF_MONTH), 15);
+        assertEquals(TEST_07_15.getLong(ChronoField.MONTH_OF_YEAR), 7);
     }
 
     //-----------------------------------------------------------------------
     // query(TemporalQuery)
     //-----------------------------------------------------------------------
+    @DataProvider(name="query")
     Object[][] data_query() {
         return new Object[][] {
                 {TEST_07_15, TemporalQueries.chronology(), IsoChronology.INSTANCE},
@@ -445,26 +439,25 @@ public class TCKMonthDay extends AbstractDateTimeTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_query")
+    @Test(dataProvider="query")
     public <T> void test_query(TemporalAccessor temporal, TemporalQuery<T> query, T expected) {
-        assertEquals(expected, temporal.query(query));
+        assertEquals(temporal.query(query), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_query")
+    @Test(dataProvider="query")
     public <T> void test_queryFrom(TemporalAccessor temporal, TemporalQuery<T> query, T expected) {
-        assertEquals(expected, query.queryFrom(temporal));
+        assertEquals(query.queryFrom(temporal), expected);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_query_null() {
-        Assertions.assertThrows(NullPointerException.class, () -> TEST_07_15.query(null));
+        TEST_07_15.query(null);
     }
 
     //-----------------------------------------------------------------------
     // get*()
     //-----------------------------------------------------------------------
+    @DataProvider(name="sampleDates")
     Object[][] provider_sampleDates() {
         return new Object[][] {
             {1, 1},
@@ -477,13 +470,12 @@ public class TCKMonthDay extends AbstractDateTimeTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_sampleDates")
+    @Test(dataProvider="sampleDates")
     public void test_get(int m, int d) {
         MonthDay a = MonthDay.of(m, d);
-        assertEquals(Month.of(m), a.getMonth());
-        assertEquals(m, a.getMonthValue());
-        assertEquals(d, a.getDayOfMonth());
+        assertEquals(a.getMonth(), Month.of(m));
+        assertEquals(a.getMonthValue(), m);
+        assertEquals(a.getDayOfMonth(), d);
     }
 
     //-----------------------------------------------------------------------
@@ -491,28 +483,28 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     //-----------------------------------------------------------------------
     @Test
     public void test_with_Month() {
-        assertEquals(MonthDay.of(1, 30), MonthDay.of(6, 30).with(Month.JANUARY));
+        assertEquals(MonthDay.of(6, 30).with(Month.JANUARY), MonthDay.of(1, 30));
     }
 
     @Test
     public void test_with_Month_adjustToValid() {
-        assertEquals(MonthDay.of(6, 30), MonthDay.of(7, 31).with(Month.JUNE));
+        assertEquals(MonthDay.of(7, 31).with(Month.JUNE), MonthDay.of(6, 30));
     }
 
     @Test
     public void test_with_Month_adjustToValidFeb() {
-        assertEquals(MonthDay.of(2, 29), MonthDay.of(7, 31).with(Month.FEBRUARY));
+        assertEquals(MonthDay.of(7, 31).with(Month.FEBRUARY), MonthDay.of(2, 29));
     }
 
     @Test
     public void test_with_Month_noChangeEqual() {
         MonthDay test = MonthDay.of(6, 30);
-        assertEquals(test, test.with(Month.JUNE));
+        assertEquals(test.with(Month.JUNE), test);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_with_Month_null() {
-        Assertions.assertThrows(NullPointerException.class, () -> MonthDay.of(6, 30).with((Month) null));
+        MonthDay.of(6, 30).with((Month) null);
     }
 
     //-----------------------------------------------------------------------
@@ -520,33 +512,33 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     //-----------------------------------------------------------------------
     @Test
     public void test_withMonth() {
-        assertEquals(MonthDay.of(1, 30), MonthDay.of(6, 30).withMonth(1));
+        assertEquals(MonthDay.of(6, 30).withMonth(1), MonthDay.of(1, 30));
     }
 
     @Test
     public void test_withMonth_adjustToValid() {
-        assertEquals(MonthDay.of(6, 30), MonthDay.of(7, 31).withMonth(6));
+        assertEquals(MonthDay.of(7, 31).withMonth(6), MonthDay.of(6, 30));
     }
 
     @Test
     public void test_withMonth_adjustToValidFeb() {
-        assertEquals(MonthDay.of(2, 29), MonthDay.of(7, 31).withMonth(2));
+        assertEquals(MonthDay.of(7, 31).withMonth(2), MonthDay.of(2, 29));
     }
 
     @Test
     public void test_withMonth_int_noChangeEqual() {
         MonthDay test = MonthDay.of(6, 30);
-        assertEquals(test, test.withMonth(6));
+        assertEquals(test.withMonth(6), test);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_withMonth_tooLow() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(6, 30).withMonth(0));
+        MonthDay.of(6, 30).withMonth(0);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_withMonth_tooHigh() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(6, 30).withMonth(13));
+        MonthDay.of(6, 30).withMonth(13);
     }
 
     //-----------------------------------------------------------------------
@@ -554,33 +546,33 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     //-----------------------------------------------------------------------
     @Test
     public void test_withDayOfMonth() {
-        assertEquals(MonthDay.of(6, 1), MonthDay.of(6, 30).withDayOfMonth(1));
+        assertEquals(MonthDay.of(6, 30).withDayOfMonth(1), MonthDay.of(6, 1));
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_withDayOfMonth_invalid() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(6, 30).withDayOfMonth(31));
+        MonthDay.of(6, 30).withDayOfMonth(31);
     }
 
     @Test
     public void test_withDayOfMonth_adjustToValidFeb() {
-        assertEquals(MonthDay.of(2, 29), MonthDay.of(2, 1).withDayOfMonth(29));
+        assertEquals(MonthDay.of(2, 1).withDayOfMonth(29), MonthDay.of(2, 29));
     }
 
     @Test
     public void test_withDayOfMonth_noChangeEqual() {
         MonthDay test = MonthDay.of(6, 30);
-        assertEquals(test, test.withDayOfMonth(30));
+        assertEquals(test.withDayOfMonth(30), test);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_withDayOfMonth_tooLow() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(6, 30).withDayOfMonth(0));
+        MonthDay.of(6, 30).withDayOfMonth(0);
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_withDayOfMonth_tooHigh() {
-        Assertions.assertThrows(DateTimeException.class, () -> MonthDay.of(6, 30).withDayOfMonth(32));
+        MonthDay.of(6, 30).withDayOfMonth(32);
     }
 
     //-----------------------------------------------------------------------
@@ -590,26 +582,26 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     public void test_adjustDate() {
         MonthDay test = MonthDay.of(6, 30);
         LocalDate date = LocalDate.of(2007, 1, 1);
-        assertEquals(LocalDate.of(2007, 6, 30), test.adjustInto(date));
+        assertEquals(test.adjustInto(date), LocalDate.of(2007, 6, 30));
     }
 
     @Test
     public void test_adjustDate_resolve() {
         MonthDay test = MonthDay.of(2, 29);
         LocalDate date = LocalDate.of(2007, 6, 30);
-        assertEquals(LocalDate.of(2007, 2, 28), test.adjustInto(date));
+        assertEquals(test.adjustInto(date), LocalDate.of(2007, 2, 28));
     }
 
     @Test
     public void test_adjustDate_equal() {
         MonthDay test = MonthDay.of(6, 30);
         LocalDate date = LocalDate.of(2007, 6, 30);
-        assertEquals(date, test.adjustInto(date));
+        assertEquals(test.adjustInto(date), date);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_adjustDate_null() {
-        Assertions.assertThrows(NullPointerException.class, () -> TEST_07_15.adjustInto((LocalDate) null));
+        TEST_07_15.adjustInto((LocalDate) null);
     }
 
     //-----------------------------------------------------------------------
@@ -618,19 +610,19 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     @Test
     public void test_isValidYear_june() {
         MonthDay test = MonthDay.of(6, 30);
-        assertEquals(true, test.isValidYear(2007));
+        assertEquals(test.isValidYear(2007), true);
     }
 
     @Test
     public void test_isValidYear_febNonLeap() {
         MonthDay test = MonthDay.of(2, 29);
-        assertEquals(false, test.isValidYear(2007));
+        assertEquals(test.isValidYear(2007), false);
     }
 
     @Test
     public void test_isValidYear_febLeap() {
         MonthDay test = MonthDay.of(2, 29);
-        assertEquals(true, test.isValidYear(2008));
+        assertEquals(test.isValidYear(2008), true);
     }
 
     //-----------------------------------------------------------------------
@@ -640,12 +632,12 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     public void test_format_formatter() {
         DateTimeFormatter f = DateTimeFormatter.ofPattern("M d");
         String t = MonthDay.of(12, 3).format(f);
-        assertEquals("12 3", t);
+        assertEquals(t, "12 3");
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_format_formatter_null() {
-        Assertions.assertThrows(NullPointerException.class, () -> MonthDay.of(12, 3).format(null));
+        MonthDay.of(12, 3).format(null);
     }
 
     //-----------------------------------------------------------------------
@@ -654,21 +646,19 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     @Test
     public void test_atYear_int() {
         MonthDay test = MonthDay.of(6, 30);
-        assertEquals(LocalDate.of(2008, 6, 30), test.atYear(2008));
+        assertEquals(test.atYear(2008), LocalDate.of(2008, 6, 30));
     }
 
     @Test
     public void test_atYear_int_leapYearAdjust() {
         MonthDay test = MonthDay.of(2, 29);
-        assertEquals(LocalDate.of(2005, 2, 28), test.atYear(2005));
+        assertEquals(test.atYear(2005), LocalDate.of(2005, 2, 28));
     }
 
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_atYear_int_invalidYear() {
-        Assertions.assertThrows(DateTimeException.class, () -> {
-            MonthDay test = MonthDay.of(6, 30);
-            test.atYear(Integer.MIN_VALUE);
-        });
+        MonthDay test = MonthDay.of(6, 30);
+        test.atYear(Integer.MIN_VALUE);
     }
 
     //-----------------------------------------------------------------------
@@ -693,37 +683,37 @@ public class TCKMonthDay extends AbstractDateTimeTest {
                 MonthDay b = localDates[j];
                 if (i < j) {
                     assertTrue(a.compareTo(b) < 0, a + " <=> " + b);
-                    assertEquals(true, a.isBefore(b), a + " <=> " + b);
-                    assertEquals(false, a.isAfter(b), a + " <=> " + b);
-                    assertEquals(false, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.isBefore(b), true, a + " <=> " + b);
+                    assertEquals(a.isAfter(b), false, a + " <=> " + b);
+                    assertEquals(a.equals(b), false, a + " <=> " + b);
                 } else if (i > j) {
                     assertTrue(a.compareTo(b) > 0, a + " <=> " + b);
-                    assertEquals(false, a.isBefore(b), a + " <=> " + b);
-                    assertEquals(true, a.isAfter(b), a + " <=> " + b);
-                    assertEquals(false, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.isBefore(b), false, a + " <=> " + b);
+                    assertEquals(a.isAfter(b), true, a + " <=> " + b);
+                    assertEquals(a.equals(b), false, a + " <=> " + b);
                 } else {
-                    assertEquals(0, a.compareTo(b), a + " <=> " + b);
-                    assertEquals(false, a.isBefore(b), a + " <=> " + b);
-                    assertEquals(false, a.isAfter(b), a + " <=> " + b);
-                    assertEquals(true, a.equals(b), a + " <=> " + b);
+                    assertEquals(a.compareTo(b), 0, a + " <=> " + b);
+                    assertEquals(a.isBefore(b), false, a + " <=> " + b);
+                    assertEquals(a.isAfter(b), false, a + " <=> " + b);
+                    assertEquals(a.equals(b), true, a + " <=> " + b);
                 }
             }
         }
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_compareTo_ObjectNull() {
-        Assertions.assertThrows(NullPointerException.class, () -> TEST_07_15.compareTo(null));
+        TEST_07_15.compareTo(null);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_isBefore_ObjectNull() {
-        Assertions.assertThrows(NullPointerException.class, () -> TEST_07_15.isBefore(null));
+        TEST_07_15.isBefore(null);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_isAfter_ObjectNull() {
-        Assertions.assertThrows(NullPointerException.class, () -> TEST_07_15.isAfter(null));
+        TEST_07_15.isAfter(null);
     }
 
     //-----------------------------------------------------------------------
@@ -736,52 +726,51 @@ public class TCKMonthDay extends AbstractDateTimeTest {
         MonthDay c = MonthDay.of(2, 1);
         MonthDay d = MonthDay.of(1, 2);
 
-        assertEquals(true, a.equals(a));
-        assertEquals(true, a.equals(b));
-        assertEquals(false, a.equals(c));
-        assertEquals(false, a.equals(d));
+        assertEquals(a.equals(a), true);
+        assertEquals(a.equals(b), true);
+        assertEquals(a.equals(c), false);
+        assertEquals(a.equals(d), false);
 
-        assertEquals(true, b.equals(a));
-        assertEquals(true, b.equals(b));
-        assertEquals(false, b.equals(c));
-        assertEquals(false, b.equals(d));
+        assertEquals(b.equals(a), true);
+        assertEquals(b.equals(b), true);
+        assertEquals(b.equals(c), false);
+        assertEquals(b.equals(d), false);
 
-        assertEquals(false, c.equals(a));
-        assertEquals(false, c.equals(b));
-        assertEquals(true, c.equals(c));
-        assertEquals(false, c.equals(d));
+        assertEquals(c.equals(a), false);
+        assertEquals(c.equals(b), false);
+        assertEquals(c.equals(c), true);
+        assertEquals(c.equals(d), false);
 
-        assertEquals(false, d.equals(a));
-        assertEquals(false, d.equals(b));
-        assertEquals(false, d.equals(c));
-        assertEquals(true, d.equals(d));
+        assertEquals(d.equals(a), false);
+        assertEquals(d.equals(b), false);
+        assertEquals(d.equals(c), false);
+        assertEquals(d.equals(d), true);
     }
 
     @Test
     public void test_equals_itself_true() {
-        assertEquals(true, TEST_07_15.equals(TEST_07_15));
+        assertEquals(TEST_07_15.equals(TEST_07_15), true);
     }
 
     @Test
     public void test_equals_string_false() {
-        assertEquals(false, TEST_07_15.equals("2007-07-15"));
+        assertEquals(TEST_07_15.equals("2007-07-15"), false);
     }
 
     @Test
     public void test_equals_null_false() {
-        assertEquals(false, TEST_07_15.equals(null));
+        assertEquals(TEST_07_15.equals(null), false);
     }
 
     //-----------------------------------------------------------------------
     // hashCode()
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("provider_sampleDates")
+    @Test(dataProvider="sampleDates")
     public void test_hashCode(int m, int d) {
         MonthDay a = MonthDay.of(m, d);
         assertEquals(a.hashCode(), a.hashCode());
         MonthDay b = MonthDay.of(m, d);
-        assertEquals(b.hashCode(), a.hashCode());
+        assertEquals(a.hashCode(), b.hashCode());
     }
 
     @Test
@@ -800,6 +789,7 @@ public class TCKMonthDay extends AbstractDateTimeTest {
     //-----------------------------------------------------------------------
     // toString()
     //-----------------------------------------------------------------------
+    @DataProvider(name="sampleToString")
     Object[][] provider_sampleToString() {
         return new Object[][] {
             {7, 5, "--07-05"},
@@ -808,12 +798,11 @@ public class TCKMonthDay extends AbstractDateTimeTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_sampleToString")
+    @Test(dataProvider="sampleToString")
     public void test_toString(int m, int d, String expected) {
         MonthDay test = MonthDay.of(m, d);
         String str = test.toString();
-        assertEquals(expected, str);
+        assertEquals(str, expected);
     }
 
 }

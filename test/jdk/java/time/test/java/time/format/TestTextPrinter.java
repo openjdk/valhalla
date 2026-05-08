@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,8 +64,7 @@ import static java.time.temporal.ChronoField.DAY_OF_WEEK;
 import static java.time.temporal.ChronoField.ERA;
 import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.IsoFields.QUARTER_OF_YEAR;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
@@ -76,34 +75,30 @@ import java.time.format.TextStyle;
 import java.time.temporal.TemporalField;
 import java.util.Locale;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import test.java.time.temporal.MockFieldValue;
 
 /**
  * Test TextPrinterParser.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestTextPrinter extends AbstractTestPrinterParser {
 
     //-----------------------------------------------------------------------
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_print_emptyCalendrical() throws Exception {
-        Assertions.assertThrows(DateTimeException.class, () -> getFormatter(DAY_OF_WEEK, TextStyle.FULL).formatTo(EMPTY_DTA, buf));
+        getFormatter(DAY_OF_WEEK, TextStyle.FULL).formatTo(EMPTY_DTA, buf);
     }
 
-    @Test
     public void test_print_append() throws Exception {
         buf.append("EXISTING");
         getFormatter(DAY_OF_WEEK, TextStyle.FULL).formatTo(LocalDate.of(2012, 4, 18), buf);
-        assertEquals("EXISTINGWednesday", buf.toString());
+        assertEquals(buf.toString(), "EXISTINGWednesday");
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="print")
     Object[][] provider_dow() {
         return new Object[][] {
             {DAY_OF_WEEK, TextStyle.FULL, 1, "Monday"},
@@ -209,6 +204,7 @@ public class TestTextPrinter extends AbstractTestPrinterParser {
        };
     }
 
+    @DataProvider(name="print_DayOfWeekData")
     Object[][] providerDayOfWeekData() {
         return new Object[][] {
             // Locale, pattern, expected text, input DayOfWeek
@@ -218,30 +214,26 @@ public class TestTextPrinter extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_dow")
+    @Test(dataProvider="print")
     public void test_format(TemporalField field, TextStyle style, int value, String expected) throws Exception {
         getFormatter(field, style).formatTo(new MockFieldValue(field, value), buf);
-        assertEquals(expected, buf.toString());
+        assertEquals(buf.toString(), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("providerDayOfWeekData")
+    @Test(dataProvider="print_DayOfWeekData")
     public void test_formatDayOfWeek(Locale locale, String pattern, String expected, DayOfWeek dayOfWeek) {
         DateTimeFormatter formatter = getPatternFormatter(pattern).withLocale(locale);
         String text = formatter.format(dayOfWeek);
-        assertEquals(expected, text);
+        assertEquals(text, expected);
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_toString1() throws Exception {
-        assertEquals("Text(MonthOfYear)", getFormatter(MONTH_OF_YEAR, TextStyle.FULL).toString());
+        assertEquals(getFormatter(MONTH_OF_YEAR, TextStyle.FULL).toString(), "Text(MonthOfYear)");
     }
 
-    @Test
     public void test_toString2() throws Exception {
-        assertEquals("Text(MonthOfYear,SHORT)", getFormatter(MONTH_OF_YEAR, TextStyle.SHORT).toString());
+        assertEquals(getFormatter(MONTH_OF_YEAR, TextStyle.SHORT).toString(), "Text(MonthOfYear,SHORT)");
     }
 
 }

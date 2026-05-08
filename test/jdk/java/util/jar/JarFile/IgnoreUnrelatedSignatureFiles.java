@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,7 +21,7 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @bug 8300140
  * @summary Make sure signature related files in subdirectories of META-INF are not considered for verification
@@ -29,14 +29,12 @@
  * @modules java.base/sun.security.util
  * @modules java.base/sun.security.tools.keytool
  * @modules jdk.jartool/sun.security.tools.jarsigner
- * @run junit/othervm IgnoreUnrelatedSignatureFiles
+ * @run main/othervm IgnoreUnrelatedSignatureFiles
  */
 
 import jdk.internal.access.JavaUtilZipFileAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.security.jarsigner.JarSigner;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 import sun.security.tools.jarsigner.Main;
 import sun.security.util.SignatureFileVerifier;
 
@@ -64,10 +62,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 public class IgnoreUnrelatedSignatureFiles {
 
     private static final JavaUtilZipFileAccess JUZA = SharedSecrets.getJavaUtilZipFileAccess();
@@ -75,76 +69,56 @@ public class IgnoreUnrelatedSignatureFiles {
     // This path resides in a subdirectory of META-INF, so it should not be considered signature related
     public static final String SUBDIR_SF_PATH = "META-INF/subdirectory/META-INF/SIGNER.SF";
 
-    // Jars used for testing. See `setupJars` below for setup
-    static Path j;
-    static Path s;
-    static Path m;
-    static Path sm;
-    static Path ca;
-    static Path cas;
 
-    @BeforeAll
-    static void setupJars() throws Exception {
+    public static void main(String[] args) throws Exception {
+
         // Regular signed JAR
-        j = createJarFile();
-        s = signJarFile(j, "SIGNER1", "signed");
+        Path j = createJarFile();
+        Path s = signJarFile(j, "SIGNER1", "signed");
 
         // Singed JAR with unrelated signature files
-        m = moveSignatureRelated(s);
-        sm = signJarFile(m, "SIGNER2", "modified-signed");
+        Path m = moveSignatureRelated(s);
+        Path sm = signJarFile(m, "SIGNER2", "modified-signed");
 
         // Signed JAR with custom SIG-* files
-        ca = createCustomAlgJar();
-        cas = signJarFile(ca, "SIGNER1", "custom-signed");
-    }
+        Path ca = createCustomAlgJar();
+        Path cas = signJarFile(ca, "SIGNER1", "custom-signed");
 
-    // Sanity check that the basic signed JAR verifies
-    @Test
-    void signedJarVerifyTest() throws IOException {
+        // 0: Sanity check that the basic signed JAR verifies
         try (JarFile jf = new JarFile(s.toFile(), true)) {
             Map<String, Attributes> entries = jf.getManifest().getEntries();
-            assertEquals(1, entries.size(),
-                    "Expected a single manifest entry for the digest of a.txt, instead found entries: " + entries.keySet());
+            if (entries.size() != 1) {
+                throw new Exception("Expected a single manifest entry for the digest of a.txt, instead found entries: " + entries.keySet());
+            }
             JarEntry entry = jf.getJarEntry("a.txt");
             try (InputStream in = jf.getInputStream(entry)) {
                 in.transferTo(OutputStream.nullOutputStream());
             }
         }
-    }
-
-    // Check ZipFile.Source.isSignatureRelated
-    @Test
-    void zipFileSourceIsSignatureRelatedTest() throws IOException {
+        // 1: Check ZipFile.Source.isSignatureRelated
         try (JarFile jarFile = new JarFile(m.toFile())) {
             List<String> manifestAndSignatureRelatedFiles = JUZA.getManifestAndSignatureRelatedFiles(jarFile);
             for (String signatureRelatedFile : manifestAndSignatureRelatedFiles) {
                 String dir = signatureRelatedFile.substring(0, signatureRelatedFile.lastIndexOf("/"));
-                assertEquals("META-INF", dir,
-                        "Signature related file does not reside directly in META-INF/ : " + signatureRelatedFile);
+                if (!"META-INF".equals(dir)) {
+                    throw new Exception("Signature related file does not reside directly in META-INF/ : " + signatureRelatedFile);
+                }
             }
         }
-    }
 
-    // Check SignatureFileVerifier.isSigningRelated
-    @Test
-    void sigFileVerifierIsSigningRelatedTest() {
-        assertFalse(SignatureFileVerifier.isSigningRelated(SUBDIR_SF_PATH),
-                "Signature related file does not reside directly in META-INF/ : " + SUBDIR_SF_PATH);
-    }
+        // 2: Check SignatureFileVerifier.isSigningRelated
+        if (SignatureFileVerifier.isSigningRelated(SUBDIR_SF_PATH)) {
+            throw new Exception("Signature related file does not reside directly in META-INF/ : " + SUBDIR_SF_PATH);
+        }
 
-    // Check JarInputStream with doVerify = true
-    @Test
-    void jarIStreamDoVerifyTest() throws IOException {
+        // 3: Check JarInputStream with doVerify = true
         try (JarInputStream in = new JarInputStream(Files.newInputStream(m), true)) {
-            while (in.getNextEntry() != null) {
+             while (in.getNextEntry() != null) {
                 in.transferTo(OutputStream.nullOutputStream());
             }
         }
-    }
 
-    // Check that a JAR containing unrelated .SF, .RSA files is signed as-if it is unsigned
-    @Test
-    void unrelatedFilesUnsignedTest() throws IOException {
+        // 4: Check that a JAR containing unrelated .SF, .RSA files is signed as-if it is unsigned
         try (ZipFile zf = new ZipFile(sm.toFile())) {
             ZipEntry mf = zf.getEntry("META-INF/MANIFEST.MF");
             try (InputStream stream = zf.getInputStream(mf)) {
@@ -152,24 +126,19 @@ public class IgnoreUnrelatedSignatureFiles {
                 // When JarSigner considers a jar to not be already signed,
                 // the 'Manifest-Version' attributed name will be case-normalized
                 // Assert that manifest-version is not in lowercase
-                assertFalse(manifest.startsWith("manifest-version"),
-                        "JarSigner unexpectedly treated unsigned jar as signed");
+                if (manifest.startsWith("manifest-version")) {
+                    throw new Exception("JarSigner unexpectedly treated unsigned jar as signed");
+                }
             }
         }
-    }
 
-    // Check that a JAR containing non signature related .SF, .RSA files can be signed
-    @Test
-    void nonSigFileIsSignableTest() throws Exception {
+        // 5: Check that a JAR containing non signature related .SF, .RSA files can be signed
         try (JarFile jf = new JarFile(sm.toFile(), true)) {
             checkSignedBy(jf, "a.txt", "CN=SIGNER2");
             checkSignedBy(jf, "META-INF/subdirectory/META-INF/SIGNER1.SF", "CN=SIGNER2");
         }
-    }
 
-    // Check that JarSigner does not move unrelated [SF,RSA] files to the beginning of signed JARs
-    @Test
-    void jarSignerDoesNotMoveUnrelatedTest() throws IOException {
+        // 6: Check that JarSigner does not move unrelated [SF,RSA] files to the beginning of signed JARs
         try (JarFile zf = new JarFile(sm.toFile())) {
 
             List<String> actualOrder = zf.stream().map(ZipEntry::getName).toList();
@@ -185,25 +154,23 @@ public class IgnoreUnrelatedSignatureFiles {
                     "META-INF/subdirectory2/META-INF/SIGNER1.RSA"
             );
 
-            assertEquals(expectedOrder, actualOrder, ("""
+            if (!expectedOrder.equals(actualOrder)) {
+                String msg = ("""
                         Unexpected file order in JAR with unrelated SF,RSA files
                         Expected order: %s
                         Actual order: %s""")
-                    .formatted(expectedOrder, actualOrder));
+                        .formatted(expectedOrder, actualOrder);
+                throw new Exception(msg);
+            }
         }
-    }
 
-    // Check that jarsigner ignores unrelated signature files
-    @Test
-    void jarSignerIgnoresUnrelatedTest() throws Exception {
+        // 7: Check that jarsigner ignores unrelated signature files
         String message = jarSignerVerify(m);
-        assertFalse(message.contains("WARNING"),
-                "jarsigner output contains unexpected  warning: " + message);
-    }
+        if (message.contains("WARNING")) {
+            throw new Exception("jarsigner output contains unexpected  warning: " +message);
+        }
 
-    //  Check that SignatureFileVerifier.isSigningRelated handles custom SIG-* files correctly
-    @Test
-    void customSIGFilesTest() throws IOException {
+        // 8: Check that SignatureFileVerifier.isSigningRelated handles custom SIG-* files correctly
         try (JarFile jf = new JarFile(cas.toFile(), true)) {
 
             // These files are not signature-related and should be signed
@@ -218,9 +185,10 @@ public class IgnoreUnrelatedSignatureFiles {
 
             Set<String> actualSigned = jf.getManifest().getEntries().keySet();
 
-            assertEquals(expectedSigned, actualSigned,
-                    "Unexpected MANIFEST entries. Expected %s, got %s"
-                            .formatted(expectedSigned, actualSigned));
+            if (!expectedSigned.equals(actualSigned)) {
+                throw new Exception("Unexpected MANIFEST entries. Expected %s, got %s"
+                        .formatted(expectedSigned, actualSigned));
+            }
         }
     }
 
@@ -252,17 +220,22 @@ public class IgnoreUnrelatedSignatureFiles {
 
         // Verify that the entry is signed
         CodeSigner[] signers = je.getCodeSigners();
-        assertNotNull(signers, "Expected %s to be signed".formatted(name));
+        if (signers == null) {
+            throw new Exception(String.format("Expected %s to be signed", name));
+        }
 
         // There should be a single signer
-        assertEquals(1, signers.length,
-                "Expected %s to be signed by exactly one signer".formatted(name));
+        if (signers.length != 1) {
+            throw new Exception(String.format("Expected %s to be signed by exactly one signer", name));
+        }
 
         String actualSigner = ((X509Certificate) signers[0]
                 .getSignerCertPath().getCertificates().get(0))
                 .getIssuerX500Principal().getName();
-        assertEquals(expectedSigner, actualSigner,
-                "Expected %s to be signed by %s, was signed by %s".formatted(name, expectedSigner, actualSigner));
+
+        if (!actualSigner.equals(expectedSigner)) {
+            throw new Exception(String.format("Expected %s to be signed by %s, was signed by %s", name, expectedSigner, actualSigner));
+        }
     }
 
     /**

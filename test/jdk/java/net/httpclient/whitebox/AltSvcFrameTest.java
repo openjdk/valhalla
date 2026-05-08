@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,19 +48,17 @@ import jdk.internal.net.http.HttpClientAccess;
 import jdk.internal.net.http.common.HttpHeadersBuilder;
 import jdk.internal.net.http.frame.AltSvcFrame;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static jdk.internal.net.http.AltServicesRegistry.AltService;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 /*
  * @test
- * @summary This test verifies alt-svc registry updating for frames
+ * @summary This test verifies alt-svc registry updation for frames
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build java.net.http/jdk.internal.net.http.HttpClientAccess
  *        jdk.httpclient.test.lib.http2.Http2TestServer
@@ -84,13 +82,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *          java.base/sun.net.www.http
  *          java.base/sun.net.www
  *          java.base/sun.net
- * @run junit/othervm
+ * @run testng/othervm
  *                    -Dtest.requiresHost=true
  *                   -Djdk.httpclient.HttpClient.log=headers
  *                   -Djdk.internal.httpclient.disableHostnameVerification
  *                   -Djdk.internal.httpclient.debug=true
- *                    ${test.main.class}
+ *                    AltSvcFrameTest
  */
+
 
 public class AltSvcFrameTest {
 
@@ -108,24 +107,20 @@ public class AltSvcFrameTest {
     static Http2TestServer https2Server;
     static String https2URI;
     static HttpClient client;
-    private static final SSLContext server = SimpleSSLContext.findSSLContext();
+    static SSLContext server;
 
-    @BeforeAll
-    public static void setUp() throws Exception {
+    @BeforeTest
+    public void setUp() throws Exception {
+        server = SimpleSSLContext.getContext("TLS");
         getRegistry();
         https2Server = new Http2TestServer("localhost", true, server);
         https2Server.addHandler(new AltSvcFrameTestHandler(), "/");
         https2Server.setExchangeSupplier(AltSvcFrameTest.CFTHttp2TestExchange::new);
         https2Server.start();
         https2URI = "https://" + https2Server.serverAuthority() + "/";
-    }
 
-    @AfterAll
-    public static void tearDown() {
-        if (client != null) client.close();
-        if (https2Server != null) https2Server.stop();
-    }
 
+    }
 
     static AltServicesRegistry getRegistry() {
         client = HttpClient.newBuilder()
@@ -145,7 +140,7 @@ public class AltSvcFrameTest {
                 .GET()
                 .build();
         HttpResponse<String> response = client.send(request, ofString());
-        assertEquals(200, response.statusCode(), "unexpected response code");
+        assertEquals(response.statusCode(), 200, "unexpected response code");
         final List<AltService> services = registry.lookup(URI.create(https2URI), "h3").toList();
         System.out.println("Alt services in registry for  " + https2URI + " = " + services);
         final boolean hasExpectedAltSvc = services.stream().anyMatch(
@@ -164,7 +159,7 @@ public class AltSvcFrameTest {
                 .GET()
                 .build();
         HttpResponse<String> response = client.send(request, ofString());
-        assertEquals(200, response.statusCode(), "unexpected response code");
+        assertEquals(response.statusCode(), 200, "unexpected response code");
         final List<AltService> services = registry.lookup(
                 URI.create(FOO_BAR_ORIGIN), "h3").toList();
         System.out.println("Alt services in registry for  " + FOO_BAR_ORIGIN + " = " + services);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -737,7 +737,7 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 #endif
       }
       // Remove the RegionNode itself from DefUse info
-      igvn->remove_dead_node(this, PhaseIterGVN::NodeOrigin::Graph);
+      igvn->remove_dead_node(this);
       return nullptr;
     }
     return this;                // Record progress
@@ -1010,7 +1010,7 @@ bool RegionNode::optimize_trichotomy(PhaseIterGVN* igvn) {
     BoolNode* new_bol = new BoolNode(bol2->in(1), res);
     igvn->replace_input_of(iff2, 1, igvn->transform((proj2->_con == 1) ? new_bol : new_bol->negate(igvn)));
     if (new_bol->outcnt() == 0) {
-      igvn->remove_dead_node(new_bol, PhaseIterGVN::NodeOrigin::Speculative);
+      igvn->remove_dead_node(new_bol);
     }
   }
   return false;
@@ -1563,9 +1563,18 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
     Node* phi_reg = region();
     for (DUIterator_Fast imax, i = phi_reg->fast_outs(imax); i < imax; i++) {
       Node* u = phi_reg->fast_out(i);
-      assert(!u->is_Phi() || u->in(0) == phi_reg, "broken Phi/Region subgraph");
-      if (u->is_Phi() && u->req() == phi_len && can_be_replaced_by(u->as_Phi())) {
-        return u;
+      if (u->is_Phi() && u->as_Phi()->type() == Type::MEMORY &&
+          u->adr_type() == TypePtr::BOTTOM && u->in(0) == phi_reg &&
+          u->req() == phi_len) {
+        for (uint j = 1; j < phi_len; j++) {
+          if (in(j) != u->in(j)) {
+            u = nullptr;
+            break;
+          }
+        }
+        if (u != nullptr) {
+          return u;
+        }
       }
     }
   }
@@ -2347,7 +2356,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
     if (wait_for_cast_input_igvn(igvn)) {
       igvn->_worklist.push(this);
-      return progress;
+      return nullptr;
     }
     uncasted = true;
     uin = unique_input(phase, true);
@@ -2424,7 +2433,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       PhaseIterGVN* igvn = phase->is_IterGVN();
       for (uint i = 1; i < req(); i++) {
         set_req_X(i, cast, igvn);
-        progress = this;
       }
       uin = cast;
     }
@@ -2443,7 +2451,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 #endif
     // Identity may not return the expected uin, if it has to wait for the region, in irreducible case
     assert(ident == uin || ident->is_top() || must_wait_for_region_in_irreducible_loop(phase), "Identity must clean this up");
-    return progress;
+    return nullptr;
   }
 
   Node* opt = nullptr;
@@ -2584,7 +2592,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           }
           phase->is_IterGVN()->register_new_node_with_optimizer(offset);
         }
-        return AddPNode::make_with_base(base, address, offset);
+        return new AddPNode(base, address, offset);
       }
     }
   }
@@ -2636,7 +2644,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       // Phi references itself through all other inputs then splitting the
       // Phi through memory merges would create dead loop at later stage.
       if (ii == top) {
-        return progress; // Delay optimization until graph is cleaned.
+        return nullptr; // Delay optimization until graph is cleaned.
       }
       if (ii->is_MergeMem()) {
         MergeMemNode* n = ii->as_MergeMem();
@@ -2756,7 +2764,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
               }
               Node* phi = mms.memory();
               assert(made_new_phi || phi->in(i) == n, "replace the i-th merge by a slice");
-              phi->set_req_X(i, mms.memory2(), phase);
+              phi->set_req(i, mms.memory2());
             }
           }
         }
@@ -2765,9 +2773,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           for (MergeMemStream mms(result); mms.next_non_empty(); ) {
             Node* phi = mms.memory();
             for (uint i = 1; i < req(); ++i) {
-              if (phi->in(i) == this) {
-                phi->set_req_X(i, phi, phase);
-              }
+              if (phi->in(i) == this)  phi->set_req(i, phi);
             }
           }
         }
@@ -2788,10 +2794,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     for( uint i=1; i<req(); ++i ) {// For all paths in
       Node *ii = in(i);
       Node *new_in = MemNode::optimize_memory_chain(ii, at, nullptr, phase);
-      // MemNode::optimize_memory_chain above may kill us!
-      if (outcnt() == 0) {
-        return top;
-      }
       if (ii != new_in ) {
         set_req_X(i, new_in, phase->is_IterGVN());
         progress = this;
@@ -2802,7 +2804,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 #ifdef _LP64
   // Push DecodeN/DecodeNKlass down through phi.
   // The rest of phi graph will transform by split EncodeP node though phis up.
-  if (can_reshape && progress == nullptr) {
+  if ((UseCompressedOops || UseCompressedClassPointers) && can_reshape && progress == nullptr) {
     bool may_push = true;
     bool has_decodeN = false;
     bool is_decodeN = false;
@@ -2904,25 +2906,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Phi (VB ... VB) => VB (Phi ...) (Phi ...)
   if (EnableVectorReboxing && can_reshape && progress == nullptr && type()->isa_oopptr()) {
     progress = merge_through_phi(this, phase->is_IterGVN());
-  }
-
-  // PhiNode::Identity replaces a non-bottom memory phi with a bottom memory phi with the same inputs, if it exists.
-  // If the bottom memory phi's inputs are changed (so it can now replace the non-bottom memory phi) or if it's created
-  // only after the non-bottom memory phi is processed by igvn, PhiNode::Identity doesn't run and the transformation
-  // doesn't happen.
-  // Look for non-bottom Phis that should be transformed and enqueue them for igvn so that PhiNode::Identity executes for
-  // them.
-  if (can_reshape && type() == Type::MEMORY && adr_type() == TypePtr::BOTTOM) {
-    PhaseIterGVN* igvn = phase->is_IterGVN();
-    uint phi_len = req();
-    Node* phi_reg = region();
-    for (DUIterator_Fast imax, i = phi_reg->fast_outs(imax); i < imax; i++) {
-      Node* u = phi_reg->fast_out(i);
-      assert(!u->is_Phi() || (u->in(0) == phi_reg && u->req() == phi_len), "broken Phi/Region subgraph");
-      if (u->is_Phi() && u->as_Phi()->can_be_replaced_by(this)) {
-        igvn->_worklist.push(u);
-      }
-    }
   }
 
   return progress;              // Return any progress
@@ -3067,11 +3050,6 @@ const TypeTuple* PhiNode::collect_types(PhaseGVN* phase) const {
     flds[i] = types.at(i);
   }
   return TypeTuple::make(types.length(), flds);
-}
-
-bool PhiNode::can_be_replaced_by(const PhiNode* other) const {
-  return type() == Type::MEMORY && other->type() == Type::MEMORY && adr_type() != TypePtr::BOTTOM &&
-    other->adr_type() == TypePtr::BOTTOM && has_same_inputs_as(other);
 }
 
 Node* PhiNode::clone_through_phi(Node* root_phi, const Type* t, uint c, PhaseIterGVN* igvn) {

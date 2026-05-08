@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -111,7 +111,6 @@
 #if INCLUDE_G1GC
 #include "gc/g1/g1Arguments.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1CollectorState.inline.hpp"
 #include "gc/g1/g1ConcurrentMark.hpp"
 #include "gc/g1/g1ConcurrentMarkThread.inline.hpp"
 #include "gc/g1/g1HeapRegionManager.hpp"
@@ -134,6 +133,7 @@
 #ifdef LINUX
 #include "cgroupSubsystem_linux.hpp"
 #include "os_linux.hpp"
+#include "osContainer_linux.hpp"
 #endif
 
 #define CHECK_JNI_EXCEPTION_(env, value)                               \
@@ -201,10 +201,6 @@ WB_ENTRY(jint, WB_TakeLockAndHangInSafepoint(JNIEnv* env, jobject wb))
   VMThread::execute(&force_safepoint_stuck_op);
   ShouldNotReachHere();
   return 0;
-WB_END
-
-WB_ENTRY(jlong, WB_GetMinimumJavaStackSize(JNIEnv* env, jobject o))
-  return os::get_minimum_java_stack_size();
 WB_END
 
 class WBIsKlassAliveClosure : public LockedClassesDo {
@@ -338,6 +334,7 @@ WB_ENTRY(void, WB_ReadFromNoaccessArea(JNIEnv* env, jobject o))
 WB_END
 
 WB_ENTRY(void, WB_DecodeNKlassAndAccessKlass(JNIEnv* env, jobject o, jint nKlass))
+  assert(UseCompressedClassPointers, "Should only call for UseCompressedClassPointers");
   const narrowKlass nk = (narrowKlass)nKlass;
   const Klass* const k = CompressedKlassPointers::decode_not_null_without_asserts(nKlass);
   printf("WB_DecodeNKlassAndAccessKlass: nk %u k " PTR_FORMAT "\n", nk, p2i(k));
@@ -582,7 +579,7 @@ WB_END
 WB_ENTRY(jboolean, WB_G1InConcurrentMark(JNIEnv* env, jobject o))
   if (UseG1GC) {
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
-    return g1h->collector_state()->is_in_concurrent_cycle();
+    return g1h->concurrent_mark()->cm_thread()->in_progress();
   }
   THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(), "WB_G1InConcurrentMark: G1 GC is not enabled");
 WB_END
@@ -1160,7 +1157,7 @@ bool WhiteBox::compile_method(Method* method, int comp_level, int bci, JavaThrea
   } else if (mh->lookup_osr_nmethod_for(bci, comp_level, false) != nullptr) {
     return true;
   }
-  tty->print("WB error: failed to %s compile at level %d method", is_blocking ? " blocking" : "", comp_level);
+  tty->print("WB error: failed to %s compile at level %d method ", is_blocking ? "blocking" : "", comp_level);
   mh->print_short_name(tty);
   tty->cr();
   if (is_blocking && is_queued) {
@@ -1284,8 +1281,8 @@ WB_ENTRY(void, WB_ClearMethodState(JNIEnv* env, jobject o, jobject method))
   if (mdo != nullptr) {
     mdo->init();
     ResourceMark rm(THREAD);
-    int arg_size = mdo->method()->size_of_parameters();
-    for (int i = 0; i < arg_size; i++) {
+    int arg_count = mdo->method()->size_of_parameters();
+    for (int i = 0; i < arg_count; i++) {
       mdo->set_arg_modified(i, 0);
     }
     mdo->clean_method_data(/*always_clean*/true);
@@ -2037,8 +2034,8 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
     map++;
   }
 
-  refArrayHandle result_array =
-      oopFactory::new_refArray_handle(vmClasses::Object_klass(), oop_count, CHECK_NULL);
+  objArrayHandle result_array =
+      oopFactory::new_objArray_handle(vmClasses::Object_klass(), oop_count, CHECK_NULL);
   map = klass->start_of_nonstatic_oop_maps();
   int index = 0;
   while (map < end) {
@@ -2075,8 +2072,8 @@ class CollectObjectOops : public BasicOopIterateClosure {
   void do_oop(narrowOop* v) { add_oop(v); }
 
   jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
-    refArrayHandle result_array =
-        oopFactory::new_refArray_handle(vmClasses::Object_klass(), _array->length(), CHECK_NULL);
+    objArrayHandle result_array =
+        oopFactory::new_objArray_handle(vmClasses::Object_klass(), _array->length(), CHECK_NULL);
     for (int i = 0 ; i < _array->length(); i++) {
       result_array->obj_at_put(i, _array->at(i)());
     }
@@ -2322,8 +2319,23 @@ WB_ENTRY(jboolean, WB_CDSMemoryMappingFailed(JNIEnv* env, jobject wb))
   return FileMapInfo::memory_mapping_failed();
 WB_END
 
+WB_ENTRY(jboolean, WB_IsSharedInternedString(JNIEnv* env, jobject wb, jobject str))
+  if (!HeapShared::is_loading_mapping_mode()) {
+    return false;
+  }
+  ResourceMark rm(THREAD);
+  oop str_oop = JNIHandles::resolve(str);
+  int length;
+  jchar* chars = java_lang_String::as_unicode_string(str_oop, length, CHECK_(false));
+  return StringTable::lookup_shared(chars, length) == str_oop;
+WB_END
+
 WB_ENTRY(jboolean, WB_IsSharedClass(JNIEnv* env, jobject wb, jclass clazz))
   return (jboolean)AOTMetaspace::in_aot_cache(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz)));
+WB_END
+
+WB_ENTRY(jboolean, WB_AreSharedStringsMapped(JNIEnv* env))
+  return AOTMappedHeapLoader::is_mapped();
 WB_END
 
 WB_ENTRY(void, WB_LinkClass(JNIEnv* env, jobject wb, jclass clazz))
@@ -2673,12 +2685,14 @@ WB_ENTRY(jboolean, WB_CheckLibSpecifiesNoexecstack(JNIEnv* env, jobject o, jstri
 WB_END
 
 WB_ENTRY(jboolean, WB_IsContainerized(JNIEnv* env, jobject o))
-  return os::is_containerized();
+  LINUX_ONLY(return OSContainer::is_containerized();)
+  return false;
 WB_END
 
 // Physical memory of the host machine (including containers)
 WB_ENTRY(jlong, WB_HostPhysicalMemory(JNIEnv* env, jobject o))
-  return static_cast<jlong>(os::Machine::physical_memory());
+  LINUX_ONLY(return static_cast<jlong>(os::Linux::physical_memory());)
+  return static_cast<jlong>(os::physical_memory());
 WB_END
 
 // Available memory of the host machine (container-aware)
@@ -3156,7 +3170,9 @@ static JNINativeMethod methods[] = {
   {CC"getCDSGenericHeaderMinVersion",     CC"()I",    (void*)&WB_GetCDSGenericHeaderMinVersion},
   {CC"getCurrentCDSVersion",              CC"()I",    (void*)&WB_GetCDSCurrentVersion},
   {CC"isSharingEnabled",   CC"()Z",                   (void*)&WB_IsSharingEnabled},
+  {CC"isSharedInternedString", CC"(Ljava/lang/String;)Z", (void*)&WB_IsSharedInternedString },
   {CC"isSharedClass",      CC"(Ljava/lang/Class;)Z",  (void*)&WB_IsSharedClass },
+  {CC"areSharedStringsMapped",            CC"()Z",    (void*)&WB_AreSharedStringsMapped },
   {CC"linkClass",          CC"(Ljava/lang/Class;)V",  (void*)&WB_LinkClass},
   {CC"areOpenArchiveHeapObjectsMapped",   CC"()Z",    (void*)&WB_AreOpenArchiveHeapObjectsMapped},
   {CC"isCDSIncluded",                     CC"()Z",    (void*)&WB_IsCDSIncluded },
@@ -3230,8 +3246,7 @@ static JNINativeMethod methods[] = {
   {CC"cleanMetaspaces", CC"()V",                      (void*)&WB_CleanMetaspaces},
   {CC"rss", CC"()J",                                  (void*)&WB_Rss},
   {CC"printString", CC"(Ljava/lang/String;I)Ljava/lang/String;", (void*)&WB_PrintString},
-  {CC"lockAndStuckInSafepoint", CC"()V",              (void*)&WB_TakeLockAndHangInSafepoint},
-  {CC"getMinimumJavaStackSize", CC"()J",              (void*)&WB_GetMinimumJavaStackSize},
+  {CC"lockAndStuckInSafepoint", CC"()V", (void*)&WB_TakeLockAndHangInSafepoint},
   {CC"wordSize", CC"()J",                             (void*)&WB_WordSize},
   {CC"rootChunkWordSize", CC"()J",                    (void*)&WB_RootChunkWordSize},
   {CC"isStatic", CC"()Z",                             (void*)&WB_IsStaticallyLinked},

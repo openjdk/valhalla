@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -278,7 +278,7 @@ public:
 
   int get_length(JVMCIArray array);
 
-  JVMCIObject get_object_at(JVMCIObjectArray array, int index, JVMCI_TRAPS);
+  JVMCIObject get_object_at(JVMCIObjectArray array, int index);
   void put_object_at(JVMCIObjectArray array, int index, JVMCIObject value);
 
   jboolean get_bool_at(JVMCIPrimitiveArray array, int index);
@@ -413,7 +413,7 @@ public:
   ConstantPool* asConstantPool(jobject constant_pool)  { return asConstantPool(wrap(constant_pool)); }
 
   JVMCIObject get_jvmci_constant_pool(const constantPoolHandle& cp, JVMCI_TRAPS);
-  JVMCIObject get_jvmci_primitive_type(BasicType type, JVMCI_TRAPS);
+  JVMCIObject get_jvmci_primitive_type(BasicType type);
 
   Handle asConstant(JVMCIObject object, JVMCI_TRAPS);
   JVMCIObject get_object_constant(oop objOop, bool compressed = false, bool dont_register = false);

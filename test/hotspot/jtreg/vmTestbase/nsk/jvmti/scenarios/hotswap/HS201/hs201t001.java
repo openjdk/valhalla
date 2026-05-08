@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ import java.io.PrintStream;
 
 import nsk.share.*;
 import nsk.share.jvmti.*;
-import jdk.test.lib.thread.ThreadWrapper;
 
 public class hs201t001 extends DebugeeClass {
 
@@ -75,7 +74,7 @@ public class hs201t001 extends DebugeeClass {
         timeout = argHandler.getWaitTime() * 60 * 1000; // milliseconds
 
         log.display(">>> starting tested thread");
-        Thread thread = new hs201t001Thread().getThread();
+        Thread thread = new hs201t001Thread();
 
         // testing sync
         status = checkStatus(status);
@@ -131,7 +130,7 @@ public class hs201t001 extends DebugeeClass {
         return status;
     }
 
-class hs201t001Thread extends ThreadWrapper {
+class hs201t001Thread extends Thread {
 
     hs201t001Thread() {
         setName("hs201t001Thread");

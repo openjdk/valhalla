@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,6 @@
 
 package datatype;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import javax.xml.datatype.DatatypeConfigurationException;
-import javax.xml.datatype.DatatypeConstants;
-import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.Duration;
-import javax.xml.namespace.QName;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Calendar;
@@ -40,37 +30,47 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeConstants;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.Duration;
+import javax.xml.namespace.QName;
+
+import org.testng.Assert;
+import org.testng.AssertJUnit;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8190835
  * @library /javax/xml/jaxp/libs /javax/xml/jaxp/unittest
- * @run junit/othervm datatype.DurationTest
+ * @run testng/othervm datatype.DurationTest
  * @summary Test Duration.
  */
 public class DurationTest {
 
     private final static boolean DEBUG = true;
 
-    private DatatypeFactory factory = null;
-    private Duration duration = null;
+    protected Duration duration = null;
 
-    @BeforeEach
-    public void setUp() throws DatatypeConfigurationException {
-        factory = DatatypeFactory.newInstance();
-        duration = factory.newDuration(100);
+    @BeforeMethod
+    public void setUp() {
+        try {
+            duration = DatatypeFactory.newInstance().newDuration(100);
+        } catch (DatatypeConfigurationException dce) {
+            dce.printStackTrace();
+            Assert.fail("Failed to create instance of DatatypeFactory " + dce.getMessage());
+        }
     }
 
     /*
        DataProvider: for testDurationSubtract1
        Data: minuend, subtrahend, expected result
      */
-    public static Object[][] getSubtract1() {
+    @DataProvider(name = "DurationSubtract1")
+    public Object[][] getSubtract1() {
 
         return new Object[][]{
             {"P2Y2M", "P1Y5M", "P9M"},
@@ -84,7 +84,8 @@ public class DurationTest {
         };
     }
 
-    public static Object[][] getSubtract2() {
+    @DataProvider(name = "DurationSubtract2")
+    public Object[][] getSubtract2() {
 
         return new Object[][]{
             {"P2Y20D", "P1Y125D"},
@@ -95,60 +96,67 @@ public class DurationTest {
     /*
      * Verifies valid substraction operations.
      */
-    @ParameterizedTest
-    @MethodSource("getSubtract1")
-    public void testDurationSubtract1(String t1, String t2, String e) {
+    @Test(dataProvider = "DurationSubtract1")
+    public void testDurationSubtract1(String t1, String t2, String e) throws Exception {
+        DatatypeFactory factory = DatatypeFactory.newInstance();
         Duration dt1 = factory.newDuration(t1);
         Duration dt2 = factory.newDuration(t2);
 
         Duration result = dt1.subtract(dt2);
-        assertEquals(factory.newDuration(e), result, "The result should be " + e);
+        Duration expected = factory.newDuration(e);
+        Assert.assertTrue(result.equals(expected), "The result should be " + e);
 
     }
 
     /*
      * Verifies invalid substraction operations. These operations are invalid
      * since days in a month are indeterminate.
-     */
-    @ParameterizedTest
-    @MethodSource("getSubtract2")
-    public void testDurationSubtract2(String t1, String t2) {
+    */
+    @Test(dataProvider = "DurationSubtract2", expectedExceptions = IllegalStateException.class)
+    public void testDurationSubtract2(String t1, String t2) throws Exception {
+        DatatypeFactory factory = DatatypeFactory.newInstance();
         Duration dt1 = factory.newDuration(t1);
         Duration dt2 = factory.newDuration(t2);
-        assertThrows(IllegalStateException.class, () -> dt1.subtract(dt2));
+        Duration result = dt1.subtract(dt2);
     }
 
     @Test
     public void testDurationSubtract() {
-        Duration bigDur = factory.newDuration(20000);
-        Duration smallDur = factory.newDuration(10000);
-        if (smallDur.subtract(bigDur).getSign() != -1) {
-            fail("smallDur.subtract(bigDur).getSign() is not -1");
+        try {
+            Duration bigDur = DatatypeFactory.newInstance().newDuration(20000);
+            Duration smallDur = DatatypeFactory.newInstance().newDuration(10000);
+            if (smallDur.subtract(bigDur).getSign() != -1) {
+                Assert.fail("smallDur.subtract(bigDur).getSign() is not -1");
+            }
+            if (bigDur.subtract(smallDur).getSign() != 1) {
+                Assert.fail("bigDur.subtract(smallDur).getSign() is not 1");
+            }
+            if (smallDur.subtract(smallDur).getSign() != 0) {
+                Assert.fail("smallDur.subtract(smallDur).getSign() is not 0");
+            }
+        } catch (DatatypeConfigurationException e) {
+            e.printStackTrace();
         }
-        if (bigDur.subtract(smallDur).getSign() != 1) {
-            fail("bigDur.subtract(smallDur).getSign() is not 1");
-        }
-        if (smallDur.subtract(smallDur).getSign() != 0) {
-            fail("smallDur.subtract(smallDur).getSign() is not 0");
-        }
-
     }
 
     @Test
     public void testDurationMultiply() {
         int num = 5000; // millisends. 5 seconds
         int factor = 2;
-
-        Duration dur = factory.newDuration(num);
-        if (dur.multiply(factor).getSeconds() != 10) {
-            fail("duration.multiply() return wrong value");
-        }
-        // factor is 2*10^(-1)
-        if (dur.multiply(new BigDecimal(new BigInteger("2"), 1)).getSeconds() != 1) {
-            fail("duration.multiply() return wrong value");
-        }
-        if (dur.subtract(factory.newDuration(1000)).multiply(new BigDecimal(new BigInteger("2"), 1)).getSeconds() != 0) {
-            fail("duration.multiply() return wrong value");
+        try {
+            Duration dur = DatatypeFactory.newInstance().newDuration(num);
+            if (dur.multiply(factor).getSeconds() != 10) {
+                Assert.fail("duration.multiply() return wrong value");
+            }
+            // factor is 2*10^(-1)
+            if (dur.multiply(new BigDecimal(new BigInteger("2"), 1)).getSeconds() != 1) {
+                Assert.fail("duration.multiply() return wrong value");
+            }
+            if (dur.subtract(DatatypeFactory.newInstance().newDuration(1000)).multiply(new BigDecimal(new BigInteger("2"), 1)).getSeconds() != 0) {
+                Assert.fail("duration.multiply() return wrong value");
+            }
+        } catch (DatatypeConfigurationException e) {
+            e.printStackTrace();
         }
     }
 
@@ -161,55 +169,73 @@ public class DurationTest {
         int min = 5;
         int sec = 6;
         String lexicalRepresentation = "P" + year + "Y" + month + "M" + day + "DT" + hour + "H" + min + "M" + sec + "S";
-
-        Duration dur = factory.newDuration(lexicalRepresentation);
-        System.out.println(dur.toString());
-        assertEquals(year, dur.getYears(), "year should be 1");
-        assertEquals(month, dur.getMonths(), "month should be 2");
-        assertEquals(day, dur.getDays(), "day should be 3");
-        assertEquals(hour, dur.getHours(), "hour should be 4");
-        assertEquals(min, dur.getMinutes(), "minute should be 5");
-        assertEquals(sec, dur.getSeconds(), "second should be 6");
+        try {
+            Duration dur = DatatypeFactory.newInstance().newDuration(lexicalRepresentation);
+            System.out.println(dur.toString());
+            AssertJUnit.assertTrue("year should be 1", dur.getYears() == year);
+            AssertJUnit.assertTrue("month should be 2", dur.getMonths() == month);
+            AssertJUnit.assertTrue("day should be 3", dur.getDays() == day);
+            AssertJUnit.assertTrue("hour should be 4", dur.getHours() == hour);
+            AssertJUnit.assertTrue("minute should be 5", dur.getMinutes() == min);
+            AssertJUnit.assertTrue("second should be 6", dur.getSeconds() == sec);
+        } catch (DatatypeConfigurationException e) {
+            e.printStackTrace();
+        }
     }
 
     @Test
     public void testDurationAndCalendar2() {
-        assertEquals(10000, factory.newDuration("PT10.00099S")
-                .getTimeInMillis(new Date()), "10.00099S means 10 sec since it will be rounded to zero");
-        assertEquals(-10000, factory.newDuration("-PT10.00099S")
-                .getTimeInMillis(new Date()), "10.00099S means 10 sec since it will be rounded to zero");
-        assertEquals(10000, factory.newDuration("PT10.00099S")
-                .getTimeInMillis(new GregorianCalendar()), "10.00099S means 10 sec since it will be rounded to zero");
-        assertEquals(-10000, factory.newDuration("-PT10.00099S")
-                .getTimeInMillis(new GregorianCalendar()), "10.00099S means 10 sec since it will be rounded to zero");
+        try {
+            AssertJUnit.assertTrue("10.00099S means 10 sec since it will be rounded to zero", DatatypeFactory.newInstance().newDuration("PT10.00099S")
+                    .getTimeInMillis(new Date()) == 10000);
+            AssertJUnit.assertTrue("10.00099S means 10 sec since it will be rounded to zero", DatatypeFactory.newInstance().newDuration("-PT10.00099S")
+                    .getTimeInMillis(new Date()) == -10000);
+            AssertJUnit.assertTrue("10.00099S means 10 sec since it will be rounded to zero", DatatypeFactory.newInstance().newDuration("PT10.00099S")
+                    .getTimeInMillis(new GregorianCalendar()) == 10000);
+            AssertJUnit.assertTrue("10.00099S means 10 sec since it will be rounded to zero", DatatypeFactory.newInstance().newDuration("-PT10.00099S")
+                    .getTimeInMillis(new GregorianCalendar()) == -10000);
+        } catch (DatatypeConfigurationException e) {
+            e.printStackTrace();
+        }
     }
 
     @Test
     public void testDurationAndCalendar3() {
-        Calendar cal = new GregorianCalendar();
-        cal.set(Calendar.SECOND, 59);
-        factory.newDuration(10000).addTo(cal);
-        assertEquals(9, cal.get(Calendar.SECOND), "sec will be 9");
+        try {
+            Calendar cal = new GregorianCalendar();
+            cal.set(Calendar.SECOND, 59);
+            DatatypeFactory.newInstance().newDuration(10000).addTo(cal);
+            AssertJUnit.assertTrue("sec will be 9", cal.get(Calendar.SECOND) == 9);
 
-        Date date = new Date();
-        date.setSeconds(59);
-        factory.newDuration(10000).addTo(date);
-        assertEquals(9, date.getSeconds(), "sec will be 9");
+            Date date = new Date();
+            date.setSeconds(59);
+            DatatypeFactory.newInstance().newDuration(10000).addTo(date);
+            AssertJUnit.assertTrue("sec will be 9", date.getSeconds() == 9);
+        } catch (DatatypeConfigurationException e) {
+            e.printStackTrace();
+        }
     }
 
     @Test
     public void testEqualsWithDifferentObjectParam() {
-        assertFalse(duration.equals(new Integer(0)), "equals method should return false for any object other than Duration");
+
+        AssertJUnit.assertFalse("equals method should return false for any object other than Duration", duration.equals(new Integer(0)));
     }
 
     @Test
     public void testEqualsWithNullObjectParam() {
-        assertFalse(duration.equals(null), "equals method should return false for null parameter");
+
+        AssertJUnit.assertFalse("equals method should return false for null parameter", duration.equals(null));
     }
 
     @Test
     public void testEqualsWithEqualObjectParam() {
-        assertTrue(duration.equals(factory.newDuration(100)), "equals method is expected to return true");
+        try {
+            AssertJUnit.assertTrue("equals method is expected to return true", duration.equals(DatatypeFactory.newInstance().newDuration(100)));
+        } catch (DatatypeConfigurationException dce) {
+            dce.printStackTrace();
+            Assert.fail("Failed to create instance of DatatypeFactory " + dce.getMessage());
+        }
     }
 
     /**
@@ -224,7 +250,13 @@ public class DurationTest {
                 { "PT2678400S", "<>", "P1M" }, { "PT31536000S", "<>", "P1Y" }, { "PT31622400S", "<>", "P1Y" }, { "PT525600M", "<>", "P1Y" },
                 { "PT527040M", "<>", "P1Y" }, { "PT8760H", "<>", "P1Y" }, { "PT8784H", "<>", "P1Y" }, { "P365D", "<>", "P1Y" }, };
 
-        DatatypeFactory df = factory;
+        DatatypeFactory df = null;
+        try {
+            df = DatatypeFactory.newInstance();
+        } catch (DatatypeConfigurationException ex) {
+            ex.printStackTrace();
+            Assert.fail(ex.toString());
+        }
 
         boolean compareErrors = false;
 
@@ -240,7 +272,7 @@ public class DurationTest {
             // tested
             if (expected != cmp) {
                 compareErrors = true;
-                System.err.println("returned " + cmp2str(cmp) + " for durations '" + duration1 + "' and " + duration2 + "', but expected "
+                System.err.println("returned " + cmp2str(cmp) + " for durations \'" + duration1 + "\' and " + duration2 + "\', but expected "
                         + cmp2str(expected));
             }
         }
@@ -248,7 +280,7 @@ public class DurationTest {
         if (compareErrors) {
             // TODO; fix bug, these tests should pass
             if (false) {
-                fail("Errors in comparing indeterminate relations, see Stderr");
+                Assert.fail("Errors in comparing indeterminate relations, see Stderr");
             } else {
                 System.err.println("Please fix this bug: " + "Errors in comparing indeterminate relations, see Stderr");
             }
@@ -265,7 +297,7 @@ public class DurationTest {
      * description concerning return values range.
      */
     @Test
-    public void testNormalizedReturnValues() {
+    public void testNormalizedReturnValues() throws Exception {
 
         final Object[] TEST_VALUES = {
                 // test 61 seconds -> 1 minute, 1 second
@@ -316,9 +348,9 @@ public class DurationTest {
         };
 
         for (int onValue = 0; onValue < TEST_VALUES.length; onValue += 9) {
-            newDurationTester((Boolean) TEST_VALUES[onValue], // isPositive,
-                    (Boolean) NORM_VALUES[onValue], // normalized
-                    // isPositive,
+            newDurationTester(((Boolean) TEST_VALUES[onValue]).booleanValue(), // isPositive,
+                    ((Boolean) NORM_VALUES[onValue]).booleanValue(), // normalized
+                                                                     // isPositive,
                     (BigInteger) TEST_VALUES[onValue + 1], // years,
                     (BigInteger) NORM_VALUES[onValue + 1], // normalized years,
                     (BigInteger) TEST_VALUES[onValue + 2], // months
@@ -331,16 +363,16 @@ public class DurationTest {
                     (BigInteger) NORM_VALUES[onValue + 5], // normalized minutes
                     (BigDecimal) TEST_VALUES[onValue + 6], // seconds
                     (BigDecimal) NORM_VALUES[onValue + 6], // normalized seconds
-                    (Long) TEST_VALUES[onValue + 7], // durationInMilliSeconds,
-                    (Long) NORM_VALUES[onValue + 7], // normalized
-                    // durationInMilliSeconds,
+                    ((Long) TEST_VALUES[onValue + 7]).longValue(), // durationInMilliSeconds,
+                    ((Long) NORM_VALUES[onValue + 7]).longValue(), // normalized
+                                                                   // durationInMilliSeconds,
                     (String) TEST_VALUES[onValue + 8], // lexicalRepresentation
                     (String) NORM_VALUES[onValue + 8]); // normalized
                                                         // lexicalRepresentation
 
-            newDurationDayTimeTester((Boolean) TEST_VALUES[onValue], // isPositive,
-                    (Boolean) NORM_VALUES[onValue], // normalized
-                    // isPositive,
+            newDurationDayTimeTester(((Boolean) TEST_VALUES[onValue]).booleanValue(), // isPositive,
+                    ((Boolean) NORM_VALUES[onValue]).booleanValue(), // normalized
+                                                                     // isPositive,
                     BigInteger.ZERO, // years,
                     BigInteger.ZERO, // normalized years,
                     BigInteger.ZERO, // months
@@ -353,9 +385,9 @@ public class DurationTest {
                     (BigInteger) NORM_VALUES[onValue + 5], // normalized minutes
                     (BigDecimal) TEST_VALUES[onValue + 6], // seconds
                     (BigDecimal) NORM_VALUES[onValue + 6], // normalized seconds
-                    (Long) TEST_VALUES[onValue + 7], // durationInMilliSeconds,
-                    (Long) NORM_VALUES[onValue + 7], // normalized
-                    // durationInMilliSeconds,
+                    ((Long) TEST_VALUES[onValue + 7]).longValue(), // durationInMilliSeconds,
+                    ((Long) NORM_VALUES[onValue + 7]).longValue(), // normalized
+                                                                   // durationInMilliSeconds,
                     (String) TEST_VALUES[onValue + 8], // lexicalRepresentation
                     (String) NORM_VALUES[onValue + 8]); // normalized
                                                         // lexicalRepresentation
@@ -367,24 +399,33 @@ public class DurationTest {
             BigInteger normalizedMinutes, BigDecimal seconds, BigDecimal normalizedSeconds, long durationInMilliSeconds, long normalizedDurationInMilliSeconds,
             String lexicalRepresentation, String normalizedLexicalRepresentation) {
 
+        DatatypeFactory datatypeFactory = null;
+        try {
+            datatypeFactory = DatatypeFactory.newInstance();
+        } catch (DatatypeConfigurationException ex) {
+            ex.printStackTrace();
+            Assert.fail(ex.toString());
+        }
+
         // create 4 Durations using the 4 different constructors
-        Duration durationBigInteger = factory.newDuration(isPositive, years, months, days, hours, minutes, seconds);
+
+        Duration durationBigInteger = datatypeFactory.newDuration(isPositive, years, months, days, hours, minutes, seconds);
         durationAssertEquals(durationBigInteger, DatatypeConstants.DURATION, normalizedIsPositive, normalizedYears.intValue(), normalizedMonths.intValue(),
                 normalizedDays.intValue(), normalizedHours.intValue(), normalizedMinutes.intValue(), normalizedSeconds.intValue(),
                 normalizedDurationInMilliSeconds, normalizedLexicalRepresentation);
 
-        Duration durationInt = factory.newDuration(isPositive, years.intValue(), months.intValue(), days.intValue(), hours.intValue(),
+        Duration durationInt = datatypeFactory.newDuration(isPositive, years.intValue(), months.intValue(), days.intValue(), hours.intValue(),
                 minutes.intValue(), seconds.intValue());
         durationAssertEquals(durationInt, DatatypeConstants.DURATION, normalizedIsPositive, normalizedYears.intValue(), normalizedMonths.intValue(),
                 normalizedDays.intValue(), normalizedHours.intValue(), normalizedMinutes.intValue(), normalizedSeconds.intValue(),
                 normalizedDurationInMilliSeconds, normalizedLexicalRepresentation);
 
-        Duration durationMilliseconds = factory.newDuration(durationInMilliSeconds);
+        Duration durationMilliseconds = datatypeFactory.newDuration(durationInMilliSeconds);
         durationAssertEquals(durationMilliseconds, DatatypeConstants.DURATION, normalizedIsPositive, normalizedYears.intValue(), normalizedMonths.intValue(),
                 normalizedDays.intValue(), normalizedHours.intValue(), normalizedMinutes.intValue(), normalizedSeconds.intValue(),
                 normalizedDurationInMilliSeconds, normalizedLexicalRepresentation);
 
-        Duration durationLexical = factory.newDuration(lexicalRepresentation);
+        Duration durationLexical = datatypeFactory.newDuration(lexicalRepresentation);
         durationAssertEquals(durationLexical, DatatypeConstants.DURATION, normalizedIsPositive, normalizedYears.intValue(), normalizedMonths.intValue(),
                 normalizedDays.intValue(), normalizedHours.intValue(), normalizedMinutes.intValue(), normalizedSeconds.intValue(),
                 normalizedDurationInMilliSeconds, normalizedLexicalRepresentation);
@@ -395,8 +436,17 @@ public class DurationTest {
             BigInteger normalizedMinutes, BigDecimal seconds, BigDecimal normalizedSeconds, long durationInMilliSeconds, long normalizedDurationInMilliSeconds,
             String lexicalRepresentation, String normalizedLexicalRepresentation) {
 
+        DatatypeFactory datatypeFactory = null;
+        try {
+            datatypeFactory = DatatypeFactory.newInstance();
+        } catch (DatatypeConfigurationException ex) {
+            ex.printStackTrace();
+            Assert.fail(ex.toString());
+        }
+
         // create 4 dayTime Durations using the 4 different constructors
-        Duration durationDayTimeBigInteger = factory.newDurationDayTime(isPositive, days, hours, minutes, seconds.toBigInteger());
+
+        Duration durationDayTimeBigInteger = datatypeFactory.newDurationDayTime(isPositive, days, hours, minutes, seconds.toBigInteger());
         durationAssertEquals(durationDayTimeBigInteger, DatatypeConstants.DURATION_DAYTIME, normalizedIsPositive, normalizedYears.intValue(),
                 normalizedMonths.intValue(), normalizedDays.intValue(), normalizedHours.intValue(), normalizedMinutes.intValue(), normalizedSeconds.intValue(),
                 normalizedDurationInMilliSeconds, normalizedLexicalRepresentation);
@@ -432,7 +482,7 @@ public class DurationTest {
 
         // sign
         if (DEBUG) {
-            boolean actual = duration.getSign() == 1;
+            boolean actual = (duration.getSign() == 1) ? true : false;
             System.out.println("sign:");
             System.out.println("    expected: \"" + isPositive + "\"");
             System.out.println("    actual:   \"" + actual + "\"");

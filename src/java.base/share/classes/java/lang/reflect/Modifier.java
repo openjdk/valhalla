@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,41 +25,36 @@
 
 package java.lang.reflect;
 
+import jdk.internal.javac.PreviewFeature;
+
 import java.util.StringJoiner;
 
 /**
- * Provides {@code static} methods and constants to decode {@linkplain
- * AccessFlag classfile access and property flags} with corresponding
- * {@linkplain java.compiler/javax.lang.model.element.Modifier Java
- * language modifiers}.
- * <p>
- * Modifier interpretation is context-sensitive: for example, the {@link
- * #isSynchronized(int) isSynchronized} check is only meaningful for method
- * access flags, representing the {@code synchronized} modifier on methods.
- * A {@code true} return on a field access flags does not indicate that field
- * has the {@code synchronized} modifier.
+ * The Modifier class provides {@code static} methods and
+ * constants to decode class and member access modifiers.
+ * The {@link AccessFlag} class should be used instead of this class.
+ * The sets of modifiers are represented as integers with non-distinct bit positions
+ * representing different modifiers.  The values for the constants
+ * representing the modifiers are taken from the tables in sections
+ * {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
+ * <cite>The Java Virtual Machine Specification</cite>.
  *
  * @apiNote
- * The mappings from classfile access flags to Java language modifiers have
- * {@linkplain java.lang.reflect##LanguageJvmModel diverged} during the
- * evolution of the Java SE Platform.  Many access flags and Java language
- * modifiers are not represented in this class; the mappings represented in this
- * class are not sufficient to reconstruct Java langugage modifiers from access
- * flags, and vice versa.
+ * Not all modifiers that are syntactic Java language modifiers are
+ * represented in this class, only those modifiers that <em>also</em>
+ * have a corresponding JVM {@linkplain AccessFlag access flag} are
+ * included. In particular, the {@code default} method modifier (JLS
+ * {@jls 9.4.3}) and the {@code value}, {@code sealed} and {@code non-sealed} class
+ * (JLS {@jls 8.1.1.2}) and interface (JLS {@jls 9.1.1.4}) modifiers
+ * are <em>not</em> represented in this class.
  *
- * @see AccessFlag
- * @see java.compiler/javax.lang.model.element.Modifier
- * @see java.lang.reflect##LanguageJvmModel
- *      Java programming language and JVM modeling in core reflection
  * @see Class#getModifiers()
  * @see Member#getModifiers()
- * @see Parameter#getModifiers()
  *
  * @author Nakul Saraiya
  * @author Kenneth Russell
  * @since 1.1
  */
-@SuppressWarnings("doclint:reference") // cross-module link
 public final class Modifier {
     /**
      * Do not call.
@@ -140,6 +135,24 @@ public final class Modifier {
      */
     public static boolean isSynchronized(int mod) {
         return (mod & SYNCHRONIZED) != 0;
+    }
+
+    /**
+     * Return {@code true} if the integer argument includes the
+     * {@code identity} modifier, {@code false} otherwise.
+     *
+     * @apiNote {@code isIdentity} should only be called with the modifiers
+     * of a {@linkplain Class#getModifiers() class}.
+     *
+     * @param   mod a set of modifiers
+     * @return {@code true} if {@code mod} includes the
+     * {@code identity} modifier; {@code false} otherwise.
+     *
+     * @since Valhalla
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
+    public static boolean isIdentity(int mod) {
+        return (mod & IDENTITY) != 0;
     }
 
     /**
@@ -235,24 +248,33 @@ public final class Modifier {
      * return a string of modifiers that are not valid modifiers of a
      * Java entity; in other words, no checking is done on the
      * possible validity of the combination of modifiers represented
-     * by the input.  This method also omits all access flags without
-     * a corresponding source modifier.
+     * by the input.
      *
-     * @deprecated
-     * Modifier interpretation is context-sensitive; this API may report an
-     * incomplete or incorrect list of Java language modifiers.  The mappings
-     * from {@code class} file access flags to Java language modifiers have
-     * {@linkplain java.lang.reflect##LanguageJvmModel diverged} during the
-     * evolution of the Java SE Platform.
-     * <p>
-     * Use {@link AccessFlag} to examine access flags; {@code toGenericString}
-     * methods on reflective objects print Java language modifiers.
+     * Note that to perform such checking for a known kind of entity,
+     * such as a constructor or method, first AND the argument of
+     * {@code toString} with the appropriate mask from a method like
+     * {@link #constructorModifiers} or {@link #methodModifiers}.
+     *
+     * @apiNote
+     * To make a high-fidelity representation of the Java source
+     * modifiers of a class or member, source-level modifiers that do
+     * <em>not</em> have a constant in this class should be included
+     * and appear in an order consistent with the full recommended
+     * ordering for that kind of declaration as given in <cite>The
+     * Java Language Specification</cite>. For example, for a
+     * {@linkplain Method#toGenericString() method} the "{@link
+     * Method#isDefault() default}" modifier is ordered immediately
+     * before "{@code static}" (JLS {@jls 9.4}). For a {@linkplain
+     * Class#toGenericString() class object}, the "{@link
+     * Class#isSealed() sealed}" or {@code "non-sealed"} modifier is
+     * ordered immediately after "{@code final}" for a class (JLS
+     * {@jls 8.1.1}) and immediately after "{@code static}" for an
+     * interface (JLS {@jls 9.1.1}).
      *
      * @param   mod a set of modifiers
      * @return  a string representation of the set of modifiers
      * represented by {@code mod}
      */
-    @Deprecated(since = "27")
     public static String toString(int mod) {
         StringJoiner sj = new StringJoiner(" ");
 
@@ -320,6 +342,15 @@ public final class Modifier {
      * @see AccessFlag#SYNCHRONIZED
      */
     public static final int SYNCHRONIZED     = 0x00000020;
+
+    /**
+     * The {@code int} value representing the {@code ACC_IDENTITY}
+     * modifier.
+     *
+     * @since Valhalla
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
+    public static final int IDENTITY         = 0x00000020;
 
     /**
      * The {@code int} value representing the {@code volatile}
@@ -395,6 +426,7 @@ public final class Modifier {
      * The Java source modifiers that can be applied to a class.
      * @jls 8.1.1 Class Modifiers
      */
+    // Does not include IDENTITY - this is used by SYNCHRONIZED for printing already
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
@@ -441,24 +473,20 @@ public final class Modifier {
     private static final int PARAMETER_MODIFIERS =
         Modifier.FINAL;
 
+    static final int ACCESS_MODIFIERS =
+        Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
+
     /**
      * Return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a class.
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a class.
      *
-     * @deprecated
-     * This method was originally created to support the now-deprecated
-     * {@link #toString(int) Modifier::toString(int)} method.
-     * Use {@link AccessFlag.Location} to inspect structure-specific
-     * access modifier properties.
-     *
      * @see AccessFlag.Location#CLASS
      * @see AccessFlag.Location#INNER_CLASS
      * @jls 8.1.1 Class Modifiers
      * @since 1.7
      */
-    @Deprecated(since = "27")
     public static int classModifiers() {
         return CLASS_MODIFIERS;
     }
@@ -469,18 +497,11 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to an interface.
      *
-     * @deprecated
-     * This method was originally created to support the now-deprecated
-     * {@link #toString(int) Modifier::toString(int)} method.
-     * Use {@link AccessFlag.Location} to inspect structure-specific
-     * access modifier properties.
-     *
      * @see AccessFlag.Location#CLASS
      * @see AccessFlag.Location#INNER_CLASS
      * @jls 9.1.1 Interface Modifiers
      * @since 1.7
      */
-    @Deprecated(since = "27")
     public static int interfaceModifiers() {
         return INTERFACE_MODIFIERS;
     }
@@ -491,17 +512,10 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a constructor.
      *
-     * @deprecated
-     * This method was originally created to support the now-deprecated
-     * {@link #toString(int) Modifier::toString(int)} method.
-     * Use {@link AccessFlag.Location} to inspect structure-specific
-     * access modifier properties.
-     *
      * @see AccessFlag.Location#METHOD
      * @jls 8.8.3 Constructor Modifiers
      * @since 1.7
      */
-    @Deprecated(since = "27")
     public static int constructorModifiers() {
         return CONSTRUCTOR_MODIFIERS;
     }
@@ -512,17 +526,10 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a method.
      *
-     * @deprecated
-     * This method was originally created to support the now-deprecated
-     * {@link #toString(int) Modifier::toString(int)} method.
-     * Use {@link AccessFlag.Location} to inspect structure-specific
-     * access modifier properties.
-     *
      * @see AccessFlag.Location#METHOD
      * @jls 8.4.3 Method Modifiers
      * @since 1.7
      */
-    @Deprecated(since = "27")
     public static int methodModifiers() {
         return METHOD_MODIFIERS;
     }
@@ -533,17 +540,10 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a field.
      *
-     * @deprecated
-     * This method was originally created to support the now-deprecated
-     * {@link #toString(int) Modifier::toString(int)} method.
-     * Use {@link AccessFlag.Location} to inspect structure-specific
-     * access modifier properties.
-     *
      * @see AccessFlag.Location#FIELD
      * @jls 8.3.1 Field Modifiers
      * @since 1.7
      */
-    @Deprecated(since = "27")
     public static int fieldModifiers() {
         return FIELD_MODIFIERS;
     }
@@ -554,17 +554,10 @@ public final class Modifier {
      * @return an {@code int} value OR-ing together the source language
      * modifiers that can be applied to a parameter.
      *
-     * @deprecated
-     * This method was originally created to support the now-deprecated
-     * {@link #toString(int) Modifier::toString(int)} method.
-     * Use {@link AccessFlag.Location} to inspect structure-specific
-     * access modifier properties.
-     *
      * @see AccessFlag.Location#METHOD_PARAMETER
      * @jls 8.4.1 Formal Parameters
      * @since 1.8
      */
-    @Deprecated(since = "27")
     public static int parameterModifiers() {
         return PARAMETER_MODIFIERS;
     }

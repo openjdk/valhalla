@@ -593,8 +593,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             int& frame_complete,
                             int& frame_size_in_words,
                             bool alloc_inline_receiver) {
-  if (requires_clinit_barrier) {
-    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
+  if (requires_clinit_barrier && VM_Version::supports_fast_class_init_checks()) {
     Label L_skip_barrier;
 
     { // Bypass the barrier for non-static methods
@@ -649,10 +648,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       has_inline_argument = (sig_extended->at(i)._bt == T_METADATA);
     }
     if (has_inline_argument) {
-      // There is at least a value type argument: we're coming from
-      // compiled code so we may not have buffers to back the value
-      // objects. Allocate the buffers here with a runtime call for
-      // the value arguments that needs a buffer.
+      // There is at least an inline type argument: we're coming from
+      // compiled code so we have no buffers to back the inline types
+      // Allocate the buffers here with a runtime call.
       RegisterSaver reg_save(true /* save_vectors */);
       OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
 
@@ -687,6 +685,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       // We get an array of objects from the runtime call
       __ get_vm_result_oop(buf_array, rthread);
+      __ get_vm_result_metadata(rmethod, rthread); // TODO: required to keep the callee Method live?
     }
   }
 
@@ -739,7 +738,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 #endif /* ASSERT */
     } else {
       ignored++;
-      next_arg_int++;
+      // get the buffer from the just allocated pool of buffers
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
+      __ load_heap_oop(buf_oop, Address(buf_array, index), tmp1, tmp2);
+      next_vt_arg++; next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
       // slots to the buffer: we know we are done with that inline type
@@ -748,7 +750,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.
       Label L_null;
-      Label not_null_buffer;
       do {
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
@@ -759,19 +760,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
           vt--;
           ignored++;
-        } else if (sig_extended->at(next_arg_comp)._vt_oop) {
-          VMReg buffer = regs[next_arg_comp-ignored].first();
-          if (buffer->is_stack()) {
-            int ld_off = buffer->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
-            __ ldr(buf_oop, Address(sp, ld_off));
-          } else {
-            __ mov(buf_oop, buffer->as_Register());
-          }
-          __ cbnz(buf_oop, not_null_buffer);
-          // get the buffer from the just allocated pool of buffers
-          int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
-          __ load_heap_oop(buf_oop, Address(buf_array, index), rscratch1, tmp2);
-          next_vt_arg++;
         } else {
           int off = sig_extended->at(next_arg_comp)._offset;
           if (off == -1) {
@@ -798,7 +786,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         }
       } while (vt != 0);
       // pass the buffer to the interpreter
-      __ bind(not_null_buffer);
       __ str(buf_oop, Address(sp, st_off));
       __ bind(L_null);
     }
@@ -1807,8 +1794,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // SVC, HVC, or SMC.  Make it a NOP.
   __ nop();
 
-  if (method->needs_clinit_barrier()) {
-    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
+  if (VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier()) {
     Label L_skip_barrier;
     __ mov_metadata(rscratch2, method->method_holder()); // InstanceKlass*
     __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
@@ -3069,7 +3055,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     j++;
   }
   assert(j == regs->length(), "missed a field?");
-  if (vk->supports_nullable_layouts()) {
+  if (vk->has_nullable_atomic_layout()) {
     // Zero the null marker (setting it to 1 would be better but would require an additional register)
     __ strb(zr, Address(r0, vk->null_marker_offset()));
   }
@@ -3081,8 +3067,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   Label not_null;
   __ cbnz(r0, not_null);
 
-  // Return value is null. Zero all registers because the runtime requires a canonical
-  // representation of a flat null.
+  // Return value is null. Zero oop registers to make the GC happy.
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
@@ -3096,12 +3081,9 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       }
       continue;
     }
-
-    VMRegPair pair = regs->at(j);
-    VMReg r_1 = pair.first();
-    if (r_1->is_FloatRegister()) {
-      __ mov(r_1->as_FloatRegister(), Assembler::T2S, 0);
-    } else {
+    if (bt == T_OBJECT || bt == T_ARRAY) {
+      VMRegPair pair = regs->at(j);
+      VMReg r_1 = pair.first();
       __ mov(r_1->as_Register(), zr);
     }
     j++;

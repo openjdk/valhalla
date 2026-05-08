@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,14 +38,15 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.*;
 
 /*
  * @test
  * @bug 8197564 8228970
  * @summary Simple smoke test for BodySubscriber.asInputStream();
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm HttpResponseInputStreamTest
  * @author daniel fuchs
  */
 public class HttpResponseInputStreamTest {
@@ -55,7 +56,7 @@ public class HttpResponseInputStreamTest {
     static class TestException extends IOException {}
 
     public static void main(String[] args) throws InterruptedException, ExecutionException {
-        new HttpResponseInputStreamTest().testOnError();
+        testOnError();
     }
 
     /**
@@ -65,7 +66,7 @@ public class HttpResponseInputStreamTest {
      * @throws ExecutionException
      */
     @Test
-    public void testOnError() throws InterruptedException, ExecutionException {
+    public static void testOnError() throws InterruptedException, ExecutionException {
         CountDownLatch latch = new CountDownLatch(1);
         BodySubscriber<InputStream> isb = BodySubscribers.ofInputStream();
         ErrorTestSubscription s = new ErrorTestSubscription(isb);
@@ -159,7 +160,7 @@ public class HttpResponseInputStreamTest {
     }
 
     @Test
-    public void testCloseAndSubscribe()
+    public static void testCloseAndSubscribe()
             throws InterruptedException, ExecutionException
     {
         BodySubscriber<InputStream> isb = BodySubscribers.ofInputStream();
@@ -188,34 +189,34 @@ public class HttpResponseInputStreamTest {
     }
 
     @Test
-    public void testReadParameters() throws InterruptedException, ExecutionException, IOException {
+    public static void testReadParameters() throws InterruptedException, ExecutionException, IOException {
         BodySubscriber<InputStream> isb = BodySubscribers.ofInputStream();
         InputStream is = isb.getBody().toCompletableFuture().get();
 
         Throwable ex;
 
         // len == 0
-        assertEquals(0, is.read(new byte[16], 0, 0));
-        assertEquals(0, is.read(new byte[16], 16, 0));
+        assertEquals(is.read(new byte[16], 0, 0), 0);
+        assertEquals(is.read(new byte[16], 16, 0), 0);
 
         // index == -1
-        ex = assertThrows(OOB, () -> is.read(new byte[16], -1, 10));
+        ex = expectThrows(OOB, () -> is.read(new byte[16], -1, 10));
         System.out.println("OutOfBoundsException thrown as expected: " + ex);
 
         // large offset
-        ex = assertThrows(OOB, () -> is.read(new byte[16], 17, 10));
+        ex = expectThrows(OOB, () -> is.read(new byte[16], 17, 10));
         System.out.println("OutOfBoundsException thrown as expected: " + ex);
 
-        ex = assertThrows(OOB, () -> is.read(new byte[16], 10, 10));
+        ex = expectThrows(OOB, () -> is.read(new byte[16], 10, 10));
         System.out.println("OutOfBoundsException thrown as expected: " + ex);
 
         // null value
-        ex = assertThrows(NPE, () -> is.read(null, 0, 10));
+        ex = expectThrows(NPE, () -> is.read(null, 0, 10));
         System.out.println("NullPointerException thrown as expected: " + ex);
     }
 
     @Test
-    public void testSubscribeAndClose()
+    public static void testSubscribeAndClose()
             throws InterruptedException, ExecutionException
     {
         BodySubscriber<InputStream> isb = BodySubscribers.ofInputStream();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.jvm.Code.*;
 import com.sun.tools.javac.jvm.Items.*;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.JCTree.*;
 
 import static com.sun.tools.javac.code.Flags.*;
@@ -170,6 +171,11 @@ public class Gen extends JCTree.Visitor {
     /** The number of code-gen errors in this class.
      */
     private int nerrs = 0;
+
+    /** An object containing mappings of syntax trees to their
+     *  ending source positions.
+     */
+    EndPosTable endPosTable;
 
     boolean inCondSwitchExpression;
     Chain switchExpressionTrueChain;
@@ -446,7 +452,7 @@ public class Gen extends JCTree.Visitor {
                 if ((block.flags & STATIC) != 0)
                     clinitCode.append(block);
                 else if ((block.flags & SYNTHETIC) == 0) {
-                    if (c.isValueClass()) {
+                    if (c.isValueClass() || c.hasStrict()) {
                         initBlocks.append(block);
                     } else {
                         initCode.append(block);
@@ -466,7 +472,7 @@ public class Gen extends JCTree.Visitor {
                         JCStatement init = make.at(vdef.pos()).
                             Assignment(sym, vdef.init);
                         initCode.append(init);
-                        init.endpos = vdef.endpos;
+                        endPosTable.replaceTree(vdef, init);
                         initTAs.addAll(getAndRemoveNonFieldTAs(sym));
                     } else if (sym.getConstValue() == null) {
                         // Initialize class (static) variables only if
@@ -474,7 +480,7 @@ public class Gen extends JCTree.Visitor {
                         JCStatement init = make.at(vdef.pos).
                             Assignment(sym, vdef.init);
                         clinitCode.append(init);
-                        init.endpos = vdef.endpos;
+                        endPosTable.replaceTree(vdef, init);
                         clinitTAs.addAll(getAndRemoveNonFieldTAs(sym));
                     } else {
                         checkStringConstant(vdef.init.pos(), sym.getConstValue());
@@ -576,7 +582,7 @@ public class Gen extends JCTree.Visitor {
         if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
-            if (allowValueClasses & (md.sym.owner.isValueClass() || ((md.sym.owner.flags_field & RECORD) != 0))) {
+            if (allowValueClasses & (md.sym.owner.isValueClass() || md.sym.owner.hasStrict() || ((md.sym.owner.flags_field & RECORD) != 0))) {
                 rewriteInitializersIfNeeded(md, inits);
                 md.body.stats = inits.appendList(md.body.stats);
                 TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initBlocks.prepend(supercall)));
@@ -1099,7 +1105,8 @@ public class Gen extends JCTree.Visitor {
                                         varDebugInfo,
                                         stackMap,
                                         debugCode,
-                                        genCrt ? new CRTable(tree) : null,
+                                        genCrt ? new CRTable(tree, env.toplevel.endPositions)
+                                               : null,
                                         syms,
                                         types,
                                         poolWriter,
@@ -2595,6 +2602,7 @@ public class Gen extends JCTree.Visitor {
             attrEnv = env;
             ClassSymbol c = cdef.sym;
             this.toplevel = env.toplevel;
+            this.endPosTable = toplevel.endPositions;
             /* method normalizeDefs() can add references to external classes into the constant pool
              */
             cdef.defs = normalizeDefs(cdef.defs, c);
@@ -2624,6 +2632,7 @@ public class Gen extends JCTree.Visitor {
             attrEnv = null;
             this.env = null;
             toplevel = null;
+            endPosTable = null;
             nerrs = 0;
             qualifiedSymbolCache.clear();
         }

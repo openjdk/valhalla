@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
 
 #include "gc/g1/g1CardSet.hpp"
 #include "memory/allocation.hpp"
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -67,7 +67,7 @@ class G1CardSetInlinePtr : public StackObj {
 
   using ContainerPtr = G1CardSet::ContainerPtr;
 
-  Atomic<ContainerPtr>* _value_addr;
+  ContainerPtr volatile * _value_addr;
   ContainerPtr _value;
 
   static const uint SizeFieldLen = 3;
@@ -103,7 +103,7 @@ public:
   explicit G1CardSetInlinePtr(ContainerPtr value) :
     G1CardSetInlinePtr(nullptr, value) {}
 
-  G1CardSetInlinePtr(Atomic<ContainerPtr>* value_addr, ContainerPtr value) : _value_addr(value_addr), _value(value) {
+  G1CardSetInlinePtr(ContainerPtr volatile* value_addr, ContainerPtr value) : _value_addr(value_addr), _value(value) {
     assert(G1CardSet::container_type(_value) == G1CardSet::ContainerInlinePtr, "Value " PTR_FORMAT " is not a valid G1CardSetInlinePtr.", p2i(_value));
   }
 
@@ -145,13 +145,13 @@ public:
 // All but inline pointers are of this kind. For those, card entries are stored
 // directly in the ContainerPtr of the ConcurrentHashTable node.
 class G1CardSetContainer {
-  Atomic<uintptr_t> _ref_count;
+  uintptr_t _ref_count;
 protected:
   ~G1CardSetContainer() = default;
 public:
   G1CardSetContainer() : _ref_count(3) { }
 
-  uintptr_t refcount() const { return _ref_count.load_acquire(); }
+  uintptr_t refcount() const { return AtomicAccess::load_acquire(&_ref_count); }
 
   bool try_increment_refcount();
 
@@ -172,7 +172,7 @@ public:
   using ContainerPtr = G1CardSet::ContainerPtr;
 private:
   EntryCountType _size;
-  Atomic<EntryCountType> _num_entries;
+  EntryCountType volatile _num_entries;
   // VLA implementation.
   EntryDataType _data[1];
 
@@ -180,10 +180,10 @@ private:
   static const EntryCountType EntryMask = LockBitMask - 1;
 
   class G1CardSetArrayLocker : public StackObj {
-    Atomic<EntryCountType>* _num_entries_addr;
+    EntryCountType volatile* _num_entries_addr;
     EntryCountType _local_num_entries;
   public:
-    G1CardSetArrayLocker(Atomic<EntryCountType>* value);
+    G1CardSetArrayLocker(EntryCountType volatile* value);
 
     EntryCountType num_entries() const { return _local_num_entries; }
     void inc_num_entries() {
@@ -192,7 +192,7 @@ private:
     }
 
     ~G1CardSetArrayLocker() {
-      _num_entries_addr->release_store(_local_num_entries);
+      AtomicAccess::release_store(_num_entries_addr, _local_num_entries);
     }
   };
 
@@ -213,7 +213,7 @@ public:
   template <class CardVisitor>
   void iterate(CardVisitor& found);
 
-  size_t num_entries() const { return _num_entries.load_relaxed() & EntryMask; }
+  size_t num_entries() const { return _num_entries & EntryMask; }
 
   static size_t header_size_in_bytes();
 
@@ -223,7 +223,7 @@ public:
 };
 
 class G1CardSetBitMap : public G1CardSetContainer {
-  Atomic<size_t> _num_bits_set;
+  size_t _num_bits_set;
   BitMap::bm_word_t _bits[1];
 
 public:
@@ -236,7 +236,7 @@ public:
     return bm.at(card_idx);
   }
 
-  uint num_bits_set() const { return (uint)_num_bits_set.load_relaxed(); }
+  uint num_bits_set() const { return (uint)_num_bits_set; }
 
   template <class CardVisitor>
   void iterate(CardVisitor& found, size_t const size_in_bits, uint offset);
@@ -255,10 +255,10 @@ class G1CardSetHowl : public G1CardSetContainer {
 public:
   typedef uint EntryCountType;
   using ContainerPtr = G1CardSet::ContainerPtr;
-  Atomic<EntryCountType> _num_entries;
+  EntryCountType volatile _num_entries;
 private:
   // VLA implementation.
-  Atomic<ContainerPtr> _buckets[1];
+  ContainerPtr _buckets[1];
   // Do not add class member variables beyond this point.
 
   // Iterates over the given ContainerPtr with at index in this Howl card set,
@@ -268,14 +268,14 @@ private:
 
   ContainerPtr at(EntryCountType index) const;
 
-  Atomic<ContainerPtr> const* buckets() const;
+  ContainerPtr const* buckets() const;
 
 public:
   G1CardSetHowl(EntryCountType card_in_region, G1CardSetConfiguration* config);
 
-  Atomic<ContainerPtr> const* container_addr(EntryCountType index) const;
+  ContainerPtr const* container_addr(EntryCountType index) const;
 
-  Atomic<ContainerPtr>* container_addr(EntryCountType index);
+  ContainerPtr* container_addr(EntryCountType index);
 
   bool contains(uint card_idx, G1CardSetConfiguration* config);
   // Iterates over all ContainerPtrs in this Howl card set, applying a CardOrRangeVisitor

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,20 +21,46 @@
  * questions.
  */
 
+import org.testng.annotations.Test;
+
+import java.io.Serializable;
+import java.lang.Enum.EnumDesc;
+import java.lang.classfile.ClassFile;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDescs;
+import java.lang.constant.MethodTypeDesc;
+import java.lang.invoke.CallSite;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+import java.lang.reflect.AccessFlag;
 import java.lang.runtime.ExactConversionsSupport;
-import org.junit.jupiter.api.Test;
+import java.lang.runtime.SwitchBootstraps;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.testng.Assert.*;
 
 /**
  * @test
  * @bug 8304487
  * @summary Verify boundary and special cases of exact conversion predicates
  * @compile ExactnessConversionsSupportTest.java
- * @run junit/othervm ExactnessConversionsSupportTest
+ * @run testng/othervm ExactnessConversionsSupportTest
  */
+@Test
 public class ExactnessConversionsSupportTest {
 
-    @Test
-    public void testByte() {
+    public static void main(String[] args) {
+        testByte();
+        testShort();
+        testChar();
+        testInt();
+        testLong();
+        testFloat();
+        testDouble();
+    }
+
+    public static void testByte() {
         assertEquals(true,  ExactConversionsSupport.isIntToByteExact((byte) (Byte.MAX_VALUE)));
         assertEquals(true,  ExactConversionsSupport.isIntToByteExact((byte) (0)));
         assertEquals(true,  ExactConversionsSupport.isIntToByteExact((byte) (Byte.MIN_VALUE)));
@@ -66,8 +92,7 @@ public class ExactnessConversionsSupportTest {
         assertEquals(false, ExactConversionsSupport.isDoubleToByteExact(-0.0d));
         assertEquals(true,  ExactConversionsSupport.isDoubleToByteExact(+0.0d));
     }
-    @Test
-    public void testShort() {
+    public static void testShort() {
         assertEquals(true,  ExactConversionsSupport.isIntToShortExact((byte) (Byte.MAX_VALUE)));
         assertEquals(true,  ExactConversionsSupport.isIntToShortExact((byte) (0)));
         assertEquals(true,  ExactConversionsSupport.isIntToShortExact((byte) (Byte.MIN_VALUE)));
@@ -100,8 +125,7 @@ public class ExactnessConversionsSupportTest {
         assertEquals(false, ExactConversionsSupport.isDoubleToShortExact(-0.0d));
         assertEquals(true,  ExactConversionsSupport.isDoubleToShortExact(+0.0d));
     }
-    @Test
-    public void testChar() {
+    public static void testChar() {
         assertEquals(true,  ExactConversionsSupport.isIntToCharExact((byte) (Byte.MAX_VALUE)));
         assertEquals(true,  ExactConversionsSupport.isIntToCharExact((byte) (0)));
         assertEquals(false, ExactConversionsSupport.isIntToCharExact((byte) (Byte.MIN_VALUE)));
@@ -133,8 +157,7 @@ public class ExactnessConversionsSupportTest {
         assertEquals(false, ExactConversionsSupport.isDoubleToCharExact(-0.0d));
         assertEquals(true,  ExactConversionsSupport.isDoubleToCharExact(+0.0d));
     }
-    @Test
-    public void testInt() {
+    public static void testInt() {
         assertEquals(false, ExactConversionsSupport.isLongToIntExact((Long.MAX_VALUE)));
         assertEquals(true,  ExactConversionsSupport.isLongToIntExact((0L)));
         assertEquals(false, ExactConversionsSupport.isLongToIntExact((Long.MIN_VALUE)));
@@ -155,8 +178,7 @@ public class ExactnessConversionsSupportTest {
         assertEquals(false, ExactConversionsSupport.isDoubleToIntExact((-0.0d)));
         assertEquals(true,  ExactConversionsSupport.isDoubleToIntExact((+0.0d)));
     }
-    @Test
-    public void testLong() {
+    public static void testLong() {
         assertEquals(false, ExactConversionsSupport.isFloatToLongExact((Float.MAX_VALUE)));
         assertEquals(true,  ExactConversionsSupport.isFloatToLongExact(((float) 0)));
         assertEquals(false, ExactConversionsSupport.isFloatToLongExact((Float.MIN_VALUE)));
@@ -174,8 +196,7 @@ public class ExactnessConversionsSupportTest {
         assertEquals(false, ExactConversionsSupport.isDoubleToLongExact((-0.0d)));
         assertEquals(true,  ExactConversionsSupport.isDoubleToLongExact((+0.0d)));
     }
-    @Test
-    public void testFloat() {
+    public static void testFloat() {
         assertEquals(true,  ExactConversionsSupport.isIntToFloatExact(((byte) (Byte.MAX_VALUE))));
         assertEquals(true,  ExactConversionsSupport.isIntToFloatExact(((byte) (0))));
         assertEquals(true,  ExactConversionsSupport.isIntToFloatExact(((byte) (Byte.MIN_VALUE))));
@@ -199,8 +220,7 @@ public class ExactnessConversionsSupportTest {
         assertEquals(true,  ExactConversionsSupport.isDoubleToFloatExact((-0.0d)));
         assertEquals(true,  ExactConversionsSupport.isDoubleToFloatExact((+0.0d)));
     }
-    @Test
-    public void testDouble() {
+    public static void testDouble() {
         assertEquals(false, ExactConversionsSupport.isLongToDoubleExact((Long.MAX_VALUE)));
         assertEquals(true,  ExactConversionsSupport.isLongToDoubleExact((0L)));
         assertEquals(true,  ExactConversionsSupport.isLongToDoubleExact((Long.MIN_VALUE)));

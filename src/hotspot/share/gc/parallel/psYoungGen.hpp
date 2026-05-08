@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,7 @@
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/parallel/objectStartArray.hpp"
 #include "gc/parallel/psVirtualspace.hpp"
-#include "gc/shared/generationCounters.hpp"
-#include "gc/shared/hSpaceCounters.hpp"
+#include "gc/parallel/spaceCounters.hpp"
 
 class ReservedSpace;
 
@@ -52,9 +51,9 @@ class PSYoungGen : public CHeapObj<mtGC> {
 
   // Performance counters
   GenerationCounters*   _gen_counters;
-  HSpaceCounters*       _eden_counters;
-  HSpaceCounters*       _from_counters;
-  HSpaceCounters*       _to_counters;
+  SpaceCounters*        _eden_counters;
+  SpaceCounters*        _from_counters;
+  SpaceCounters*        _to_counters;
 
   // Initialize the space boundaries
   void compute_initial_space_boundaries();
@@ -128,7 +127,7 @@ class PSYoungGen : public CHeapObj<mtGC> {
   size_t max_gen_size() const { return _max_gen_size; }
 
   // Allocation
-  HeapWord* cas_allocate(size_t word_size) {
+  HeapWord* allocate(size_t word_size) {
     HeapWord* result = eden_space()->cas_allocate(word_size);
     return result;
   }

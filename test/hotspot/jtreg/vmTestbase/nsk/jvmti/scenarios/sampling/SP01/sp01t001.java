@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,6 @@ import java.io.PrintStream;
 import nsk.share.*;
 import nsk.share.jvmti.*;
 
-import jdk.test.lib.thread.ThreadWrapper;
-
 public class sp01t001 extends DebugeeClass {
 
     // run test from command line
@@ -53,8 +51,7 @@ public class sp01t001 extends DebugeeClass {
     int status = Consts.TEST_PASSED;
 
     // tested threads list
-    static sp01t001Thread threadWrappers[] = null;
-    static Thread threads[] = null;
+    static sp01t001Thread threads[] = null;
     static int indexStartedThread = 0;
 
     // run debuggee class
@@ -63,15 +60,11 @@ public class sp01t001 extends DebugeeClass {
         log = new Log(out, argHandler);
 
         // create threads list
-        threadWrappers = new sp01t001Thread[] {
+        threads = new sp01t001Thread[] {
             // not started thread
             new sp01t001ThreadNotStarted(),
             // started threads
             new sp01t001ThreadFinished()
-        };
-        threads = new Thread[] {
-            threadWrappers[0].getThread(),
-            threadWrappers[1].getThread()
         };
         indexStartedThread = 1;
 
@@ -79,9 +72,9 @@ public class sp01t001 extends DebugeeClass {
         try {
             // start threads
             for (int i = indexStartedThread; i < threads.length; i++) {
-                synchronized (threadWrappers[i].startingMonitor) {
+                synchronized (threads[i].startingMonitor) {
                     threads[i].start();
-                    threadWrappers[i].startingMonitor.wait();
+                    threads[i].startingMonitor.wait();
                 }
             }
 
@@ -105,7 +98,7 @@ public class sp01t001 extends DebugeeClass {
 /* =================================================================== */
 
 // basic class for tested threads
-abstract class sp01t001Thread extends ThreadWrapper {
+abstract class sp01t001Thread extends Thread {
     public Object startingMonitor = new Object();
 }
 

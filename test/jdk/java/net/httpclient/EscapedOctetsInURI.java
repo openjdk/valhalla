@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,9 @@
  * @bug 8198716
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.http2.Http2TestServer jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm
+ * @run testng/othervm
  *       -Djdk.httpclient.HttpClient.log=reqeusts,headers
- *       ${test.main.class}
+ *       EscapedOctetsInURI
  */
 
 import java.io.Closeable;
@@ -52,6 +52,10 @@ import java.util.List;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.httpclient.test.lib.http3.Http3TestServer;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import static java.lang.System.err;
 import static java.lang.System.out;
@@ -61,29 +65,24 @@ import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.net.http.HttpClient.Builder.NO_PROXY;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
 
 public class EscapedOctetsInURI implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;    // HTTP/1.1    [ 5 servers ]
-    private static HttpTestServer httpsTestServer;   // HTTPS/1.1
-    private static HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
-    private static HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
-    private static String httpURI;
-    private static String httpsURI;
-    private static String http2URI;
-    private static String https2URI;
-    private static String http3URI;
-    private static String http3URI_head;
+    SSLContext sslContext;
+    HttpTestServer httpTestServer;    // HTTP/1.1    [ 5 servers ]
+    HttpTestServer httpsTestServer;   // HTTPS/1.1
+    HttpTestServer http2TestServer;   // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;  // HTTP/2 ( h2  )
+    HttpTestServer http3TestServer;   // HTTP/3 ( h3  )
+    String httpURI;
+    String httpsURI;
+    String http2URI;
+    String https2URI;
+    String http3URI;
+    String http3URI_head;
 
-    private static volatile HttpClient sharedClient;
+    private volatile HttpClient sharedClient;
 
     static final String[][] pathsAndQueryStrings = new String[][] {
         // partial-path       URI query
@@ -96,7 +95,8 @@ public class EscapedOctetsInURI implements HttpServerAdapters {
         {  "/012/with%20space", "?target=http%3A%2F%2Fwww.w3.org%2Fns%2Foa%23hasBody" },
     };
 
-    public static Object[][] variants() {
+    @DataProvider(name = "variants")
+    public Object[][] variants() {
         List<Object[]> list = new ArrayList<>();
 
         for (boolean sameClient : new boolean[] { false, true }) {
@@ -140,7 +140,7 @@ public class EscapedOctetsInURI implements HttpServerAdapters {
         return null;
     }
 
-    static HttpRequest.Builder newRequestBuilder(String uri) {
+    HttpRequest.Builder newRequestBuilder(String uri) {
         var builder = HttpRequest.newBuilder(URI.create(uri));
         if (version(uri) == HTTP_3) {
             builder.version(HTTP_3);
@@ -149,7 +149,7 @@ public class EscapedOctetsInURI implements HttpServerAdapters {
         return builder;
     }
 
-    static HttpResponse<String> headRequest(HttpClient client)
+    HttpResponse<String> headRequest(HttpClient client)
             throws IOException, InterruptedException
     {
         out.println("\n" + now() + "--- Sending HEAD request ----\n");
@@ -158,26 +158,25 @@ public class EscapedOctetsInURI implements HttpServerAdapters {
         var request = newRequestBuilder(http3URI_head)
                 .HEAD().version(HTTP_2).build();
         var response = client.send(request, BodyHandlers.ofString());
-        assertEquals(200, response.statusCode());
-        assertEquals(HTTP_2, response.version());
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.version(), HTTP_2);
         out.println("\n" + now() + "--- HEAD request succeeded ----\n");
         err.println("\n" + now() + "--- HEAD request succeeded ----\n");
         return response;
     }
 
-    private static HttpClient makeNewClient() {
-        return HttpServerAdapters.createClientBuilderForH3()
+    private HttpClient makeNewClient() {
+        return newClientBuilderForH3()
                 .proxy(NO_PROXY)
                 .sslContext(sslContext)
                 .build();
     }
 
-    private static final Object zis = new Object();
-    static HttpClient newHttpClient(boolean share) {
+    HttpClient newHttpClient(boolean share) {
         if (!share) return makeNewClient();
         HttpClient shared = sharedClient;
         if (shared != null) return shared;
-        synchronized (zis) {
+        synchronized (this) {
             shared = sharedClient;
             if (shared == null) {
                 shared = sharedClient = makeNewClient();
@@ -194,8 +193,7 @@ public class EscapedOctetsInURI implements HttpServerAdapters {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     void test(String uriString, boolean sameClient) throws Exception {
         System.out.println("\n--- Starting ");
 
@@ -219,20 +217,19 @@ public class EscapedOctetsInURI implements HttpServerAdapters {
 
                 out.println("Got response: " + resp);
                 out.println("Got body: " + resp.body());
-                assertEquals(200, resp.statusCode(),
+                assertEquals(resp.statusCode(), 200,
                         "Expected 200, got:" + resp.statusCode());
 
                 // the response body should contain the exact escaped request URI
                 URI retrievedURI = URI.create(resp.body());
-                assertEquals(uri.getRawPath(), retrievedURI.getRawPath());
-                assertEquals(uri.getRawQuery(), retrievedURI.getRawQuery());
-                assertEquals(version(uriString), resp.version());
+                assertEquals(retrievedURI.getRawPath(), uri.getRawPath());
+                assertEquals(retrievedURI.getRawQuery(), uri.getRawQuery());
+                assertEquals(resp.version(), version(uriString));
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     void testAsync(String uriString, boolean sameClient) throws Exception {
         System.out.println("\n--- Starting ");
         URI uri = URI.create(uriString);
@@ -252,23 +249,27 @@ public class EscapedOctetsInURI implements HttpServerAdapters {
                         .thenApply(response -> {
                             out.println("Got response: " + response);
                             out.println("Got body: " + response.body());
-                            assertEquals(200, response.statusCode());
-                            assertEquals(version(uriString), response.version());
+                            assertEquals(response.statusCode(), 200);
+                            assertEquals(response.version(), version(uriString));
                             return response.body();
                         })
                         .thenApply(body -> URI.create(body))
                         .thenAccept(retrievedURI -> {
                             // the body should contain the exact escaped request URI
-                            assertEquals(uri.getRawPath(), retrievedURI.getRawPath());
-                            assertEquals(uri.getRawQuery(), retrievedURI.getRawQuery());
+                            assertEquals(retrievedURI.getRawPath(), uri.getRawPath());
+                            assertEquals(retrievedURI.getRawQuery(), uri.getRawQuery());
                         }).join();
             }
         }
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         out.println(now() + "begin setup");
+
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
 
         InetSocketAddress sa = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
         httpTestServer = HttpTestServer.create(HTTP_1_1);
@@ -314,8 +315,8 @@ public class EscapedOctetsInURI implements HttpServerAdapters {
         err.println(now() + "setup done");
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         sharedClient.close();
         httpTestServer.stop();
         httpsTestServer.stop();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,12 +29,16 @@
  * @build jdk.httpclient.test.lib.common.HttpServerAdapters
  *        jdk.httpclient.test.lib.http2.Http2TestServer jdk.test.lib.net.SimpleSSLContext
  *        ReferenceTracker
- * @run junit/othervm
+ * @run testng/othervm
  *       -Djdk.httpclient.HttpClient.log=trace,headers,requests
- *       ${test.main.class}
+ *       RetryWithCookie
  */
 
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -63,32 +67,28 @@ import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class RetryWithCookie implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;        // HTTP/1.1    [ 5 servers ]
-    private static HttpTestServer httpsTestServer;       // HTTPS/1.1
-    private static HttpTestServer http2TestServer;       // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;      // HTTP/2 ( h2  )
-    private static HttpTestServer http3TestServer;       // HTTP/3 ( h3  )
-    private static String httpURI;
-    private static String httpsURI;
-    private static String http2URI;
-    private static String https2URI;
-    private static String http3URI;
+    SSLContext sslContext;
+    HttpTestServer httpTestServer;        // HTTP/1.1    [ 5 servers ]
+    HttpTestServer httpsTestServer;       // HTTPS/1.1
+    HttpTestServer http2TestServer;       // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;      // HTTP/2 ( h2  )
+    HttpTestServer http3TestServer;       // HTTP/3 ( h3  )
+    String httpURI;
+    String httpsURI;
+    String http2URI;
+    String https2URI;
+    String http3URI;
 
     static final String MESSAGE = "BasicRedirectTest message body";
     static final int ITERATIONS = 3;
 
-    public static Object[][] positive() {
+    @DataProvider(name = "positive")
+    public Object[][] positive() {
         return new Object[][] {
                 { http3URI,   },
                 { httpURI,    },
@@ -99,7 +99,7 @@ public class RetryWithCookie implements HttpServerAdapters {
     }
 
     static final AtomicLong requestCounter = new AtomicLong();
-    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
     private HttpRequest.Builder newRequestBuilder(URI uri) {
         var builder = HttpRequest.newBuilder(uri);
@@ -110,8 +110,7 @@ public class RetryWithCookie implements HttpServerAdapters {
         return builder;
     }
 
-    @ParameterizedTest
-    @MethodSource("positive")
+    @Test(dataProvider = "positive")
     void test(String uriString) throws Exception {
         out.printf("%n---- starting (%s) ----%n", uriString);
         CookieManager cookieManager = new CookieManager();
@@ -146,9 +145,9 @@ public class RetryWithCookie implements HttpServerAdapters {
             out.println("  Got response: " + response);
             out.println("  Got body Path: " + response.body());
 
-            assertEquals(200, response.statusCode());
-            assertEquals(MESSAGE, response.body());
-            assertEquals(cookies, response.headers().allValues("X-Request-Cookie"));
+            assertEquals(response.statusCode(), 200);
+            assertEquals(response.body(), MESSAGE);
+            assertEquals(response.headers().allValues("X-Request-Cookie"), cookies);
             request = newRequestBuilder(uri)
                     .header("X-uuid", "uuid-" + requestCounter.incrementAndGet())
                     .build();
@@ -157,8 +156,12 @@ public class RetryWithCookie implements HttpServerAdapters {
 
     // -- Infrastructure
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         httpTestServer = HttpTestServer.create(HTTP_1_1);
         httpTestServer.addHandler(new CookieRetryHandler(), "/http1/cookie/");
         httpURI = "http://" + httpTestServer.serverAuthority() + "/http1/cookie/retry";
@@ -184,8 +187,8 @@ public class RetryWithCookie implements HttpServerAdapters {
         http3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         Thread.sleep(100);
         AssertionError fail = TRACKER.check(500);
         try {

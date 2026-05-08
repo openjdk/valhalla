@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,8 +54,8 @@
  */
 package tck.java.time.chrono;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -85,21 +85,20 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test assertions that must be true for all built-in chronologies.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKChronoLocalDate {
 
     //-----------------------------------------------------------------------
     // regular data factory for names and descriptions of available calendars
     //-----------------------------------------------------------------------
+    @DataProvider(name = "calendars")
     Chronology[][] data_of_calendars() {
         return new Chronology[][]{
                     {HijrahChronology.INSTANCE},
@@ -109,8 +108,7 @@ public class TCKChronoLocalDate {
                     {ThaiBuddhistChronology.INSTANCE}};
     }
 
-    @ParameterizedTest
-    @MethodSource("data_of_calendars")
+    @Test(dataProvider="calendars")
     public void test_badWithAdjusterChrono(Chronology chrono) {
         LocalDate refDate = LocalDate.of(2013, 1, 1);
         ChronoLocalDate date = chrono.date(refDate);
@@ -121,20 +119,19 @@ public class TCKChronoLocalDate {
             if (chrono != chrono2) {
                 try {
                     date.with(adjuster);
-                    Assertions.fail("WithAdjuster should have thrown a ClassCastException");
+                    Assert.fail("WithAdjuster should have thrown a ClassCastException");
                 } catch (ClassCastException cce) {
                     // Expected exception; not an error
                 }
             } else {
                 // Same chronology,
                 ChronoLocalDate result = date.with(adjuster);
-                assertEquals(date2, result, "WithAdjuster failed to replace date");
+                assertEquals(result, date2, "WithAdjuster failed to replace date");
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_of_calendars")
+    @Test(dataProvider="calendars")
     public void test_badPlusAdjusterChrono(Chronology chrono) {
         LocalDate refDate = LocalDate.of(2013, 1, 1);
         ChronoLocalDate date = chrono.date(refDate);
@@ -145,20 +142,19 @@ public class TCKChronoLocalDate {
             if (chrono != chrono2) {
                 try {
                     date.plus(adjuster);
-                    Assertions.fail("WithAdjuster should have thrown a ClassCastException");
+                    Assert.fail("WithAdjuster should have thrown a ClassCastException");
                 } catch (ClassCastException cce) {
                     // Expected exception; not an error
                 }
             } else {
                 // Same chronology,
                 ChronoLocalDate result = date.plus(adjuster);
-                assertEquals(date2, result, "WithAdjuster failed to replace date");
+                assertEquals(result, date2, "WithAdjuster failed to replace date");
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_of_calendars")
+    @Test(dataProvider="calendars")
     public void test_badMinusAdjusterChrono(Chronology chrono) {
         LocalDate refDate = LocalDate.of(2013, 1, 1);
         ChronoLocalDate date = chrono.date(refDate);
@@ -169,20 +165,19 @@ public class TCKChronoLocalDate {
             if (chrono != chrono2) {
                 try {
                     date.minus(adjuster);
-                    Assertions.fail("WithAdjuster should have thrown a ClassCastException");
+                    Assert.fail("WithAdjuster should have thrown a ClassCastException");
                 } catch (ClassCastException cce) {
                     // Expected exception; not an error
                 }
             } else {
                 // Same chronology,
                 ChronoLocalDate result = date.minus(adjuster);
-                assertEquals(date2, result, "WithAdjuster failed to replace date");
+                assertEquals(result, date2, "WithAdjuster failed to replace date");
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_of_calendars")
+    @Test(dataProvider="calendars")
     public void test_badPlusTemporalUnitChrono(Chronology chrono) {
         LocalDate refDate = LocalDate.of(2013, 1, 1);
         ChronoLocalDate date = chrono.date(refDate);
@@ -193,7 +188,7 @@ public class TCKChronoLocalDate {
             if (chrono != chrono2) {
                 try {
                     date.plus(1, adjuster);
-                    Assertions.fail("TemporalUnit.doAdd plus should have thrown a ClassCastException" + date.getClass()
+                    Assert.fail("TemporalUnit.doAdd plus should have thrown a ClassCastException" + date.getClass()
                             + ", can not be cast to " + date2.getClass());
                 } catch (ClassCastException cce) {
                     // Expected exception; not an error
@@ -201,13 +196,12 @@ public class TCKChronoLocalDate {
             } else {
                 // Same chronology,
                 ChronoLocalDate result = date.plus(1, adjuster);
-                assertEquals(date2, result, "WithAdjuster failed to replace date");
+                assertEquals(result, date2, "WithAdjuster failed to replace date");
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_of_calendars")
+    @Test(dataProvider="calendars")
     public void test_badMinusTemporalUnitChrono(Chronology chrono) {
         LocalDate refDate = LocalDate.of(2013, 1, 1);
         ChronoLocalDate date = chrono.date(refDate);
@@ -218,7 +212,7 @@ public class TCKChronoLocalDate {
             if (chrono != chrono2) {
                 try {
                     date.minus(1, adjuster);
-                    Assertions.fail("TemporalUnit.doAdd minus should have thrown a ClassCastException" + date.getClass()
+                    Assert.fail("TemporalUnit.doAdd minus should have thrown a ClassCastException" + date.getClass()
                             + ", can not be cast to " + date2.getClass());
                 } catch (ClassCastException cce) {
                     // Expected exception; not an error
@@ -226,13 +220,12 @@ public class TCKChronoLocalDate {
             } else {
                 // Same chronology,
                 ChronoLocalDate result = date.minus(1, adjuster);
-                assertEquals(date2, result, "WithAdjuster failed to replace date");
+                assertEquals(result, date2, "WithAdjuster failed to replace date");
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_of_calendars")
+    @Test(dataProvider="calendars")
     public void test_badTemporalFieldChrono(Chronology chrono) {
         LocalDate refDate = LocalDate.of(2013, 1, 1);
         ChronoLocalDate date = chrono.date(refDate);
@@ -243,7 +236,7 @@ public class TCKChronoLocalDate {
             if (chrono != chrono2) {
                 try {
                     date.with(adjuster, 1);
-                    Assertions.fail("TemporalField doSet should have thrown a ClassCastException" + date.getClass()
+                    Assert.fail("TemporalField doSet should have thrown a ClassCastException" + date.getClass()
                             + ", can not be cast to " + date2.getClass());
                 } catch (ClassCastException cce) {
                     // Expected exception; not an error
@@ -251,7 +244,7 @@ public class TCKChronoLocalDate {
             } else {
                 // Same chronology,
                 ChronoLocalDate result = date.with(adjuster, 1);
-                assertEquals(date2, result, "TemporalField doSet failed to replace date");
+                assertEquals(result, date2, "TemporalField doSet failed to replace date");
             }
         }
     }
@@ -259,8 +252,7 @@ public class TCKChronoLocalDate {
     //-----------------------------------------------------------------------
     // isBefore, isAfter, isEqual, DATE_COMPARATOR
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_of_calendars")
+    @Test(dataProvider="calendars")
     public void test_date_comparisons(Chronology chrono) {
         List<ChronoLocalDate> dates = new ArrayList<>();
 
@@ -293,19 +285,19 @@ public class TCKChronoLocalDate {
                     int cmp = ChronoLocalDate.timeLineOrder().compare(a, b);
                     if (i < j) {
                         assertTrue(cmp < 0, a + " compare " + b);
-                        assertEquals(true, a.isBefore(b), a + " isBefore " + b);
-                        assertEquals(false, a.isAfter(b), a + " isAfter " + b);
-                        assertEquals(false, a.isEqual(b), a + " isEqual " + b);
+                        assertEquals(a.isBefore(b), true, a + " isBefore " + b);
+                        assertEquals(a.isAfter(b), false, a + " isAfter " + b);
+                        assertEquals(a.isEqual(b), false, a + " isEqual " + b);
                     } else if (i > j) {
                         assertTrue(cmp > 0, a + " compare " + b);
-                        assertEquals(false, a.isBefore(b), a + " isBefore " + b);
-                        assertEquals(true, a.isAfter(b), a + " isAfter " + b);
-                        assertEquals(false, a.isEqual(b), a + " isEqual " + b);
+                        assertEquals(a.isBefore(b), false, a + " isBefore " + b);
+                        assertEquals(a.isAfter(b), true, a + " isAfter " + b);
+                        assertEquals(a.isEqual(b), false, a + " isEqual " + b);
                     } else {
                         assertTrue(cmp == 0, a + " compare " + b);
-                        assertEquals(false, a.isBefore(b), a + " isBefore " + b);
-                        assertEquals(false, a.isAfter(b), a + " isAfter " + b);
-                        assertEquals(true, a.isEqual(b), a + " isEqual " + b);
+                        assertEquals(a.isBefore(b), false, a + " isBefore " + b);
+                        assertEquals(a.isAfter(b), false, a + " isAfter " + b);
+                        assertEquals(a.isEqual(b), true, a + " isEqual " + b);
                     }
                 }
             }
@@ -314,27 +306,26 @@ public class TCKChronoLocalDate {
 
 
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_of_calendars")
+    @Test(dataProvider="calendars")
     public void test_from_TemporalAccessor(Chronology chrono) {
         LocalDate refDate = LocalDate.of(2013, 1, 1);
         ChronoLocalDate date = chrono.date(refDate);
         ChronoLocalDate test1 = ChronoLocalDate.from(date);
-        assertEquals(date, test1);
+        assertEquals(test1, date);
         ChronoLocalDate test2 = ChronoLocalDate.from(date.atTime(LocalTime.of(12, 30)));
-        assertEquals(date, test2);
+        assertEquals(test2, date);
         ChronoLocalDate test3 = ChronoLocalDate.from(date.atTime(LocalTime.of(12, 30)).atZone(ZoneOffset.UTC));
-        assertEquals(date, test3);
+        assertEquals(test3, date);
     }
 
-    @Test
+    @Test(expectedExceptions = DateTimeException.class)
     public void test_from_TemporalAccessor_timeOnly() {
-        Assertions.assertThrows(DateTimeException.class, () -> ChronoLocalDate.from(LocalTime.of(12, 30)));
+        ChronoLocalDate.from(LocalTime.of(12, 30));
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void test_from_TemporalAccessor_null() {
-        Assertions.assertThrows(NullPointerException.class, () -> ChronoLocalDate.from(null));
+        ChronoLocalDate.from(null);
     }
 
     //-----------------------------------------------------------------------

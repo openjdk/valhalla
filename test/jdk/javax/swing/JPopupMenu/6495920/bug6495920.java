@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,11 @@
             interaction with GNOME is not crippled
  * @author Sergey Malenkov
  * @library ../..
+ * @modules java.desktop/sun.awt
  * @modules java.desktop/javax.swing.plaf.basic:open
  */
+
+import sun.awt.AppContext;
 
 import java.awt.Point;
 import java.awt.Robot;
@@ -89,12 +92,12 @@ public class bug6495920 implements Thread.UncaughtExceptionHandler {
     }
 
     public void thirdValidate() throws Exception {
-        Field key = BasicPopupMenuUI.class.getDeclaredField("mouseGrabber");
+        Field key = BasicPopupMenuUI.class.getDeclaredField("MOUSE_GRABBER_KEY");
         key.setAccessible(true);
 
-        Object grabber = key.get(null);
+        Object grabber = AppContext.getAppContext().get(key.get(null));
         if (grabber == null) {
-            throw new Exception("cannot find a mouse grabber");
+            throw new Exception("cannot find a mouse grabber in app's context");
         }
 
         Field field = grabber.getClass().getDeclaredField("grabbedWindow");

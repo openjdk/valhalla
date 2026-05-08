@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,11 @@
  * @summary The initCause() incorrectly initialize the cause in
  * SAXException class when used with SAXException(String)
  * constructor.
- * @run junit/othervm sax.SAXExceptionInitCause
+ * @run testng/othervm sax.SAXExceptionInitCause
  * @author aleksej.efimov@oracle.com
  */
 
 package sax;
-
-import org.junit.jupiter.api.Test;
-import org.xml.sax.SAXException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -43,11 +40,9 @@ import java.io.InvalidClassException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+import org.xml.sax.SAXException;
 
 public class SAXExceptionInitCause {
 
@@ -60,8 +55,8 @@ public class SAXExceptionInitCause {
         serialSAX = pickleException(noCauseException);
         deserializedException = unpickleException(serialSAX);
 
-        assertNull(deserializedException.getCause());
-        assertEquals(SAX_MESSAGE, deserializedException.getMessage());
+        Assert.assertNull(deserializedException.getCause());
+        Assert.assertEquals(deserializedException.getMessage(), SAX_MESSAGE);
     }
 
     @Test
@@ -74,18 +69,18 @@ public class SAXExceptionInitCause {
         serialSAX = pickleException(withCauseException);
         deserializedException = unpickleException(serialSAX);
 
-        assertNotNull(deserializedException.getCause());
-        assertEquals(SAX_MESSAGE, deserializedException.getMessage());
-        assertEquals(SAX_CAUSE_MESSAGE, deserializedException.getCause().getMessage());
+        Assert.assertNotNull(deserializedException.getCause());
+        Assert.assertEquals(deserializedException.getMessage(), SAX_MESSAGE);
+        Assert.assertEquals(deserializedException.getCause().getMessage(), SAX_CAUSE_MESSAGE);
     }
 
     @Test
-    public void testCauseInitByCtor() {
+    public void testCauseInitByCtor() throws Exception {
         // Check that constructor properly initializes cause
         Exception cause = new Exception(SAX_CAUSE_MESSAGE);
         SAXException exception = new SAXException(cause);
-        assertSame(cause, exception.getCause());
-        assertSame(cause, exception.getException());
+        Assert.assertSame(exception.getCause(), cause);
+        Assert.assertSame(exception.getException(), cause);
     }
 
     @Test
@@ -94,8 +89,8 @@ public class SAXExceptionInitCause {
         SAXException exception = new SAXException();
         Exception cause = new Exception(SAX_CAUSE_MESSAGE);
         exception.initCause(cause);
-        assertSame(cause, exception.getCause());
-        assertSame(cause, exception.getException());
+        Assert.assertSame(exception.getCause(), cause);
+        Assert.assertSame(exception.getException(), cause);
     }
 
     @Test
@@ -105,51 +100,48 @@ public class SAXExceptionInitCause {
         SAXException exception = new SAXException();
         Throwable cause = new Throwable(SAX_CAUSE_MESSAGE);
         exception.initCause(cause);
-        assertSame(cause, exception.getCause());
-        assertNull(exception.getException());
+        Assert.assertSame(exception.getCause(),cause);
+        Assert.assertNull(exception.getException());
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testInitCauseTwice() {
         SAXException exception = new SAXException(new Exception(SAX_CAUSE_MESSAGE));
-        assertThrows(
-                IllegalStateException.class,
-                () -> exception.initCause(new Exception(SAX_CAUSE_MESSAGE)));
+        // Expecting IllegalStateException at this point
+        exception.initCause(new Exception(SAX_CAUSE_MESSAGE));
     }
 
     @Test
     public void testLegacySerialCtor() throws Exception {
         SAXException saxException8 = unpickleException(JDK8_SET_WITH_CTOR_ONLY);
-        assertNotNull(saxException8.getCause());
-        assertNotNull(saxException8.getException());
+        Assert.assertNotNull(saxException8.getCause());
+        Assert.assertNotNull(saxException8.getException());
     }
 
     @Test
     public void testLegacySerialCtorAndInit() throws Exception {
         SAXException saxException8 = unpickleException(JDK8_SET_WITH_CTOR_AND_INIT);
-        assertNotNull(saxException8.getCause());
-        assertNotNull(saxException8.getException());
+        Assert.assertNotNull(saxException8.getCause());
+        Assert.assertNotNull(saxException8.getException());
     }
 
     @Test
     public void testLegacySerialInitCause() throws Exception {
         SAXException saxException8 = unpickleException(JDK8_WITH_INIT_ONLY);
-        assertNotNull(saxException8.getCause());
-        assertNotNull(saxException8.getException());
+        Assert.assertNotNull(saxException8.getCause());
+        Assert.assertNotNull(saxException8.getException());
     }
 
     @Test
     public void testLegacySerialNothingSet() throws Exception {
         SAXException saxException8 = unpickleException(JDK8_NOTHING_SET);
-        assertNull(saxException8.getCause());
-        assertNull(saxException8.getException());
+        Assert.assertNull(saxException8.getCause());
+        Assert.assertNull(saxException8.getException());
     }
 
-    @Test
-    public void testReadObjectIllegalStateException() {
-        assertThrows(
-                InvalidClassException.class,
-                () -> unpickleException(JDK8_CHECK_ILLEGAL_STATE_EXCEPTION));
+    @Test(expectedExceptions = InvalidClassException.class)
+    public void testReadObjectIllegalStateException() throws Exception {
+        SAXException saxException8 = unpickleException(JDK8_CHECK_ILLEGAL_STATE_EXCEPTION);
     }
 
     // Serialize SAXException to byte array
@@ -172,8 +164,8 @@ public class SAXExceptionInitCause {
         return saxException;
     }
 
-    private static final String SAX_MESSAGE = "SAXException message";
-    private static final String SAX_CAUSE_MESSAGE = "SAXException cause message";
+    private static String SAX_MESSAGE = "SAXException message";
+    private static String SAX_CAUSE_MESSAGE = "SAXException cause message";
 
     /* This is a serial form of ordinary SAXException serialized
      * by the following JDK8 code:

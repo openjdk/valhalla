@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -130,7 +130,6 @@ public class DefaultPersistenceDelegate extends PersistenceDelegate {
      *
      * @see #DefaultPersistenceDelegate(String[])
      */
-    @Override
     protected boolean mutatesTo(Object oldInstance, Object newInstance) {
         // Assume the instance is either mutable or a singleton
         // if it has a nullary constructor.
@@ -154,7 +153,6 @@ public class DefaultPersistenceDelegate extends PersistenceDelegate {
      *
      * @see #DefaultPersistenceDelegate(String[])
      */
-    @Override
     protected Expression instantiate(Object oldInstance, Encoder out) {
         int nArgs = constructor.length;
         Class<?> type = oldInstance.getClass();
@@ -395,7 +393,6 @@ public class DefaultPersistenceDelegate extends PersistenceDelegate {
      * @see java.beans.Introspector#getBeanInfo
      * @see java.beans.PropertyDescriptor
      */
-    @Override
     protected void initialize(Class<?> type,
                               Object oldInstance, Object newInstance,
                               Encoder out)

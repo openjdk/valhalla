@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,8 @@ import com.sun.java.swing.plaf.windows.TMSchema.Part;
 import com.sun.java.swing.plaf.windows.TMSchema.Prop;
 import com.sun.java.swing.plaf.windows.XPStyle.Skin;
 
+import sun.awt.AppContext;
+
 /**
  * A class to help mimic Vista theme animations.  The only kind of
  * animation it handles for now is 'transition' animation (this seems
@@ -66,7 +68,8 @@ final class AnimationController implements ActionListener, PropertyChangeListene
                         Boolean.getBoolean("swing.disablevistaanimation");
 
 
-    private static AnimationController animationController;
+    private static final Object ANIMATION_CONTROLLER_KEY =
+        new StringBuilder("ANIMATION_CONTROLLER_KEY");
 
     private final Map<JComponent, Map<Part, AnimationState>> animationStateMap =
             new WeakHashMap<JComponent, Map<Part, AnimationState>>();
@@ -77,10 +80,13 @@ final class AnimationController implements ActionListener, PropertyChangeListene
         new javax.swing.Timer(1000/30, this);
 
     private static synchronized AnimationController getAnimationController() {
-        if (animationController == null) {
-            animationController = new AnimationController();
+        AppContext appContext = AppContext.getAppContext();
+        Object obj = appContext.get(ANIMATION_CONTROLLER_KEY);
+        if (obj == null) {
+            obj = new AnimationController();
+            appContext.put(ANIMATION_CONTROLLER_KEY, obj);
         }
-        return animationController;
+        return (AnimationController) obj;
     }
 
     private AnimationController() {
@@ -310,7 +316,8 @@ final class AnimationController implements ActionListener, PropertyChangeListene
         timer.stop();
         UIManager.removePropertyChangeListener(this);
         synchronized (AnimationController.class) {
-            animationController = null;
+            AppContext.getAppContext()
+                .put(ANIMATION_CONTROLLER_KEY, null);
         }
     }
 

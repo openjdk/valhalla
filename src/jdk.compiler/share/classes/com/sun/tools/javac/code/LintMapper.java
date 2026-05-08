@@ -35,6 +35,7 @@ import java.util.function.Consumer;
 
 import javax.tools.JavaFileObject;
 
+import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.tree.TreeInfo;
@@ -133,9 +134,9 @@ public class LintMapper {
      * @param sourceFile source file
      * @param tree top-level declaration (class, package, or module)
      */
-    public void calculateLints(JavaFileObject sourceFile, JCTree tree) {
+    public void calculateLints(JavaFileObject sourceFile, JCTree tree, EndPosTable endPositions) {
         Assert.check(rootLint != null);
-        fileInfoMap.get(sourceFile).afterAttr(tree);
+        fileInfoMap.get(sourceFile).afterAttr(tree, endPositions);
     }
 
     /**
@@ -183,15 +184,15 @@ public class LintMapper {
             rootRange = new LintRange(rootLint);
             for (JCTree decl : tree.defs) {
                 if (isTopLevelDecl(decl))
-                    unmappedDecls.add(new Span(decl));
+                    unmappedDecls.add(new Span(decl, tree.endPositions));
             }
         }
 
         // After attribution: Discard the span from "unmappedDecls" and populate the declaration's subtree under "rootRange"
-        void afterAttr(JCTree tree) {
+        void afterAttr(JCTree tree, EndPosTable endPositions) {
             for (Iterator<Span> i = unmappedDecls.iterator(); i.hasNext(); ) {
                 if (i.next().contains(tree.pos())) {
-                    rootRange.populateSubtree(tree);
+                    rootRange.populateSubtree(tree, endPositions);
                     i.remove();
                     return;
                 }
@@ -224,8 +225,8 @@ public class LintMapper {
 
         static final Span MAXIMAL = new Span(Integer.MIN_VALUE, Integer.MAX_VALUE);
 
-        Span(JCTree tree) {
-            this(TreeInfo.getStartPos(tree), TreeInfo.getEndPos(tree));
+        Span(JCTree tree, EndPosTable endPositions) {
+            this(TreeInfo.getStartPos(tree), TreeInfo.getEndPos(tree, endPositions));
         }
 
         boolean contains(DiagnosticPosition pos) {
@@ -255,8 +256,8 @@ public class LintMapper {
         }
 
         // Create a node representing the given declaration and its corresponding Lint configuration
-        LintRange(JCTree tree, Lint lint) {
-            this(new Span(tree), lint, new LinkedList<>());
+        LintRange(JCTree tree, EndPosTable endPositions, Lint lint) {
+            this(new Span(tree, endPositions), lint, new LinkedList<>());
         }
 
         // Find the most specific node in this tree (including me) that contains the given position, if any
@@ -276,7 +277,7 @@ public class LintMapper {
 
         // Populate a sparse subtree corresponding to the given nested declaration.
         // Only when the Lint configuration differs from the parent is a node added.
-        void populateSubtree(JCTree tree) {
+        void populateSubtree(JCTree tree, EndPosTable endPositions) {
             new TreeScanner() {
 
                 private LintRange currentNode = LintRange.this;
@@ -319,7 +320,7 @@ public class LintMapper {
 
                     // Add a new node here and proceed
                     final LintRange previousNode = currentNode;
-                    currentNode = new LintRange(tree, newLint);
+                    currentNode = new LintRange(tree, endPositions, newLint);
                     previousNode.children.add(currentNode);
                     try {
                         recursor.accept(tree);

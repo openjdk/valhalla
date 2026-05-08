@@ -42,13 +42,12 @@ typedef void* OopOrNarrowOopStar;
 
 typedef class oopDesc*                    oop;
 typedef class   instanceOopDesc*            instanceOop;
-typedef class     inlineOopDesc*              inlineOop;
 typedef class     stackChunkOopDesc*          stackChunkOop;
 typedef class   arrayOopDesc*               arrayOop;
 typedef class     objArrayOopDesc*            objArrayOop;
-typedef class       flatArrayOopDesc*           flatArrayOop;
-typedef class       refArrayOopDesc*            refArrayOop;
 typedef class     typeArrayOopDesc*           typeArrayOop;
+typedef class     flatArrayOopDesc*           flatArrayOop;
+typedef class     refArrayOopDesc*            refArrayOop;
 
 #else
 
@@ -153,7 +152,6 @@ struct PrimitiveConversions::Translate<oop> : public std::true_type {
    };
 
 DEF_OOP(instance);
-DEF_OOP(inline);
 DEF_OOP(stackChunk);
 DEF_OOP(array);
 DEF_OOP(objArray);
@@ -196,8 +194,7 @@ class     InstanceRefKlass;
 class     InstanceStackChunkKlass;
 class   ArrayKlass;
 class     ObjArrayKlass;
-class       FlatArrayKlass;
-class       RefArrayKlass;
 class     TypeArrayKlass;
+class     FlatArrayKlass;
 
 #endif // SHARE_OOPS_OOPSHIERARCHY_HPP

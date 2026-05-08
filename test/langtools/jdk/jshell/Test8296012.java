@@ -27,6 +27,7 @@
  * @summary jshell crashes on mismatched record pattern
  * @build KullaTesting TestingInputStream
  * @run junit Test8296012
+ * @ignore 8316628
  */
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

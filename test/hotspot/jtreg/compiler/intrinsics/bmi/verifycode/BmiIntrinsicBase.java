@@ -36,7 +36,6 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
-import java.util.List;
 
 public class BmiIntrinsicBase extends CompilerWhiteBoxTest {
 
@@ -84,7 +83,7 @@ public class BmiIntrinsicBase extends CompilerWhiteBoxTest {
 
         System.out.println(testCase.name());
 
-        if (TIERED_COMPILATION && TIERED_STOP_AT_LEVEL != CompilerWhiteBoxTest.COMP_LEVEL_MAX) {
+        if (TIERED_COMPILATION && TIERED_STOP_AT_LEVEL != CompilerWhiteBoxTest.COMP_LEVEL_MAX || Platform.isEmulatedClient()) {
             System.out.println("TieredStopAtLevel value (" + TIERED_STOP_AT_LEVEL + ") is too low, test SKIPPED");
             return;
         }

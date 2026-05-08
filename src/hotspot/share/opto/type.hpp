@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -509,7 +509,6 @@ public:
 
   static const Type* make_constant_from_array_element(ciArray* array,
                                                       int off,
-                                                      int field_offset,
                                                       int stable_dimension,
                                                       BasicType loadbt,
                                                       bool is_unsigned_load);
@@ -827,9 +826,6 @@ public:
   static const TypeInt* make(jint lo, jint hi, int widen);
   static const Type* make_or_top(const TypeIntPrototype<jint, juint>& t, int widen);
   static const TypeInt* make(const TypeIntPrototype<jint, juint>& t, int widen) { return make_or_top(t, widen)->is_int(); }
-  static const TypeInt* make(const TypeIntMirror<jint, juint>& t, int widen) {
-    return (new TypeInt(TypeIntPrototype<jint, juint>{{t._lo, t._hi}, {t._ulo, t._uhi}, t._bits}, widen, false))->hashcons()->is_int();
-  }
 
   // Check for single integer
   bool is_con() const { return _lo == _hi; }
@@ -839,11 +835,6 @@ public:
   // argument are also elements of this type)
   bool contains(jint i) const;
   bool contains(const TypeInt* t) const;
-
-#ifdef ASSERT
-  // Check whether t is a proper subset (i.e. a subset that is not equal to the superset) of this
-  bool strictly_contains(const TypeInt* t) const;
-#endif // ASSERT
 
   virtual bool is_finite() const;  // Has a finite value
 
@@ -917,9 +908,6 @@ public:
   static const TypeLong* make(jlong lo, jlong hi, int widen);
   static const Type* make_or_top(const TypeIntPrototype<jlong, julong>& t, int widen);
   static const TypeLong* make(const TypeIntPrototype<jlong, julong>& t, int widen) { return make_or_top(t, widen)->is_long(); }
-  static const TypeLong* make(const TypeIntMirror<jlong, julong>& t, int widen) {
-    return (new TypeLong(TypeIntPrototype<jlong, julong>{{t._lo, t._hi}, {t._ulo, t._uhi}, t._bits}, widen, false))->hashcons()->is_long();
-  }
 
   // Check for single integer
   bool is_con() const { return _lo == _hi; }
@@ -929,11 +917,6 @@ public:
   // argument are also elements of this type)
   bool contains(jlong i) const;
   bool contains(const TypeLong* t) const;
-
-#ifdef ASSERT
-  // Check whether t is a proper subset (i.e. a subset that is not equal to the superset) of this
-  bool strictly_contains(const TypeLong* t) const;
-#endif // ASSERT
 
   // Check for positive 32-bit value.
   int is_positive_int() const { return _lo >= 0 && _hi <= (jlong)max_jint; }
@@ -998,7 +981,7 @@ public:
   }
 
   static const TypeTuple *make( uint cnt, const Type **fields );
-  static const TypeTuple *make_range(ciSignature* sig, InterfaceHandling interface_handling = ignore_interfaces, bool ret_vt_fields = false, bool is_call = false);
+  static const TypeTuple *make_range(ciSignature* sig, InterfaceHandling interface_handling = ignore_interfaces, bool ret_vt_fields = false);
   static const TypeTuple *make_domain(ciMethod* method, InterfaceHandling interface_handling, bool vt_fields_as_args = false);
 
   // Subroutine call type with space allocated for argument types
@@ -1064,7 +1047,7 @@ public:
 };
 
 //------------------------------TypeVect---------------------------------------
-// Basic class of vector (mask) types.
+// Class of Vector Types
 class TypeVect : public Type {
   const BasicType _elem_bt;  // Vector's element type
   const uint _length;  // Elements in vector (power of 2)
@@ -1104,16 +1087,6 @@ public:
 #endif
 };
 
-// TypeVect subclasses representing vectors or vector masks with "BVectMask" or "NVectMask"
-// layout (see vectornode.hpp for detailed notes on vector mask representations), mapped
-// to vector registers and distinguished by vector register size:
-//
-// - TypeVectA: Scalable vector type (variable size, e.g., AArch64 SVE, RISC-V RVV)
-// - TypeVectS: 32-bit vector type
-// - TypeVectD: 64-bit vector type
-// - TypeVectX: 128-bit vector type
-// - TypeVectY: 256-bit vector type
-// - TypeVectZ: 512-bit vector type
 class TypeVectA : public TypeVect {
   friend class TypeVect;
   TypeVectA(BasicType elem_bt, uint length) : TypeVect(VectorA, elem_bt, length) {}
@@ -1144,9 +1117,6 @@ class TypeVectZ : public TypeVect {
   TypeVectZ(BasicType elem_bt, uint length) : TypeVect(VectorZ, elem_bt, length) {}
 };
 
-// Class of TypeVectMask, representing vector masks with "PVectMask" layout (see
-// vectornode.hpp for detailed notes on vector mask representations), mapped to
-// dedicated hardware predicate/mask registers.
 class TypeVectMask : public TypeVect {
 public:
   friend class TypeVect;
@@ -1363,9 +1333,8 @@ public:
   NOT_PRODUCT(static void dump_flat_in_array(FlatInArray flat_in_array, outputStream* st);)
 
   static FlatInArray compute_flat_in_array(ciInstanceKlass* instance_klass, bool is_exact);
-
-  static FlatInArray compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
-                                                      FlatInArray old_flat_in_array);
+  FlatInArray compute_flat_in_array_if_unknown(ciInstanceKlass* instance_klass, bool is_exact,
+                                               FlatInArray old_flat_in_array) const;
 
   virtual bool can_be_inline_type() const { return false; }
   virtual bool is_flat_in_array()     const { return flat_in_array() == Flat; }
@@ -2346,8 +2315,8 @@ public:
 //------------------------------TypeFunc---------------------------------------
 // Class of Array Types
 class TypeFunc : public Type {
-  TypeFunc(const TypeTuple *domain_sig, const TypeTuple* domain_cc, const TypeTuple* range_sig, const TypeTuple* range_cc, bool scalarized_return)
-    : Type(Function), _domain_sig(domain_sig), _domain_cc(domain_cc), _range_sig(range_sig), _range_cc(range_cc), _scalarized_return(scalarized_return) {}
+  TypeFunc(const TypeTuple *domain_sig, const TypeTuple *domain_cc, const TypeTuple *range_sig, const TypeTuple *range_cc)
+    : Type(Function), _domain_sig(domain_sig), _domain_cc(domain_cc), _range_sig(range_sig), _range_cc(range_cc) {}
   virtual bool eq( const Type *t ) const;
   virtual uint hash() const;             // Type specific hashing
   virtual bool singleton(void) const;    // TRUE if type is a singleton
@@ -2366,7 +2335,6 @@ class TypeFunc : public Type {
   // is the actual calling convention.
   const TypeTuple* const _range_sig;
   const TypeTuple* const _range_cc;
-  const bool _scalarized_return;
 
 public:
   // Constants are shared among ADLC and VM
@@ -2384,12 +2352,10 @@ public:
   const TypeTuple* domain_cc()  const { return _domain_cc; }
   const TypeTuple* range_sig()  const { return _range_sig; }
   const TypeTuple* range_cc()   const { return _range_cc; }
-  bool scalarized_return()      const { return _scalarized_return; }
 
-  static const TypeFunc* make(ciMethod* method, bool is_call = true, bool is_osr_compilation = false);
+  static const TypeFunc* make(ciMethod* method, bool is_osr_compilation = false);
   static const TypeFunc *make(const TypeTuple* domain_sig, const TypeTuple* domain_cc,
-                              const TypeTuple* range_sig, const TypeTuple* range_cc,
-                              bool scalarized_return = false);
+                              const TypeTuple* range_sig, const TypeTuple* range_cc);
   static const TypeFunc *make(const TypeTuple* domain, const TypeTuple* range);
 
   virtual const Type *xmeet( const Type *t ) const;
@@ -2397,11 +2363,7 @@ public:
 
   BasicType return_type() const;
 
-  bool returns_inline_type_as_fields() const {
-    // First condition is not sufficient because returned value class can be empty
-    assert(_range_sig == _range_cc || _scalarized_return, "Only possible with scalarized return");
-    return _scalarized_return;
-  }
+  bool returns_inline_type_as_fields() const { return range_sig() != range_cc(); }
 
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping

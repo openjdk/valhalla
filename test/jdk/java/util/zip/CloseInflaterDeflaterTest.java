@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,29 +25,23 @@
  * @test
  * @bug 8193682 8278794 8284771
  * @summary Test Infinite loop while writing on closed Deflater and Inflater.
- * @run junit CloseInflaterDeflaterTest
+ * @run testng CloseInflaterDeflaterTest
  */
-
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.Random;
 import java.util.jar.JarOutputStream;
-import java.util.stream.Stream;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.InflaterOutputStream;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import java.util.zip.ZipEntry;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.assertThrows;
+
 
 public class CloseInflaterDeflaterTest {
 
@@ -81,28 +75,36 @@ public class CloseInflaterDeflaterTest {
     private static Random rand = new Random();
 
     /**
-     * MethodSource to specify whether to use close() or finish() of OutputStream
+     * DataProvider to specify whether to use close() or finish() of OutputStream
      *
-     * @return Stream indicating which method to use for closing OutputStream
+     * @return Entry object indicating which method to use for closing OutputStream
      */
-    public static Stream<Boolean> testOutputStreams() {
-        return Stream.of(true, false);
+    @DataProvider
+    public Object[][] testOutputStreams() {
+     return new Object[][] {
+      { true },
+      { false },
+     };
     }
 
     /**
-     * MethodSource to specify on which outputstream closeEntry() has to be called
+     * DataProvider to specify on which outputstream closeEntry() has to be called
      *
-     * @return Stream consisting of either a JarOutputStream or ZipOutputStream
+     * @return Entry object returning either JarOutputStream or ZipOutputStream
      */
-    public static Stream<ZipOutputStream> testZipAndJar() throws IOException{
-        return Stream.of(new JarOutputStream(outStream), new ZipOutputStream(outStream));
+    @DataProvider
+    public Object[][] testZipAndJar() throws IOException{
+     return new Object[][] {
+      { new JarOutputStream(outStream)},
+      { new ZipOutputStream(outStream)},
+     };
     }
 
     /**
      * Add inputBytes array with random bytes to write into OutputStream
      */
-    @BeforeAll
-    public static void before_test()
+    @BeforeTest
+    public void before_test()
     {
        rand.nextBytes(inputBytes);
     }
@@ -113,8 +115,7 @@ public class CloseInflaterDeflaterTest {
      * @param useCloseMethod indicates whether to use Close() or finish() method
      * @throws IOException if an error occurs
      */
-    @ParameterizedTest
-    @MethodSource("testOutputStreams")
+    @Test(dataProvider = "testOutputStreams")
     public void testGZip(boolean useCloseMethod) throws IOException {
         GZIPOutputStream gzip = new GZIPOutputStream(outStream);
         gzip.write(inputBytes, 0, INPUT_LENGTH);
@@ -136,8 +137,7 @@ public class CloseInflaterDeflaterTest {
      * @param useCloseMethod indicates whether to use Close() or finish() method
      * @throws IOException if an error occurs
      */
-    @ParameterizedTest
-    @MethodSource("testOutputStreams")
+    @Test(dataProvider = "testOutputStreams")
     public void testDeflaterOutputStream(boolean useCloseMethod) throws IOException {
         DeflaterOutputStream def = new DeflaterOutputStream(outStream);
         assertThrows(IOException.class , () -> def.write(inputBytes, 0, INPUT_LENGTH));
@@ -175,9 +175,7 @@ public class CloseInflaterDeflaterTest {
      * @param useCloseMethod indicates whether to use Close() or finish() method
      * @throws IOException if an error occurs
      */
-    @Disabled
-    @ParameterizedTest
-    @MethodSource("testOutputStreams")
+    @Test(dataProvider = "testOutputStreams",enabled=false)
     public void testInflaterOutputStream(boolean useCloseMethod) throws IOException {
         InflaterOutputStream inf = new InflaterOutputStream(outStream);
         assertThrows(IOException.class , () -> inf.write(inputBytes, 0, INPUT_LENGTH));
@@ -199,8 +197,7 @@ public class CloseInflaterDeflaterTest {
      * @param zip will be the instance of either JarOutputStream or ZipOutputStream
      * @throws IOException if an error occurs
      */
-    @ParameterizedTest(autoCloseArguments = false)
-    @MethodSource("testZipAndJar")
+    @Test(dataProvider = "testZipAndJar")
     public void testZipCloseEntry(ZipOutputStream zip) throws IOException {
         assertThrows(IOException.class , () -> zip.putNextEntry(new ZipEntry("")));
         zip.write(inputBytes, 0, INPUT_LENGTH);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1656,7 +1656,7 @@ public class JOptionPane extends JComponent implements Accessible
         return getDesktopPaneForComponent(parentComponent.getParent());
     }
 
-    private static volatile Frame sharedRootFrame;
+    private static final Object sharedFrameKey = JOptionPane.class;
 
     /**
      * Sets the frame to use for class methods in which a frame is
@@ -1668,7 +1668,11 @@ public class JOptionPane extends JComponent implements Accessible
      * @param newRootFrame the default <code>Frame</code> to use
      */
     public static void setRootFrame(Frame newRootFrame) {
-        sharedRootFrame = newRootFrame;
+        if (newRootFrame != null) {
+            SwingUtilities.appContextPut(sharedFrameKey, newRootFrame);
+        } else {
+            SwingUtilities.appContextRemove(sharedFrameKey);
+        }
     }
 
     /**
@@ -1683,10 +1687,13 @@ public class JOptionPane extends JComponent implements Accessible
      * @see java.awt.GraphicsEnvironment#isHeadless
      */
     public static Frame getRootFrame() throws HeadlessException {
-        if (sharedRootFrame == null) {
-            sharedRootFrame = SwingUtilities.getSharedOwnerFrame();
+        Frame sharedFrame =
+            (Frame)SwingUtilities.appContextGet(sharedFrameKey);
+        if (sharedFrame == null) {
+            sharedFrame = SwingUtilities.getSharedOwnerFrame();
+            SwingUtilities.appContextPut(sharedFrameKey, sharedFrame);
         }
-        return sharedRootFrame;
+        return sharedFrame;
     }
 
     /**

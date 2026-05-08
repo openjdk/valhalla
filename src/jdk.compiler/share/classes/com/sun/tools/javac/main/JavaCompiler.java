@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -438,9 +438,11 @@ public class JavaCompiler {
         sourceOutput  = options.isSet(PRINTSOURCE); // used to be -s
         lineDebugInfo = options.isUnset(G_CUSTOM) ||
                         options.isSet(G_CUSTOM, "lines");
+        genEndPos     = options.isSet(XJCOV) ||
+                        context.get(DiagnosticListener.class) != null;
         devVerbose    = options.isSet("dev");
         processPcks   = options.isSet("process.packages");
-        werrorNonLint = options.isSet(WERROR) || options.isSet(WERROR_CUSTOM, Option.LINT_CUSTOM_ALL);
+        werrorAny     = options.isSet(WERROR) || options.isSet(WERROR_CUSTOM, Option.LINT_CUSTOM_ALL);
         werrorLint    = options.getLintCategoriesOf(WERROR, LintCategory::newEmptySet);
 
         verboseCompilePolicy = options.isSet("verboseCompilePolicy");
@@ -502,6 +504,10 @@ public class JavaCompiler {
      */
     public boolean lineDebugInfo;
 
+    /** Switch: should we store the ending positions?
+     */
+    public boolean genEndPos;
+
     /** Switch: should we debug ignored exceptions
      */
     protected boolean devVerbose;
@@ -510,9 +516,9 @@ public class JavaCompiler {
      */
     protected boolean processPcks;
 
-    /** Switch: treat non-lint warnings as errors. Set by either "-Werror" or "-Werror:all".
+    /** Switch: treat any kind of warning (lint or non-lint) as an error.
      */
-    protected boolean werrorNonLint;
+    protected boolean werrorAny;
 
     /** Switch: treat lint warnings in the specified {@link LintCategory}s as errors.
      */
@@ -583,7 +589,7 @@ public class JavaCompiler {
     public int errorCount() {
         log.reportOutstandingWarnings();
         if (log.nerrors == 0 && log.nwarnings > 0 &&
-              ((werrorNonLint && log.nonLintWarnings > 0) || werrorLint.clone().removeAll(log.lintWarnings))) {
+                (werrorAny || werrorLint.clone().removeAll(log.lintWarnings))) {
             log.error(Errors.WarningsAndWerror);
         }
         return log.nerrors;
@@ -593,7 +599,7 @@ public class JavaCompiler {
      * Should warnings in the given lint category be treated as errors due to a {@code -Werror} flag?
      */
     public boolean isWerror(LintCategory lc) {
-        return werrorLint.contains(lc);
+        return werrorAny || werrorLint.contains(lc);
     }
 
     protected final <T> Queue<T> stopIfError(CompileState cs, Queue<T> queue) {
@@ -649,8 +655,9 @@ public class JavaCompiler {
                 TaskEvent e = new TaskEvent(TaskEvent.Kind.PARSE, filename);
                 taskListener.started(e);
                 keepComments = true;
+                genEndPos = true;
             }
-            Parser parser = parserFactory.newParser(content, keepComments(),
+            Parser parser = parserFactory.newParser(content, keepComments(), genEndPos,
                                 lineDebugInfo, filename.isNameCompatible("module-info", Kind.SOURCE));
             tree = parser.parseCompilationUnit();
             if (verbose) {
@@ -690,7 +697,10 @@ public class JavaCompiler {
     public JCTree.JCCompilationUnit parse(JavaFileObject filename) {
         JavaFileObject prev = log.useSource(filename);
         try {
-            return parse(filename, readSource(filename));
+            JCTree.JCCompilationUnit t = parse(filename, readSource(filename));
+            if (t.endPositions != null)
+                log.setEndPosTable(filename, t.endPositions);
+            return t;
         } finally {
             log.useSource(prev);
         }
@@ -823,9 +833,9 @@ public class JavaCompiler {
                 c, () -> diagFactory.fragment(Fragments.UserSelectedCompletionFailure), dcfh);
         }
         JavaFileObject filename = c.classfile;
+        JavaFileObject prev = log.useSource(filename);
 
         if (tree == null) {
-            JavaFileObject prev = log.useSource(filename);
             try {
                 tree = parse(filename, filename.getCharContent(false));
             } catch (IOException e) {
@@ -1152,6 +1162,7 @@ public class JavaCompiler {
                 options.put("parameters", "parameters");
                 reader.saveParameterNames = true;
                 keepComments = true;
+                genEndPos = true;
                 if (!taskListener.isEmpty())
                     taskListener.started(new TaskEvent(TaskEvent.Kind.ANNOTATION_PROCESSING));
                 deferredDiagnosticHandler = log.new DeferredDiagnosticHandler();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,10 +72,10 @@ import static java.net.http.HttpOption.H3_DISCOVERY;
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.httpclient.test.lib.common.HttpServerAdapters jdk.test.lib.net.SimpleSSLContext
  *        DigestEchoServer ReferenceTracker DigestEchoClient
- * @run main/othervm ${test.main.class}
+ * @run main/othervm DigestEchoClient
  * @run main/othervm -Djdk.http.auth.proxying.disabledSchemes=
  *                   -Djdk.http.auth.tunneling.disabledSchemes=
- *                   ${test.main.class}
+ *                   DigestEchoClient
  */
 
 public class DigestEchoClient {
@@ -165,9 +165,14 @@ public class DigestEchoClient {
 
     static final AtomicInteger NC = new AtomicInteger();
     static final Random random = new Random();
-    private static final SSLContext context = SimpleSSLContext.findSSLContext();
+    static final SSLContext context;
     static {
-        SSLContext.setDefault(context);
+        try {
+            context = new SimpleSSLContext().get();
+            SSLContext.setDefault(context);
+        } catch (Exception x) {
+            throw new ExceptionInInitializerError(x);
+        }
     }
     static final List<Boolean> BOOLEANS = List.of(true, false);
 

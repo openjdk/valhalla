@@ -33,7 +33,6 @@
 #include "gc/shenandoah/shenandoahSharedVariables.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
 #include "memory/iterator.hpp"
-#include "runtime/atomic.hpp"
 #include "runtime/threads.hpp"
 
 template <bool CONCURRENT>
@@ -74,7 +73,7 @@ private:
   ThreadsListHandle             _threads;
   uint const                    _length;
   uint const                    _stride;
-  Atomic<uint>                  _claimed;
+  volatile uint                 _claimed;
   ShenandoahPhaseTimings::Phase _phase;
 
   uint claim();

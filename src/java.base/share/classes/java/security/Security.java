@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -113,7 +112,7 @@ public final class Security {
 
         private static Path currentPath;
 
-        private static final List<Path> activePaths = new ArrayList<>();
+        private static final Set<Path> activePaths = new HashSet<>();
 
         static void loadAll() {
             // first load the master properties file to
@@ -263,40 +262,30 @@ public final class Security {
             }
         }
 
-        private static void checkCyclicInclude(Path path) {
-            for (Path activePath : activePaths) {
-                try {
-                    if (Files.isSameFile(path, activePath)) {
-                        throw new InternalError(
-                                "Cyclic include of '" + path + "'");
-                    }
-                } catch (IOException e) {
-                    if (sdebug != null) {
-                        sdebug.println("skipped exception when checking for " +
-                                "cyclic inclusion of " + path + ":");
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-
         private static void loadFromPath(Path path, LoadingMode mode)
                 throws IOException {
-            if (Files.isDirectory(path)) {
+            boolean isRegularFile = Files.isRegularFile(path);
+            if (isRegularFile) {
+                path = path.toRealPath();
+            } else if (Files.isDirectory(path)) {
                 throw new IOException("Is a directory");
+            } else {
+                path = path.toAbsolutePath();
+            }
+            if (activePaths.contains(path)) {
+                throw new InternalError("Cyclic include of '" + path + "'");
             }
             try (InputStream is = Files.newInputStream(path)) {
-                checkCyclicInclude(path);
                 reset(mode);
                 Path previousPath = currentPath;
-                currentPath = Files.isRegularFile(path) ? path : null;
+                currentPath = isRegularFile ? path : null;
                 activePaths.add(path);
                 try {
                     debugLoad(true, path);
                     props.load(is);
                     debugLoad(false, path);
                 } finally {
-                    activePaths.removeLast();
+                    activePaths.remove(path);
                     currentPath = previousPath;
                 }
             }
@@ -329,10 +318,6 @@ public final class Security {
             @Override
             public Properties getInitialProperties() {
                 return initialSecurityProperties;
-            }
-            @Override
-            public Properties getCurrentProperties() {
-                return props;
             }
         });
     }

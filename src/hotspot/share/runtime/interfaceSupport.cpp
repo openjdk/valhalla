@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
  */
 
 #include "gc/shared/collectedHeap.inline.hpp"
-#include "interpreter/interpreterRuntime.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -65,10 +64,6 @@ VMEntryWrapper::~VMEntryWrapper() {
   // do verification AFTER potential deoptimization
   if (VerifyStack) {
     InterfaceSupport::verify_stack();
-  }
-  // Verify interpreter oopmap generation
-  if (GenerateOopMapALot) {
-    InterpreterRuntime::generate_oop_map_alot();
   }
 }
 

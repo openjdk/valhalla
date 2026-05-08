@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,6 @@ import sun.security.util.Debug;
 import sun.security.util.IOUtils;
 
 import java.io.*;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.security.DigestInputStream;
 import java.security.DigestOutputStream;
@@ -72,14 +70,14 @@ public final class JceKeyStore extends KeyStoreSpi {
 
     // Private key and supporting certificate chain
     private static final class PrivateKeyEntry {
-        Instant date; // the creation date of this entry
+        Date date; // the creation date of this entry
         byte[] protectedKey;
         Certificate[] chain;
     }
 
     // Secret key
     private static final class SecretKeyEntry {
-        Instant date; // the creation date of this entry
+        Date date; // the creation date of this entry
         SealedObject sealedKey;
 
         // Maximum possible length of sealedKey. Used to detect malicious
@@ -91,7 +89,7 @@ public final class JceKeyStore extends KeyStoreSpi {
 
     // Trusted certificate
     private static final class TrustedCertEntry {
-        Instant date; // the creation date of this entry
+        Date date; // the creation date of this entry
         Certificate cert;
     }
 
@@ -215,38 +213,23 @@ public final class JceKeyStore extends KeyStoreSpi {
      * not exist
      */
     public Date engineGetCreationDate(String alias) {
-        final Instant instant = this.engineGetCreationInstant(alias);
-        if (instant == null) {
-            return null;
-        }
-        return Date.from(instant);
-    }
+        Date date = null;
 
-    /**
-     * Returns the instant that the entry identified by the given alias was
-     * created.
-     *
-     * @param alias the alias name
-     *
-     * @return the instant that the entry identified by the given alias
-     * was created, or {@code null} if the given alias does not exist
-     *
-     * @since 27
-     */
-    public Instant engineGetCreationInstant(String alias) {
-        final Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
+        Object entry = entries.get(alias.toLowerCase(Locale.ENGLISH));
 
         if (entry != null) {
+            // We have to create a new instance of java.util.Date because
+            // dates are not immutable
             if (entry instanceof TrustedCertEntry) {
-                return ((TrustedCertEntry)entry).date;
+                date = new Date(((TrustedCertEntry)entry).date.getTime());
             } else if (entry instanceof PrivateKeyEntry) {
-                return ((PrivateKeyEntry)entry).date;
+                date = new Date(((PrivateKeyEntry)entry).date.getTime());
             } else {
-                return ((SecretKeyEntry)entry).date;
+                date = new Date(((SecretKeyEntry)entry).date.getTime());
             }
-        } else {
-            return null;
         }
+
+        return date;
     }
 
     /**
@@ -281,7 +264,7 @@ public final class JceKeyStore extends KeyStoreSpi {
 
                 if (key instanceof PrivateKey) {
                     PrivateKeyEntry entry = new PrivateKeyEntry();
-                    entry.date = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+                    entry.date = new Date();
 
                     // protect the private key
                     entry.protectedKey = keyProtector.protect((PrivateKey)key);
@@ -299,7 +282,7 @@ public final class JceKeyStore extends KeyStoreSpi {
 
                 } else {
                     SecretKeyEntry entry = new SecretKeyEntry();
-                    entry.date = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+                    entry.date = new Date();
 
                     // seal and store the key
                     entry.sealedKey = keyProtector.seal(key);
@@ -342,7 +325,7 @@ public final class JceKeyStore extends KeyStoreSpi {
             // We assume it's a private key, because there is no standard
             // (ASN.1) encoding format for wrapped secret keys
             PrivateKeyEntry entry = new PrivateKeyEntry();
-            entry.date = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+            entry.date = new Date();
 
             entry.protectedKey = key.clone();
             if ((chain != null) &&
@@ -387,7 +370,7 @@ public final class JceKeyStore extends KeyStoreSpi {
 
             TrustedCertEntry trustedCertEntry = new TrustedCertEntry();
             trustedCertEntry.cert = cert;
-            trustedCertEntry.date = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+            trustedCertEntry.date = new Date();
             entries.put(alias.toLowerCase(Locale.ENGLISH), trustedCertEntry);
         }
     }
@@ -605,7 +588,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         dos.writeUTF(alias);
 
                         // write the (entry creation) date
-                        dos.writeLong(pentry.date.toEpochMilli());
+                        dos.writeLong(pentry.date.getTime());
 
                         // write the protected private key
                         dos.writeInt(pentry.protectedKey.length);
@@ -635,9 +618,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         dos.writeUTF(alias);
 
                         // write the (entry creation) date
-                        dos.writeLong(
-                                ((TrustedCertEntry)entry).date.toEpochMilli()
-                        );
+                        dos.writeLong(((TrustedCertEntry)entry).date.getTime());
 
                         // write the trusted certificate
                         encoded = ((TrustedCertEntry)entry).cert.getEncoded();
@@ -654,9 +635,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         dos.writeUTF(alias);
 
                         // write the (entry creation) date
-                        dos.writeLong(
-                                ((SecretKeyEntry)entry).date.toEpochMilli()
-                        );
+                        dos.writeLong(((SecretKeyEntry)entry).date.getTime());
 
                         // write the sealed key
                         oos = new ObjectOutputStream(dos);
@@ -774,7 +753,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         alias = dis.readUTF();
 
                         // read the (entry creation) date
-                        entry.date = Instant.ofEpochMilli(dis.readLong());
+                        entry.date = new Date(dis.readLong());
 
                         // read the private key
                         entry.protectedKey = IOUtils.readExactlyNBytes(dis, dis.readInt());
@@ -819,7 +798,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         alias = dis.readUTF();
 
                         // read the (entry creation) date
-                        entry.date = Instant.ofEpochMilli(dis.readLong());
+                        entry.date = new Date(dis.readLong());
 
                         // read the trusted certificate
                         if (xVersion == 2) {
@@ -853,7 +832,7 @@ public final class JceKeyStore extends KeyStoreSpi {
                         alias = dis.readUTF();
 
                         // read the (entry creation) date
-                        entry.date = Instant.ofEpochMilli(dis.readLong());
+                        entry.date = new Date(dis.readLong());
 
                         // read the sealed key
                         try {

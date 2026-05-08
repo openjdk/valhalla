@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug 8221481
  * @summary Test the platform SocketImpl when used in unintended ways
  * @compile/module=java.base java/net/PlatformSocketImpl.java
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm BadUsages
  */
 
 import java.io.IOException;
@@ -41,8 +41,8 @@ import java.net.StandardSocketOptions;
 
 import java.net.PlatformSocketImpl;  // test helper
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 /**
  * SocketImpl does not specify how the SocketImpl behaves when used in ways
@@ -54,80 +54,74 @@ import static org.junit.jupiter.api.Assertions.*;
  * throws reasonable exceptions, for these scenarios.
  */
 
+@Test
 public class BadUsages {
 
     /**
      * Test create when already created.
      */
-    @Test
     public void testCreate1() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
-            assertThrows(IOException.class, () -> impl.create(true));
+            expectThrows(IOException.class, () -> impl.create(true));
         }
     }
 
     /**
      * Test create when closed.
      */
-    @Test
     public void testCreate2() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
-        assertThrows(IOException.class, () -> impl.create(true));
+        expectThrows(IOException.class, () -> impl.create(true));
     }
 
     /**
      * Test create when not a stream socket.
      */
-    @Test
     public void testCreate3() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
-            assertThrows(IOException.class, () -> impl.create(false));
+            expectThrows(IOException.class, () -> impl.create(false));
         }
     }
 
     /**
      * Test connect when not created.
      */
-    @Test
     public void testConnect1() throws IOException {
         try (var ss = new ServerSocket(0)) {
             var impl = new PlatformSocketImpl(false);
             var address = ss.getInetAddress();
             int port = ss.getLocalPort();
-            assertThrows(IOException.class, () -> impl.connect(address, port));
+            expectThrows(IOException.class, () -> impl.connect(address, port));
         }
     }
 
     /**
      * Test connect with unsupported address type.
      */
-    @Test
     public void testConnect2() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
             var remote = new SocketAddress() { };
-            assertThrows(IOException.class, () -> impl.connect(remote, 0));
+            expectThrows(IOException.class, () -> impl.connect(remote, 0));
         }
     }
 
     /**
      * Test connect with an unresolved address.
      */
-    @Test
     public void testConnect3() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
             var remote = new InetSocketAddress("blah-blah.blah-blah", 80);
-            assertThrows(IOException.class, () -> impl.connect(remote, 0));
+            expectThrows(IOException.class, () -> impl.connect(remote, 0));
         }
     }
 
     /**
      * Test connect when already connected.
      */
-    @Test
     public void testConnect4() throws IOException {
         try (var ss = new ServerSocket();
              var impl = new PlatformSocketImpl(false)) {
@@ -136,51 +130,47 @@ public class BadUsages {
             impl.create(true);
             int port = ss.getLocalPort();
             impl.connect(loopback, port);
-            assertThrows(IOException.class, () -> impl.connect(loopback, port));
+            expectThrows(IOException.class, () -> impl.connect(loopback, port));
         }
     }
 
     /**
      * Test connect when closed.
      */
-    @Test
     public void testConnect5() throws IOException {
         try (var ss = new ServerSocket(0)) {
             var impl = new PlatformSocketImpl(false);
             impl.close();
             String host = ss.getInetAddress().getHostAddress();
             int port = ss.getLocalPort();
-            assertThrows(IOException.class, () -> impl.connect(host, port));
+            expectThrows(IOException.class, () -> impl.connect(host, port));
         }
     }
 
     /**
      * Test bind when not created.
      */
-    @Test
     public void testBind1() throws IOException {
         var impl = new PlatformSocketImpl(false);
         var loopback = InetAddress.getLoopbackAddress();
-        assertThrows(IOException.class, () -> impl.bind(loopback, 0));
+        expectThrows(IOException.class, () -> impl.bind(loopback, 0));
     }
 
     /**
      * Test bind when already bound.
      */
-    @Test
     public void testBind2() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
             var loopback = InetAddress.getLoopbackAddress();
             impl.bind(loopback, 0);
-            assertThrows(IOException.class, () -> impl.bind(loopback, 0));
+            expectThrows(IOException.class, () -> impl.bind(loopback, 0));
         }
     }
 
     /**
      * Test bind when connected.
      */
-    @Test
     public void testBind3() throws IOException {
         try (var ss = new ServerSocket();
              var impl = new PlatformSocketImpl(false)) {
@@ -188,103 +178,94 @@ public class BadUsages {
             ss.bind(new InetSocketAddress(loopback, 0));
             impl.create(true);
             impl.connect(ss.getLocalSocketAddress(), 0);
-            assertThrows(IOException.class, () -> impl.bind(loopback, 0));
+            expectThrows(IOException.class, () -> impl.bind(loopback, 0));
         }
     }
 
     /**
      * Test bind when closed.
      */
-    @Test
     public void testBind4() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
         var loopback = InetAddress.getLoopbackAddress();
-        assertThrows(IOException.class, () -> impl.bind(loopback, 0));
+        expectThrows(IOException.class, () -> impl.bind(loopback, 0));
     }
 
 
     /**
      * Test listen when not created.
      */
-    @Test
     public void testListen1() {
         var impl = new PlatformSocketImpl(false);
-        assertThrows(IOException.class, () -> impl.listen(16));
+        expectThrows(IOException.class, () -> impl.listen(16));
     }
 
     /**
      * Test listen when not bound.
      */
-    @Test
     public void testListen2() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
-            assertThrows(IOException.class, () -> impl.listen(16));
+            expectThrows(IOException.class, () -> impl.listen(16));
         }
     }
 
     /**
      * Test listen when closed.
      */
-    @Test
     public void testListen3() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
-        assertThrows(IOException.class, () -> impl.listen(16));
+        expectThrows(IOException.class, () -> impl.listen(16));
     }
 
     /**
      * Test accept when not created.
      */
-    @Test
     public void testAccept1() throws IOException {
         var impl = new PlatformSocketImpl(true);
         var si = new PlatformSocketImpl(false);
-        assertThrows(IOException.class, () -> impl.accept(si));
+        expectThrows(IOException.class, () -> impl.accept(si));
     }
 
     /**
      * Test accept when not bound.
      */
-    @Test
     public void testAccept2() throws IOException {
         try (var impl = new PlatformSocketImpl(true)) {
             impl.create(true);
             var si = new PlatformSocketImpl(false);
-            assertThrows(IOException.class, () -> impl.accept(si));
+            expectThrows(IOException.class, () -> impl.accept(si));
         }
     }
 
     /**
      * Test accept when closed.
      */
-    @Test
     public void testAccept4() throws IOException {
         var impl = new PlatformSocketImpl(true);
         impl.close();
         var si = new PlatformSocketImpl(false);
-        assertThrows(IOException.class, () -> impl.accept(si));
+        expectThrows(IOException.class, () -> impl.accept(si));
     }
 
     /**
      * Test accept with SocketImpl that is already created.
      */
-    @Test
     public void testAccept5() throws IOException {
         try (var impl = new PlatformSocketImpl(true);
              var si = new PlatformSocketImpl(false)) {
             impl.create(true);
             impl.bind(InetAddress.getLoopbackAddress(), 0);
             si.create(true);
-            assertThrows(IOException.class, () -> impl.accept(si));
+            expectThrows(IOException.class, () -> impl.accept(si));
         }
     }
 
     /**
      * Test accept with SocketImpl that is closed.
      */
-    @Test
     public void testAccept6() throws IOException {
         try (var impl = new PlatformSocketImpl(true);
              var si = new PlatformSocketImpl(false)) {
@@ -292,71 +273,65 @@ public class BadUsages {
             impl.bind(InetAddress.getLoopbackAddress(), 0);
             si.create(true);
             si.close();
-            assertThrows(IOException.class, () -> impl.accept(si));
+            expectThrows(IOException.class, () -> impl.accept(si));
         }
     }
 
     /**
      * Test available when not created.
      */
-    @Test
     public void testAvailable1() throws IOException {
         var impl = new PlatformSocketImpl(false);
-        assertThrows(IOException.class, () -> impl.available());
+        expectThrows(IOException.class, () -> impl.available());
     }
 
     /**
      * Test available when created but not connected.
      */
-    @Test
     public void testAvailable2() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
-            assertThrows(IOException.class, () -> impl.available());
+            expectThrows(IOException.class, () -> impl.available());
         }
     }
 
     /**
      * Test available when closed.
      */
-    @Test
     public void testAvailable3() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
-        assertThrows(IOException.class, () -> impl.available());
+        expectThrows(IOException.class, () -> impl.available());
     }
 
     /**
      * Test setOption when not created.
      */
-    @Test
     public void testSetOption1() throws IOException {
         var impl = new PlatformSocketImpl(false);
-        assertThrows(IOException.class,
+        expectThrows(IOException.class,
                      () -> impl.setOption(StandardSocketOptions.SO_REUSEADDR, true));
         // legacy
-        assertThrows(SocketException.class,
+        expectThrows(SocketException.class,
                      () -> impl.setOption(SocketOptions.SO_REUSEADDR, true));
     }
 
     /**
      * Test setOption when closed.
      */
-    @Test
     public void testSetOption2() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
-        assertThrows(IOException.class,
+        expectThrows(IOException.class,
                      () -> impl.setOption(StandardSocketOptions.SO_REUSEADDR, true));
         // legacy
-        assertThrows(SocketException.class,
+        expectThrows(SocketException.class,
                      () -> impl.setOption(SocketOptions.SO_REUSEADDR, true));
     }
 
     /**
      * Test setOption with unsupported option.
      */
-    @Test
     public void testSetOption3() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
@@ -364,26 +339,25 @@ public class BadUsages {
                 @Override public String name() { return "birthday"; }
                 @Override public Class<String> type() { return String.class; }
             };
-            assertThrows(UnsupportedOperationException.class, () -> impl.setOption(opt, ""));
+            expectThrows(UnsupportedOperationException.class, () -> impl.setOption(opt, ""));
             // legacy
-            assertThrows(SocketException.class, () -> impl.setOption(-1, ""));
+            expectThrows(SocketException.class, () -> impl.setOption(-1, ""));
         }
     }
 
     /**
      * Test setOption(int, Object) with invalid values.
      */
-    @Test
     public void testSetOption4() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
-            assertThrows(SocketException.class,
+            expectThrows(SocketException.class,
                          () -> impl.setOption(SocketOptions.SO_REUSEADDR, -1));
-            assertThrows(SocketException.class,
+            expectThrows(SocketException.class,
                          () -> impl.setOption(SocketOptions.SO_TIMEOUT, -1));
-            assertThrows(SocketException.class,
+            expectThrows(SocketException.class,
                          () -> impl.setOption(SocketOptions.SO_SNDBUF, -1));
-            assertThrows(SocketException.class,
+            expectThrows(SocketException.class,
                          () -> impl.setOption(SocketOptions.SO_RCVBUF, -1));
         }
     }
@@ -391,32 +365,29 @@ public class BadUsages {
     /**
      * Test getOption when not created.
      */
-    @Test
     public void testGetOption1() throws IOException {
         var impl = new PlatformSocketImpl(false);
-        assertThrows(IOException.class,
+        expectThrows(IOException.class,
                      () -> impl.getOption(StandardSocketOptions.SO_REUSEADDR));
-        assertThrows(SocketException.class,
+        expectThrows(SocketException.class,
                      () -> impl.getOption(-1));
     }
 
     /**
      * Test getOption when closed.
      */
-    @Test
     public void testGetOption2() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
-        assertThrows(IOException.class,
+        expectThrows(IOException.class,
                      () -> impl.getOption(StandardSocketOptions.SO_REUSEADDR));
-        assertThrows(SocketException.class,
+        expectThrows(SocketException.class,
                      () -> impl.getOption(SocketOptions.SO_REUSEADDR));
     }
 
     /**
      * Test getOption with unsupported option.
      */
-    @Test
     public void testGetOption3() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
@@ -424,98 +395,89 @@ public class BadUsages {
                 @Override public String name() { return "birthday"; }
                 @Override public Class<String> type() { return String.class; }
             };
-            assertThrows(UnsupportedOperationException.class, () -> impl.getOption(opt));
-            assertThrows(SocketException.class, () -> impl.getOption(-1));
+            expectThrows(UnsupportedOperationException.class, () -> impl.getOption(opt));
+            expectThrows(SocketException.class, () -> impl.getOption(-1));
         }
     }
 
     /**
      * Test shutdownInput when not created.
      */
-    @Test
     public void testShutdownInput1() throws IOException {
         var impl = new PlatformSocketImpl(false);
-        assertThrows(IOException.class, () -> impl.shutdownInput());
+        expectThrows(IOException.class, () -> impl.shutdownInput());
     }
 
     /**
      * Test shutdownInput when not connected.
      */
-    @Test
     public void testShutdownInput2() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
-            assertThrows(IOException.class, () -> impl.shutdownInput());
+            expectThrows(IOException.class, () -> impl.shutdownInput());
         }
     }
 
     /**
      * Test shutdownInput when closed.
      */
-    @Test
     public void testShutdownInput3() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
-        assertThrows(IOException.class, () -> impl.shutdownInput());
+        expectThrows(IOException.class, () -> impl.shutdownInput());
     }
 
     /**
      * Test shutdownOutput when not created.
      */
-    @Test
     public void testShutdownOutput1() throws IOException {
         var impl = new PlatformSocketImpl(false);
-        assertThrows(IOException.class, () -> impl.shutdownOutput());
+        expectThrows(IOException.class, () -> impl.shutdownOutput());
     }
 
     /**
      * Test shutdownOutput when not connected.
      */
-    @Test
     public void testShutdownOutput2() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
-            assertThrows(IOException.class, () -> impl.shutdownOutput());
+            expectThrows(IOException.class, () -> impl.shutdownOutput());
         }
     }
 
     /**
      * Test shutdownOutput when closed.
      */
-    @Test
     public void testShutdownOutput3() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
-        assertThrows(IOException.class, () -> impl.shutdownOutput());
+        expectThrows(IOException.class, () -> impl.shutdownOutput());
     }
 
     /**
      * Test sendUrgentData when not created.
      */
-    @Test
     public void testSendUrgentData1() throws IOException {
         var impl = new PlatformSocketImpl(false);
-        assertThrows(IOException.class, () -> impl.sendUrgentData(0));
+        expectThrows(IOException.class, () -> impl.sendUrgentData(0));
     }
 
     /**
      * Test sendUrgentData when not connected.
      */
-    @Test
     public void testSendUrgentData2() throws IOException {
         try (var impl = new PlatformSocketImpl(false)) {
             impl.create(true);
-            assertThrows(IOException.class, () -> impl.sendUrgentData(0));
+            expectThrows(IOException.class, () -> impl.sendUrgentData(0));
         }
     }
 
     /**
      * Test sendUrgentData when closed.
      */
-    @Test
     public void testSendUrgentData3() throws IOException {
         var impl = new PlatformSocketImpl(false);
         impl.close();
-        assertThrows(IOException.class, () -> impl.sendUrgentData(0));
+        expectThrows(IOException.class, () -> impl.sendUrgentData(0));
     }
 }

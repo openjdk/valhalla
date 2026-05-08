@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,6 @@ import java.io.File;
 
 import nsk.share.*;
 import nsk.share.jvmti.*;
-
-import jdk.test.lib.thread.ThreadWrapper;
 
 /**
  * Test executes the following scenario to check events <code>COMPILED_METHOD_LOAD</code>,
@@ -120,7 +118,7 @@ public class em07t002 extends DebugeeClass {
         String path = args[0];
 
         Class<?> loadedClass;
-        ThreadWrapper thrd;
+        Thread thrd;
         ClassUnloader unloader = new ClassUnloader();
         for (int i = 0; i < attempts; i++) {
             logger.display("======================================");
@@ -138,7 +136,7 @@ public class em07t002 extends DebugeeClass {
             loadedClass = unloader.getLoadedClass();
 
             try {
-                thrd = (ThreadWrapper)loadedClass.newInstance();
+                thrd = (Thread )loadedClass.newInstance();
             } catch (Exception e) {
                 logger.complain("Unexpected exception " + e);
                 e.printStackTrace();
@@ -172,7 +170,7 @@ public class em07t002 extends DebugeeClass {
         return status;
     }
 
-    boolean invokeMethod(Class<?> cls, ThreadWrapper thrd, String methodName) {
+    boolean invokeMethod(Class<?> cls, Thread thrd, String methodName) {
 
         Method method;
 

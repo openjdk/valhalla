@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 public class ValueTagMapTest {
 
@@ -51,6 +52,7 @@ public class ValueTagMapTest {
     }
 
     private static value class ValueHolder {
+        @Strict
         @NullRestricted
         public ValueClass f0;
 
@@ -64,6 +66,7 @@ public class ValueTagMapTest {
 
     private static value class ValueHolder2 {
         public ValueHolder f1;
+        @Strict
         @NullRestricted
         public ValueHolder f2;
 

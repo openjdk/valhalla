@@ -181,7 +181,6 @@ public final class JDKEvents {
             event.memoryFailCount = containerMetrics.getMemoryFailCount();
             event.memoryUsage = containerMetrics.getMemoryUsage();
             event.swapMemoryUsage = containerMetrics.getMemoryAndSwapUsage();
-            event.hostMemoryUsage = JVM.hostMemoryUsage();
             event.commit();
         }
     }

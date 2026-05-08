@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import java.util.List;
  * @test StackWalkNativeToJava
  * @bug 8316309
  * @summary Check that walking the stack works fine when going from C++ frame to Java frame.
- * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64" | os.arch=="riscv64"
+ * @requires os.arch=="amd64" | os.arch=="x86_64" | os.arch=="aarch64"
  * @requires os.family != "windows"
  * @requires vm.flagless
  * @library /test/lib
@@ -70,11 +70,7 @@ public class StackWalkNativeToJava {
         output.shouldNotContain("java.lang.RuntimeException: Reached statement after obj.wait()");
         output.shouldNotContain("[error occurred during error reporting (printing native stack");
         String[] res = output.getOutput().split("StackWalkNativeToJava\\$TestNativeToJavaNative\\.callNativeMethod\\(\\)V");
-        if (res.length != 3) {
-            output.reportDiagnosticSummary();
-        }
-
-        assertTrue(res.length == 3, res.length);
+        assertTrue(res.length - 1 == 2, res.length - 1);
         output.shouldNotHaveExitValue(0);
     }
 
@@ -108,11 +104,7 @@ public class StackWalkNativeToJava {
         output.shouldNotContain("java.lang.RuntimeException: Reached statement after synchronized");
         output.shouldNotContain("[error occurred during error reporting (printing native stack");
         String[] res = output.getOutput().split("StackWalkNativeToJava\\$TestNativeToJava\\.callVMMethod\\(\\)V");
-        if (res.length != 3) {
-            output.reportDiagnosticSummary();
-        }
-
-        assertTrue(res.length == 3, res.length);
+        assertTrue(res.length - 1 == 2, res.length - 1);
         output.shouldNotHaveExitValue(0);
     }
 

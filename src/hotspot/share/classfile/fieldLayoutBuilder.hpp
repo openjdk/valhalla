@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -144,6 +144,7 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* _big_primitive_fields;
   GrowableArray<LayoutRawBlock*>* _oop_fields;
   int _contended_group;
+  int _oop_count;
   static const int INITIAL_LIST_SIZE = 16;
 
  public:
@@ -155,10 +156,11 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* big_primitive_fields() const { return _big_primitive_fields; }
   GrowableArray<LayoutRawBlock*>* oop_fields() const { return _oop_fields; }
   int contended_group() const { return _contended_group; }
+  int oop_count() const { return _oop_count; }
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
-  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk);
+  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk, int size, int alignment);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -195,7 +197,7 @@ class FieldLayout : public ResourceObj {
   int _super_min_align_required;
   int _null_reset_value_offset;    // offset of the reset value in class mirror, only for static layout of inline classes
   int _acmp_maps_offset;
-  bool _super_has_nonstatic_fields;
+  bool _super_has_fields;
   bool _has_inherited_fields;
 
  public:
@@ -227,7 +229,7 @@ class FieldLayout : public ResourceObj {
     assert(_acmp_maps_offset != -1, "Must have been set");
     return _acmp_maps_offset;
   }
-  bool super_has_nonstatic_fields() const { return _super_has_nonstatic_fields; }
+  bool super_has_fields() const { return _super_has_fields; }
   bool has_inherited_fields() const { return _has_inherited_fields; }
 
   LayoutRawBlock* first_field_block();
@@ -235,14 +237,14 @@ class FieldLayout : public ResourceObj {
   void add_field_at_offset(LayoutRawBlock* blocks, int offset, LayoutRawBlock* start = nullptr);
   void add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = nullptr);
   LayoutRawBlock* insert_field_block(LayoutRawBlock* slot, LayoutRawBlock* block);
-  void reconstruct_layout(const InstanceKlass* ik, bool& has_nonstatic_fields, bool& ends_with_oop);
+  void reconstruct_layout(const InstanceKlass* ik, bool& has_instance_fields, bool& ends_with_oop);
   void fill_holes(const InstanceKlass* ik);
   LayoutRawBlock* insert(LayoutRawBlock* slot, LayoutRawBlock* block);
   void remove(LayoutRawBlock* block);
   void shift_fields(int shift);
   LayoutRawBlock* find_null_marker();
   void remove_null_marker();
-  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields, bool dummy_field_is_reused_as_null_marker);
+  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<InlineLayoutInfo>* inline_fields);
 };
 
 
@@ -284,30 +286,29 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldGroup* _static_fields;
   FieldLayout* _layout;
   FieldLayout* _static_layout;
-  GrowableArray<AcmpMapSegment>* _nonoop_acmp_map;
+  GrowableArray<Pair<int,int>>* _nonoop_acmp_map;
   GrowableArray<int>* _oop_acmp_map;
   int _nonstatic_oopmap_count;
   int _payload_alignment;
   int _payload_offset;
   int _null_marker_offset; // if any, -1 means no internal null marker
   int _payload_size_in_bytes;
-  int _null_free_non_atomic_layout_size_in_bytes;
-  int _null_free_non_atomic_layout_alignment;
-  int _null_free_atomic_layout_size_in_bytes;
-  int _nullable_atomic_layout_size_in_bytes;
-  int _nullable_non_atomic_layout_size_in_bytes;
+  int _non_atomic_layout_size_in_bytes;
+  int _non_atomic_layout_alignment;
+  int _atomic_layout_size_in_bytes;
+  int _nullable_layout_size_in_bytes;
   int _fields_size_sum;
-  int _declared_nonstatic_fields_count;
+  int _declared_non_static_fields_count;
   bool _has_non_naturally_atomic_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
   bool _has_nonstatic_fields;
-  bool _has_inlineable_fields;
-  bool _has_inlined_fields;
+  bool _has_inline_type_fields;
   bool _is_contended;
   bool _super_ends_with_oop;
   bool _is_inline_type;
   bool _is_abstract_value;
+  bool _has_flattening_information;
   bool _is_empty_inline_class;
 
   FieldGroup* get_or_create_contended_group(int g);
@@ -317,25 +318,23 @@ class FieldLayoutBuilder : public ResourceObj {
                      GrowableArray<FieldInfo>* field_info, bool is_contended, bool is_inline_type, bool is_abstract_value,
                      bool must_be_atomic, FieldLayoutInfo* info, Array<InlineLayoutInfo>* inline_layout_info_array);
 
-  int  payload_offset() const                  { assert(_payload_offset != -1, "Uninitialized"); return _payload_offset; }
+  int payload_offset() const               { assert(_payload_offset != -1, "Uninitialized"); return _payload_offset; }
   int  payload_layout_size_in_bytes() const    { return _payload_size_in_bytes; }
   int  payload_layout_alignment() const        { assert(_payload_alignment != -1, "Uninitialized"); return _payload_alignment; }
-  bool has_null_free_non_atomic_flat_layout() const      { return _null_free_non_atomic_layout_size_in_bytes != -1; }
-  int  null_free_non_atomic_layout_size_in_bytes() const { return _null_free_non_atomic_layout_size_in_bytes; }
-  int  null_free_non_atomic_layout_alignment() const     { return _null_free_non_atomic_layout_alignment; }
-  bool has_null_free_atomic_layout() const               { return _null_free_atomic_layout_size_in_bytes != -1; }
-  int  null_free_atomic_layout_size_in_bytes() const     { return _null_free_atomic_layout_size_in_bytes; }
-  bool has_nullable_atomic_layout() const      { return _nullable_atomic_layout_size_in_bytes != -1; }
-  int  nullable_atomic_layout_size_in_bytes() const { return _nullable_atomic_layout_size_in_bytes; }
-  bool has_nullable_non_atomic_layout() const  { return _nullable_non_atomic_layout_size_in_bytes != -1; }
-  int  nullable_non_atomic_layout_size_in_bytes() const { return _nullable_non_atomic_layout_size_in_bytes; }
+  bool has_non_atomic_flat_layout() const      { return _non_atomic_layout_size_in_bytes != -1; }
+  int  non_atomic_layout_size_in_bytes() const { return _non_atomic_layout_size_in_bytes; }
+  int  non_atomic_layout_alignment() const     { return _non_atomic_layout_alignment; }
+  bool has_atomic_layout() const               { return _atomic_layout_size_in_bytes != -1; }
+  int  atomic_layout_size_in_bytes() const     { return _atomic_layout_size_in_bytes; }
+  bool has_nullable_atomic_layout() const      { return _nullable_layout_size_in_bytes != -1; }
+  int  nullable_layout_size_in_bytes() const   { return _nullable_layout_size_in_bytes; }
   int  null_marker_offset() const              { return _null_marker_offset; }
   bool is_empty_inline_class() const           { return _is_empty_inline_class; }
 
   void build_layout();
   void compute_regular_layout();
   void compute_inline_class_layout();
-  LayoutRawBlock* insert_contended_padding(LayoutRawBlock* slot);
+  void insert_contended_padding(LayoutRawBlock* slot);
 
  protected:
   void prologue();

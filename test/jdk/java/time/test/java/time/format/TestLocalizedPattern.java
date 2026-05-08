@@ -22,7 +22,7 @@
  */
 package test.java.time.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.DateTimeException;
 import java.time.ZonedDateTime;
@@ -34,16 +34,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test DateTimeFormatter.ofLocalizedPattern() related methods.
  * @bug 8176706 8284840 8354548
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestLocalizedPattern {
 
     private static final ZonedDateTime ZDT =
@@ -54,6 +52,7 @@ public class TestLocalizedPattern {
             Locale.forLanguageTag("ja-JP-u-ca-japanese")
     );
 
+    @DataProvider(name = "validSkeletons")
     Object[][] data_validSkeletons() {
         return SAMPLE_LOCALES.stream()
                 .flatMap(l -> {
@@ -64,46 +63,43 @@ public class TestLocalizedPattern {
                 .toArray(new Object[0][0]);
     }
 
+    @DataProvider(name = "invalidSkeletons")
     Object[][] data_invalidSkeletons() {
         return new Object[][] {
             {"afo"}, {"hB"}, {"uMMM"}, {"MMMMMM"}, {"BhmsyMMM"},
         };
     }
 
+    @DataProvider(name = "unavailableSkeletons")
     Object[][] data_unavailableSkeletons() {
         return new Object[][] {
             {"yyyyyy"}, {"BBh"}, {"yMMMMEdBBh"},
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_validSkeletons")
+    @Test(dataProvider = "validSkeletons")
     public void test_ofLocalizedPattern(String skeleton, String expected, Locale l) {
         var dtf = DateTimeFormatter.ofLocalizedPattern(skeleton).localizedBy(l);
-        assertEquals(expected, dtf.format(ZDT));
+        assertEquals(dtf.format(ZDT), expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_invalidSkeletons")
+    @Test(dataProvider = "invalidSkeletons", expectedExceptions = IllegalArgumentException.class)
     public void test_ofLocalizedPattern_invalid(String skeleton) {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> DateTimeFormatter.ofLocalizedPattern(skeleton));
+        DateTimeFormatter.ofLocalizedPattern(skeleton);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_invalidSkeletons")
+    @Test(dataProvider = "invalidSkeletons", expectedExceptions = IllegalArgumentException.class)
     public void test_appendLocalized_invalid(String skeleton) {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new DateTimeFormatterBuilder().appendLocalized(skeleton));
+        new DateTimeFormatterBuilder().appendLocalized(skeleton);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_unavailableSkeletons")
+    @Test(dataProvider = "unavailableSkeletons", expectedExceptions = DateTimeException.class)
     public void test_ofLocalizedPattern_unavailable(String skeleton) {
-        Assertions.assertThrows(DateTimeException.class, () -> DateTimeFormatter.ofLocalizedPattern(skeleton).format(ZDT));
+        DateTimeFormatter.ofLocalizedPattern(skeleton).format(ZDT);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_unavailableSkeletons")
+    @Test(dataProvider = "unavailableSkeletons", expectedExceptions = DateTimeException.class)
     public void test_getLocalizedDateTimePattern_unavailable(String skeleton) {
-        Assertions.assertThrows(DateTimeException.class, () -> DateTimeFormatterBuilder.getLocalizedDateTimePattern(skeleton, IsoChronology.INSTANCE, Locale.US));
+        DateTimeFormatterBuilder.getLocalizedDateTimePattern(skeleton, IsoChronology.INSTANCE, Locale.US);
     }
 }

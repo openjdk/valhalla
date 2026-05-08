@@ -377,9 +377,6 @@ OopMap *OopFlow::build_oop_map( Node *n, int max_reg, PhaseRegAlloc *regalloc, i
               worklist.push(u);
             }
           }
-          if (m->is_SpillCopy()) {
-            worklist.push(m->in(1));
-          }
         }
       }
 #endif

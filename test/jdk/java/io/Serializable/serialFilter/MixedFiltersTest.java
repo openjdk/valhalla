@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,20 @@ import java.io.ByteArrayInputStream;
 import java.io.InvalidClassException;
 import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
-import java.io.Serial;
 import java.io.Serializable;
 import java.security.Security;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.api.condition.DisabledIf;
-import org.junit.jupiter.api.condition.EnabledIf;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /* @test
  * @build MixedFiltersTest SerialFilterTest
- * @run junit/othervm -Djdk.serialFilter=!java.**;!java.lang.Long;maxdepth=5;maxarray=5;maxbytes=90;maxrefs=5          MixedFiltersTest
- * @run junit/othervm -Djdk.serialFilter=java.**;java.lang.Long;maxdepth=1000;maxarray=1000;maxbytes=1000;maxrefs=1000 MixedFiltersTest
+ * @run testng/othervm -Djdk.serialFilter=!java.**;!java.lang.Long;maxdepth=5;maxarray=5;maxbytes=90;maxrefs=5          MixedFiltersTest
+ * @run testng/othervm -Djdk.serialFilter=java.**;java.lang.Long;maxdepth=1000;maxarray=1000;maxbytes=1000;maxrefs=1000 MixedFiltersTest
  *
  * @summary Test that when both global filter and specific filter are set,
  *          global filter will not affect specific filter.
@@ -47,17 +46,23 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 public class MixedFiltersTest implements Serializable {
 
-    @Serial
     private static final long serialVersionUID = 1234567890L;
 
-    private static final String JDK_SERIAL_FILTER = System.getProperty("jdk.serialFilter",
-            Security.getProperty("jdk.serialFilter"));
 
-    private static boolean globalRejected() {
-        return JDK_SERIAL_FILTER.startsWith("!");
+    boolean globalRejected;
+
+    @BeforeClass
+    public void setup() {
+        String pattern = System.getProperty("jdk.serialFilter",
+                Security.getProperty("jdk.serialFilter"));
+        globalRejected = pattern.startsWith("!");
     }
 
-    static Object[][] rejectedInGlobal() {
+    @DataProvider(name="RejectedInGlobal")
+    Object[][] rejectedInGlobal() {
+        if (!globalRejected) {
+            return new Object[0][];
+        }
         return new Object[][] {
                 new Object[] { Long.MAX_VALUE, "java.**" },
                 new Object[] { Long.MAX_VALUE, "java.lang.Long" },
@@ -74,9 +79,7 @@ public class MixedFiltersTest implements Serializable {
      *   "global filter reject" + "specific ObjectInputStream filter is empty" => should reject
      *   "global filter reject" + "specific ObjectInputStream filter allow"    => should allow
      */
-    @ParameterizedTest
-    @EnabledIf("globalRejected")
-    @MethodSource("rejectedInGlobal")
+    @Test(dataProvider="RejectedInGlobal")
     public void testRejectedInGlobal(Object toDeserialized, String pattern) throws Exception {
         byte[] bytes = SerialFilterTest.writeObjects(toDeserialized);
         try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
@@ -93,7 +96,12 @@ public class MixedFiltersTest implements Serializable {
         }
     }
 
-    static Object[][] allowedInGlobal() {
+    @DataProvider(name="AllowedInGlobal")
+    Object[][] allowedInGlobal() {
+        if (globalRejected) {
+            return new Object[0][];
+        }
+
         return new Object[][] {
                 new Object[] { Long.MAX_VALUE, "!java.**" },
                 new Object[] { Long.MAX_VALUE, "!java.lang.Long" },
@@ -110,9 +118,7 @@ public class MixedFiltersTest implements Serializable {
      *   "global filter allow" + "specific ObjectInputStream filter is empty" => should allow
      *   "global filter allow" + "specific ObjectInputStream filter reject"   => should reject
      */
-    @ParameterizedTest
-    @DisabledIf("globalRejected")
-    @MethodSource("allowedInGlobal")
+    @Test(dataProvider="AllowedInGlobal")
     public void testAllowedInGlobal(Object toDeserialized, String pattern) throws Exception {
         byte[] bytes = SerialFilterTest.writeObjects(toDeserialized);
         try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);

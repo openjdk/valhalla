@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.misc
  * @build java.base/*
- * @run junit StaticInvocableTest
+ * @run testng StaticInvocableTest
  */
 
 import java.lang.classfile.ClassFile;
@@ -39,6 +39,7 @@ import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.LookupHelper;
 import java.lang.reflect.AccessFlag;
+import org.testng.annotations.Test;
 
 import static java.lang.classfile.ClassFile.ACC_PUBLIC;
 import static java.lang.classfile.ClassFile.ACC_STATIC;
@@ -46,7 +47,6 @@ import static java.lang.constant.ConstantDescs.CD_Object;
 import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.INIT_NAME;
 import static java.lang.constant.ConstantDescs.MTD_void;
-import org.junit.jupiter.api.Test;
 
 public class StaticInvocableTest {
     public static void main(String[] args) throws Throwable {

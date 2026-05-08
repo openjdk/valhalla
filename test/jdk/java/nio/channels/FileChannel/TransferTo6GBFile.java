@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @bug 6253145
  * @summary Test FileChannel.transferTo with file positions up to 8GB
  * @build FileChannelUtils
- * @run junit/timeout=300 TransferTo6GBFile
+ * @run testng/timeout=300 TransferTo6GBFile
  */
 
 import java.io.IOException;
@@ -40,13 +40,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import static java.nio.file.StandardOpenOption.*;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TransferTo6GBFile {
 
@@ -130,14 +126,16 @@ public class TransferTo6GBFile {
                     long nread = 0;
                     while (nread < count) {
                         int n = source.read(readbuf);
-                        assertTrue(n >= 0, "Premature EOF!");
+                        if (n < 0)
+                            throw new RuntimeException("Premature EOF!");
                         nread += n;
                     }
 
                     // check reply from echo server
                     readbuf.flip();
                     sendbuf.flip();
-                    assertEquals(sendbuf, readbuf, "Echoed bytes do not match!");
+                    if (!readbuf.equals(sendbuf))
+                        throw new RuntimeException("Echoed bytes do not match!");
                     readbuf.clear();
                     sendbuf.clear();
                 }

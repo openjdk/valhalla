@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @run junit/othervm/timeout=600 --enable-native-access=ALL-UNNAMED StdLibTest
+ * @run testng/othervm/timeout=480 --enable-native-access=ALL-UNNAMED StdLibTest
  */
 
 import java.lang.invoke.MethodHandle;
@@ -41,83 +41,73 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import java.lang.foreign.*;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.*;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
 
-final class StdLibTest extends NativeTestHelper {
+public class StdLibTest extends NativeTestHelper {
 
-    static final Linker ABI = Linker.nativeLinker();
+    final static Linker abi = Linker.nativeLinker();
 
-    static final StdLibHelper STD_LIB_HELPER = new StdLibHelper();
+    private StdLibHelper stdLibHelper = new StdLibHelper();
 
-    @ParameterizedTest
-    @MethodSource("stringPairs")
+    @Test(dataProvider = "stringPairs")
     void test_strcat(String s1, String s2) throws Throwable {
-        assertEquals(s1 + s2, STD_LIB_HELPER.strcat(s1, s2));
+        assertEquals(stdLibHelper.strcat(s1, s2), s1 + s2);
     }
 
-    @ParameterizedTest
-    @MethodSource("stringPairs")
+    @Test(dataProvider = "stringPairs")
     void test_strcmp(String s1, String s2) throws Throwable {
-        assertEquals(Math.signum(s1.compareTo(s2)), Math.signum(STD_LIB_HELPER.strcmp(s1, s2)));
+        assertEquals(Math.signum(stdLibHelper.strcmp(s1, s2)), Math.signum(s1.compareTo(s2)));
     }
 
-    @ParameterizedTest
-    @MethodSource("strings")
+    @Test(dataProvider = "strings")
     void test_puts(String s) throws Throwable {
-        assertTrue(STD_LIB_HELPER.puts(s) >= 0);
+        assertTrue(stdLibHelper.puts(s) >= 0);
     }
 
-    @ParameterizedTest
-    @MethodSource("strings")
+    @Test(dataProvider = "strings")
     void test_strlen(String s) throws Throwable {
-        assertEquals(STD_LIB_HELPER.strlen(s), s.length());
+        assertEquals(stdLibHelper.strlen(s), s.length());
     }
 
-    @ParameterizedTest
-    @MethodSource("instants")
+    @Test(dataProvider = "instants")
     void test_time(Instant instant) throws Throwable {
-        StdLibHelper.Tm tm = STD_LIB_HELPER.gmtime(instant.getEpochSecond());
+        StdLibHelper.Tm tm = stdLibHelper.gmtime(instant.getEpochSecond());
         LocalDateTime localTime = LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
-        assertEquals(localTime.getSecond(), tm.sec());
-        assertEquals(localTime.getMinute(), tm.min());
-        assertEquals(localTime.getHour(), tm.hour());
+        assertEquals(tm.sec(), localTime.getSecond());
+        assertEquals(tm.min(), localTime.getMinute());
+        assertEquals(tm.hour(), localTime.getHour());
         //day pf year in Java has 1-offset
-        assertEquals(localTime.getDayOfYear() - 1, tm.yday());
-        assertEquals(localTime.getDayOfMonth(), tm.mday());
+        assertEquals(tm.yday(), localTime.getDayOfYear() - 1);
+        assertEquals(tm.mday(), localTime.getDayOfMonth());
         //days of week starts from Sunday in C, but on Monday in Java, also account for 1-offset
-        assertEquals(localTime.getDayOfWeek().getValue() - 1,  (tm.wday() + 6) % 7);
+        assertEquals((tm.wday() + 6) % 7, localTime.getDayOfWeek().getValue() - 1);
         //month in Java has 1-offset
-        assertEquals(localTime.getMonth().getValue() - 1, tm.mon());
-        assertEquals(ZoneOffset.UTC.getRules()
-                .isDaylightSavings(Instant.ofEpochMilli(instant.getEpochSecond() * 1000)), tm.isdst());
+        assertEquals(tm.mon(), localTime.getMonth().getValue() - 1);
+        assertEquals(tm.isdst(), ZoneOffset.UTC.getRules()
+                .isDaylightSavings(Instant.ofEpochMilli(instant.getEpochSecond() * 1000)));
     }
 
-    @ParameterizedTest
-    @MethodSource("ints")
+    @Test(dataProvider = "ints")
     void test_qsort(List<Integer> ints) throws Throwable {
         if (ints.size() > 0) {
             int[] input = ints.stream().mapToInt(i -> i).toArray();
-            int[] sorted = STD_LIB_HELPER.qsort(input);
+            int[] sorted = stdLibHelper.qsort(input);
             Arrays.sort(input);
-            assertArrayEquals(input, sorted);
+            assertEquals(sorted, input);
         }
     }
 
     @Test
     void test_rand() throws Throwable {
-        int val = STD_LIB_HELPER.rand();
+        int val = stdLibHelper.rand();
         for (int i = 0 ; i < 100 ; i++) {
-            int newVal = STD_LIB_HELPER.rand();
+            int newVal = stdLibHelper.rand();
             if (newVal != val) {
                 return; //ok
             }
@@ -126,8 +116,7 @@ final class StdLibTest extends NativeTestHelper {
         fail("All values are the same! " + val);
     }
 
-    @ParameterizedTest
-    @MethodSource("printfArgs")
+    @Test(dataProvider = "printfArgs")
     void test_printf(List<PrintfArg> args) throws Throwable {
         String javaFormatArgs = args.stream()
                 .map(a -> a.javaFormat)
@@ -142,8 +131,8 @@ final class StdLibTest extends NativeTestHelper {
         String expected = String.format(javaFormatString, args.stream()
                 .map(a -> a.javaValue).toArray());
 
-        int found = STD_LIB_HELPER.printf(nativeFormatString, args);
-        assertEquals(expected.length(), found);
+        int found = stdLibHelper.printf(nativeFormatString, args);
+        assertEquals(found, expected.length());
     }
 
     @Test
@@ -151,25 +140,25 @@ final class StdLibTest extends NativeTestHelper {
         assertTrue(LINKER.defaultLookup().find("strlen\u0000foobar").isEmpty());
     }
 
-    static final class StdLibHelper {
+    static class StdLibHelper {
 
-        final static MethodHandle strcat = ABI.downcallHandle(ABI.defaultLookup().findOrThrow("strcat"),
+        final static MethodHandle strcat = abi.downcallHandle(abi.defaultLookup().find("strcat").get(),
                 FunctionDescriptor.of(C_POINTER, C_POINTER, C_POINTER));
 
-        final static MethodHandle strcmp = ABI.downcallHandle(ABI.defaultLookup().findOrThrow("strcmp"),
+        final static MethodHandle strcmp = abi.downcallHandle(abi.defaultLookup().find("strcmp").get(),
                 FunctionDescriptor.of(C_INT, C_POINTER, C_POINTER));
 
-        final static MethodHandle puts = ABI.downcallHandle(ABI.defaultLookup().findOrThrow("puts"),
+        final static MethodHandle puts = abi.downcallHandle(abi.defaultLookup().find("puts").get(),
                 FunctionDescriptor.of(C_INT, C_POINTER));
 
-        final static MethodHandle strlen = ABI.downcallHandle(ABI.defaultLookup().findOrThrow("strlen"),
+        final static MethodHandle strlen = abi.downcallHandle(abi.defaultLookup().find("strlen").get(),
                 FunctionDescriptor.of(C_INT, C_POINTER));
 
-        final static MethodHandle gmtime = ABI.downcallHandle(ABI.defaultLookup().findOrThrow("gmtime"),
+        final static MethodHandle gmtime = abi.downcallHandle(abi.defaultLookup().find("gmtime").get(),
                 FunctionDescriptor.of(C_POINTER.withTargetLayout(Tm.LAYOUT), C_POINTER));
 
         // void qsort( void *ptr, size_t count, size_t size, int (*comp)(const void *, const void *) );
-        final static MethodHandle qsort = ABI.downcallHandle(ABI.defaultLookup().findOrThrow("qsort"),
+        final static MethodHandle qsort = abi.downcallHandle(abi.defaultLookup().find("qsort").get(),
                 FunctionDescriptor.ofVoid(C_POINTER, C_SIZE_T, C_SIZE_T, C_POINTER));
 
         final static FunctionDescriptor qsortComparFunction = FunctionDescriptor.of(C_INT,
@@ -177,13 +166,13 @@ final class StdLibTest extends NativeTestHelper {
 
         final static MethodHandle qsortCompar;
 
-        final static MethodHandle rand = ABI.downcallHandle(ABI.defaultLookup().findOrThrow("rand"),
+        final static MethodHandle rand = abi.downcallHandle(abi.defaultLookup().find("rand").get(),
                 FunctionDescriptor.of(C_INT));
 
-        final static MethodHandle vprintf = ABI.downcallHandle(ABI.defaultLookup().findOrThrow("vprintf"),
+        final static MethodHandle vprintf = abi.downcallHandle(abi.defaultLookup().find("vprintf").get(),
                 FunctionDescriptor.of(C_INT, C_POINTER, C_POINTER));
 
-        final static MemorySegment printfAddr = ABI.defaultLookup().findOrThrow("printf");
+        final static MemorySegment printfAddr = abi.defaultLookup().find("printf").get();
 
         final static FunctionDescriptor printfBase = FunctionDescriptor.of(C_INT, C_POINTER);
 
@@ -236,7 +225,7 @@ final class StdLibTest extends NativeTestHelper {
             }
         }
 
-        static final class Tm {
+        static class Tm {
 
             //Tm pointer should never be freed directly, as it points to shared memory
             private final MemorySegment base;
@@ -293,7 +282,7 @@ final class StdLibTest extends NativeTestHelper {
                 MemorySegment nativeArr = arena.allocateFrom(C_INT, arr);
 
                 //call qsort
-                MemorySegment qsortUpcallStub = ABI.upcallStub(qsortCompar, qsortComparFunction, arena);
+                MemorySegment qsortUpcallStub = abi.upcallStub(qsortCompar, qsortComparFunction, arena);
 
                 // both of these fit in an int
                 // automatically widen them to long on x64
@@ -308,7 +297,7 @@ final class StdLibTest extends NativeTestHelper {
 
         static int qsortCompare(MemorySegment addr1, MemorySegment addr2) {
             return addr1.get(C_INT, 0) -
-                    addr2.get(C_INT, 0);
+                   addr2.get(C_INT, 0);
         }
 
         int rand() throws Throwable {
@@ -333,7 +322,7 @@ final class StdLibTest extends NativeTestHelper {
                 variadicLayouts.add(arg.layout);
             }
             Linker.Option varargIndex = Linker.Option.firstVariadicArg(fd.argumentLayouts().size());
-            MethodHandle mh = ABI.downcallHandle(printfAddr,
+            MethodHandle mh = abi.downcallHandle(printfAddr,
                     fd.appendArgumentLayouts(variadicLayouts.toArray(new MemoryLayout[args.size()])),
                     varargIndex);
             return mh.asSpreader(1, Object[].class, args.size());
@@ -342,36 +331,47 @@ final class StdLibTest extends NativeTestHelper {
 
     /*** data providers ***/
 
-    static Stream<Arguments> ints() {
+    @DataProvider
+    public static Object[][] ints() {
         return perms(0, new Integer[] { 0, 1, 2, 3, 4 }).stream()
-                .map(Arguments::of);
+                .map(l -> new Object[] { l })
+                .toArray(Object[][]::new);
     }
 
-    static Stream<Arguments> strings() {
-        return strings0()
-                .map(Arguments::of);
-    }
-
-    static Stream<Arguments> stringPairs() {
-        return strings0()
-                .flatMap(s -> strings0()
-                        .map(s2 -> Arguments.of(s, s2)));
-    }
-
-    static Stream<String> strings0() {
+    @DataProvider
+    public static Object[][] strings() {
         return perms(0, new String[] { "a", "b", "c" }).stream()
-                .map(l -> String.join("", l));
+                .map(l -> new Object[] { String.join("", l) })
+                .toArray(Object[][]::new);
     }
 
-    static Stream<Arguments> instants() {
+    @DataProvider
+    public static Object[][] stringPairs() {
+        Object[][] strings = strings();
+        Object[][] stringPairs = new Object[strings.length * strings.length][];
+        int pos = 0;
+        for (Object[] s1 : strings) {
+            for (Object[] s2 : strings) {
+                stringPairs[pos++] = new Object[] { s1[0], s2[0] };
+            }
+        }
+        return stringPairs;
+    }
+
+    @DataProvider
+    public static Object[][] instants() {
         Instant start = ZonedDateTime.of(LocalDateTime.parse("2017-01-01T00:00:00"), ZoneOffset.UTC).toInstant();
         Instant end = ZonedDateTime.of(LocalDateTime.parse("2017-12-31T00:00:00"), ZoneOffset.UTC).toInstant();
-        return IntStream.range(0, 100)
-                .mapToObj(i -> start.plusSeconds((long)(Math.random() * (end.getEpochSecond() - start.getEpochSecond()))))
-                .map(Arguments::of);
+        Object[][] instants = new Object[100][];
+        for (int i = 0 ; i < instants.length ; i++) {
+            Instant instant = start.plusSeconds((long)(Math.random() * (end.getEpochSecond() - start.getEpochSecond())));
+            instants[i] = new Object[] { instant };
+        }
+        return instants;
     }
 
-    static Stream<Arguments> printfArgs() {
+    @DataProvider
+    public static Object[][] printfArgs() {
         ArrayList<List<PrintfArg>> res = new ArrayList<>();
         List<List<PrintfArg>> perms = new ArrayList<>(perms(0, PrintfArg.values()));
         for (int i = 0 ; i < 100 ; i++) {
@@ -379,7 +379,8 @@ final class StdLibTest extends NativeTestHelper {
             res.addAll(perms);
         }
         return res.stream()
-                .map(Arguments::of);
+                .map(l -> new Object[] { l })
+                .toArray(Object[][]::new);
     }
 
     enum PrintfArg {

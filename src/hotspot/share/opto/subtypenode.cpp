@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
- * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +46,7 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     }
   }
 
-  // TODO 8350865 Shouldn't this be encoded in helper methods of the type system (maybe_java_subtype_of() etc.?)
+  // FIXME: shouldn't this be encoded in helper methods of the type system (maybe_java_subtype_of() etc.?)
   // Similar to logic in CmpPNode::sub()
   bool unrelated_classes = false;
 
@@ -68,9 +67,8 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     super_klass_type_for_flat_in_array = super_klass_type->cast_to_exactness(false);
   }
 
-  if ((sub_klass_type->is_flat_in_array() && super_klass_type_for_flat_in_array->is_not_flat_in_array()) ||
-      (super_klass_type_for_flat_in_array->is_flat_in_array() && sub_klass_type->is_not_flat_in_array())) {
-    // The subtype is flat in array and the supertype is not in flat array or vice versa. Cannot subtype and thus unrelated.
+  if (sub_klass_type->is_flat_in_array() && super_klass_type_for_flat_in_array->is_not_flat_in_array()) {
+    // The subtype is in flat arrays and the supertype is not in flat arrays and no subklass can be. Must be unrelated.
     unrelated_classes = true;
   } else if (sub_klass_type->is_not_flat() && super_klass_type->is_flat()) {
     // The subtype is a non-flat array and the supertype is a flat array. Must be unrelated.
@@ -217,12 +215,12 @@ bool SubTypeCheckNode::verify(PhaseGVN* phase) {
       return true;
     }
     const Type* cached_t = Value(phase); // cache the type to validate consistency
-    switch (C->static_subtype_check(superk, subk, false)) {
+    switch (C->static_subtype_check(superk, subk)) {
       case Compile::SSC_easy_test: {
         return verify_helper(phase, load_klass(phase), cached_t);
       }
       case Compile::SSC_full_test: {
-        Node* p1 = phase->transform(AddPNode::make_off_heap(superklass, phase->MakeConX(in_bytes(Klass::super_check_offset_offset()))));
+        Node* p1 = phase->transform(new AddPNode(superklass, superklass, phase->MakeConX(in_bytes(Klass::super_check_offset_offset()))));
         Node* chk_off = phase->transform(new LoadINode(nullptr, C->immutable_memory(), p1, phase->type(p1)->is_ptr(), TypeInt::INT, MemNode::unordered));
         record_for_cleanup(chk_off, phase);
 
@@ -234,7 +232,7 @@ bool SubTypeCheckNode::verify(PhaseGVN* phase) {
 #ifdef _LP64
           chk_off_X = phase->transform(new ConvI2LNode(chk_off_X));
 #endif
-          Node* p2 = phase->transform(AddPNode::make_off_heap(subklass, chk_off_X));
+          Node* p2 = phase->transform(new AddPNode(subklass, subklass, chk_off_X));
           Node* nkls = phase->transform(LoadKlassNode::make(*phase, C->immutable_memory(), p2, phase->type(p2)->is_ptr(), TypeInstKlassPtr::OBJECT_OR_NULL));
 
           return verify_helper(phase, nkls, cached_t);
@@ -257,7 +255,7 @@ Node* SubTypeCheckNode::load_klass(PhaseGVN* phase) const {
   const Type* sub_t = phase->type(obj_or_subklass);
   Node* subklass = nullptr;
   if (sub_t->isa_oopptr()) {
-    Node* adr = phase->transform(AddPNode::make_with_base(obj_or_subklass, phase->MakeConX(oopDesc::klass_offset_in_bytes())));
+    Node* adr = phase->transform(new AddPNode(obj_or_subklass, obj_or_subklass, phase->MakeConX(oopDesc::klass_offset_in_bytes())));
     subklass  = phase->transform(LoadKlassNode::make(*phase, phase->C->immutable_memory(), adr, TypeInstPtr::KLASS));
     record_for_cleanup(subklass, phase);
   } else {

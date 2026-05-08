@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -95,6 +95,10 @@ static inline Address daddress(Register r, Register scratch,
 
 static inline Address aaddress(Register r) {
   return iaddress(r);
+}
+
+static inline Address at_rsp() {
+  return Address(esp, 0);
 }
 
 // At top of Java expression stack which may be different than esp().  It
@@ -2029,15 +2033,14 @@ void TemplateTable::if_acmp(Condition cc) {
   __ mov(is_inline_type_mask, markWord::inline_type_pattern);
 
   if (Arguments::is_valhalla_enabled()) {
-    // The substitutability test is only necessary if r1 and r0 are not the same...
     __ cmp(r1, r0);
     __ br(Assembler::EQ, (cc == equal) ? taken : not_taken);
 
-    // ... neither are null...
-    __ cbz(r1, (cc == equal) ? not_taken : taken);
-    __ cbz(r0, (cc == equal) ? not_taken : taken);
+    // might be substitutable, test if either r0 or r1 is null
+    __ andr(r2, r0, r1);
+    __ cbz(r2, (cc == equal) ? not_taken : taken);
 
-    // ...and both are values...
+    // and both are values ?
     __ ldr(r2, Address(r1, oopDesc::mark_offset_in_bytes()));
     __ andr(r2, r2, is_inline_type_mask);
     __ ldr(r4, Address(r0, oopDesc::mark_offset_in_bytes()));
@@ -2046,7 +2049,7 @@ void TemplateTable::if_acmp(Condition cc) {
     __ cmp(r2,  is_inline_type_mask);
     __ br(Assembler::NE, (cc == equal) ? not_taken : taken);
 
-    // ...with the same value klass
+    // same value klass ?
     __ load_metadata(r2, r1);
     __ load_metadata(r4, r0);
     __ cmp(r2, r4);
@@ -2392,8 +2395,7 @@ void TemplateTable::resolve_cache_and_index_for_method(int byte_no,
   __ subs(zr, temp, (int) code);  // have we resolved this bytecode?
 
   // Class initialization barrier for static methods
-  if (bytecode() == Bytecodes::_invokestatic) {
-    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
+  if (VM_Version::supports_fast_class_init_checks() && bytecode() == Bytecodes::_invokestatic) {
     __ br(Assembler::NE, L_clinit_barrier_slow);
     __ ldr(temp, Address(Rcache, in_bytes(ResolvedMethodEntry::method_offset())));
     __ load_method_holder(temp, temp);
@@ -2443,8 +2445,8 @@ void TemplateTable::resolve_cache_and_index_for_field(int byte_no,
   __ subs(zr, temp, (int) code);  // have we resolved this bytecode?
 
   // Class initialization barrier for static fields
-  if (bytecode() == Bytecodes::_getstatic || bytecode() == Bytecodes::_putstatic) {
-    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
+  if (VM_Version::supports_fast_class_init_checks() &&
+      (bytecode() == Bytecodes::_getstatic || bytecode() == Bytecodes::_putstatic)) {
     const Register field_holder = temp;
 
     __ br(Assembler::NE, L_clinit_barrier_slow);
@@ -2707,6 +2709,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 {
   const Register cache     = r2;
   const Register obj       = r4;
+  const Register klass     = r5;
+  const Register inline_klass = r7;
+  const Register field_index = r23;
   const Register index     = r3;
   const Register tos_state = r3;
   const Register off       = r19;
@@ -2715,6 +2720,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   resolve_cache_and_index_for_field(byte_no, cache, index);
   jvmti_post_field_access(cache, index, is_static, false);
+
+  // Valhalla extras
+  __ load_unsigned_short(field_index, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
+  __ ldr(klass, Address(cache, ResolvedFieldEntry::field_holder_offset()));
 
   load_resolved_field_entry(obj, cache, tos_state, off, flags, is_static);
 
@@ -2798,7 +2807,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ bind(is_flat);
       // field is flat (null-free or nullable with a null-marker)
       __ mov(r0, obj);
-      __ read_flat_field(cache, r0);
+      __ read_flat_field(cache, field_index, off, inline_klass /* temp */, r0);
       __ verify_oop(r0);
       __ push(atos);
       if (rc == may_rewrite) {
@@ -3401,8 +3410,10 @@ void TemplateTable::fast_accessfield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_vgetfield:
     {
+      Register index = r4, tmp = r7;
       // field is flat
-      __ read_flat_field(r2, r0);
+      __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
+      __ read_flat_field(r2, index, r1, tmp /* temp */, r0);
       __ verify_oop(r0);
     }
     break;
@@ -3563,7 +3574,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ load_klass(r0, recv);
 
   // profile this call
-  __ profile_virtual_call(r0, rlocals);
+  __ profile_virtual_call(r0, rlocals, r3);
 
   // get target Method & entry point
   __ lookup_virtual_method(r0, index, method);
@@ -3676,6 +3687,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ bind(notVFinal);
 
   // Get receiver klass into r3
+  __ restore_locals();
   __ load_klass(r3, r2);
 
   Label no_such_method;
@@ -3692,7 +3704,7 @@ void TemplateTable::invokeinterface(int byte_no) {
                              /*return_method=*/false);
 
   // profile this call
-  __ profile_virtual_call(r3, r13);
+  __ profile_virtual_call(r3, r13, r19);
 
   // Get declaring interface class from method, and itable index
 

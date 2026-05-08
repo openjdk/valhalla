@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,8 +50,8 @@ import java.util.function.Function;
  * @summary Test atomic access modes on var handles for flattened values
  * @enablePreview
  * @modules java.base/jdk.internal.value java.base/jdk.internal.vm.annotation
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening -XX:-UseNullableAtomicValueFlattening FlatVarHandleTest
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening FlatVarHandleTest
+ * @run junit/othervm -XX:-UseArrayFlattening -XX:-UseNullableValueFlattening FlatVarHandleTest
+ * @run junit/othervm -XX:+UseArrayFlattening -XX:+UseNullableValueFlattening FlatVarHandleTest
  */
 public class FlatVarHandleTest {
 
@@ -93,15 +94,12 @@ public class FlatVarHandleTest {
     static class WeakPointHolder {
         WeakPoint p_i = new WeakPoint(0, 0);
         static WeakPoint p_s = new WeakPoint(0, 0);
+        @Strict
         @NullRestricted
-        WeakPoint p_i_nr;
+        WeakPoint p_i_nr = new WeakPoint(0, 0);
+        @Strict
         @NullRestricted
         static WeakPoint p_s_nr = new WeakPoint(0, 0);
-
-        WeakPointHolder() {
-            p_i_nr = new WeakPoint(0, 0);
-            super();
-        }
     }
 
     static value class StrongPoint implements Pointable {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,9 @@ import javax.accessibility.AccessibleIcon;
 import javax.accessibility.AccessibleRole;
 import javax.accessibility.AccessibleState;
 import javax.accessibility.AccessibleStateSet;
+
+import sun.awt.AWTAccessor;
+import sun.awt.AppContext;
 
 /**
  * An implementation of the Icon interface that paints Icons
@@ -107,7 +110,18 @@ public class ImageIcon implements Icon, Serializable, Accessible {
      * @deprecated since 1.8
      */
     @Deprecated
-    protected static final Component component = new Component() {};
+    protected static final Component component = createComponent();
+
+    private static final Component createComponent() {
+        try {
+            Component component = new Component() {};
+            // 6482575 - clear the appContext field so as not to leak it
+            AWTAccessor.getComponentAccessor().setAppContext(component, null);
+            return component;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
 
     /**
      * Do not use this shared media tracker, which is used to load images.
@@ -121,6 +135,8 @@ public class ImageIcon implements Icon, Serializable, Accessible {
      * Id used in loading images from MediaTracker.
      */
     private static int mediaTrackerID;
+
+    private static final Object TRACKER_KEY = new StringBuilder("TRACKER_KEY");
 
     int width = -1;
     int height = -1;
@@ -330,12 +346,24 @@ public class ImageIcon implements Icon, Serializable, Accessible {
         }
     }
 
-    private static final MediaTracker MEDIA_TRACKER = new MediaTracker(new Component() {});
     /**
-     * Returns the shared MediaTracker.
+     * Returns the MediaTracker for the current AppContext, creating a new
+     * MediaTracker if necessary.
      */
     private MediaTracker getTracker() {
-        return MEDIA_TRACKER;
+        Object trackerObj;
+        AppContext ac = AppContext.getAppContext();
+        // Opt: Only synchronize if trackerObj comes back null?
+        // If null, synchronize, re-check for null, and put new tracker
+        synchronized(ac) {
+            trackerObj = ac.get(TRACKER_KEY);
+            if (trackerObj == null) {
+                Component comp = new Component() {};
+                trackerObj = new MediaTracker(comp);
+                ac.put(TRACKER_KEY, trackerObj);
+            }
+        }
+        return (MediaTracker) trackerObj;
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,8 @@
 package test.java.time.temporal;
 
 import static java.time.temporal.ChronoField.DAY_OF_WEEK;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -41,17 +40,16 @@ import java.time.temporal.TemporalField;
 import java.time.temporal.ValueRange;
 import java.time.temporal.WeekFields;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestIsoWeekFields {
 
+    @DataProvider(name = "fields")
     Object[][] data_Fields() {
         return new Object[][] {
                 {IsoFields.WEEK_OF_WEEK_BASED_YEAR, IsoFields.WEEK_BASED_YEAR},
@@ -62,101 +60,92 @@ public class TestIsoWeekFields {
     //-----------------------------------------------------------------------
     // WEEK_OF_WEEK_BASED_YEAR
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_WOWBY_basics(TemporalField weekField, TemporalField yearField) {
-        assertEquals(true, weekField.isDateBased());
-        assertEquals(false, weekField.isTimeBased());
-        assertEquals(ChronoUnit.WEEKS, weekField.getBaseUnit());
-        assertEquals(IsoFields.WEEK_BASED_YEARS, weekField.getRangeUnit());
+        assertEquals(weekField.isDateBased(), true);
+        assertEquals(weekField.isTimeBased(), false);
+        assertEquals(weekField.getBaseUnit(), ChronoUnit.WEEKS);
+        assertEquals(weekField.getRangeUnit(), IsoFields.WEEK_BASED_YEARS);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_WOWBY_isSupportedBy(TemporalField weekField, TemporalField yearField) {
-        assertEquals(false, weekField.isSupportedBy(LocalTime.NOON));
-        assertEquals(false, weekField.isSupportedBy(MonthDay.of(2, 1)));
-        assertEquals(true, weekField.isSupportedBy(LocalDate.MIN));
-        assertEquals(true, weekField.isSupportedBy(OffsetDateTime.MAX));
-        assertEquals(true, weekField.isSupportedBy(ThaiBuddhistDate.now()));
+        assertEquals(weekField.isSupportedBy(LocalTime.NOON), false);
+        assertEquals(weekField.isSupportedBy(MonthDay.of(2, 1)), false);
+        assertEquals(weekField.isSupportedBy(LocalDate.MIN), true);
+        assertEquals(weekField.isSupportedBy(OffsetDateTime.MAX), true);
+        assertEquals(weekField.isSupportedBy(ThaiBuddhistDate.now()), true);
     }
 
     @Test
     public void test_WOWBY_isSupportedBy_fieldsDiffer() {
-        assertEquals(false, IsoFields.WEEK_OF_WEEK_BASED_YEAR.isSupportedBy(HijrahDate.now()));
-        assertEquals(true, WeekFields.ISO.weekOfWeekBasedYear().isSupportedBy(HijrahDate.now()));
+        assertEquals(IsoFields.WEEK_OF_WEEK_BASED_YEAR.isSupportedBy(HijrahDate.now()), false);
+        assertEquals(WeekFields.ISO.weekOfWeekBasedYear().isSupportedBy(HijrahDate.now()), true);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_WOWBY_range(TemporalField weekField, TemporalField yearField) {
-        assertEquals(ValueRange.of(1, 52, 53), weekField.range());
+        assertEquals(weekField.range(), ValueRange.of(1, 52, 53));
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_WOWBY_rangeRefinedBy(TemporalField weekField, TemporalField yearField) {
-        assertEquals(ValueRange.of(1, 52), weekField.rangeRefinedBy(LocalDate.of(2012, 12, 31)));
-        assertEquals(ValueRange.of(1, 52), weekField.rangeRefinedBy(LocalDate.of(2013, 12, 29)));
-        assertEquals(ValueRange.of(1, 52), weekField.rangeRefinedBy(LocalDate.of(2013, 12, 30)));
-        assertEquals(ValueRange.of(1, 52), weekField.rangeRefinedBy(LocalDate.of(2014, 12, 28)));
-        assertEquals(ValueRange.of(1, 53), weekField.rangeRefinedBy(LocalDate.of(2014, 12, 29)));
-        assertEquals(ValueRange.of(1, 53), weekField.rangeRefinedBy(LocalDate.of(2016, 1, 3)));
-        assertEquals(ValueRange.of(1, 52), weekField.rangeRefinedBy(LocalDate.of(2016, 1, 4)));
+        assertEquals(weekField.rangeRefinedBy(LocalDate.of(2012, 12, 31)), ValueRange.of(1, 52));
+        assertEquals(weekField.rangeRefinedBy(LocalDate.of(2013, 12, 29)), ValueRange.of(1, 52));
+        assertEquals(weekField.rangeRefinedBy(LocalDate.of(2013, 12, 30)), ValueRange.of(1, 52));
+        assertEquals(weekField.rangeRefinedBy(LocalDate.of(2014, 12, 28)), ValueRange.of(1, 52));
+        assertEquals(weekField.rangeRefinedBy(LocalDate.of(2014, 12, 29)), ValueRange.of(1, 53));
+        assertEquals(weekField.rangeRefinedBy(LocalDate.of(2016, 1, 3)), ValueRange.of(1, 53));
+        assertEquals(weekField.rangeRefinedBy(LocalDate.of(2016, 1, 4)), ValueRange.of(1, 52));
     }
 
     //-----------------------------------------------------------------------
     // WEEK_BASED_YEAR
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_WBY_basics(TemporalField weekField, TemporalField yearField) {
-        assertEquals(true, yearField.isDateBased());
-        assertEquals(false, yearField.isTimeBased());
-        assertEquals(IsoFields.WEEK_BASED_YEARS, yearField.getBaseUnit());
-        assertEquals(ChronoUnit.FOREVER, yearField.getRangeUnit());
+        assertEquals(yearField.isDateBased(), true);
+        assertEquals(yearField.isTimeBased(), false);
+        assertEquals(yearField.getBaseUnit(), IsoFields.WEEK_BASED_YEARS);
+        assertEquals(yearField.getRangeUnit(), ChronoUnit.FOREVER);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_WBY_isSupportedBy(TemporalField weekField, TemporalField yearField) {
-        assertEquals(false, yearField.isSupportedBy(LocalTime.NOON));
-        assertEquals(false, yearField.isSupportedBy(MonthDay.of(2, 1)));
-        assertEquals(true, yearField.isSupportedBy(LocalDate.MIN));
-        assertEquals(true, yearField.isSupportedBy(OffsetDateTime.MAX));
-        assertEquals(true, yearField.isSupportedBy(ThaiBuddhistDate.now()));
+        assertEquals(yearField.isSupportedBy(LocalTime.NOON), false);
+        assertEquals(yearField.isSupportedBy(MonthDay.of(2, 1)), false);
+        assertEquals(yearField.isSupportedBy(LocalDate.MIN), true);
+        assertEquals(yearField.isSupportedBy(OffsetDateTime.MAX), true);
+        assertEquals(yearField.isSupportedBy(ThaiBuddhistDate.now()), true);
     }
 
     @Test
     public void test_WBY_isSupportedBy_ISO() {
-        assertEquals(false, IsoFields.WEEK_BASED_YEAR.isSupportedBy(HijrahDate.now()));
+        assertEquals(IsoFields.WEEK_BASED_YEAR.isSupportedBy(HijrahDate.now()), false);
     }
 
     @Test
     public void test_Unit_isSupportedBy_ISO() {
-        assertEquals(true, IsoFields.WEEK_BASED_YEARS.isSupportedBy(LocalDate.now()));
-        assertEquals(true, IsoFields.WEEK_BASED_YEARS.isSupportedBy(ThaiBuddhistDate.now()));
-        assertEquals(false, IsoFields.WEEK_BASED_YEARS.isSupportedBy(HijrahDate.now()));
-        assertEquals(true, IsoFields.QUARTER_YEARS.isSupportedBy(LocalDate.now()));
-        assertEquals(true, IsoFields.QUARTER_YEARS.isSupportedBy(ThaiBuddhistDate.now()));
-        assertEquals(false, IsoFields.QUARTER_YEARS.isSupportedBy(HijrahDate.now()));
+        assertEquals(IsoFields.WEEK_BASED_YEARS.isSupportedBy(LocalDate.now()), true);
+        assertEquals(IsoFields.WEEK_BASED_YEARS.isSupportedBy(ThaiBuddhistDate.now()), true);
+        assertEquals(IsoFields.WEEK_BASED_YEARS.isSupportedBy(HijrahDate.now()), false);
+        assertEquals(IsoFields.QUARTER_YEARS.isSupportedBy(LocalDate.now()), true);
+        assertEquals(IsoFields.QUARTER_YEARS.isSupportedBy(ThaiBuddhistDate.now()), true);
+        assertEquals(IsoFields.QUARTER_YEARS.isSupportedBy(HijrahDate.now()), false);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_WBY_range(TemporalField weekField, TemporalField yearField) {
-        assertEquals(ValueRange.of(Year.MIN_VALUE, Year.MAX_VALUE), yearField.range());
+        assertEquals(yearField.range(), ValueRange.of(Year.MIN_VALUE, Year.MAX_VALUE));
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_WBY_rangeRefinedBy(TemporalField weekField, TemporalField yearField) {
-        assertEquals(ValueRange.of(Year.MIN_VALUE, Year.MAX_VALUE), yearField.rangeRefinedBy(LocalDate.of(2012, 12, 31)));
+        assertEquals(yearField.rangeRefinedBy(LocalDate.of(2012, 12, 31)), ValueRange.of(Year.MIN_VALUE, Year.MAX_VALUE));
     }
 
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_getFrom(TemporalField weekField, TemporalField yearField) {
         // tests every day from 2011 to 2016 inclusive
         LocalDate date = LocalDate.of(2011, 1, 3);
@@ -164,9 +153,9 @@ public class TestIsoWeekFields {
         int week = 1;
         int dow = 1;
         for (int i = 1; i <= ((52 + 52 + 52 + 52 + 53 + 52) * 7); i++) {
-            assertEquals(wby, yearField.getFrom(date));
-            assertEquals(week, weekField.getFrom(date));
-            assertEquals(dow, DAY_OF_WEEK.getFrom(date));
+            assertEquals(yearField.getFrom(date), wby);
+            assertEquals(weekField.getFrom(date), week);
+            assertEquals(DAY_OF_WEEK.getFrom(date), dow);
             if (dow == 7) {
                 dow = 1;
                 week++;
@@ -179,13 +168,12 @@ public class TestIsoWeekFields {
             }
             date = date.plusDays(1);
         }
-        assertEquals(2017, yearField.getFrom(date));
-        assertEquals(1, weekField.getFrom(date));
-        assertEquals(1, DAY_OF_WEEK.getFrom(date));
+        assertEquals(yearField.getFrom(date), 2017);
+        assertEquals(weekField.getFrom(date), 1);
+        assertEquals(DAY_OF_WEEK.getFrom(date), 1);
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_adjustInto_dow(TemporalField weekField, TemporalField yearField) {
         // tests every day from 2012 to 2016 inclusive
         LocalDate date = LocalDate.of(2012, 1, 2);
@@ -195,9 +183,9 @@ public class TestIsoWeekFields {
         for (int i = 1; i <= ((52 + 52 + 52 + 53 + 52) * 7); i++) {
             for (int j = 1; j <= 7; j++) {
                 LocalDate adjusted = DAY_OF_WEEK.adjustInto(date, j);
-                assertEquals(j, adjusted.get(DAY_OF_WEEK));
-                assertEquals(week, adjusted.get(weekField));
-                assertEquals(wby, adjusted.get(yearField));
+                assertEquals(adjusted.get(DAY_OF_WEEK), j);
+                assertEquals(adjusted.get(weekField), week);
+                assertEquals(adjusted.get(yearField), wby);
             }
             if (dow == 7) {
                 dow = 1;
@@ -213,8 +201,7 @@ public class TestIsoWeekFields {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_adjustInto_week(TemporalField weekField, TemporalField yearField) {
         // tests every day from 2012 to 2016 inclusive
         LocalDate date = LocalDate.of(2012, 1, 2);
@@ -225,9 +212,9 @@ public class TestIsoWeekFields {
             int weeksInYear = (wby == 2015 ? 53 : 52);
             for (int j = 1; j <= weeksInYear; j++) {
                 LocalDate adjusted = weekField.adjustInto(date, j);
-                assertEquals(j, adjusted.get(weekField));
-                assertEquals(dow, adjusted.get(DAY_OF_WEEK));
-                assertEquals(wby, adjusted.get(yearField));
+                assertEquals(adjusted.get(weekField), j);
+                assertEquals(adjusted.get(DAY_OF_WEEK), dow);
+                assertEquals(adjusted.get(yearField), wby);
             }
             if (dow == 7) {
                 dow = 1;
@@ -243,8 +230,7 @@ public class TestIsoWeekFields {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_adjustInto_wby(TemporalField weekField, TemporalField yearField) {
         // tests every day from 2012 to 2016 inclusive
         LocalDate date = LocalDate.of(2012, 1, 2);
@@ -254,9 +240,9 @@ public class TestIsoWeekFields {
         for (int i = 1; i <= ((52 + 52 + 52 + 53 + 52) * 7); i++) {
             for (int j = 2004; j <= 2015; j++) {
                 LocalDate adjusted = yearField.adjustInto(date, j);
-                assertEquals(j, adjusted.get(yearField));
-                assertEquals(dow, adjusted.get(DAY_OF_WEEK));
-                assertEquals((week == 53 && wbyLen(j) == 52 ? 52 : week), adjusted.get(weekField), "" + date + " " + adjusted);
+                assertEquals(adjusted.get(yearField), j);
+                assertEquals(adjusted.get(DAY_OF_WEEK), dow);
+                assertEquals(adjusted.get(weekField), (week == 53 && wbyLen(j) == 52 ? 52 : week), "" + date + " " + adjusted);
             }
             if (dow == 7) {
                 dow = 1;
@@ -272,8 +258,7 @@ public class TestIsoWeekFields {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("data_Fields")
+    @Test(dataProvider = "fields")
     public void test_addTo_weekBasedYears(TemporalField weekField, TemporalField yearField) {
         // tests every day from 2012 to 2016 inclusive
         LocalDate date = LocalDate.of(2012, 1, 2);
@@ -283,9 +268,9 @@ public class TestIsoWeekFields {
         for (int i = 1; i <= ((52 + 52 + 52 + 53 + 52) * 7); i++) {
             for (int j = -5; j <= 5; j++) {
                 LocalDate adjusted = IsoFields.WEEK_BASED_YEARS.addTo(date, j);
-                assertEquals(wby + j, adjusted.get(yearField));
-                assertEquals(dow, adjusted.get(DAY_OF_WEEK));
-                assertEquals((week == 53 && wbyLen(wby + j) == 52 ? 52 : week), adjusted.get(weekField), "" + date + " " + adjusted);
+                assertEquals(adjusted.get(yearField), wby + j);
+                assertEquals(adjusted.get(DAY_OF_WEEK), dow);
+                assertEquals(adjusted.get(weekField), (week == 53 && wbyLen(wby + j) == 52 ? 52 : week), "" + date + " " + adjusted);
             }
             if (dow == 7) {
                 dow = 1;

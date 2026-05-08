@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
  */
 
 #include "oops/layoutKind.hpp"
-#include "utilities/ostream.hpp"
 
 const char* LayoutKindHelper::layout_kind_as_string(LayoutKind lk) {
   switch(lk) {
@@ -37,18 +36,9 @@ const char* LayoutKindHelper::layout_kind_as_string(LayoutKind lk) {
       return "NULL_FREE_ATOMIC_FLAT";
     case LayoutKind::NULLABLE_ATOMIC_FLAT:
       return "NULLABLE_ATOMIC_FLAT";
-    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
-      return "NULLABLE_NON_ATOMIC_FLAT";
     case LayoutKind::UNKNOWN:
       return "UNKNOWN";
     default:
       ShouldNotReachHere();
   }
 }
-
-#ifdef ASSERT
-void LayoutKindHelper::print_on(LayoutKind lk, outputStream* st) {
-  st->print("LayoutKind: %s", layout_kind_as_string(lk));
-}
-#endif // ASSERT
-

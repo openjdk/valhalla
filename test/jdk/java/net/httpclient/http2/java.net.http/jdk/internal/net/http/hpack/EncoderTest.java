@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  */
 package jdk.internal.net.http.hpack;
 
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.Buffer;
@@ -39,9 +40,8 @@ import static jdk.internal.net.http.hpack.BuffersTestingKit.forEachSplit;
 import static jdk.internal.net.http.hpack.SpecHelper.toHexdump;
 import static jdk.internal.net.http.hpack.TestHelper.assertVoidThrows;
 import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 // TODO: map textual representation of commands from the spec to actual
 // calls to encoder (actually, this is a good idea for decoder as well)
@@ -627,10 +627,10 @@ public final class EncoderTest {
                              String expectedTableState) {
 
         String actualTableState = encoder.getHeaderTable().getStateString();
-        assertEquals(expectedTableState, actualTableState);
+        assertEquals(actualTableState, expectedTableState);
 
         String actualHexdump = toHexdump(output);
-        assertEquals(expectedHexdump.replaceAll("\\n", " "), actualHexdump);
+        assertEquals(actualHexdump, expectedHexdump.replaceAll("\\n", " "));
     }
 
     // initial size - the size encoder is constructed with
@@ -657,7 +657,7 @@ public final class EncoderTest {
                 actual.add(capacity);
             }
         });
-        assertEquals(expected, actual);
+        assertEquals(actual, expected);
     }
 
     //

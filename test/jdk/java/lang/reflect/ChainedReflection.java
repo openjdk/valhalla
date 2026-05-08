@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,9 @@
 
 /*
  * @test
- * @run junit/othervm ChainedReflection
+ * @run testng/othervm ChainedReflection
  * @summary Test Method::invoke and Constructor::newInstance chained calls that
  *          should wrap NPE in InvocationTargetException properly
- * @comment This test is not using assertThrows given lambdas may affect the
- *          exception stack trace and therefore test anticipations
  */
 
 import java.lang.reflect.Constructor;
@@ -35,28 +33,24 @@ import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Optional;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 public class ChainedReflection {
+    public ChainedReflection() {}
 
-    // This inner class is declared with a constructor that ctorCallMethodInvoke
-    // reflects on. Such a constructor cannot be declared in ChainedReflection
-    // because JUnit does not allow a test class to declare multiple constructors.
-    class Inner {
-        Inner() throws ReflectiveOperationException {
-            Method m = ChainedReflection.class.getMethod("throwNPE");
-            try {
-                m.invoke(null);
-            } catch (InvocationTargetException e) {
-                Throwable t = e.getTargetException();
-                if (t instanceof NullPointerException npe) {
-                    throw npe;
-                } else {
-                    throw new RuntimeException("Test failed (InvocationTargetException didn't wrap NullPointerException)");
-                }
-            } catch (Throwable t) {
-                throw new RuntimeException("Test failed (Unexpected exception)", t);
+    ChainedReflection(Void dummy) throws ReflectiveOperationException {
+        Method m = ChainedReflection.class.getMethod("throwNPE");
+        try {
+            m.invoke(null);
+        } catch (InvocationTargetException e) {
+            Throwable t = e.getTargetException();
+            if (t instanceof NullPointerException npe) {
+                throw npe;
+            } else {
+                throw new RuntimeException("Test failed (InvocationTargetException didn't wrap NullPointerException)");
             }
+        } catch (Throwable t) {
+            throw new RuntimeException("Test failed (Unexpected exception)", t);
         }
     }
 
@@ -111,9 +105,9 @@ public class ChainedReflection {
      */
     @Test
     public void ctorCallMethodInvoke() throws ReflectiveOperationException {
-        Constructor<?> ctor = ChainedReflection.Inner.class.getDeclaredConstructor(ChainedReflection.class);
+        Constructor<?> ctor = ChainedReflection.class.getDeclaredConstructor(Void.class);
         try {
-            ctor.newInstance(this);
+            ctor.newInstance((Void)null);
         } catch (InvocationTargetException e) {
             Throwable t = e.getTargetException();
             if (!(t instanceof NullPointerException)) {

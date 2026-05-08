@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,10 +51,9 @@ import java.net.http.HttpClient.Version;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.Test;
 import static java.time.Duration.*;
-
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.*;
 
 /*
  * @test
@@ -62,7 +61,7 @@ import org.junit.jupiter.api.Test;
  * @summary HttpClient[.Builder] API and behaviour checks
  * @library /test/lib
  * @build jdk.test.lib.net.SimpleSSLContext
- * @run junit ${test.main.class}
+ * @run testng HttpClientBuilderTest
  */
 
 public class HttpClientBuilderTest {
@@ -84,10 +83,10 @@ public class HttpClientBuilderTest {
                 assertFalse(client.connectTimeout().isPresent());
                 assertFalse(client.executor().isPresent());
                 assertFalse(client.proxy().isPresent());
-                assertNotNull(client.sslParameters());
-                assertEquals(Redirect.NEVER, client.followRedirects());
-                assertSame(SSLContext.getDefault(), client.sslContext());
-                assertEquals(Version.HTTP_2, client.version());
+                assertTrue(client.sslParameters() != null);
+                assertTrue(client.followRedirects().equals(HttpClient.Redirect.NEVER));
+                assertTrue(client.sslContext() == SSLContext.getDefault());
+                assertTrue(client.version().equals(HttpClient.Version.HTTP_2));
             }
         }
     }
@@ -134,18 +133,18 @@ public class HttpClientBuilderTest {
         Authenticator a = new TestAuthenticator();
         builder.authenticator(a);
         try (var closer = closeable(builder)) {
-            assertSame(a, closer.build().authenticator().get());
+            assertTrue(closer.build().authenticator().get() == a);
         }
         Authenticator b = new TestAuthenticator();
         builder.authenticator(b);
         try (var closer = closeable(builder)) {
-            assertSame(b, closer.build().authenticator().get());
+            assertTrue(closer.build().authenticator().get() == b);
         }
         assertThrows(NPE, () -> builder.authenticator(null));
         Authenticator c = new TestAuthenticator();
         builder.authenticator(c);
         try (var closer = closeable(builder)) {
-            assertSame(c, closer.build().authenticator().get());
+            assertTrue(closer.build().authenticator().get() == c);
         }
     }
 
@@ -155,18 +154,18 @@ public class HttpClientBuilderTest {
         CookieHandler a = new CookieManager();
         builder.cookieHandler(a);
         try (var closer = closeable(builder)) {
-            assertSame(a, closer.build().cookieHandler().get());
+            assertTrue(closer.build().cookieHandler().get() == a);
         }
         CookieHandler b = new CookieManager();
         builder.cookieHandler(b);
         try (var closer = closeable(builder)) {
-            assertSame(b, closer.build().cookieHandler().get());
+            assertTrue(closer.build().cookieHandler().get() == b);
         }
         assertThrows(NPE, () -> builder.cookieHandler(null));
         CookieManager c = new CookieManager();
         builder.cookieHandler(c);
         try (var closer = closeable(builder)) {
-            assertSame(c, closer.build().cookieHandler().get());
+            assertTrue(closer.build().cookieHandler().get() == c);
         }
     }
 
@@ -176,18 +175,18 @@ public class HttpClientBuilderTest {
         Duration a = Duration.ofSeconds(5);
         builder.connectTimeout(a);
         try (var closer = closeable(builder)) {
-            assertSame(a, closer.build().connectTimeout().get());
+            assertTrue(closer.build().connectTimeout().get() == a);
         }
         Duration b = Duration.ofMinutes(1);
         builder.connectTimeout(b);
         try (var closer = closeable(builder)) {
-            assertSame(b, closer.build().connectTimeout().get());
+            assertTrue(closer.build().connectTimeout().get() == b);
         }
         assertThrows(NPE, () -> builder.cookieHandler(null));
         Duration c = Duration.ofHours(100);
         builder.connectTimeout(c);
         try (var closer = closeable(builder)) {
-            assertSame(c, closer.build().connectTimeout().get());
+            assertTrue(closer.build().connectTimeout().get() == c);
         }
 
         assertThrows(IAE, () -> builder.connectTimeout(ZERO));
@@ -206,18 +205,18 @@ public class HttpClientBuilderTest {
         TestExecutor a = new TestExecutor();
         builder.executor(a);
         try (var closer = closeable(builder)) {
-            assertSame(a, closer.build().executor().get());
+            assertTrue(closer.build().executor().get() == a);
         }
         TestExecutor b = new TestExecutor();
         builder.executor(b);
         try (var closer = closeable(builder)) {
-            assertSame(b, closer.build().executor().get());
+            assertTrue(closer.build().executor().get() == b);
         }
         assertThrows(NPE, () -> builder.executor(null));
         TestExecutor c = new TestExecutor();
         builder.executor(c);
         try (var closer = closeable(builder)) {
-            assertSame(c, closer.build().executor().get());
+            assertTrue(closer.build().executor().get() == c);
         }
     }
 
@@ -227,18 +226,18 @@ public class HttpClientBuilderTest {
         ProxySelector a = ProxySelector.of(null);
         builder.proxy(a);
         try (var closer = closeable(builder)) {
-            assertSame(a, closer.build().proxy().get());
+            assertTrue(closer.build().proxy().get() == a);
         }
         ProxySelector b = ProxySelector.of(InetSocketAddress.createUnresolved("foo", 80));
         builder.proxy(b);
         try (var closer = closeable(builder)) {
-            assertSame(b, closer.build().proxy().get());
+            assertTrue(closer.build().proxy().get() == b);
         }
         assertThrows(NPE, () -> builder.proxy(null));
         ProxySelector c = ProxySelector.of(InetSocketAddress.createUnresolved("bar", 80));
         builder.proxy(c);
         try (var closer = closeable(builder)) {
-            assertSame(c, closer.build().proxy().get());
+            assertTrue(closer.build().proxy().get() == c);
         }
     }
 
@@ -250,16 +249,16 @@ public class HttpClientBuilderTest {
         builder.sslParameters(a);
         a.setCipherSuites(new String[] { "Z" });
         try (var closer = closeable(builder)) {
-            assertNotSame(a, closer.build().sslParameters());
+            assertTrue(closer.build().sslParameters() != (a));
         }
         try (var closer = closeable(builder)) {
-            assertEquals("A", closer.build().sslParameters().getCipherSuites()[0]);
+            assertTrue(closer.build().sslParameters().getCipherSuites()[0].equals("A"));
         }
         SSLParameters b = new SSLParameters();
         b.setEnableRetransmissions(true);
         builder.sslParameters(b);
         try (var closer = closeable(builder)) {
-            assertNotSame(b, closer.build().sslParameters());
+            assertTrue(closer.build().sslParameters() != b);
         }
         try (var closer = closeable(builder)) {
             assertTrue(closer.build().sslParameters().getEnableRetransmissions());
@@ -270,21 +269,21 @@ public class HttpClientBuilderTest {
         builder.sslParameters(c);
         c.setProtocols(new String[] { "D" });
         try (var closer = closeable(builder)) {
-            assertEquals("C", closer.build().sslParameters().getProtocols()[0]);
+            assertTrue(closer.build().sslParameters().getProtocols()[0].equals("C"));
         }
         SSLParameters d = new SSLParameters();
         d.setSignatureSchemes(new String[] { "C" });
         builder.sslParameters(d);
         d.setSignatureSchemes(new String[] { "D" });
         try (var closer = closeable(builder)) {
-            assertEquals("C", closer.build().sslParameters().getSignatureSchemes()[0]);
+            assertTrue(closer.build().sslParameters().getSignatureSchemes()[0].equals("C"));
         }
         SSLParameters e = new SSLParameters();
         e.setNamedGroups(new String[] { "C" });
         builder.sslParameters(e);
         e.setNamedGroups(new String[] { "D" });
         try (var closer = closeable(builder)) {
-            assertEquals("C", closer.build().sslParameters().getNamedGroups()[0]);
+            assertTrue(closer.build().sslParameters().getNamedGroups()[0].equals("C"));
         }
         // test defaults for needClientAuth and wantClientAuth
         builder.sslParameters(new SSLParameters());
@@ -319,21 +318,21 @@ public class HttpClientBuilderTest {
     @Test
     public void testSSLContext() throws Exception {
         HttpClient.Builder builder = HttpClient.newBuilder();
-        SSLContext a = SimpleSSLContext.findSSLContext();
+        SSLContext a = (new SimpleSSLContext()).get();
         builder.sslContext(a);
         try (var closer = closeable(builder)) {
-            assertSame(a, closer.build().sslContext());
+            assertTrue(closer.build().sslContext() == a);
         }
-        SSLContext b = SimpleSSLContext.findSSLContext();
+        SSLContext b = (new SimpleSSLContext()).get();
         builder.sslContext(b);
         try (var closer = closeable(builder)) {
-            assertSame(b, closer.build().sslContext());
+            assertTrue(closer.build().sslContext() == b);
         }
         assertThrows(NPE, () -> builder.sslContext(null));
-        SSLContext c = SimpleSSLContext.findSSLContext();
+        SSLContext c = (new SimpleSSLContext()).get();
         builder.sslContext(c);
         try (var closer = closeable(builder)) {
-            assertSame(c, closer.build().sslContext());
+            assertTrue(closer.build().sslContext() == c);
         }
     }
 
@@ -342,16 +341,16 @@ public class HttpClientBuilderTest {
         HttpClient.Builder builder = HttpClient.newBuilder();
         builder.followRedirects(Redirect.ALWAYS);
         try (var closer = closeable(builder)) {
-            assertSame(Redirect.ALWAYS, closer.build().followRedirects());
+            assertTrue(closer.build().followRedirects() == Redirect.ALWAYS);
         }
         builder.followRedirects(Redirect.NEVER);
         try (var closer = closeable(builder)) {
-            assertSame(Redirect.NEVER, closer.build().followRedirects());
+            assertTrue(closer.build().followRedirects() == Redirect.NEVER);
         }
         assertThrows(NPE, () -> builder.followRedirects(null));
         builder.followRedirects(Redirect.NORMAL);
         try (var closer = closeable(builder)) {
-            assertSame(Redirect.NORMAL, closer.build().followRedirects());
+            assertTrue(closer.build().followRedirects() == Redirect.NORMAL);
         }
     }
 
@@ -359,37 +358,37 @@ public class HttpClientBuilderTest {
     public void testVersion() {
         HttpClient.Builder builder = HttpClient.newBuilder();
         try (var closer = closeable(builder)) {
-            assertSame(Version.HTTP_2, closer.build().version());
+            assertTrue(closer.build().version() == Version.HTTP_2);
         }
         builder.version(Version.HTTP_3);
         try (var closer = closeable(builder)) {
-            assertSame(Version.HTTP_3, closer.build().version());
+            assertTrue(closer.build().version() == Version.HTTP_3);
         }
         builder.version(Version.HTTP_2);
         try (var closer = closeable(builder)) {
-            assertSame(Version.HTTP_2, closer.build().version());
+            assertTrue(closer.build().version() == Version.HTTP_2);
         }
         builder.version(Version.HTTP_1_1);
         try (var closer = closeable(builder)) {
-            assertSame(Version.HTTP_1_1, closer.build().version());
+            assertTrue(closer.build().version() == Version.HTTP_1_1);
         }
         assertThrows(NPE, () -> builder.version(null));
         builder.version(Version.HTTP_3);
         try (var closer = closeable(builder)) {
-            assertSame(Version.HTTP_3, closer.build().version());
+            assertTrue(closer.build().version() == Version.HTTP_3);
         }
         builder.version(Version.HTTP_2);
         try (var closer = closeable(builder)) {
-            assertSame(Version.HTTP_2, closer.build().version());
+            assertTrue(closer.build().version() == Version.HTTP_2);
         }
         builder.version(Version.HTTP_1_1);
         try (var closer = closeable(builder)) {
-            assertSame(Version.HTTP_1_1, closer.build().version());
+            assertTrue(closer.build().version() == Version.HTTP_1_1);
         }
     }
 
     @Test
-    void testPriority() throws Exception {
+    static void testPriority() throws Exception {
         HttpClient.Builder builder = HttpClient.newBuilder();
         assertThrows(IAE, () -> builder.priority(-1));
         assertThrows(IAE, () -> builder.priority(0));
@@ -490,7 +489,7 @@ public class HttpClientBuilderTest {
     static final URI uri = URI.create("http://foo.com/");
 
     @Test
-    void testHttpClientSendArgs() throws Exception {
+    static void testHttpClientSendArgs() throws Exception {
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder(uri).build();
 
@@ -528,21 +527,21 @@ public class HttpClientBuilderTest {
     // ---
 
     @Test
-    void testUnsupportedWebSocket() throws Exception {
+    static void testUnsupportedWebSocket() throws Exception {
         //  @implSpec The default implementation of this method throws
         // {@code UnsupportedOperationException}.
         assertThrows(UOE, () -> (new MockHttpClient()).newWebSocketBuilder());
     }
 
     @Test
-    void testDefaultShutdown() throws Exception {
+    static void testDefaultShutdown() throws Exception {
         try (HttpClient client = new MockHttpClient()) {
             client.shutdown(); // does nothing
         }
     }
 
     @Test
-    void testDefaultShutdownNow() throws Exception {
+    static void testDefaultShutdownNow() throws Exception {
         try (HttpClient client = new MockHttpClient()) {
             client.shutdownNow(); // calls shutdown, doesn't wait
         }
@@ -560,18 +559,18 @@ public class HttpClientBuilderTest {
         }
 
         // once from shutdownNow(), and once from close()
-        assertEquals(2, shutdownCalled.get());
+        assertEquals(shutdownCalled.get(), 2);
     }
 
     @Test
-    void testDefaultIsTerminated() throws Exception {
+    static void testDefaultIsTerminated() throws Exception {
         try (HttpClient client = new MockHttpClient()) {
             assertFalse(client.isTerminated());
         }
     }
 
     @Test
-    void testDefaultAwaitTermination() throws Exception {
+    static void testDefaultAwaitTermination() throws Exception {
         try (HttpClient client = new MockHttpClient()) {
             assertTrue(client.awaitTermination(Duration.ofDays(1)));
         }
@@ -582,7 +581,7 @@ public class HttpClientBuilderTest {
     }
 
     @Test
-    void testDefaultClose() {
+    static void testDefaultClose() {
         AtomicInteger shutdownCalled = new AtomicInteger();
         AtomicInteger awaitTerminationCalled = new AtomicInteger();
         AtomicInteger shutdownNowCalled = new AtomicInteger();
@@ -617,9 +616,9 @@ public class HttpClientBuilderTest {
         //      awaitTermination() 0->1 -> false
         //      awaitTermination() 1->2 -> true
         try (HttpClient client = mock) { }
-        assertEquals(1, shutdownCalled.get()); // called by close()
-        assertEquals(0, shutdownNowCalled.get()); // not called
-        assertEquals(2, awaitTerminationCalled.get()); // called by close() twice
+        assertEquals(shutdownCalled.get(), 1); // called by close()
+        assertEquals(shutdownNowCalled.get(), 0); // not called
+        assertEquals(awaitTerminationCalled.get(), 2); // called by close() twice
         assertFalse(Thread.currentThread().isInterrupted());
 
         // second time around:
@@ -630,9 +629,9 @@ public class HttpClientBuilderTest {
         //         calls shutdown() 2->3
         //      awaitTermination() 3->4 -> true
         try (HttpClient client = mock) { }
-        assertEquals(3, shutdownCalled.get()); // called by close() and shutdownNow()
-        assertEquals(1, shutdownNowCalled.get()); // called by close() due to interrupt
-        assertEquals(4, awaitTerminationCalled.get()); // called by close twice
+        assertEquals(shutdownCalled.get(), 3); // called by close() and shutdownNow()
+        assertEquals(shutdownNowCalled.get(), 1); // called by close() due to interrupt
+        assertEquals(awaitTerminationCalled.get(), 4); // called by close twice
         assertTrue(Thread.currentThread().isInterrupted());
         assertTrue(Thread.interrupted());
     }

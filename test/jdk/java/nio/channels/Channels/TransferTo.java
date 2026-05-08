@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,20 +37,17 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testng.Assert.assertThrows;
 
 /*
  * @test
  * @library /test/lib
  * @build jdk.test.lib.RandomFactory
- * @run junit/othervm/timeout=720 TransferTo
+ * @run testng/othervm/timeout=720 TransferTo
  * @bug 8265891
  * @summary Tests whether sun.nio.ChannelInputStream.transferTo conforms to the
  *          InputStream.transferTo specification
@@ -62,37 +59,41 @@ public class TransferTo extends TransferToBase {
      * Provides test scenarios, i.e., combinations of input and output streams
      * to be tested.
      */
-    public static Stream<Arguments> streamCombinations() {
-        return Stream.of
-            (// tests FileChannel.transferTo(FileChannel) optimized case
-             Arguments.of(fileChannelInput(), fileChannelOutput()),
+    @DataProvider
+    public static Object[][] streamCombinations() {
+        return new Object[][] {
+            // tests FileChannel.transferTo(FileChannel) optimized case
+            {fileChannelInput(), fileChannelOutput()},
 
-             // tests FileChannel.transferTo(SelectableChannelOutput)
-             // optimized case
-             Arguments.of(fileChannelInput(), selectableChannelOutput()),
+            // tests FileChannel.transferTo(SelectableChannelOutput)
+            // optimized case
+            {fileChannelInput(), selectableChannelOutput()},
 
-             // tests FileChannel.transferTo(WritableByteChannelOutput)
-             // optimized case
-             Arguments.of(fileChannelInput(), writableByteChannelOutput()),
+            // tests FileChannel.transferTo(WritableByteChannelOutput)
+            // optimized case
+            {fileChannelInput(), writableByteChannelOutput()},
 
-             // tests InputStream.transferTo(OutputStream) default case
-             Arguments.of(readableByteChannelInput(), defaultOutput()));
+            // tests InputStream.transferTo(OutputStream) default case
+            {readableByteChannelInput(), defaultOutput()}
+        };
     }
 
     /*
      * Input streams to be tested.
      */
-    public static Stream<Arguments> inputStreamProviders() {
-        return Stream.of(Arguments.of(fileChannelInput()),
-                         Arguments.of(readableByteChannelInput()));
+    @DataProvider
+    public static Object[][] inputStreamProviders() {
+        return new Object[][] {
+                {fileChannelInput()},
+                {readableByteChannelInput()}
+        };
     }
 
     /*
      * Testing API compliance: input stream must throw NullPointerException
      * when parameter "out" is null.
      */
-    @ParameterizedTest
-    @MethodSource("inputStreamProviders")
+    @Test(dataProvider = "inputStreamProviders")
     public void testNullPointerException(InputStreamProvider inputStreamProvider) {
         assertNullPointerException(inputStreamProvider);
     }
@@ -101,8 +102,7 @@ public class TransferTo extends TransferToBase {
      * Testing API compliance: complete content of input stream must be
      * transferred to output stream.
      */
-    @ParameterizedTest
-    @MethodSource("streamCombinations")
+    @Test(dataProvider = "streamCombinations")
     public void testStreamContents(InputStreamProvider inputStreamProvider,
             OutputStreamProvider outputStreamProvider) throws Exception {
         assertStreamContents(inputStreamProvider, outputStreamProvider);

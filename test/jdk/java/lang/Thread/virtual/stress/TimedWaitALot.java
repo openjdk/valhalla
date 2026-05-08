@@ -94,20 +94,17 @@ public class TimedWaitALot {
 
                 // start thread to Object.notifyAll at around time that the timeout expires
                 if (notify) {
-                    executor.submit(() -> {
-                        if (ThreadLocalRandom.current().nextBoolean()) {
-                            synchronized (lock) {
-                                sleepLessThan(timeout);
-                                lock.notifyAll();
-                            }
-                        } else {
+                    if (ThreadLocalRandom.current().nextBoolean()) {
+                        synchronized (lock) {
                             sleepLessThan(timeout);
-                            synchronized (lock) {
-                                lock.notifyAll();
-                            }
+                            lock.notifyAll();
                         }
-                        return null;
-                    });
+                    } else {
+                        sleepLessThan(timeout);
+                        synchronized (lock) {
+                            lock.notifyAll();
+                        }
+                    }
                 }
 
                 // start thread to interrupt first thread at around time that the timeout expires

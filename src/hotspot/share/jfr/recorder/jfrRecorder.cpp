@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,9 +100,6 @@ bool JfrRecorder::on_create_vm_1() {
 
   if (is_started_on_commandline()) {
     if (!create_checkpoint_manager()) {
-      return false;
-    }
-    if (!JfrSymbolTable::create()) {
       return false;
     }
   }
@@ -243,7 +240,7 @@ bool JfrRecorder::on_create_vm_2() {
 }
 
 bool JfrRecorder::on_create_vm_3() {
-  JVMTI_ONLY( assert(JvmtiEnvBase::get_phase() == JVMTI_PHASE_LIVE, "invalid init sequence, phase is %d", (int)JvmtiEnvBase::get_phase()); )
+  JVMTI_ONLY( assert(JvmtiEnvBase::get_phase() == JVMTI_PHASE_LIVE, "invalid init sequence"); )
   return CDSConfig::is_dumping_archive() || launch_command_line_recordings(JavaThread::current());
 }
 
@@ -319,7 +316,10 @@ bool JfrRecorder::create_components() {
   if (!create_thread_group_manager()) {
     return false;
   }
-  return create_symbol_table();
+  if (!create_symbol_table()) {
+    return false;
+  }
+  return true;
 }
 
 // subsystems
@@ -418,13 +418,7 @@ bool JfrRecorder::create_thread_group_manager() {
 }
 
 bool JfrRecorder::create_symbol_table() {
-  return !is_started_on_commandline() ? JfrSymbolTable::create() : true;
-}
-
-void JfrRecorder::destroy_symbol_table() {
-  if (!is_started_on_commandline()) {
-    JfrSymbolTable::destroy();
-  }
+  return JfrSymbolTable::create();
 }
 
 void JfrRecorder::destroy_components() {
@@ -467,7 +461,7 @@ void JfrRecorder::destroy_components() {
   }
   JfrEventThrottler::destroy();
   JfrThreadGroupManager::destroy();
-  destroy_symbol_table();
+  JfrSymbolTable::destroy();
 }
 
 bool JfrRecorder::create_recorder_thread() {

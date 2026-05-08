@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import java.lang.reflect.Method;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.ALLOC_OF_MYVALUE_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_OF_ANY_KLASS;
@@ -55,7 +56,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -69,7 +69,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -83,7 +82,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -97,12 +95,11 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes 3
+ * @run main compiler.valhalla.inlinetypes.TestNullableInlineTypes 3
  */
 
 /*
@@ -111,7 +108,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -125,7 +121,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -139,7 +134,6 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -150,21 +144,10 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 @ForceCompileClassInitializer
 public class TestNullableInlineTypes {
 
-    public TestNullableInlineTypes() {
-        valueField1 = testValue1;
-        flatField = MyValue1.DEFAULT;
-        wrapperField = new MyValue1Wrapper(testValue1);
-        test97_res1 = MyValue3.create();
-        test97_res3 = MyValue3.create();
-        field2 = new MyValue104();
-        field4 = new MyValueEmpty();
-        super();
-    }
-
     public static void main(String[] args) {
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UnlockDiagnosticVMOptions", "-XX:+UseArrayFlattening");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
@@ -197,6 +180,7 @@ public class TestNullableInlineTypes {
         }
     }
 
+    @Strict
     @NullRestricted
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
 
@@ -209,8 +193,9 @@ public class TestNullableInlineTypes {
 
     MyValue1 nullField;
 
+    @Strict
     @NullRestricted
-    MyValue1 valueField1;
+    MyValue1 valueField1 = testValue1;
 
     @Test
     @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
@@ -289,7 +274,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
+    // TODO 8284443 When passing vt to test5_inline and incrementally inlining, we lose the oop
+    @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test5(MyValue1 vt) {
         Object o = vt;
         vt = (MyValue1)o;
@@ -329,7 +316,7 @@ public class TestNullableInlineTypes {
     @Run(test = "test6")
     public void test6_verifier() {
         MyValue1 vt = test6(null);
-        Asserts.assertEquals(testValue1, vt);
+        Asserts.assertEquals(vt.hash(), testValue1.hash());
     }
 
     @ForceInline
@@ -557,7 +544,7 @@ public class TestNullableInlineTypes {
         } catch (NullPointerException e) {
             // Expected
         }
-        Asserts.assertEQ(testValue1, testValue1Array[index]);
+        Asserts.assertEQ(testValue1Array[index].hash(), testValue1.hash());
     }
 
     @DontInline
@@ -625,7 +612,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
+    // TODO 8284443 When passing testValue1 to the constructor in scalarized form and incrementally inlining, we lose the oop
+    @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS})
     public Test17Value test17(boolean b) {
         Test17Value vt1 = new Test17Value(null);
         Test17Value vt2 = new Test17Value(testValue1);
@@ -726,6 +715,7 @@ public class TestNullableInlineTypes {
     @LooselyConsistentValue
     value class Test21Value {
         MyValue1 valueField1;
+        @Strict
         @NullRestricted
         MyValue1 valueField2;
 
@@ -1005,6 +995,7 @@ public class TestNullableInlineTypes {
         }
     }
 
+    @Strict
     @NullRestricted
     public static final Test33Value2 test33Val = new Test33Value2();
 
@@ -1141,8 +1132,9 @@ public class TestNullableInlineTypes {
     }
 
     MyValue1 refField;
+    @Strict
     @NullRestricted
-    MyValue1 flatField;
+    MyValue1 flatField = MyValue1.DEFAULT;
 
     // Test scalarization of .ref
     @Test
@@ -1212,11 +1204,11 @@ public class TestNullableInlineTypes {
     @Run(test = "test43")
     public void test43_verifier(RunInfo info) {
         refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(refField, test43(true));
-        Asserts.assertEquals(testValue1, test43(false));
+        Asserts.assertEquals(test43(true).hash(), refField.hash());
+        Asserts.assertEquals(test43(false).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
             refField = null;
-            Asserts.assertEquals(null, test43(true));
+            Asserts.assertEquals(test43(true), null);
         }
     }
 
@@ -1271,14 +1263,14 @@ public class TestNullableInlineTypes {
     @Run(test = "test45")
     public void test45_verifier(RunInfo info) {
         refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(refField, test45(true, false, info.getTest()));
-        Asserts.assertEquals(testValue1, test45(false, false, info.getTest()));
+        Asserts.assertEquals(test45(true, false, info.getTest()).hash(), refField.hash());
+        Asserts.assertEquals(test45(false, false, info.getTest()).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
             refField = null;
-            Asserts.assertEquals(null, test45(true, false, info.getTest()));
+            Asserts.assertEquals(test45(true, false, info.getTest()), null);
             refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(refField, test45(true, true, info.getTest()));
-            Asserts.assertEquals(testValue1, test45(false, true, info.getTest()));
+            Asserts.assertEquals(test45(true, true, info.getTest()).hash(), refField.hash());
+            Asserts.assertEquals(test45(false, true, info.getTest()).hash(), testValue1.hash());
         }
     }
 
@@ -1314,8 +1306,8 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test47")
     public void test47_verifier() {
-        Asserts.assertEquals(testValue1, test47(true));
-        Asserts.assertEquals(null, test47(false));
+        Asserts.assertEquals(test47(true).hash(), testValue1.hash());
+        Asserts.assertEquals(test47(false), null);
     }
 
     @Test
@@ -1350,8 +1342,8 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test49")
     public void test49_verifier() {
-        Asserts.assertEquals(testValue1, test49(false));
-        Asserts.assertEquals(null, test49(true));
+        Asserts.assertEquals(test49(false).hash(), testValue1.hash());
+        Asserts.assertEquals(test49(true), null);
     }
 
     @ForceInline
@@ -1376,9 +1368,9 @@ public class TestNullableInlineTypes {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
         flatField = vt;
         test50(false);
-        Asserts.assertEquals(vt, flatField);
+        Asserts.assertEquals(flatField.hash(), vt.hash());
         test50(true);
-        Asserts.assertEquals(testValue1, flatField);
+        Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 
     @LooselyConsistentValue
@@ -1396,8 +1388,9 @@ public class TestNullableInlineTypes {
         }
     }
 
+    @Strict
     @NullRestricted
-    MyValue1Wrapper wrapperField;
+    MyValue1Wrapper wrapperField = new MyValue1Wrapper(testValue1);
 
     @Test
     @IR(failOn = {ALLOC, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
@@ -1541,11 +1534,11 @@ public class TestNullableInlineTypes {
     @Run(test = "test57")
     public void test57_verifier(RunInfo info) {
         refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(refField, test57(true));
-        Asserts.assertEquals(testValue1, test57(false));
+        Asserts.assertEquals(test57(true).hash(), refField.hash());
+        Asserts.assertEquals(test57(false).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
             refField = null;
-            Asserts.assertEquals(null, test57(true));
+            Asserts.assertEquals(test57(true), null);
         }
     }
 
@@ -1602,14 +1595,14 @@ public class TestNullableInlineTypes {
     @Run(test = "test59")
     public void test59_verifier(RunInfo info) {
         refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(refField, test59(true, false, info.getTest()));
-        Asserts.assertEquals(testValue1, test59(false, false, info.getTest()));
+        Asserts.assertEquals(test59(true, false, info.getTest()).hash(), refField.hash());
+        Asserts.assertEquals(test59(false, false, info.getTest()).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
             refField = null;
-            Asserts.assertEquals(null, test59(true, false, info.getTest()));
+            Asserts.assertEquals(test59(true, false, info.getTest()), null);
             refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(refField, test59(true, true, info.getTest()));
-            Asserts.assertEquals(testValue1, test59(false, true, info.getTest()));
+            Asserts.assertEquals(test59(true, true, info.getTest()).hash(), refField.hash());
+            Asserts.assertEquals(test59(false, true, info.getTest()).hash(), testValue1.hash());
         }
     }
 
@@ -1647,8 +1640,8 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test61")
     public void test61_verifier() {
-        Asserts.assertEquals(testValue1, test61(true));
-        Asserts.assertEquals(null, test61(false));
+        Asserts.assertEquals(test61(true).hash(), testValue1.hash());
+        Asserts.assertEquals(test61(false), null);
     }
 
     @Test
@@ -1685,8 +1678,8 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test63")
     public void test63_verifier() {
-        Asserts.assertEquals(testValue1, test63(false));
-        Asserts.assertEquals(null, test63(true));
+        Asserts.assertEquals(test63(false).hash(), testValue1.hash());
+        Asserts.assertEquals(test63(true), null);
     }
 
     @ForceInline
@@ -1711,9 +1704,9 @@ public class TestNullableInlineTypes {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
         flatField = vt;
         test64(false);
-        Asserts.assertEquals(vt, flatField);
+        Asserts.assertEquals(flatField.hash(), vt.hash());
         test64(true);
-        Asserts.assertEquals(testValue1, flatField);
+        Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 
     @Test
@@ -2142,7 +2135,7 @@ public class TestNullableInlineTypes {
     public void test75_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 result = test75(vt, Integer.valueOf(rI));
-        Asserts.assertEquals(vt, result);
+        Asserts.assertEquals(result.hash(), vt.hash());
     }
 
     @ForceInline
@@ -2538,12 +2531,14 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     public static value class Test87C1 {
+        @Strict
         @NullRestricted
         Test87C0 field = new Test87C0();
     }
 
     @LooselyConsistentValue
     public static value class Test87C2 {
+        @Strict
         @NullRestricted
         Test87C1 field = new Test87C1();
     }
@@ -2796,12 +2791,12 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test96")
     public void test96_verifier() {
-        Asserts.assertEQ(null, test96(0, false));
-        Asserts.assertEQ(MyValue2.createWithFieldsInline(rI, rD), test96(1, false));
-        Asserts.assertEQ(null, test96(1, true));
-        Asserts.assertEQ(null, test96(2, false));
-        Asserts.assertEQ(MyValue2.createWithFieldsInline(rI, rD), test96(3, false));
-        Asserts.assertEQ(null, test96(3, true));
+        Asserts.assertEQ(test96(0, false), null);
+        Asserts.assertEQ(test96(1, false).hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(test96(1, true), null);
+        Asserts.assertEQ(test96(2, false), null);
+        Asserts.assertEQ(test96(3, false).hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(test96(3, true), null);
     }
 
     @DontInline
@@ -2819,11 +2814,13 @@ public class TestNullableInlineTypes {
         return b ? null : test97_res3;
     }
 
+    @Strict
     @NullRestricted
-    final MyValue3 test97_res1;
+    final MyValue3 test97_res1 = MyValue3.create();
 
+    @Strict
     @NullRestricted
-    final MyValue3 test97_res3;
+    final MyValue3 test97_res3 = MyValue3.create();
 
     // Same as test96 but with MyValue3 return
     @Test
@@ -2881,6 +2878,7 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     static value class CircularValue2 {
+        @Strict
         @NullRestricted
         CircularValue1 val;
 
@@ -2918,6 +2916,7 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     static value class CircularValue4 {
+        @Strict
         @NullRestricted
         CircularValue3 val;
 
@@ -2943,6 +2942,7 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     static value class CircularValue5 {
+        @Strict
         @NullRestricted
         CircularValue6 val;
         int x;
@@ -3015,15 +3015,19 @@ public class TestNullableInlineTypes {
 
     @LooselyConsistentValue
     static value class MyValue104 {
+        @Strict
         @NullRestricted
         static MyValue105 field1 = new MyValue105();
 
+        @Strict
         @NullRestricted
         MyValue105 field2;
 
+        @Strict
         @NullRestricted
         static MyValueEmpty field3 = new MyValueEmpty();
 
+        @Strict
         @NullRestricted
         MyValueEmpty field4;
 
@@ -3049,17 +3053,21 @@ public class TestNullableInlineTypes {
         int x = 42;
     }
 
+    @Strict
     @NullRestricted
     static MyValue104 field1 = new MyValue104();
 
+    @Strict
     @NullRestricted
-    MyValue104 field2;
+    MyValue104 field2 = new MyValue104();
 
+    @Strict
     @NullRestricted
     static MyValueEmpty field3 = new MyValueEmpty();
 
+    @Strict
     @NullRestricted
-    MyValueEmpty field4;
+    MyValueEmpty field4 = new MyValueEmpty();
 
     @Test
     void test105(MyValue104 arg) {

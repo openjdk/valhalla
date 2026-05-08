@@ -78,7 +78,7 @@ public class DeclarationEndPositions {
                         throw new AssertionError(String.format(
                           "wrong %s pos %d for \"%s\" in \"%s\"", "start", start, tree, input));
                     }
-                    int end = TreeInfo.getEndPos(tree);
+                    int end = TreeInfo.getEndPos(tree, unit.endPositions);
                     if (markers.charAt(end - 1) != '>') {
                         throw new AssertionError(String.format(
                           "wrong %s pos %d for \"%s\" in \"%s\"", "end", end, tree, input));
@@ -86,12 +86,10 @@ public class DeclarationEndPositions {
 
                     // For variable declarations using "var", verify the "var" position
                     if (tree instanceof JCVariableDecl varDecl && varDecl.declaredUsingVar()) {
-                        int varStart = varDecl.vartype.getStartPosition();
-                        int varEnd = varDecl.vartype.getEndPosition();
-
-                        if (!input.substring(varStart, varEnd).startsWith("var")) {
+                        int vpos = varDecl.typePos;
+                        if (!input.substring(vpos).startsWith("var")) {
                             throw new AssertionError(String.format(
-                              "wrong %s start pos %d end pos %d for \"%s\" in \"%s\"", "var", varStart, varEnd, tree, input));
+                              "wrong %s pos %d for \"%s\" in \"%s\"", "var", vpos, tree, input));
                         }
                     }
                 }

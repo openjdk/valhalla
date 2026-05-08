@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,9 @@
  * questions.
  */
 
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
+
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -31,8 +34,6 @@ import java.util.function.BooleanSupplier;
 
 import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static java.net.http.HttpClient.newBuilder;
-
-import org.junit.jupiter.api.AfterEach;
 
 /* Common infrastructure for tests that check pending operations */
 public class PendingOperations {
@@ -53,7 +54,7 @@ public class PendingOperations {
         return newBuilder().proxy(NO_PROXY).build();
     }
 
-    @AfterEach
+    @AfterMethod
     public void cleanup() {
         // make sure we have a trace both on System.out and System.err
         // to help with diagnosis.
@@ -84,7 +85,8 @@ public class PendingOperations {
         Support.assertNotDone(future);
     }
 
-    public static Object[][] booleans() {
+    @DataProvider(name = "booleans")
+    public Object[][] booleans() {
         return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
 

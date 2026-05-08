@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,15 @@
 
 import java.net.URLPermission;
 
-import org.junit.jupiter.api.Test;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-/*
+/**
  * @test
  * @bug 8297311
  * @summary Verify that the exception thrown by URLPermission class, for invalid host name,
  * contains expected exception message
- * @run junit InvalidCharacterTest
+ * @run testng InvalidCharacterTest
  */
 public class InvalidCharacterTest {
 
@@ -48,13 +45,13 @@ public class InvalidCharacterTest {
         // we expect this string in the exception message
         final String expectedStringInMessage = String.format("\\u%04x", (int) invalidChar);
         final String url = "http://foo" + invalidChar + "bar.com:12345";
-        final IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+        final IllegalArgumentException iae = Assert.expectThrows(IllegalArgumentException.class,
                 () -> new URLPermission(url));
         // additionally check the error message contains the invalid char
         final String exMessage = iae.getMessage();
         System.out.println("Got exception message: " + exMessage);
-        assertNotNull(exMessage, "Exception message is null");
-        assertTrue(exMessage.contains(expectedStringInMessage),
+        Assert.assertNotNull(exMessage, "Exception message is null");
+        Assert.assertTrue(exMessage.contains(expectedStringInMessage),
                 expectedStringInMessage + " missing from exception message: " + exMessage);
     }
 }

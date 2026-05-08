@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -181,21 +181,20 @@ class CgroupController: public CHeapObj<mtInternal> {
     static bool limit_from_str(char* limit_str, physical_memory_size_type& value);
 };
 
-template <typename MetricType>
 class CachedMetric : public CHeapObj<mtInternal>{
   private:
-    volatile MetricType _metric;
+    volatile physical_memory_size_type _metric;
     volatile jlong _next_check_counter;
   public:
     CachedMetric() {
-      _metric = static_cast<MetricType>(value_unlimited);
+      _metric = value_unlimited;
       _next_check_counter = min_jlong;
     }
     bool should_check_metric() {
       return os::elapsed_counter() > _next_check_counter;
     }
-    MetricType value() { return _metric; }
-    void set_value(MetricType value, jlong timeout) {
+    physical_memory_size_type value() { return _metric; }
+    void set_value(physical_memory_size_type value, jlong timeout) {
       _metric = value;
       // Metric is unlikely to change, but we want to remain
       // responsive to configuration changes. A very short grace time
@@ -206,19 +205,19 @@ class CachedMetric : public CHeapObj<mtInternal>{
     }
 };
 
-template <class T, typename MetricType>
+template <class T>
 class CachingCgroupController : public CHeapObj<mtInternal> {
   private:
     T* _controller;
-    CachedMetric<MetricType>* _metrics_cache;
+    CachedMetric* _metrics_cache;
 
   public:
     CachingCgroupController(T* cont) {
       _controller = cont;
-      _metrics_cache = new CachedMetric<MetricType>();
+      _metrics_cache = new CachedMetric();
     }
 
-    CachedMetric<MetricType>* metrics_cache() { return _metrics_cache; }
+    CachedMetric* metrics_cache() { return _metrics_cache; }
     T* controller() { return _controller; }
 };
 
@@ -278,7 +277,7 @@ class CgroupMemoryController: public CHeapObj<mtInternal> {
 class CgroupSubsystem: public CHeapObj<mtInternal> {
   public:
     bool memory_limit_in_bytes(physical_memory_size_type upper_bound, physical_memory_size_type& value);
-    bool active_processor_count(int (*cpu_bound_func)(), double& value);
+    bool active_processor_count(int& value);
 
     virtual bool pids_max(uint64_t& value) = 0;
     virtual bool pids_current(uint64_t& value) = 0;
@@ -287,11 +286,9 @@ class CgroupSubsystem: public CHeapObj<mtInternal> {
     virtual char * cpu_cpuset_cpus() = 0;
     virtual char * cpu_cpuset_memory_nodes() = 0;
     virtual const char * container_type() = 0;
-    virtual CachingCgroupController<CgroupMemoryController, physical_memory_size_type>* memory_controller() = 0;
-    virtual CachingCgroupController<CgroupCpuController, double>* cpu_controller() = 0;
+    virtual CachingCgroupController<CgroupMemoryController>* memory_controller() = 0;
+    virtual CachingCgroupController<CgroupCpuController>* cpu_controller() = 0;
     virtual CgroupCpuacctController* cpuacct_controller() = 0;
-
-    void adjust_controllers(physical_memory_size_type upper_mem_bound, int upper_cpu_bound);
 
     bool cpu_quota(int& value);
     bool cpu_period(int& value);

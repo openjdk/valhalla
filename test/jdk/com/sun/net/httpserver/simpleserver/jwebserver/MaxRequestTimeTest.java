@@ -27,7 +27,7 @@
  * @summary Tests the jwebserver's maximum request time
  * @modules jdk.httpserver
  * @library /test/lib
- * @run junit/othervm MaxRequestTimeTest
+ * @run testng/othervm MaxRequestTimeTest
  */
 
 import java.io.IOException;
@@ -47,13 +47,12 @@ import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.util.FileUtils;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.net.http.HttpClient.Builder.NO_PROXY;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.*;
 
 /**
  * This test confirms that the jwebserver does not wait indefinitely for
@@ -79,14 +78,18 @@ public class MaxRequestTimeTest {
     static final String LOOPBACK_ADDR = InetAddress.getLoopbackAddress().getHostAddress();
     static final AtomicInteger PORT = new AtomicInteger();
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    static SSLContext sslContext;
 
-    @BeforeAll
-    public static void setup() throws IOException {
+    @BeforeTest
+    public void setup() throws IOException {
         if (Files.exists(TEST_DIR)) {
             FileUtils.deleteFileTreeWithRetry(TEST_DIR);
         }
         Files.createDirectories(TEST_DIR);
+
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
     }
 
     @Test
@@ -119,17 +122,17 @@ public class MaxRequestTimeTest {
                 </html>
                 """;
 
-    static void sendHTTPRequest() throws IOException, InterruptedException {
+    void sendHTTPRequest() throws IOException, InterruptedException {
         out.println("\n--- sendHTTPRequest");
         var client = HttpClient.newBuilder()
                 .proxy(NO_PROXY)
                 .build();
         var request = HttpRequest.newBuilder(URI.create("http://localhost:" + PORT.get() + "/")).build();
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        assertEquals(expectedBody, response.body());
+        assertEquals(response.body(), expectedBody);
     }
 
-    static void sendHTTPSRequest() throws IOException, InterruptedException {
+    void sendHTTPSRequest() throws IOException, InterruptedException {
         out.println("\n--- sendHTTPSRequest");
         var client = HttpClient.newBuilder()
                 .sslContext(sslContext)
@@ -144,8 +147,8 @@ public class MaxRequestTimeTest {
         }
     }
 
-    @AfterAll
-    public static void teardown() throws IOException {
+    @AfterTest
+    public void teardown() throws IOException {
         if (Files.exists(TEST_DIR)) {
             FileUtils.deleteFileTreeWithRetry(TEST_DIR);
         }

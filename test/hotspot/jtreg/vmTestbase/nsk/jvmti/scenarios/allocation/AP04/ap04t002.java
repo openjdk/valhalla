@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@ package nsk.jvmti.scenarios.allocation.AP04;
 import java.io.*;
 import java.lang.reflect.*;
 
-import jdk.test.lib.thread.ThreadWrapper;
 import nsk.share.*;
 import nsk.share.jvmti.*;
 
@@ -101,7 +100,7 @@ public class ap04t002 extends DebugeeClass {
             modified++;
 
         log.display("Wait for completion thread to finish");
-        joinThread(thread.getThread());
+        joinThread(thread);
         log.display("Cleaning tags and references to objects...");
         for (int i = 0; i < OBJ_MAX_COUNT; i++) {
             if (root[i] != null) {
@@ -167,7 +166,7 @@ class ap04t002SomeReachachableObjectsIterator implements ap04t002Iterator {
 }
 
 /**************************************************************************/
-class ap04t002Thread extends ThreadWrapper {
+class ap04t002Thread extends Thread {
     String name;
     ap04t002Iterator iterator;
     Wicket startLock;

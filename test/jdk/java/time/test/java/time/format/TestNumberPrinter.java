@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,42 +61,37 @@ package test.java.time.format;
 
 import static java.time.temporal.ChronoField.DAY_OF_MONTH;
 import static java.time.temporal.ChronoField.HOUR_OF_DAY;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.SignStyle;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import test.java.time.temporal.MockFieldValue;
 
 /**
  * Test SimpleNumberPrinterParser.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestNumberPrinter extends AbstractTestPrinterParser {
 
     //-----------------------------------------------------------------------
-    @Test
+    @Test(expectedExceptions=DateTimeException.class)
     public void test_print_emptyCalendrical() throws Exception {
-        Assertions.assertThrows(DateTimeException.class, () -> getFormatter(DAY_OF_MONTH, 1, 2, SignStyle.NEVER).formatTo(EMPTY_DTA, buf));
+        getFormatter(DAY_OF_MONTH, 1, 2, SignStyle.NEVER).formatTo(EMPTY_DTA, buf);
     }
 
-    @Test
     public void test_print_append() throws Exception {
         buf.append("EXISTING");
         getFormatter(DAY_OF_MONTH, 1, 2, SignStyle.NEVER).formatTo(LocalDate.of(2012, 1, 3), buf);
-        assertEquals("EXISTING3", buf.toString());
+        assertEquals(buf.toString(), "EXISTING3");
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="Pad")
     Object[][] provider_pad() {
         return new Object[][] {
             {1, 1, -10, null},
@@ -186,77 +181,72 @@ public class TestNumberPrinter extends AbstractTestPrinterParser {
        };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_pad")
+    @Test(dataProvider="Pad")
     public void test_pad_NOT_NEGATIVE(int minPad, int maxPad, long value, String result) throws Exception {
         try {
             getFormatter(DAY_OF_MONTH, minPad, maxPad, SignStyle.NOT_NEGATIVE).formatTo(new MockFieldValue(DAY_OF_MONTH, value), buf);
             if (result == null || value < 0) {
                 fail("Expected exception");
             }
-            assertEquals(result, buf.toString());
+            assertEquals(buf.toString(), result);
         } catch (DateTimeException ex) {
             if (result == null || value < 0) {
-                assertEquals(true, ex.getMessage().contains(DAY_OF_MONTH.toString()));
+                assertEquals(ex.getMessage().contains(DAY_OF_MONTH.toString()), true);
             } else {
                 throw ex;
             }
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_pad")
+    @Test(dataProvider="Pad")
     public void test_pad_NEVER(int minPad, int maxPad, long value, String result) throws Exception {
         try {
             getFormatter(DAY_OF_MONTH, minPad, maxPad, SignStyle.NEVER).formatTo(new MockFieldValue(DAY_OF_MONTH, value), buf);
             if (result == null) {
                 fail("Expected exception");
             }
-            assertEquals(result, buf.toString());
+            assertEquals(buf.toString(), result);
         } catch (DateTimeException ex) {
             if (result != null) {
                 throw ex;
             }
-            assertEquals(true, ex.getMessage().contains(DAY_OF_MONTH.toString()));
+            assertEquals(ex.getMessage().contains(DAY_OF_MONTH.toString()), true);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_pad")
+    @Test(dataProvider="Pad")
     public void test_pad_NORMAL(int minPad, int maxPad, long value, String result) throws Exception {
         try {
             getFormatter(DAY_OF_MONTH, minPad, maxPad, SignStyle.NORMAL).formatTo(new MockFieldValue(DAY_OF_MONTH, value), buf);
             if (result == null) {
                 fail("Expected exception");
             }
-            assertEquals((value < 0 ? "-" + result : result), buf.toString());
+            assertEquals(buf.toString(), (value < 0 ? "-" + result : result));
         } catch (DateTimeException ex) {
             if (result != null) {
                 throw ex;
             }
-            assertEquals(true, ex.getMessage().contains(DAY_OF_MONTH.toString()));
+            assertEquals(ex.getMessage().contains(DAY_OF_MONTH.toString()), true);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_pad")
+    @Test(dataProvider="Pad")
     public void test_pad_ALWAYS(int minPad, int maxPad, long value, String result) throws Exception {
         try {
             getFormatter(DAY_OF_MONTH, minPad, maxPad, SignStyle.ALWAYS).formatTo(new MockFieldValue(DAY_OF_MONTH, value), buf);
             if (result == null) {
                 fail("Expected exception");
             }
-            assertEquals((value < 0 ? "-" + result : "+" + result), buf.toString());
+            assertEquals(buf.toString(), (value < 0 ? "-" + result : "+" + result));
         } catch (DateTimeException ex) {
             if (result != null) {
                 throw ex;
             }
-            assertEquals(true, ex.getMessage().contains(DAY_OF_MONTH.toString()));
+            assertEquals(ex.getMessage().contains(DAY_OF_MONTH.toString()), true);
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_pad")
+    @Test(dataProvider="Pad")
     public void test_pad_EXCEEDS_PAD(int minPad, int maxPad, long value, String result) throws Exception {
         try {
             getFormatter(DAY_OF_MONTH, minPad, maxPad, SignStyle.EXCEEDS_PAD).formatTo(new MockFieldValue(DAY_OF_MONTH, value), buf);
@@ -267,29 +257,26 @@ public class TestNumberPrinter extends AbstractTestPrinterParser {
             if (result.length() > minPad || value < 0) {
                 result = (value < 0 ? "-" + result : "+" + result);
             }
-            assertEquals(result, buf.toString());
+            assertEquals(buf.toString(), result);
         } catch (DateTimeException ex) {
             if (result != null) {
                 throw ex;
             }
-            assertEquals(true, ex.getMessage().contains(DAY_OF_MONTH.toString()));
+            assertEquals(ex.getMessage().contains(DAY_OF_MONTH.toString()), true);
         }
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_toString1() throws Exception {
-        assertEquals("Value(HourOfDay)", getFormatter(HOUR_OF_DAY, 1, 19, SignStyle.NORMAL).toString());
+        assertEquals(getFormatter(HOUR_OF_DAY, 1, 19, SignStyle.NORMAL).toString(), "Value(HourOfDay)");
     }
 
-    @Test
     public void test_toString2() throws Exception {
-        assertEquals("Value(HourOfDay,2)", getFormatter(HOUR_OF_DAY, 2, 2, SignStyle.NOT_NEGATIVE).toString());
+        assertEquals(getFormatter(HOUR_OF_DAY, 2, 2, SignStyle.NOT_NEGATIVE).toString(), "Value(HourOfDay,2)");
     }
 
-    @Test
     public void test_toString3() throws Exception {
-        assertEquals("Value(HourOfDay,1,2,NOT_NEGATIVE)", getFormatter(HOUR_OF_DAY, 1, 2, SignStyle.NOT_NEGATIVE).toString());
+        assertEquals(getFormatter(HOUR_OF_DAY, 1, 2, SignStyle.NOT_NEGATIVE).toString(), "Value(HourOfDay,1,2,NOT_NEGATIVE)");
     }
 
 }

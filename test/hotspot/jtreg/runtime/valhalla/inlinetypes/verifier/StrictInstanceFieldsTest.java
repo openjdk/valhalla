@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,45 +24,24 @@
 /*
  * @test
  * @enablePreview
- * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
- *          java.base/jdk.internal.value
  * @compile BadChild.jasm
  *          BadChild1.jasm
- *          StrictFieldNotSubset.jasm
  *          ControlFlowChildBad.jasm
  *          TryCatchChildBad.jasm
  *          NestedEarlyLarval.jcod
  *          EndsInEarlyLarval.jcod
- *          EarlyLarvalNotSubset.jcod
+ *          StrictFieldsNotSubset.jcod
  *          InvalidIndexInEarlyLarval.jcod
- * @compile StrictInstanceFieldsTest.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             StrictInstanceFieldsTest
- *             Child ControlFlowChild TryCatchChild AssignedInConditionalChild
- *             SwitchCaseChild NestedConstructorChild FinalChild
+ * @compile -XDnoLocalProxyVars StrictInstanceFieldsTest.java
  * @run main/othervm -Xlog:verification StrictInstanceFieldsTest
  */
 
 import java.lang.reflect.Field;
-import jdk.test.lib.helpers.StrictInit;
+import jdk.internal.vm.annotation.Strict;
 
 public class StrictInstanceFieldsTest {
-
-    public static <T> void negativeTest(Class<T> clazz, String msg, boolean... args) throws Exception {
-        try {
-            T child = clazz.getDeclaredConstructor().newInstance(args);
-            System.out.println(child);
-            throw new RuntimeException("Should fail verification");
-        } catch (java.lang.VerifyError e) {
-            if (!e.getMessage().contains(msg)) {
-                throw new RuntimeException("wrong exception: " + e.getMessage());
-            }
-            e.printStackTrace();
-        }
-    }
-
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
 
         // --------------
         // POSITIVE TESTS
@@ -101,31 +80,100 @@ public class StrictInstanceFieldsTest {
         // --------------
 
         // Field not initialized before super call
-        negativeTest(BadChild.class, "All strict final fields must be initialized before super()");
+        try {
+            BadChild child = new BadChild();
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("All strict final fields must be initialized before super()")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
 
         // Field not initialized before super call
-        negativeTest(BadChild1.class, "All strict final fields must be initialized before super()");
-
-        // Attempt to assign a strict field not present in the original set of unset fields
-        negativeTest(StrictFieldNotSubset.class, "Initializing unknown strict field");
+        try {
+            BadChild1 child = new BadChild1();
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("All strict final fields must be initialized before super()")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
 
         // Constructor with control flow but field is not initialized
-        negativeTest(ControlFlowChildBad.class, "Inconsistent stackmap frames at branch target", true, false);
+        try {
+            ControlFlowChildBad child = new ControlFlowChildBad(true, false);
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("Inconsistent stackmap frames at branch target")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
 
         // Constructor with try-catch but field is not initialized
-        negativeTest(TryCatchChildBad.class, "Inconsistent stackmap frames at branch target");
+        try {
+            TryCatchChildBad child = new TryCatchChildBad();
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("Inconsistent stackmap frames at branch target")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
 
         // Early_Larval frame contains another early_larval instead of a base frame
-        negativeTest(NestedEarlyLarval.class, "Early larval frame must be followed by a base frame", true, false);
+        try {
+            NestedEarlyLarval child = new NestedEarlyLarval(true, false);
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("Early larval frame must be followed by a base frame")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
 
         // Stack map table ends in early_larval frame without base frame
-        negativeTest(EndsInEarlyLarval.class, "Early larval frame must be followed by a base frame", true, false);
+        try {
+            EndsInEarlyLarval child = new EndsInEarlyLarval(true, false);
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("Early larval frame must be followed by a base frame")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
 
         // Early_larval frame includes a strict field not preset in the original set of unset fields
-        negativeTest(EarlyLarvalNotSubset.class, "Strict fields not a subset of initial strict instance fields", true, false);
+        try {
+            StrictFieldsNotSubset child = new StrictFieldsNotSubset(true, false);
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("Strict fields not a subset of initial strict instance fields")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
 
         // Early_larval frame includes a constant pool index that doesn't point to a NameAndType
-        negativeTest(InvalidIndexInEarlyLarval.class, "Invalid constant pool index in early larval frame", true, false);
+        try {
+            InvalidIndexInEarlyLarval child = new InvalidIndexInEarlyLarval(true, false);
+            System.out.println(child);
+            throw new RuntimeException("Should fail verification");
+        } catch (java.lang.VerifyError e) {
+            if (!e.getMessage().contains("Invalid constant pool index in early larval frame")) {
+                throw new RuntimeException("wrong exception: " + e.getMessage());
+            }
+            e.printStackTrace();
+        }
 
         System.out.println("Passed");
     }
@@ -136,7 +184,6 @@ class Parent {
 
     Parent() {
         z = 0;
-        checkStrict(this.getClass());
     }
 
     @Override
@@ -153,28 +200,13 @@ class Parent {
         }
         return sb.toString();
     }
-
-    // Every class in this test has strict fields x and y,
-    // make sure they have the ACC_STRICT_INIT flag set
-    public static void checkStrict(Class<?> c) {
-        Field[] fields = c.getDeclaredFields();
-
-        for (Field f : fields) {
-            if (f.getName().equals("x") && !f.isStrictInit()) {
-                throw new RuntimeException("Field x should be strict");
-            }
-            if (f.getName().equals("y") && !f.isStrictInit()) {
-                throw new RuntimeException("Field y should be strict");
-            }
-        }
-    }
 }
 
 class Child extends Parent {
 
-    @StrictInit
+    @Strict
     int x;
-    @StrictInit
+    @Strict
     int y;
 
     Child() {
@@ -185,9 +217,9 @@ class Child extends Parent {
 
 class ControlFlowChild extends Parent {
 
-    @StrictInit
+    @Strict
     int x;
-    @StrictInit
+    @Strict
     int y;
 
     ControlFlowChild(boolean a, boolean b) {
@@ -207,9 +239,9 @@ class ControlFlowChild extends Parent {
 
 class TryCatchChild extends Parent {
 
-    @StrictInit
+    @Strict
     int x;
-    @StrictInit
+    @Strict
     int y;
 
     TryCatchChild() {
@@ -228,9 +260,9 @@ class TryCatchChild extends Parent {
 
 class AssignedInConditionalChild extends Parent {
 
-    @StrictInit
+    @Strict
     final int x;
-    @StrictInit
+    @Strict
     final int y;
 
     AssignedInConditionalChild() {
@@ -245,9 +277,9 @@ class AssignedInConditionalChild extends Parent {
 
 class SwitchCaseChild extends Parent {
 
-    @StrictInit
+    @Strict
     final int x;
-    @StrictInit
+    @Strict
     final int y;
 
     SwitchCaseChild(int n) {
@@ -271,9 +303,9 @@ class SwitchCaseChild extends Parent {
 
 class NestedConstructorChild extends Parent {
 
-    @StrictInit
+    @Strict
     final int x;
-    @StrictInit
+    @Strict
     final int y;
 
     NestedConstructorChild(boolean a, boolean b) {
@@ -297,9 +329,9 @@ class NestedConstructorChild extends Parent {
 
 class FinalChild extends Parent {
 
-    @StrictInit
+    @Strict
     final int x;
-    @StrictInit
+    @Strict
     final int y;
 
     FinalChild() {

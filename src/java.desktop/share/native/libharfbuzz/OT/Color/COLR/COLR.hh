@@ -104,7 +104,7 @@ public:
     foreground (foreground_),
     instancer (instancer_)
   {
-    if (font->is_synthetic)
+    if (font->is_synthetic ())
     {
       font = hb_font_create_sub_font (font);
       hb_font_set_synthetic_bold (font, 0, 0, true);
@@ -178,10 +178,7 @@ struct hb_colrv1_closure_context_t :
   { glyphs->add (glyph_id); }
 
   void add_layer_indices (unsigned first_layer_index, unsigned num_of_layers)
-  {
-    if (num_of_layers == 0) return;
-    layer_indices->add_range (first_layer_index, first_layer_index + num_of_layers - 1);
-  }
+  { layer_indices->add_range (first_layer_index, first_layer_index + num_of_layers - 1); }
 
   void add_palette_index (unsigned palette_index)
   { palette_indices->add (palette_index); }
@@ -653,10 +650,10 @@ struct PaintColrLayers
     TRACE_SUBSET (this);
     auto *out = c->serializer->embed (this);
     if (unlikely (!out)) return_trace (false);
-
-    uint32_t first_layer_index = numLayers ? c->plan->colrv1_layers.get (firstLayerIndex) : 0;
-    return_trace (c->serializer->check_assign (out->firstLayerIndex, first_layer_index,
+    return_trace (c->serializer->check_assign (out->firstLayerIndex, c->plan->colrv1_layers.get (firstLayerIndex),
                                                HB_SERIALIZE_ERROR_INT_OVERFLOW));
+
+    return_trace (true);
   }
 
   bool sanitize (hb_sanitize_context_t *c) const
@@ -1078,9 +1075,9 @@ struct PaintTranslate
     float ddx = dx + c->instancer (varIdxBase, 0);
     float ddy = dy + c->instancer (varIdxBase, 1);
 
-    c->funcs->push_translate (c->data, ddx, ddy);
+    bool p1 = c->funcs->push_translate (c->data, ddx, ddy);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 14(noVar) or 15 (Var) */
@@ -1127,9 +1124,9 @@ struct PaintScale
     float sx = scaleX.to_float (c->instancer (varIdxBase, 0));
     float sy = scaleY.to_float (c->instancer (varIdxBase, 1));
 
-    c->funcs->push_scale (c->data, sx, sy);
+    bool p1 = c->funcs->push_scale (c->data, sx, sy);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 16 (noVar) or 17(Var) */
@@ -1180,9 +1177,13 @@ struct PaintScaleAroundCenter
     float tCenterX = centerX + c->instancer (varIdxBase, 2);
     float tCenterY = centerY + c->instancer (varIdxBase, 3);
 
-    c->funcs->push_scale_around_center (c->data, sx, sy, tCenterX, tCenterY);
+    bool p1 = c->funcs->push_translate (c->data, +tCenterX, +tCenterY);
+    bool p2 = c->funcs->push_scale (c->data, sx, sy);
+    bool p3 = c->funcs->push_translate (c->data, -tCenterX, -tCenterY);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p3) c->funcs->pop_transform (c->data);
+    if (p2) c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 18 (noVar) or 19(Var) */
@@ -1227,9 +1228,9 @@ struct PaintScaleUniform
     TRACE_PAINT (this);
     float s = scale.to_float (c->instancer (varIdxBase, 0));
 
-    c->funcs->push_scale (c->data, s, s);
+    bool p1 = c->funcs->push_scale (c->data, s, s);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 20 (noVar) or 21(Var) */
@@ -1277,9 +1278,13 @@ struct PaintScaleUniformAroundCenter
     float tCenterX = centerX + c->instancer (varIdxBase, 1);
     float tCenterY = centerY + c->instancer (varIdxBase, 2);
 
-    c->funcs->push_scale_around_center (c->data, s, s, tCenterX, tCenterY);
+    bool p1 = c->funcs->push_translate (c->data, +tCenterX, +tCenterY);
+    bool p2 = c->funcs->push_scale (c->data, s, s);
+    bool p3 = c->funcs->push_translate (c->data, -tCenterX, -tCenterY);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p3) c->funcs->pop_transform (c->data);
+    if (p2) c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 22 (noVar) or 23(Var) */
@@ -1323,9 +1328,9 @@ struct PaintRotate
     TRACE_PAINT (this);
     float a = angle.to_float (c->instancer (varIdxBase, 0));
 
-    c->funcs->push_rotate (c->data, a);
+    bool p1 = c->funcs->push_rotate (c->data, a);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 24 (noVar) or 25(Var) */
@@ -1373,9 +1378,13 @@ struct PaintRotateAroundCenter
     float tCenterX = centerX + c->instancer (varIdxBase, 1);
     float tCenterY = centerY + c->instancer (varIdxBase, 2);
 
-    c->funcs->push_rotate_around_center (c->data, a, tCenterX, tCenterY);
+    bool p1 = c->funcs->push_translate (c->data, +tCenterX, +tCenterY);
+    bool p2 = c->funcs->push_rotate (c->data, a);
+    bool p3 = c->funcs->push_translate (c->data, -tCenterX, -tCenterY);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p3) c->funcs->pop_transform (c->data);
+    if (p2) c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 26 (noVar) or 27(Var) */
@@ -1423,9 +1432,9 @@ struct PaintSkew
     float sx = xSkewAngle.to_float(c->instancer (varIdxBase, 0));
     float sy = ySkewAngle.to_float(c->instancer (varIdxBase, 1));
 
-    c->funcs->push_skew (c->data, sx, sy);
+    bool p1 = c->funcs->push_skew (c->data, sx, sy);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 28(noVar) or 29 (Var) */
@@ -1476,9 +1485,13 @@ struct PaintSkewAroundCenter
     float tCenterX = centerX + c->instancer (varIdxBase, 2);
     float tCenterY = centerY + c->instancer (varIdxBase, 3);
 
-    c->funcs->push_skew_around_center (c->data, sx, sy, tCenterX, tCenterY);
+    bool p1 = c->funcs->push_translate (c->data, +tCenterX, +tCenterY);
+    bool p2 = c->funcs->push_skew (c->data, sx, sy);
+    bool p3 = c->funcs->push_translate (c->data, -tCenterX, -tCenterY);
     c->recurse (this+src);
-    c->funcs->pop_transform (c->data);
+    if (p3) c->funcs->pop_transform (c->data);
+    if (p2) c->funcs->pop_transform (c->data);
+    if (p1) c->funcs->pop_transform (c->data);
   }
 
   HBUINT8               format; /* format = 30(noVar) or 31 (Var) */
@@ -1613,7 +1626,7 @@ struct ClipBox
                const ItemVarStoreInstancer &instancer) const
   {
     TRACE_SUBSET (this);
-    switch (u.format.v) {
+    switch (u.format) {
     case 1: return_trace (u.format1.subset (c, instancer, VarIdx::NO_VARIATION));
     case 2: return_trace (u.format2.subset (c, instancer));
     default:return_trace (c->default_return_value ());
@@ -1622,7 +1635,7 @@ struct ClipBox
 
   void closurev1 (hb_colrv1_closure_context_t* c) const
   {
-    switch (u.format.v) {
+    switch (u.format) {
     case 2: u.format2.closurev1 (c); return;
     default:return;
     }
@@ -1631,9 +1644,9 @@ struct ClipBox
   template <typename context_t, typename ...Ts>
   typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
   {
-    if (unlikely (!c->may_dispatch (this, &u.format.v))) return c->no_dispatch_return_value ();
-    TRACE_DISPATCH (this, u.format.v);
-    switch (u.format.v) {
+    if (unlikely (!c->may_dispatch (this, &u.format))) return c->no_dispatch_return_value ();
+    TRACE_DISPATCH (this, u.format);
+    switch (u.format) {
     case 1: return_trace (c->dispatch (u.format1, std::forward<Ts> (ds)...));
     case 2: return_trace (c->dispatch (u.format2, std::forward<Ts> (ds)...));
     default:return_trace (c->default_return_value ());
@@ -1644,7 +1657,7 @@ struct ClipBox
                     const ItemVarStoreInstancer &instancer) const
   {
     ClipBoxData clip_box;
-    switch (u.format.v) {
+    switch (u.format) {
     case 1:
       u.format1.get_clip_box (clip_box, instancer);
       break;
@@ -1664,7 +1677,7 @@ struct ClipBox
 
   protected:
   union {
-  struct { HBUINT8 v; } format;         /* Format identifier */
+  HBUINT8               format;         /* Format identifier */
   ClipBoxFormat1        format1;
   ClipBoxFormat2        format2;
   } u;
@@ -1844,9 +1857,9 @@ struct Paint
   template <typename context_t, typename ...Ts>
   typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
   {
-    if (unlikely (!c->may_dispatch (this, &u.format.v))) return c->no_dispatch_return_value ();
-    TRACE_DISPATCH (this, u.format.v);
-    switch (u.format.v) {
+    if (unlikely (!c->may_dispatch (this, &u.format))) return c->no_dispatch_return_value ();
+    TRACE_DISPATCH (this, u.format);
+    switch (u.format) {
     case 1: return_trace (c->dispatch (u.paintformat1, std::forward<Ts> (ds)...));
     case 2: return_trace (c->dispatch (u.paintformat2, std::forward<Ts> (ds)...));
     case 3: return_trace (c->dispatch (u.paintformat3, std::forward<Ts> (ds)...));
@@ -1885,7 +1898,7 @@ struct Paint
 
   protected:
   union {
-  struct { HBUINT8 v; }                         format;
+  HBUINT8                                       format;
   PaintColrLayers                               paintformat1;
   NoVariable<PaintSolid>                        paintformat2;
   Variable<PaintSolid>                          paintformat3;
@@ -2060,7 +2073,7 @@ struct delta_set_index_map_subset_plan_t
     outer_bit_count = 1;
     inner_bit_count = 1;
 
-    if (unlikely (!output_map.resize_dirty (map_count))) return false;
+    if (unlikely (!output_map.resize (map_count, false))) return false;
 
     for (unsigned idx = 0; idx < map_count; idx++)
     {
@@ -2680,8 +2693,7 @@ struct COLR
   {
     ItemVarStoreInstancer instancer (get_var_store_ptr (),
                                      get_delta_set_index_map_ptr (),
-                                     hb_array (font->coords,
-                                               font->has_nonzero_coords ? font->num_coords : 0));
+                                     hb_array (font->coords, font->num_coords));
     hb_paint_context_t c (this, funcs, data, font, palette_index, foreground, instancer);
 
     hb_decycler_node_t node (c.glyphs_decycler);

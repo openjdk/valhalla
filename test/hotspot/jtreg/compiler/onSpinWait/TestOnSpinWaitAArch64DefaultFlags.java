@@ -28,7 +28,6 @@
  * @library /test/lib /
  *
  * @requires os.arch=="aarch64"
- * @requires vm.flagless
  *
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.util.concurrent.*;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
@@ -51,7 +52,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @requires vm.flagless
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening
+ * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -67,7 +68,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @requires vm.flagless
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening
+ * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
  */
@@ -83,7 +84,7 @@ import static test.java.lang.invoke.lib.InstructionHelper.classDesc;
  * @requires vm.flagless
  * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -XX:+UseParallelGC -XX:+UnlockDiagnosticVMOptions -Xmx128m -XX:+UseFieldFlattening
+ * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:+UseFieldFlattening
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -171,22 +172,20 @@ public class InlineOops {
 
 
     static class Couple {
+        @Strict
         @NullRestricted
-        public Person onePerson;
+        public Person onePerson = new Person(0, null, null);
+        @Strict
         @NullRestricted
-        public Person otherPerson;
-
-        Couple() {
-            onePerson = new Person(0, null, null);
-            otherPerson = new Person(0, null, null);
-            super();
-        }
+        public Person otherPerson = new Person(0, null, null);
     }
 
     @LooselyConsistentValue
     static value class Composition {
+        @Strict
         @NullRestricted
         public Person onePerson;
+        @Strict
         @NullRestricted
         public Person otherPerson;
 
@@ -312,7 +311,7 @@ public class InlineOops {
     }
 
     /**
-     * Just some check sanity checks with astore and aload
+     * Just some check sanity checks with aconst_init, withfield, astore and aload
      *
      * Changes to javac slot usage may well break this test
      */
@@ -357,6 +356,10 @@ public class InlineOops {
                 oopMaps[0][3] == desc &&
                 oopMaps[0][4] == note, "Test-R0 incorrect");
 
+        /**
+         * TODO: vwithfield from method handle cooked from anonymous class within the inline class
+         *       even with "MethodHandles.privateLookupIn()" will fail final putfield rules
+         */
     }
 
     /**
@@ -682,6 +685,7 @@ public class InlineOops {
 
     @LooselyConsistentValue
     static value class BarValue {
+        @Strict
         @NullRestricted
         FooValue foo;
         long extendedId;

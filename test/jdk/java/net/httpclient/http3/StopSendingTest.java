@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,14 +44,13 @@ import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.internal.net.http.ResponseSubscribers;
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.net.URIBuilder;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 
 /*
  * @test
@@ -60,17 +59,21 @@ import org.junit.jupiter.api.Test;
  * @build jdk.test.lib.net.SimpleSSLContext
  *        jdk.httpclient.test.lib.common.HttpServerAdapters
  * @compile ../ReferenceTracker.java
- * @run junit/othervm -Djdk.internal.httpclient.debug=true
- *             -Djdk.httpclient.HttpClient.log=requests,responses,errors ${test.main.class}
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true
+ *             -Djdk.httpclient.HttpClient.log=requests,responses,errors StopSendingTest
  */
 public class StopSendingTest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer h3Server;
-    private static String requestURIBase;
+    private SSLContext sslContext;
+    private HttpTestServer h3Server;
+    private String requestURIBase;
 
-    @BeforeAll
-    public static void beforeClass() throws Exception {
+    @BeforeClass
+    public void beforeClass() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
         h3Server = HttpTestServer.create(HTTP_3_URI_ONLY, sslContext);
         h3Server.addHandler(new Handler(), "/hello");
         h3Server.start();
@@ -80,8 +83,8 @@ public class StopSendingTest implements HttpServerAdapters {
 
     }
 
-    @AfterAll
-    public static void afterClass() throws Exception {
+    @AfterClass
+    public void afterClass() throws Exception {
         if (h3Server != null) {
             System.out.println("Stopping server " + h3Server.getAddress());
             h3Server.stop();
@@ -155,7 +158,7 @@ public class StopSendingTest implements HttpServerAdapters {
             // of the Future instance, sometimes the Future.cancel(true) results
             // in an ExecutionException which wraps the CancellationException.
             // TODO: fix the actual race condition and then expect only CancellationException here
-            final Exception actualException = Assertions.assertThrows(Exception.class, futureResp::get);
+            final Exception actualException = Assert.expectThrows(Exception.class, futureResp::get);
             if (actualException instanceof CancellationException) {
                 // expected
                 System.out.println("Received the expected CancellationException");

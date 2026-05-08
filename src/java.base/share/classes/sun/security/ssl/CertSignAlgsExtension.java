@@ -94,8 +94,7 @@ final class CertSignAlgsExtension {
             // Is it a supported and enabled extension?
             if (!chc.sslConfig.isAvailable(
                     SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                             "Ignore unavailable " +
                             "signature_algorithms_cert extension");
@@ -145,8 +144,7 @@ final class CertSignAlgsExtension {
             // Is it a supported and enabled extension?
             if (!shc.sslConfig.isAvailable(
                     SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                             "Ignore unavailable " +
                             "signature_algorithms_cert extension");
@@ -237,8 +235,7 @@ final class CertSignAlgsExtension {
             // Is it a supported and enabled extension?
             if (!shc.sslConfig.isAvailable(
                     SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                             "Ignore unavailable " +
                             "signature_algorithms_cert extension");
@@ -286,8 +283,7 @@ final class CertSignAlgsExtension {
             // Is it a supported and enabled extension?
             if (!chc.sslConfig.isAvailable(
                     SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                             "Ignore unavailable " +
                             "signature_algorithms_cert extension");

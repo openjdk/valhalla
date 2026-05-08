@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2021, 2022, Huawei Technologies Co., Ltd. All rights reserved.
- * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +25,6 @@
 #ifndef SHARE_GC_G1_G1EVACFAILUREREGIONS_HPP
 #define SHARE_GC_G1_G1EVACFAILUREREGIONS_HPP
 
-#include "runtime/atomic.hpp"
 #include "utilities/bitMap.hpp"
 
 class G1AbstractSubTask;
@@ -55,14 +53,14 @@ class G1EvacFailureRegions {
   // Evacuation failed regions (indexes) in the current collection.
   uint* _evac_failed_regions;
   // Number of regions evacuation failed in the current collection.
-  Atomic<uint> _num_regions_evac_failed;
+  volatile uint _num_regions_evac_failed;
 
 public:
   G1EvacFailureRegions();
   ~G1EvacFailureRegions();
 
   uint get_region_idx(uint idx) const {
-    assert(idx < _num_regions_evac_failed.load_relaxed(), "precondition");
+    assert(idx < _num_regions_evac_failed, "precondition");
     return _evac_failed_regions[idx];
   }
 

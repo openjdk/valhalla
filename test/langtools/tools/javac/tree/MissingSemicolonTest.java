@@ -115,7 +115,7 @@ public class MissingSemicolonTest {
             public Void scan(Tree tree, Void p) {
                 if (tree != null) {
                     int start = ((JCTree) tree).getStartPosition();
-                    int end = ((JCTree) tree).getEndPosition();
+                    int end = ((JCTree) tree).getEndPosition(unit.endPositions);
 
                     spans.add(new int[] {start, end});
                 }
@@ -134,7 +134,7 @@ public class MissingSemicolonTest {
             public Void scan(Tree tree, Void p) {
                 if (tree != null) {
                     int start = ((JCTree) tree).getStartPosition();
-                    int end = ((JCTree) tree).getEndPosition();
+                    int end = ((JCTree) tree).getEndPosition(updated.endPositions);
 
                     if (tree.getKind() != Kind.ERRONEOUS) {
                         int[] expected = nextSpan.next();

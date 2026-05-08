@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,6 @@ import java.util.UUID;
 import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputBuffer;
-import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.StreamPumper;
 import jdk.test.lib.util.CoreUtils;
 
@@ -121,12 +120,6 @@ public class LingeredApp {
 
     public void setForceCrash(boolean forceCrash) {
         this.forceCrash = forceCrash;
-    }
-
-    private static Runnable crasher;
-
-    public static void setCrasher(Runnable runnable) {
-        crasher = runnable;
     }
 
     native private static int crash();
@@ -452,7 +445,6 @@ public class LingeredApp {
         long t1 = System.currentTimeMillis();
         theApp.createLock();
         try {
-            ProcessTools.checkDuplicateAgentOpts(jvmOpts);
             theApp.runAppExactJvmOpts(jvmOpts);
             theApp.waitAppReadyOrCrashed();
         } catch (Exception ex) {
@@ -636,12 +628,8 @@ public class LingeredApp {
             synchronized(steadyStateObj) {
                 startSteadyStateThread(steadyStateObj);
                 if (forceCrash) {
-                    if (crasher == null) {
-                        System.loadLibrary("LingeredApp"); // location of native crash() method
-                        crash();
-                    } else {
-                        crasher.run();
-                    }
+                    System.loadLibrary("LingeredApp"); // location of native crash() method
+                    crash();
                 }
                 while (Files.exists(path)) {
                     // Touch the lock to indicate our readiness

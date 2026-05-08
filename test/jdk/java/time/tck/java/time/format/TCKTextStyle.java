@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,27 +59,28 @@
  */
 package tck.java.time.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.time.format.TextStyle;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test DecimalStyle.
  */
+@Test
 public class TCKTextStyle {
 
     @Test
     public void test_standaloneNormal() {
-        assertEquals(TextStyle.FULL_STANDALONE.asNormal(), TextStyle.FULL);
-        assertEquals(TextStyle.SHORT.asNormal(), TextStyle.SHORT);
-        assertEquals(TextStyle.NARROW.asNormal(), TextStyle.NARROW);
+        assertEquals(TextStyle.FULL, TextStyle.FULL_STANDALONE.asNormal());
+        assertEquals(TextStyle.SHORT, TextStyle.SHORT.asNormal());
+        assertEquals(TextStyle.NARROW, TextStyle.NARROW.asNormal());
 
-        assertEquals(TextStyle.FULL_STANDALONE.asStandalone(), TextStyle.FULL_STANDALONE);
-        assertEquals(TextStyle.SHORT.asStandalone(), TextStyle.SHORT_STANDALONE);
-        assertEquals(TextStyle.NARROW.asStandalone(), TextStyle.NARROW_STANDALONE);
+        assertEquals(TextStyle.FULL_STANDALONE, TextStyle.FULL_STANDALONE.asStandalone());
+        assertEquals(TextStyle.SHORT_STANDALONE, TextStyle.SHORT.asStandalone());
+        assertEquals(TextStyle.NARROW_STANDALONE, TextStyle.NARROW.asStandalone());
 
         assertTrue(TextStyle.FULL_STANDALONE.isStandalone());
         assertTrue(TextStyle.SHORT_STANDALONE.isStandalone());
@@ -96,7 +97,7 @@ public class TCKTextStyle {
     @Test
     public void test_valueOf() {
         for (TextStyle style : TextStyle.values()) {
-            assertEquals(style, TextStyle.valueOf(style.name()));
+            assertEquals(TextStyle.valueOf(style.name()), style);
         }
     }
 

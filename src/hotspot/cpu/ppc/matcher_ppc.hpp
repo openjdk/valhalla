@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2026 SAP SE. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,10 +37,10 @@
     return false;
   }
 
-  // The PPC implementation uses VSX lxv/stxv instructions (if
+  // The PPC implementation uses VSX lxvd2x/stxvd2x instructions (if
   // SuperwordUseVSX). They do not have alignment requirements.
   // Some VSX storage access instructions cannot encode arbitrary displacements
-  // (e.g. lxv). We use memoryAlg16 for them.
+  // (e.g. lxv). None of them is currently used.
   static constexpr bool misaligned_vectors_ok() {
     return true;
   }
@@ -65,10 +64,12 @@
     return true;
   }
 
+  // Use conditional move (CMOVL) on Power7.
   static constexpr int long_cmove_cost() { return 0; } // this only makes long cmoves more expensive than int cmoves
 
-  // Suppress CMOVF for Power8 because there are no fast nodes.
-  static int float_cmove_cost() { return (PowerArchitecturePPC64 >= 9) ? 0 : ConditionalMoveLimit; }
+  // Suppress CMOVF. Conditional move available (sort of) on PPC64 only from P7 onwards. Not exploited yet.
+  // fsel doesn't accept a condition register as input, so this would be slightly different.
+  static int float_cmove_cost() { return ConditionalMoveLimit; }
 
   // This affects two different things:
   //  - how Decode nodes are matched
@@ -87,6 +88,7 @@
 
   static bool narrow_klass_use_complex_address() {
     NOT_LP64(ShouldNotCallThis());
+    assert(UseCompressedClassPointers, "only for compressed klass code");
     // TODO: PPC port if (MatchDecodeNodes) return true;
     return false;
   }

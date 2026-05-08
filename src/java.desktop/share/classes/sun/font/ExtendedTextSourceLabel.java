@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,16 +57,15 @@ import java.util.Map;
  * Align bounds is a rect that defines how to align this to margins.
  * it generally allows some overhang that logical bounds would prevent.
  */
-final class ExtendedTextSourceLabel implements TextLineComponent, Decoration.Label {
+class ExtendedTextSourceLabel implements TextLineComponent, Decoration.Label {
 
   private final TextSource source;
   private final Decoration decorator;
 
   // caches
-  private final Font font;
-  private final AffineTransform baseTX;
-  private final CoreMetrics cm;
-  private final float advTracking;
+  private Font font;
+  private AffineTransform baseTX;
+  private CoreMetrics cm;
 
   private Rectangle2D lb;
   private Rectangle2D ab;
@@ -75,18 +74,34 @@ final class ExtendedTextSourceLabel implements TextLineComponent, Decoration.Lab
   private StandardGlyphVector gv;
   private float[] charinfo;
 
+  private float advTracking;
+
   /**
    * Create from a TextSource.
    */
   public ExtendedTextSourceLabel(TextSource source, Decoration decorator) {
     this.source = source;
     this.decorator = decorator;
+    finishInit();
+  }
 
-    Font font = source.getFont();
+  /**
+   * Create from a TextSource, optionally using cached data from oldLabel starting at the offset.
+   * If present oldLabel must have been created from a run of text that includes the text used in
+   * the new label.  Start in source corresponds to logical character offset in oldLabel.
+   */
+  public ExtendedTextSourceLabel(TextSource source, ExtendedTextSourceLabel oldLabel, int offset) {
+    // currently no optimization.
+    this.source = source;
+    this.decorator = oldLabel.decorator;
+    finishInit();
+  }
+
+  private void finishInit() {
+    font = source.getFont();
+
     Map<TextAttribute, ?> atts = font.getAttributes();
-    AffineTransform baseTX = AttributeValues.getBaselineTransform(atts);
-
-    CoreMetrics cm;
+    baseTX = AttributeValues.getBaselineTransform(atts);
     if (baseTX == null){
         cm = source.getCoreMetrics();
     } else {
@@ -95,15 +110,13 @@ final class ExtendedTextSourceLabel implements TextLineComponent, Decoration.Lab
           charTX = new AffineTransform();
       }
       font = font.deriveFont(charTX);
+
       LineMetrics lm = font.getLineMetrics(source.getChars(), source.getStart(),
           source.getStart() + source.getLength(), source.getFRC());
       cm = CoreMetrics.get(lm);
     }
 
-    this.font = font;
-    this.baseTX = baseTX;
-    this.cm = cm;
-    this.advTracking = font.getSize() * AttributeValues.getTracking(atts);
+    advTracking = font.getSize() * AttributeValues.getTracking(atts);
   }
 
   /**
@@ -386,7 +399,7 @@ final class ExtendedTextSourceLabel implements TextLineComponent, Decoration.Lab
     int start = source.getStart();
     int length = source.getLength();
 
-    GlyphLayout gl = GlyphLayout.get();
+    GlyphLayout gl = GlyphLayout.get(null); // !!! no custom layout engines
     gv = gl.layout(font, frc, context, start, length, flags, null); // ??? use textsource
     GlyphLayout.done(gl);
 

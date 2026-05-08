@@ -27,31 +27,27 @@
  * @summary Test dynamic constant bootstraps
  * @library /java/lang/invoke/common
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run junit ConstantBootstrapsTest
- * @run junit/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 ConstantBootstrapsTest
+ * @run testng ConstantBootstrapsTest
+ * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 ConstantBootstrapsTest
  */
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.DirectMethodHandleDesc;
 import java.lang.constant.MethodHandleDesc;
-import java.lang.invoke.ConstantBootstraps;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
-import java.lang.invoke.VarHandle;
-import java.lang.invoke.WrongMethodTypeException;
+import java.lang.invoke.*;
 import java.math.BigInteger;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import test.java.lang.invoke.lib.InstructionHelper;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
-import static org.junit.jupiter.api.Assertions.*;
-
+@Test
 public class ConstantBootstrapsTest {
     static final MethodHandles.Lookup L = MethodHandles.lookup();
 
@@ -60,7 +56,6 @@ public class ConstantBootstrapsTest {
                 appendParameterTypes(params);
     }
 
-    @Test
     public void testNullConstant() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(L, "_", Object.class,
                 ConstantBootstraps.class, "nullConstant", lookupMT(Object.class));
@@ -71,13 +66,12 @@ public class ConstantBootstrapsTest {
         assertNull(handle.invoke());
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNullConstantPrimitiveClass() {
-        assertThrows(IllegalArgumentException.class, () -> ConstantBootstraps.nullConstant(MethodHandles.lookup(), null, int.class));
+        ConstantBootstraps.nullConstant(MethodHandles.lookup(), null, int.class);
     }
 
 
-    @Test
     public void testPrimitiveClass() throws Throwable {
         var pm = Map.of(
                 "I", int.class,
@@ -94,73 +88,69 @@ public class ConstantBootstrapsTest {
         for (var desc : pm.keySet()) {
             var handle = InstructionHelper.ldcDynamicConstant(L, desc, Class.class,
                     ConstantBootstraps.class, "primitiveClass", lookupMT(Class.class));
-            assertEquals(pm.get(desc), handle.invoke());
+            assertEquals(handle.invoke(), pm.get(desc));
         }
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void testPrimitiveClassNullName() {
-        assertThrows(NullPointerException.class, () -> ConstantBootstraps.primitiveClass(MethodHandles.lookup(), null, Class.class));
+        ConstantBootstraps.primitiveClass(MethodHandles.lookup(), null, Class.class);
     }
 
-    @Test
+    @Test(expectedExceptions = NullPointerException.class)
     public void testPrimitiveClassNullType() {
-        assertThrows(NullPointerException.class, () -> ConstantBootstraps.primitiveClass(MethodHandles.lookup(), "I", null));
+        ConstantBootstraps.primitiveClass(MethodHandles.lookup(), "I", null);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPrimitiveClassEmptyName() {
-        assertThrows(IllegalArgumentException.class, () -> ConstantBootstraps.primitiveClass(MethodHandles.lookup(), "", Class.class));
+        ConstantBootstraps.primitiveClass(MethodHandles.lookup(), "", Class.class);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPrimitiveClassWrongNameChar() {
-        assertThrows(IllegalArgumentException.class, () -> ConstantBootstraps.primitiveClass(MethodHandles.lookup(), "L", Class.class));
+        ConstantBootstraps.primitiveClass(MethodHandles.lookup(), "L", Class.class);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testPrimitiveClassWrongNameString() {
-        assertThrows(IllegalArgumentException.class, () -> ConstantBootstraps.primitiveClass(MethodHandles.lookup(), "Ljava/lang/Object;", Class.class));
+        ConstantBootstraps.primitiveClass(MethodHandles.lookup(), "Ljava/lang/Object;", Class.class);
     }
 
 
-    @Test
     public void testEnumConstant() throws Throwable {
         for (var v : StackWalker.Option.values()) {
             var handle = InstructionHelper.ldcDynamicConstant(L, v.name(), StackWalker.Option.class,
                     ConstantBootstraps.class, "enumConstant", lookupMT(Enum.class));
-            assertEquals(v, handle.invoke());
+            assertEquals(handle.invoke(), v);
         }
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testEnumConstantUnknown() {
-        assertThrows(IllegalArgumentException.class, () -> ConstantBootstraps.enumConstant(MethodHandles.lookup(), "DOES_NOT_EXIST", StackWalker.Option.class));
+        ConstantBootstraps.enumConstant(MethodHandles.lookup(), "DOES_NOT_EXIST", StackWalker.Option.class);
     }
 
 
-    @Test
     public void testGetStaticDecl() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(L, "TYPE", Class.class,
                 ConstantBootstraps.class, "getStaticFinal", lookupMT(Object.class, Class.class),
                 InstructionHelper.classDesc(Integer.class));
-        assertEquals(int.class, handle.invoke());
+        assertEquals(handle.invoke(), int.class);
     }
 
-    @Test
     public void testGetStaticSelf() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(L, "MAX_VALUE", int.class,
                 ConstantBootstraps.class, "getStaticFinal", lookupMT(Object.class));
-        assertEquals(Integer.MAX_VALUE, handle.invoke());
+        assertEquals(handle.invoke(), Integer.MAX_VALUE);
 
 
         handle = InstructionHelper.ldcDynamicConstant(L, "ZERO", BigInteger.class,
                 ConstantBootstraps.class, "getStaticFinal", lookupMT(Object.class));
-        assertEquals(BigInteger.ZERO, handle.invoke());
+        assertEquals(handle.invoke(), BigInteger.ZERO);
     }
 
 
-    @Test
     public void testInvoke() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(
                 L, "_", List.class,
@@ -169,10 +159,9 @@ public class ConstantBootstrapsTest {
                         MethodType.methodType(List.class, Object[].class).toMethodDescriptorString()),
                 1, 2, 3, 4
         );
-        assertEquals(List.of(1, 2, 3, 4), handle.invoke());
+        assertEquals(handle.invoke(), List.of(1, 2, 3, 4));
     }
 
-    @Test
     public void testInvokeAsType() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(
                 L, "_", int.class,
@@ -181,10 +170,9 @@ public class ConstantBootstrapsTest {
                         MethodType.methodType(Integer.class, String.class).toMethodDescriptorString()),
                 "42"
         );
-        assertEquals(42, handle.invoke());
+        assertEquals(handle.invoke(), 42);
     }
 
-    @Test
     public void testInvokeAsTypeVariableArity() throws Throwable {
         // The constant type is Collection but the invoke return type is List
         var handle = InstructionHelper.ldcDynamicConstant(
@@ -194,21 +182,21 @@ public class ConstantBootstrapsTest {
                         MethodType.methodType(List.class, Object[].class).toMethodDescriptorString()),
                 1, 2, 3, 4
         );
-        assertEquals(List.of(1, 2, 3, 4), handle.invoke());
+        assertEquals(handle.invoke(), List.of(1, 2, 3, 4));
     }
 
-    @Test
+    @Test(expectedExceptions = ClassCastException.class)
     public void testInvokeAsTypeClassCast() throws Throwable {
-        assertThrows(ClassCastException.class, () -> ConstantBootstraps.invoke(MethodHandles.lookup(), "_", String.class,
+        ConstantBootstraps.invoke(MethodHandles.lookup(), "_", String.class,
                 MethodHandles.lookup().findStatic(Integer.class, "valueOf", MethodType.methodType(Integer.class, String.class)),
-                "42"));
+                "42");
     }
 
-    @Test
+    @Test(expectedExceptions = WrongMethodTypeException.class)
     public void testInvokeAsTypeWrongReturnType() throws Throwable {
-        assertThrows(WrongMethodTypeException.class, () -> ConstantBootstraps.invoke(MethodHandles.lookup(), "_", short.class,
+        ConstantBootstraps.invoke(MethodHandles.lookup(), "_", short.class,
                 MethodHandles.lookup().findStatic(Integer.class, "parseInt", MethodType.methodType(int.class, String.class)),
-                "42"));
+                "42");
     }
 
 
@@ -217,7 +205,6 @@ public class ConstantBootstrapsTest {
         public static String sf;
     }
 
-    @Test
     public void testVarHandleField() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(
                 L, "f", VarHandle.class,
@@ -227,11 +214,10 @@ public class ConstantBootstrapsTest {
         );
 
         var vhandle = (VarHandle) handle.invoke();
-        assertEquals(String.class, vhandle.varType());
-        assertEquals(List.of(X.class), vhandle.coordinateTypes());
+        assertEquals(vhandle.varType(), String.class);
+        assertEquals(vhandle.coordinateTypes(), List.of(X.class));
     }
 
-    @Test
     public void testVarHandleStaticField() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(
                 L, "sf", VarHandle.class,
@@ -241,11 +227,10 @@ public class ConstantBootstrapsTest {
         );
 
         var vhandle = (VarHandle) handle.invoke();
-        assertEquals(String.class, vhandle.varType());
-        assertEquals(List.of(), vhandle.coordinateTypes());
+        assertEquals(vhandle.varType(), String.class);
+        assertEquals(vhandle.coordinateTypes(), List.of());
     }
 
-    @Test
     public void testVarHandleArray() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(
                 L, "_", VarHandle.class,
@@ -254,10 +239,11 @@ public class ConstantBootstrapsTest {
         );
 
         var vhandle = (VarHandle) handle.invoke();
-        assertEquals(String.class, vhandle.varType());
-        assertEquals(List.of(String[].class, int.class), vhandle.coordinateTypes());
+        assertEquals(vhandle.varType(), String.class);
+        assertEquals(vhandle.coordinateTypes(), List.of(String[].class, int.class));
     }
 
+    @DataProvider
     public static Object[][] cceCasts() {
         return new Object[][]{
                 { void.class, null },
@@ -266,12 +252,12 @@ public class ConstantBootstrapsTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("cceCasts")
+    @Test(dataProvider = "cceCasts", expectedExceptions = ClassCastException.class)
     public void testBadCasts(Class<?> dstType, Object value) {
-        assertThrows(ClassCastException.class, () -> ConstantBootstraps.explicitCast(null, null, dstType, value));
+        ConstantBootstraps.explicitCast(null, null, dstType, value);
     }
 
+    @DataProvider
     public static Object[][] validCasts() {
         Object o = new Object();
         return new Object[][]{
@@ -292,10 +278,9 @@ public class ConstantBootstrapsTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("validCasts")
+    @Test(dataProvider = "validCasts")
     public void testSuccessfulCasts(Class<?> dstType, Object value, Object expected) {
         Object actual = ConstantBootstraps.explicitCast(null, null, dstType, value);
-        assertEquals(expected, actual);
+        assertEquals(actual, expected);
     }
 }

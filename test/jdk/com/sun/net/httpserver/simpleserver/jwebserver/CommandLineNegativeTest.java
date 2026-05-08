@@ -26,7 +26,7 @@
  * @summary Negative tests for the jwebserver command-line tool
  * @library /test/lib
  * @modules jdk.httpserver
- * @run junit/othervm CommandLineNegativeTest
+ * @run testng/othervm CommandLineNegativeTest
  */
 
 import java.io.IOException;
@@ -37,14 +37,13 @@ import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.util.FileUtils;
+import org.testng.SkipException;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.System.out;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertFalse;
 
 public class CommandLineNegativeTest {
 
@@ -56,8 +55,8 @@ public class CommandLineNegativeTest {
     static final Path TEST_FILE = TEST_DIR.resolve("file.txt");
     static final String LOOPBACK_ADDR = InetAddress.getLoopbackAddress().getHostAddress();
 
-    @BeforeAll
-    public static void setup() throws IOException {
+    @BeforeTest
+    public void setup() throws IOException {
         if (Files.exists(TEST_DIR)) {
             FileUtils.deleteFileTreeWithRetry(TEST_DIR);
         }
@@ -65,15 +64,15 @@ public class CommandLineNegativeTest {
         Files.createFile(TEST_FILE);
     }
 
-    public static Object[][] unknownOption() {
+    @DataProvider
+    public Object[][] unknownOption() {
         return new Object[][] {
                 {"--unknownOption"},
                 {"null"}
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("unknownOption")
+    @Test(dataProvider = "unknownOption")
     public void testBadOption(String opt) throws Throwable {
         out.println("\n--- testUnknownOption, opt=\"%s\" ".formatted(opt));
         simpleserver(JWEBSERVER, LOCALE_OPT, opt)
@@ -81,7 +80,8 @@ public class CommandLineNegativeTest {
                 .shouldContain("Error: unknown option: " + opt);
     }
 
-    public static Object[][] tooManyOptionArgs() {
+    @DataProvider
+    public Object[][] tooManyOptionArgs() {
         return new Object[][] {
                 {"-b", "localhost"},
                 {"-d", "/some/path"},
@@ -95,8 +95,7 @@ public class CommandLineNegativeTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("tooManyOptionArgs")
+    @Test(dataProvider = "tooManyOptionArgs")
     public void testTooManyOptionArgs(String opt, String arg) throws Throwable {
         out.println("\n--- testTooManyOptionArgs, opt=\"%s\" ".formatted(opt));
         simpleserver(JWEBSERVER, LOCALE_OPT, opt, arg, arg)
@@ -104,7 +103,8 @@ public class CommandLineNegativeTest {
                 .shouldContain("Error: unknown option: " + arg);
     }
 
-    public static Object[][] noArg() {
+    @DataProvider
+    public Object[][] noArg() {
         return new Object[][] {
                 {"-b", """
                     -b, --bind-address    - Address to bind to. Default: %s (loopback).
@@ -122,8 +122,7 @@ public class CommandLineNegativeTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("noArg")
+    @Test(dataProvider = "noArg")
     public void testNoArg(String opt, String msg) throws Throwable {
         out.println("\n--- testNoArg, opt=\"%s\" ".formatted(opt));
         simpleserver(JWEBSERVER, LOCALE_OPT, opt)
@@ -132,7 +131,8 @@ public class CommandLineNegativeTest {
                 .shouldContain(msg);
     }
 
-    public static Object[][] invalidValue() {
+    @DataProvider
+    public Object[][] invalidValue() {
         return new Object[][] {
                 {"-b", "[127.0.0.1]"},
                 {"-b", "badhost"},
@@ -146,8 +146,7 @@ public class CommandLineNegativeTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("invalidValue")
+    @Test(dataProvider = "invalidValue")
     public void testInvalidValue(String opt, String val) throws Throwable {
         out.println("\n--- testInvalidValue, opt=\"%s\" ".formatted(opt));
         simpleserver(JWEBSERVER, LOCALE_OPT, opt, val)
@@ -155,10 +154,10 @@ public class CommandLineNegativeTest {
                 .shouldContain("Error: invalid value given for " + opt + ": " + val);
     }
 
-    public static Object[][] portOptions() { return new Object[][] {{"-p"}, {"--port"}}; }
+    @DataProvider
+    public Object[][] portOptions() { return new Object[][] {{"-p"}, {"--port"}}; }
 
-    @ParameterizedTest
-    @MethodSource("portOptions")
+    @Test(dataProvider = "portOptions")
     public void testPortOutOfRange(String opt) throws Throwable {
         out.println("\n--- testPortOutOfRange, opt=\"%s\" ".formatted(opt));
         simpleserver(JWEBSERVER, LOCALE_OPT, opt, "65536")  // range 0 to 65535
@@ -166,10 +165,10 @@ public class CommandLineNegativeTest {
                 .shouldContain("Error: server config failed: " + "port out of range:65536");
     }
 
-    public static Object[][] directoryOptions() { return new Object[][] {{"-d"}, {"--directory"}}; }
+    @DataProvider
+    public Object[][] directoryOptions() { return new Object[][] {{"-d"}, {"--directory"}}; }
 
-    @ParameterizedTest
-    @MethodSource("directoryOptions")
+    @Test(dataProvider = "directoryOptions")
     public void testRootNotADirectory(String opt) throws Throwable {
         out.println("\n--- testRootNotADirectory, opt=\"%s\" ".formatted(opt));
         var file = TEST_FILE.toString();
@@ -179,8 +178,7 @@ public class CommandLineNegativeTest {
                 .shouldContain("Error: server config failed: " + "Path is not a directory: " + file);
     }
 
-    @ParameterizedTest
-    @MethodSource("directoryOptions")
+    @Test(dataProvider = "directoryOptions")
     public void testRootDoesNotExist(String opt) throws Throwable {
         out.println("\n--- testRootDoesNotExist, opt=\"%s\" ".formatted(opt));
         Path root = TEST_DIR.resolve("not/existent/dir");
@@ -190,12 +188,14 @@ public class CommandLineNegativeTest {
                 .shouldContain("Error: server config failed: " + "Path does not exist: " + root.toString());
     }
 
-    @ParameterizedTest
-    @MethodSource("directoryOptions")
+    @Test(dataProvider = "directoryOptions")
     public void testRootNotReadable(String opt) throws Throwable {
         out.println("\n--- testRootNotReadable, opt=\"%s\" ".formatted(opt));
-        Assumptions.assumeFalse(Platform.isWindows(), "cannot run on Windows"); // Not applicable to Windows. Reason: cannot revoke an owner's read
-        // access to a directory that was created by that owner
+        if (Platform.isWindows()) {
+            // Not applicable to Windows. Reason: cannot revoke an owner's read
+            // access to a directory that was created by that owner
+            throw new SkipException("cannot run on Windows");
+        }
         Path root = Files.createDirectories(TEST_DIR.resolve("not/readable/dir"));
         try {
             root.toFile().setReadable(false, false);
@@ -208,8 +208,8 @@ public class CommandLineNegativeTest {
         }
     }
 
-    @AfterAll
-    public static void teardown() throws IOException {
+    @AfterTest
+    public void teardown() throws IOException {
         if (Files.exists(TEST_DIR)) {
             FileUtils.deleteFileTreeWithRetry(TEST_DIR);
         }

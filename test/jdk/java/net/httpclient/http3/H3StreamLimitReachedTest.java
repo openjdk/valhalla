@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,10 +46,10 @@
  *        jdk.test.lib.Asserts
  *        jdk.test.lib.Utils
  *        jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors,http3,quic:control
+ * @run testng/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors,http3,quic:control
  *                     -Djdk.internal.httpclient.debug=false
  *                     -Djdk.internal.httpclient.quic.maxBidiStreams=1
- *                     ${test.main.class}
+ *                     H3StreamLimitReachedTest
  */
 
 /*
@@ -77,12 +77,12 @@
  *        jdk.test.lib.Asserts
  *        jdk.test.lib.Utils
  *        jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors,http3,quic:control
+ * @run testng/othervm -Djdk.httpclient.HttpClient.log=ssl,requests,responses,errors,http3,quic:control
  *                     -Djdk.internal.httpclient.debug=false
  *                     -Djdk.internal.httpclient.quic.maxBidiStreams=1
  *                     -Djdk.httpclient.http3.maxStreamLimitTimeout=0
  *                     -Djdk.httpclient.retryOnStreamlimit=9
- *                     ${test.main.class}
+ *                     H3StreamLimitReachedTest
  */
 
 import java.io.IOException;
@@ -114,6 +114,7 @@ import jdk.httpclient.test.lib.http2.Http2TestExchange;
 import jdk.httpclient.test.lib.http2.Http2TestServer;
 import jdk.httpclient.test.lib.http3.Http3TestServer;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.net.http.HttpClient.Version.HTTP_3;
@@ -124,9 +125,7 @@ import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static jdk.test.lib.Asserts.assertEquals;
 import static jdk.test.lib.Asserts.assertNotEquals;
 import static jdk.test.lib.Asserts.assertTrue;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertFalse;
 
 public class H3StreamLimitReachedTest implements HttpServerAdapters {
 
@@ -136,7 +135,7 @@ public class H3StreamLimitReachedTest implements HttpServerAdapters {
     static Http3TestServer http3OnlyServer;
     static Http2TestServer https2AltSvcServer;
     static volatile HttpClient client = null;
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    static SSLContext sslContext;
     static volatile String http3OnlyURIString, https2URIString, http3AltSvcURIString, http3DirectURIString;
 
     static void initialize(boolean samePort) throws Exception {
@@ -150,6 +149,8 @@ public class H3StreamLimitReachedTest implements HttpServerAdapters {
         System.out.println("\nConfiguring for advertised AltSvc on "
                 + (samePort ? "same port" : "ephemeral port"));
         try {
+            SimpleSSLContext sslct = new SimpleSSLContext();
+            sslContext = sslct.get();
             client = null;
             client = getClient();
 
@@ -330,7 +331,7 @@ public class H3StreamLimitReachedTest implements HttpServerAdapters {
     }
 
     @Test
-    public void testH3Only() throws Exception {
+    public static void testH3Only() throws Exception {
         System.out.println("\nTesting HTTP/3 only");
         initialize(true);
         try (HttpClient client = getClient()) {
@@ -403,12 +404,12 @@ public class H3StreamLimitReachedTest implements HttpServerAdapters {
     }
 
     @Test
-    public void testH2H3WithTwoAltSVC() throws Exception {
+    public static void testH2H3WithTwoAltSVC() throws Exception {
         testH2H3(false);
     }
 
     @Test
-    public void testH2H3WithAltSVCOnSamePort() throws Exception {
+    public static void testH2H3WithAltSVCOnSamePort() throws Exception {
         testH2H3(true);
     }
 
@@ -628,12 +629,12 @@ public class H3StreamLimitReachedTest implements HttpServerAdapters {
     }
 
     @Test
-    public void testParallelH2H3WithTwoAltSVC() throws Exception {
+    public static void testParallelH2H3WithTwoAltSVC() throws Exception {
         testH2H3Concurrent(false);
     }
 
     @Test
-    public void testParallelH2H3WithAltSVCOnSamePort() throws Exception {
+    public static void testParallelH2H3WithAltSVCOnSamePort() throws Exception {
         testH2H3Concurrent(true);
     }
 

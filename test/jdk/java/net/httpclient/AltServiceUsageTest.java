@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,16 +37,15 @@ import javax.net.ssl.SSLContext;
 
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.net.http.HttpClient.Version.HTTP_3;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.net.http.HttpOption.Http3DiscoveryMode.ALT_SVC;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 
 /*
  * @test
@@ -54,20 +53,25 @@ import org.junit.jupiter.api.Test;
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.HttpServerAdapters
  *
- * @run junit/othervm -Djdk.internal.httpclient.debug=true
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true
  *                     -Djdk.httpclient.HttpClient.log=requests,responses,errors
- *                     ${test.main.class}
+ *                     AltServiceUsageTest
  */
 public class AltServiceUsageTest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer originServer;
-    private static HttpTestServer altServer;
+    private SSLContext sslContext;
+    private HttpTestServer originServer;
+    private HttpTestServer altServer;
 
-    private static DatagramChannel udpNotResponding;
+    private DatagramChannel udpNotResponding;
 
-    @BeforeAll
-    public static void beforeClass() throws Exception {
+    @BeforeClass
+    public void beforeClass() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
+
         // attempt to create an HTTP/3 server, an HTTP/2 server, and a
         // DatagramChannel bound to the same port as the HTTP/2 server
         int count = 0;
@@ -100,7 +104,7 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.err.println("**** All servers started. Test will start shortly ****");
     }
 
-    private static void createServers() throws IOException {
+    private void createServers() throws IOException {
         altServer = HttpTestServer.create(HTTP_3_URI_ONLY, sslContext);
         altServer.addHandler(new All200OKHandler(), "/foo/");
         altServer.addHandler(new RequireAltUsedHeader(), "/bar/");
@@ -115,8 +119,8 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         originServer.start();
     }
 
-    @AfterAll
-    public static void afterClass() throws Exception {
+    @AfterClass
+    public void afterClass() throws Exception {
         safeStop(originServer);
         safeStop(altServer);
         safeClose(udpNotResponding);
@@ -272,14 +276,14 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Issuing request " + reqURI);
         final HttpResponse<String> response = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(200, response.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(H3AltServicePublisher.RESPONSE_CONTENT, response.body(),
+        Assert.assertEquals(response.statusCode(), 200, "Unexpected response code");
+        Assert.assertEquals(response.body(), H3AltServicePublisher.RESPONSE_CONTENT,
                 "Unexpected response body");
         final Optional<String> altSvcHeader = response.headers().firstValue("alt-svc");
-        Assertions.assertTrue(altSvcHeader.isPresent(), "alt-svc header is missing in response");
+        Assert.assertTrue(altSvcHeader.isPresent(), "alt-svc header is missing in response");
         System.out.println("Received alt-svc header value: " + altSvcHeader.get());
         final String expectedHeader = "h3=\"" + toHostPort(altServer) + "\"";
-        Assertions.assertTrue(altSvcHeader.get().contains(expectedHeader),
+        Assert.assertTrue(altSvcHeader.get().contains(expectedHeader),
                 "Unexpected alt-svc header value: " + altSvcHeader.get()
                         + ", was expected to contain: " + expectedHeader);
 
@@ -287,8 +291,8 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Again issuing request " + reqURI);
         final HttpResponse<String> secondResponse = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(200, secondResponse.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(All200OKHandler.RESPONSE_CONTENT, secondResponse.body(),
+        Assert.assertEquals(secondResponse.statusCode(), 200, "Unexpected response code");
+        Assert.assertEquals(secondResponse.body(), All200OKHandler.RESPONSE_CONTENT,
                 "Unexpected response body");
         var TRACKER = ReferenceTracker.INSTANCE;
         var tracker = TRACKER.getTracker(client);
@@ -319,14 +323,14 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Issuing request " + reqURI);
         final HttpResponse<String> response = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(421, response.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(H3AltServicePublisher.RESPONSE_CONTENT, response.body(),
+        Assert.assertEquals(response.statusCode(), 421, "Unexpected response code");
+        Assert.assertEquals(response.body(), H3AltServicePublisher.RESPONSE_CONTENT,
                 "Unexpected response body");
         final Optional<String> altSvcHeader = response.headers().firstValue("alt-svc");
-        Assertions.assertTrue(altSvcHeader.isPresent(), "alt-svc header is missing in response");
+        Assert.assertTrue(altSvcHeader.isPresent(), "alt-svc header is missing in response");
         System.out.println("Received alt-svc header value: " + altSvcHeader.get());
         final String expectedHeader = "h3=\"" + toHostPort(altServer) + "\"";
-        Assertions.assertTrue(altSvcHeader.get().contains(expectedHeader),
+        Assert.assertTrue(altSvcHeader.get().contains(expectedHeader),
                 "Unexpected alt-svc header value: " + altSvcHeader.get()
                         + ", was expected to contain: " + expectedHeader);
 
@@ -334,8 +338,8 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Again issuing request " + reqURI);
         final HttpResponse<String> secondResponse = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(421, secondResponse.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(H3AltServicePublisher.RESPONSE_CONTENT, response.body(),
+        Assert.assertEquals(secondResponse.statusCode(), 421, "Unexpected response code");
+        Assert.assertEquals(response.body(), H3AltServicePublisher.RESPONSE_CONTENT,
                 "Unexpected response body");
         var TRACKER = ReferenceTracker.INSTANCE;
         var tracker = TRACKER.getTracker(client);
@@ -370,14 +374,14 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Issuing request " + reqURI);
         final HttpResponse<String> response = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(200, response.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(H3AltServicePublisher.RESPONSE_CONTENT, response.body(),
+        Assert.assertEquals(response.statusCode(), 200, "Unexpected response code");
+        Assert.assertEquals(response.body(), H3AltServicePublisher.RESPONSE_CONTENT,
                 "Unexpected response body");
         final Optional<String> altSvcHeader = response.headers().firstValue("alt-svc");
-        Assertions.assertTrue(altSvcHeader.isPresent(), "alt-svc header is missing in response");
+        Assert.assertTrue(altSvcHeader.isPresent(), "alt-svc header is missing in response");
         System.out.println("Received alt-svc header value: " + altSvcHeader.get());
         final String expectedHeader = "h3=\"" + toHostPort(altServer) + "\"";
-        Assertions.assertTrue(altSvcHeader.get().contains(expectedHeader),
+        Assert.assertTrue(altSvcHeader.get().contains(expectedHeader),
                 "Unexpected alt-svc header value: " + altSvcHeader.get()
                         + ", was expected to contain: " + expectedHeader);
 
@@ -387,8 +391,8 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Again issuing request " + reqURI);
         final HttpResponse<String> secondResponse = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(200, secondResponse.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(RequireAltUsedHeader.RESPONSE_CONTENT, secondResponse.body(),
+        Assert.assertEquals(secondResponse.statusCode(), 200, "Unexpected response code");
+        Assert.assertEquals(secondResponse.body(), RequireAltUsedHeader.RESPONSE_CONTENT,
                 "Unexpected response body");
         var TRACKER = ReferenceTracker.INSTANCE;
         var tracker = TRACKER.getTracker(client);
@@ -425,14 +429,14 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Issuing request " + reqURI);
         final HttpResponse<String> response = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(200, response.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(H3AltServicePublisher.RESPONSE_CONTENT, response.body(),
+        Assert.assertEquals(response.statusCode(), 200, "Unexpected response code");
+        Assert.assertEquals(response.body(), H3AltServicePublisher.RESPONSE_CONTENT,
                 "Unexpected response body");
         final Optional<String> altSvcHeader = response.headers().firstValue("alt-svc");
-        Assertions.assertTrue(altSvcHeader.isPresent(), "alt-svc header is missing in response");
+        Assert.assertTrue(altSvcHeader.isPresent(), "alt-svc header is missing in response");
         System.out.println("Received alt-svc header value: " + altSvcHeader.get());
         final String expectedHeader = "h3=\"" + toHostPort(altServer) + "\"";
-        Assertions.assertTrue(altSvcHeader.get().contains(expectedHeader),
+        Assert.assertTrue(altSvcHeader.get().contains(expectedHeader),
                 "Unexpected alt-svc header value: " + altSvcHeader.get()
                         + ", was expected to contain: " + expectedHeader);
 
@@ -440,8 +444,8 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Again issuing request " + reqURI);
         final HttpResponse<String> secondResponse = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(200, secondResponse.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(All200OKHandler.RESPONSE_CONTENT, secondResponse.body(),
+        Assert.assertEquals(secondResponse.statusCode(), 200, "Unexpected response code");
+        Assert.assertEquals(secondResponse.body(), All200OKHandler.RESPONSE_CONTENT,
                 "Unexpected response body");
 
         // wait for alt-service to expire
@@ -453,8 +457,8 @@ public class AltServiceUsageTest implements HttpServerAdapters {
         System.out.println("Issuing request for a third time " + reqURI);
         final HttpResponse<String> thirdResponse = client.send(request,
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        Assertions.assertEquals(200, thirdResponse.statusCode(), "Unexpected response code");
-        Assertions.assertEquals(H3AltServicePublisher.RESPONSE_CONTENT, thirdResponse.body(),
+        Assert.assertEquals(thirdResponse.statusCode(), 200, "Unexpected response code");
+        Assert.assertEquals(thirdResponse.body(), H3AltServicePublisher.RESPONSE_CONTENT,
                 "Unexpected response body");
         var TRACKER = ReferenceTracker.INSTANCE;
         var tracker = TRACKER.getTracker(client);

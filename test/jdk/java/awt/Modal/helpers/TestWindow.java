@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,23 +21,11 @@
  * questions.
  */
 
-import java.awt.Button;
-import java.awt.Frame;
-import java.awt.GridLayout;
-import java.awt.Panel;
-import java.awt.Window;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowFocusListener;
-import java.awt.event.WindowListener;
+import java.awt.*;
+import java.awt.event.*;
 
-import static jdk.test.lib.Asserts.assertEQ;
-import static jdk.test.lib.Asserts.assertFalse;
-import static jdk.test.lib.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.*;
+
 
 
 public class TestWindow extends Window implements ActionListener,
@@ -215,9 +203,9 @@ public class TestWindow extends Window implements ActionListener,
             dummyButton.equals(b)) && robot != null) {
             robot.mouseMove((int) b.getLocationOnScreen().x + b.getSize().width / 2,
                             (int) b.getLocationOnScreen().y + b.getSize().height / 2);
-            robot.waitForIdle(delay);
+            robot.delay(delay);
             robot.click();
-            robot.waitForIdle(delay);
+            robot.delay(delay);
         }
     }
 

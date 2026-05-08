@@ -1439,7 +1439,6 @@ public final class OffsetTime
      * @throws InvalidObjectException always
      */
     @java.io.Serial
-    @SuppressWarnings("serial") // this method is not invoked for value classes
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

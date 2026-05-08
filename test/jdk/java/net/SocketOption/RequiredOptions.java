@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,18 +33,17 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
 
 import static java.net.StandardSocketOptions.*;
-
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 /*
  * @test
  * @bug 8235141
  * @summary verifies that our implementation supports the set
  *          of SocketOptions that are required by the API documentation.
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm RequiredOptions
  */
 public class RequiredOptions {
 
@@ -61,6 +60,7 @@ public class RequiredOptions {
         return Set.of(Stream.of(options).flatMap(Set::stream).distinct().toArray(SocketOption[]::new));
     }
 
+    @DataProvider(name = "sockets")
     static Object[][] provider() throws IOException {
         return new Object[][] {
                 // UDP
@@ -76,8 +76,7 @@ public class RequiredOptions {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider")
+    @Test(dataProvider = "sockets")
     public <R, E extends Exception>
     void test(Configurable<R,E> socket, Set<SocketOption<?>> options) throws E {
         try (var s = socket) {

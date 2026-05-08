@@ -329,7 +329,7 @@ static bool is_excluded(Klass* k) {
       log_debug(aot, training)("Purged %s from MDO: unloaded class", k->name()->as_C_string());
       return true;
     } else {
-      bool excluded = SystemDictionaryShared::should_be_excluded(k) || !SystemDictionaryShared::is_builtin_loader(k->class_loader_data());
+      bool excluded = SystemDictionaryShared::should_be_excluded(k);
       if (excluded) {
         log_debug(aot, training)("Purged %s from MDO: excluded class", k->name()->as_C_string());
       }
@@ -671,8 +671,8 @@ void MultiBranchData::print_data_on(outputStream* st, const char* extra) const {
 
 void ArgInfoData::print_data_on(outputStream* st, const char* extra) const {
   print_shared(st, "ArgInfoData", extra);
-  int args_size = size_of_args();
-  for (int i = 0; i < args_size; i++) {
+  int nargs = number_of_args();
+  for (int i = 0; i < nargs; i++) {
     st->print("  0x%x", arg_modified(i));
   }
   st->cr();

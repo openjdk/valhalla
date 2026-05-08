@@ -23,10 +23,7 @@
 
 package catalog;
 
-import org.junit.jupiter.api.Test;
-
-import javax.xml.catalog.CatalogFeatures;
-import javax.xml.catalog.CatalogResolver;
+import static jaxp.library.JAXPTestUtilities.setSystemProperty;
 
 import static catalog.CatalogTestUtils.FEATURE_FILES;
 import static catalog.CatalogTestUtils.catalogResolver;
@@ -34,14 +31,19 @@ import static catalog.CatalogTestUtils.catalogUriResolver;
 import static catalog.CatalogTestUtils.getCatalogPath;
 import static catalog.ResolutionChecker.checkSysIdResolution;
 import static catalog.ResolutionChecker.checkUriResolution;
-import static javax.xml.catalog.CatalogFeatures.Feature.FILES;
 import static javax.xml.catalog.CatalogFeatures.builder;
+import static javax.xml.catalog.CatalogFeatures.Feature.FILES;
+
+import javax.xml.catalog.CatalogFeatures;
+import javax.xml.catalog.CatalogResolver;
+
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.SpecifyCatalogTest
+ * @run testng/othervm catalog.SpecifyCatalogTest
  * @summary This case tests how to specify the catalog files.
  */
 public class SpecifyCatalogTest {
@@ -75,7 +77,7 @@ public class SpecifyCatalogTest {
      */
     @Test
     public void specifyCatalogViaSysProps() {
-        System.setProperty(FEATURE_FILES,
+        setSystemProperty(FEATURE_FILES,
                 getCatalogPath("specifyCatalog-sysProps.xml").toASCIIString());
 
         checkResolutionOnEntityResolver(catalogResolver((String[]) null),
@@ -91,13 +93,13 @@ public class SpecifyCatalogTest {
                 "http://local/base/dtd/docAPIURI.dtd");
     }
 
-    private static void checkResolutionOnEntityResolver(CatalogResolver resolver,
-                                                        String matchedUri) {
+    private void checkResolutionOnEntityResolver(CatalogResolver resolver,
+            String matchedUri) {
         checkSysIdResolution(resolver, ID_SYS, matchedUri);
     }
 
-    private static void checkResolutionOnUriResolver(CatalogResolver resolver,
-                                                     String matchedUri) {
+    private void checkResolutionOnUriResolver(CatalogResolver resolver,
+            String matchedUri) {
         checkUriResolution(resolver, ID_URI, matchedUri);
     }
 

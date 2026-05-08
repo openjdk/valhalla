@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2025, Rivos Inc. All rights reserved.
- * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +21,7 @@
  * questions.
  */
 
-package compiler.c2.cmove;
+package compiler.c2.irTests;
 
 import compiler.lib.ir_framework.*;
 import java.util.List;

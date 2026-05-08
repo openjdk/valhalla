@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
  * @build CreateMultiReleaseTestJars
  *        jdk.test.lib.util.JarBuilder
  *        jdk.test.lib.compiler.Compiler
- * @run junit ${test.main.class}
+ * @run testng MultiReleaseJarURLConnection
  */
 
 import java.io.IOException;
@@ -59,27 +59,22 @@ import java.util.jar.JarFile;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.SimpleFileServer;
 import jdk.test.lib.net.URIBuilder;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 public class MultiReleaseJarURLConnection {
-    static String userdir = System.getProperty("user.dir", ".");
-    static String unversioned = userdir + "/unversioned.jar";
-    static String unsigned = userdir + "/multi-release.jar";
-    static String signed = userdir + "/signed-multi-release.jar";
-    static HttpServer server;
-    static ExecutorService executor;
+    String userdir = System.getProperty("user.dir", ".");
+    String unversioned = userdir + "/unversioned.jar";
+    String unsigned = userdir + "/multi-release.jar";
+    String signed = userdir + "/signed-multi-release.jar";
+    HttpServer server;
+    ExecutorService executor;
 
-    @BeforeAll
-    public static void initialize() throws Exception {
+    @BeforeClass
+    public void initialize() throws Exception {
         CreateMultiReleaseTestJars creator = new CreateMultiReleaseTestJars();
         creator.compileEntries();
         creator.buildUnversionedJar();
@@ -92,8 +87,8 @@ public class MultiReleaseJarURLConnection {
         server.start();
     }
 
-    @AfterAll
-    public static void close() throws IOException {
+    @AfterClass
+    public void close() throws IOException {
         // Windows requires server to stop before file is deleted
         if (server != null)
             server.stop(0);
@@ -104,7 +99,8 @@ public class MultiReleaseJarURLConnection {
         Files.delete(Paths.get(signed));
     }
 
-    public static Object[][] createData() {
+    @DataProvider(name = "data")
+    public Object[][] createData() {
         return new Object[][]{
                 {"unversioned", unversioned},
                 {"unsigned", unsigned},
@@ -112,21 +108,20 @@ public class MultiReleaseJarURLConnection {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("createData")
+    @Test(dataProvider = "data")
     public void testRuntimeVersioning(String style, String file) throws Exception {
         String urlFile = "jar:file:" + file + "!/";
         String baseUrlEntry = urlFile + "version/Version.java";
         String rtreturn = "return " + Runtime.version().major();
 
-        assertTrue(readAndCompare(new URL(baseUrlEntry), "return 8"));
+        Assert.assertTrue(readAndCompare(new URL(baseUrlEntry), "return 8"));
         // #runtime is "magic" for a multi-release jar, but not for unversioned jar
-        assertTrue(readAndCompare(new URL(baseUrlEntry + "#runtime"),
+        Assert.assertTrue(readAndCompare(new URL(baseUrlEntry + "#runtime"),
                 style.equals("unversioned") ? "return 8" : rtreturn));
         // #fragment or any other fragment is not magic
-        assertTrue(readAndCompare(new URL(baseUrlEntry + "#fragment"), "return 8"));
+        Assert.assertTrue(readAndCompare(new URL(baseUrlEntry + "#fragment"), "return 8"));
         // cached entities not affected
-        assertTrue(readAndCompare(new URL(baseUrlEntry), "return 8"));
+        Assert.assertTrue(readAndCompare(new URL(baseUrlEntry), "return 8"));
 
         // the following tests will not work with unversioned jars
         if (style.equals("unversioned"))
@@ -135,14 +130,13 @@ public class MultiReleaseJarURLConnection {
         // direct access to versioned entry
         String versUrlEntry = urlFile + "META-INF/versions/" + Runtime.version().major()
                 + "/version/Version.java";
-        assertTrue(readAndCompare(new URL(versUrlEntry), rtreturn));
+        Assert.assertTrue(readAndCompare(new URL(versUrlEntry), rtreturn));
         // adding any fragment does not change things
-        assertTrue(readAndCompare(new URL(versUrlEntry + "#runtime"), rtreturn));
-        assertTrue(readAndCompare(new URL(versUrlEntry + "#fragment"), rtreturn));
+        Assert.assertTrue(readAndCompare(new URL(versUrlEntry + "#runtime"), rtreturn));
+        Assert.assertTrue(readAndCompare(new URL(versUrlEntry + "#fragment"), rtreturn));
     }
 
-    @ParameterizedTest
-    @MethodSource("createData")
+    @Test(dataProvider = "data")
     public void testCachedJars(String style, String file) throws Exception {
         String urlFile = "jar:file:" + file + "!/";
 
@@ -156,27 +150,28 @@ public class MultiReleaseJarURLConnection {
         JarFile runtimeJar = juc.getJarFile();
         Runtime.Version runtime = runtimeJar.getVersion();
         if (style.equals("unversioned")) {
-            assertEquals(root, runtime);
+            Assert.assertEquals(root, runtime);
         } else {
-            assertNotEquals(root, runtime);
+            Assert.assertNotEquals(root, runtime);
         }
 
         juc = (JarURLConnection) rootUrl.openConnection();
         JarFile jar = juc.getJarFile();
-        assertEquals(root, jar.getVersion());
-        assertEquals(rootJar, jar);
+        Assert.assertEquals(jar.getVersion(), root);
+        Assert.assertEquals(jar, rootJar);
 
         juc = (JarURLConnection) runtimeUrl.openConnection();
         jar = juc.getJarFile();
-        assertEquals(runtime, jar.getVersion());
-        assertEquals(runtimeJar, jar);
+        Assert.assertEquals(jar.getVersion(), runtime);
+        Assert.assertEquals(jar, runtimeJar);
 
         rootJar.close();
         runtimeJar.close();
         jar.close(); // probably not needed
     }
 
-    public static Object[][] createResourceData() throws Exception {
+    @DataProvider(name = "resourcedata")
+    public Object[][] createResourceData() throws Exception {
         return new Object[][]{
                 {"unversioned", Paths.get(unversioned).toUri().toURL()},
                 {"unsigned", Paths.get(unsigned).toUri().toURL()},
@@ -194,8 +189,7 @@ public class MultiReleaseJarURLConnection {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("createResourceData")
+    @Test(dataProvider = "resourcedata")
     public void testResources(String style, URL url) throws Throwable {
         // System.out.println("  testing " + style + " url: " + url);
         URL[] urls = {url};
@@ -205,28 +199,30 @@ public class MultiReleaseJarURLConnection {
         // verify we are loading a runtime versioned class
         MethodType mt = MethodType.methodType(int.class);
         MethodHandle mh = MethodHandles.lookup().findVirtual(vcls, "getVersion", mt);
-        assertEquals(style.equals("unversioned") ? 8 : Runtime.version().major(), (int)mh.invoke(vcls.newInstance()));
+        Assert.assertEquals((int)mh.invoke(vcls.newInstance()),
+                style.equals("unversioned") ? 8 : Runtime.version().major());
+
         // now get a resource and verify that we don't have a fragment attached
         Enumeration<URL> vclsUrlEnum = cldr.getResources("version/Version.class");
-        assertTrue(vclsUrlEnum.hasMoreElements());
+        Assert.assertTrue(vclsUrlEnum.hasMoreElements());
         URL vclsUrls[] = new URL[] {
             vcls.getResource("/version/Version.class"),
             vcls.getResource("Version.class"),
             cldr.getResource("version/Version.class"),
             vclsUrlEnum.nextElement()
         };
-        assertFalse(vclsUrlEnum.hasMoreElements());
+        Assert.assertFalse(vclsUrlEnum.hasMoreElements());
         for (URL vclsUrl : vclsUrls) {
             String fragment = vclsUrl.getRef();
-            assertNull(fragment);
+            Assert.assertNull(fragment);
 
             // and verify that the url is a reified pointer to the runtime entry
             String rep = vclsUrl.toString();
             //System.out.println("    getResource(\"/version/Version.class\") returned: " + rep);
             if (style.equals("http")) {
-                assertTrue(rep.startsWith("jar:http:"));
+                Assert.assertTrue(rep.startsWith("jar:http:"));
             } else {
-                assertTrue(rep.startsWith("jar:file:"));
+                Assert.assertTrue(rep.startsWith("jar:file:"));
             }
             String suffix;
             if (style.equals("unversioned")) {
@@ -235,7 +231,7 @@ public class MultiReleaseJarURLConnection {
                 suffix = ".jar!/META-INF/versions/" + Runtime.version().major()
                         + "/version/Version.class";
             }
-            assertTrue(rep.endsWith(suffix));
+            Assert.assertTrue(rep.endsWith(suffix));
         }
         cldr.close();
     }

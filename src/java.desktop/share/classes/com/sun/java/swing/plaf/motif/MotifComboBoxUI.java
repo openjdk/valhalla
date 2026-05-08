@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,7 +65,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         return new MotifComboBoxUI();
     }
 
-    @Override
     public void installUI(JComponent c) {
         super.installUI(c);
         arrowIcon = new MotifComboBoxArrowIcon(UIManager.getColor("controlHighlight"),
@@ -73,7 +72,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
                                                UIManager.getColor("control"));
     }
 
-    @Override
     public Dimension getMinimumSize( JComponent c ) {
         if ( !isMinimumSizeDirty ) {
             return new Dimension( cachedMinimumSize );
@@ -91,7 +89,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         return size;
     }
 
-    @Override
     protected ComboPopup createPopup() {
         return new MotifComboPopup( comboBox );
     }
@@ -109,12 +106,10 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         /**
          * Motif combo popup should not track the mouse in the list.
          */
-        @Override
         public MouseMotionListener createListMouseMotionListener() {
            return new MouseMotionAdapter() {};
         }
 
-        @Override
         public KeyListener createKeyListener() {
             return super.createKeyListener();
         }
@@ -126,7 +121,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         }
     }
 
-    @Override
     protected void installComponents() {
         if ( comboBox.isEditable() ) {
             addEditor();
@@ -135,13 +129,11 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         comboBox.add( currentValuePane );
     }
 
-    @Override
     protected void uninstallComponents() {
         removeEditor();
         comboBox.removeAll();
     }
 
-    @Override
     public void paint(Graphics g, JComponent c) {
         boolean hasFocus = comboBox.hasFocus();
         Rectangle r;
@@ -188,7 +180,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         currentValuePane.removeAll();
     }
 
-    @Override
     public void paintCurrentValue(Graphics g,Rectangle bounds,boolean hasFocus) {
         ListCellRenderer<Object> renderer = comboBox.getRenderer();
         Component c;
@@ -235,7 +226,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         return b;
     }
 
-    @Override
     protected Rectangle rectangleForCurrentValue() {
         int width = comboBox.getWidth();
         int height = comboBox.getHeight();
@@ -261,13 +251,11 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
             return arrowIcon.getIconWidth() + (3 * HORIZ_MARGIN) + 2;
     }
 
-    @Override
     public void configureEditor() {
         super.configureEditor();
         editor.setBackground( UIManager.getColor( "text" ) );
     }
 
-    @Override
     protected LayoutManager createLayoutManager() {
         return new ComboBoxLayoutManager();
     }
@@ -285,7 +273,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         public ComboBoxLayoutManager() {
             MotifComboBoxUI.this.super();
         }
-        @Override
         public void layoutContainer(Container parent) {
             if ( motifGetEditor() != null ) {
                 Rectangle cvb = rectangleForCurrentValue();
@@ -311,7 +298,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
         }
 
 
-        @Override
         public void paintIcon(Component c, Graphics g, int xo, int yo) {
             int w = getIconWidth();
             int h = getIconHeight();
@@ -336,12 +322,10 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
 
         }
 
-        @Override
         public int getIconWidth() {
             return 11;
         }
 
-        @Override
         public int getIconHeight() {
             return 11;
         }
@@ -352,7 +336,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
      *
      * @since 1.6
      */
-    @Override
     protected PropertyChangeListener createPropertyChangeListener() {
         return new MotifPropertyChangeListener();
     }
@@ -362,7 +345,6 @@ public class MotifComboBoxUI extends BasicComboBoxUI implements Serializable {
      */
     private class MotifPropertyChangeListener
             extends BasicComboBoxUI.PropertyChangeHandler {
-        @Override
         public void propertyChange(PropertyChangeEvent e) {
             super.propertyChange(e);
             String propertyName = e.getPropertyName();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -371,7 +371,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
     /**
      * Overridden to ensure that a super class doesn't take precedent
      */
-    @Override
     void setClass0(Class<?> clz) {
         if (getClass0() != null && clz.isAssignableFrom(getClass0())) {
             // don't replace a subclass with a superclass
@@ -498,7 +497,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      *
      * @since 1.4
      */
-    @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -714,7 +712,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
      * @return a hash code value for this object.
      * @since 1.5
      */
-    @Override
     public int hashCode() {
         int result = 7;
 
@@ -745,7 +742,6 @@ public class PropertyDescriptor extends FeatureDescriptor {
         return baseName;
     }
 
-    @Override
     void appendTo(StringBuilder sb) {
         appendTo(sb, "bound", this.bound);
         appendTo(sb, "constrained", this.constrained);

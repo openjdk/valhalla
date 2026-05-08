@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,30 +23,19 @@
 
 /*
  * @test
- * @bug 8007755 8374808
+ * @bug 8007755
  * @library /test/lib
  * @summary Support the logical grouping of keystores
  */
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URI;
+import java.io.*;
+import java.net.*;
 import java.nio.file.Paths;
-import java.security.DomainLoadStoreParameter;
+import java.security.*;
 import java.security.KeyStore;
-import java.security.UnrecoverableKeyException;
+import java.security.cert.*;
 import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import java.util.*;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 
@@ -216,26 +205,17 @@ public class DKSTest {
             new KeyStore.TrustedCertificateEntry(cert), null);
     }
 
-    private static void checkEntries(KeyStore keystore, int expectedCount)
+    private static void checkEntries(KeyStore keystore, int expected)
         throws Exception {
-        int currCount = 0;
+        int i = 0;
         for (String alias : Collections.list(keystore.aliases())) {
             System.out.print(".");
-            currCount++;
-
-            // check creation date and instant
-            if(!keystore.getCreationDate(alias).equals(
-                    Date.from(keystore.getCreationInstant(alias)))
-            ){
-                throw new RuntimeException(
-                        "Creation Date is not the same as Instant timestamp");
-            }
+            i++;
         }
         System.out.println();
-        // Check if current count is expected
-        if (expectedCount != currCount) {
+        if (expected != i) {
             throw new Exception("Error: unexpected entry count in keystore: " +
-                "loaded=" + currCount + ", expected=" + expectedCount);
+                "loaded=" + i + ", expected=" + expected);
         }
     }
 

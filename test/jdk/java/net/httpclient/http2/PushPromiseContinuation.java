@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,9 @@
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
  *        jdk.httpclient.test.lib.http2.BodyOutputStream
  *        jdk.httpclient.test.lib.http2.OutgoingPushPromise
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm PushPromiseContinuation
  */
+
 
 import javax.net.ssl.SSLSession;
 import java.io.ByteArrayInputStream;
@@ -67,13 +68,14 @@ import jdk.internal.net.http.common.HttpHeadersBuilder;
 import jdk.internal.net.http.frame.ContinuationFrame;
 import jdk.internal.net.http.frame.HeaderFrame;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import org.testng.TestException;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.*;
 
 
 public class PushPromiseContinuation {
@@ -83,8 +85,8 @@ public class PushPromiseContinuation {
     static volatile int continuationCount;
     static final String mainPromiseBody = "Main Promise Body";
     static final String mainResponseBody = "Main Response Body";
-    private static Http2TestServer server;
-    private static URI uri;
+    Http2TestServer server;
+    URI uri;
 
     // Set up simple client-side push promise handler
     ConcurrentMap<HttpRequest, CompletableFuture<HttpResponse<String>>> pushPromiseMap = new ConcurrentHashMap<>();
@@ -93,13 +95,13 @@ public class PushPromiseContinuation {
         pushPromiseMap.put(pushRequest, acceptor.apply(s));
     };
 
-    @BeforeEach
+    @BeforeMethod
     public void beforeMethod() {
         pushPromiseMap = new ConcurrentHashMap<>();
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
         server = new Http2TestServer(false, 0);
         server.addHandler(new ServerPushHandler(), "/");
 
@@ -113,8 +115,9 @@ public class PushPromiseContinuation {
         uri = new URI("http://localhost:" + port + "/");
     }
 
-    @AfterAll
-    public static void teardown() {
+    @AfterTest
+    public void teardown() {
+        pushPromiseMap = null;
         server.stop();
     }
 
@@ -192,29 +195,29 @@ public class PushPromiseContinuation {
         CompletableFuture<HttpResponse<String>> cf =
                 client.sendAsync(hreq, HttpResponse.BodyHandlers.ofString(UTF_8), pph);
 
-        CompletionException t = assertThrows(CompletionException.class, () -> cf.join());
-        assertEquals(ProtocolException.class, t.getCause().getClass(),
+        CompletionException t = expectThrows(CompletionException.class, () -> cf.join());
+        assertEquals(t.getCause().getClass(), ProtocolException.class,
                 "Expected a ProtocolException but got " + t.getCause());
         System.err.println("Client received the following expected exception: " + t.getCause());
         faultyServer.stop();
     }
 
     private void verify(HttpResponse<String> resp) {
-        assertEquals(200, resp.statusCode());
-        assertEquals(mainResponseBody, resp.body());
+        assertEquals(resp.statusCode(), 200);
+        assertEquals(resp.body(), mainResponseBody);
         if (pushPromiseMap.size() > 1) {
             System.err.println(pushPromiseMap.entrySet());
-            fail("Results map size is greater than 1");
+            throw new TestException("Results map size is greater than 1");
         } else {
             // This will only iterate once
             for (HttpRequest r : pushPromiseMap.keySet()) {
                 HttpResponse<String> serverPushResp = pushPromiseMap.get(r).join();
                 // Received headers should be the same as the combined PushPromise
                 // frame headers combined with the Continuation frame headers
-                assertEquals(r.headers(), testHeaders);
+                assertEquals(testHeaders, r.headers());
                 // Check status code and push promise body are as expected
-                assertEquals(200, serverPushResp.statusCode());
-                assertEquals(mainPromiseBody, serverPushResp.body());
+                assertEquals(serverPushResp.statusCode(), 200);
+                assertEquals(serverPushResp.body(), mainPromiseBody);
             }
         }
     }

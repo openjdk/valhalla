@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @library /test/lib
  * @build  HiddenNestmateTest
- * @run junit/othervm HiddenNestmateTest
+ * @run testng/othervm HiddenNestmateTest
  */
 
 import java.lang.classfile.ClassFile;
@@ -37,6 +37,9 @@ import java.lang.reflect.AccessFlag;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.stream.Stream;
+import java.util.Arrays;
+
+import org.testng.annotations.Test;
 
 import static java.lang.constant.ConstantDescs.CD_Object;
 import static java.lang.constant.ConstantDescs.CD_int;
@@ -45,8 +48,7 @@ import static java.lang.constant.ConstantDescs.MTD_void;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import static java.lang.invoke.MethodHandles.Lookup.*;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.*;
 
 public class HiddenNestmateTest {
     private static final ClassDesc CD_HiddenNestmateTest = HiddenNestmateTest.class.describeConstable().orElseThrow();
@@ -59,12 +61,12 @@ public class HiddenNestmateTest {
         Class<?> hiddenClass = lookup.lookupClass();
         Class<?> nestHost = hiddenClass.getNestHost();
         assertTrue(hiddenClass.isHidden());
-        assertSame(MethodHandles.lookup().lookupClass(), nestHost);
+        assertTrue(nestHost == MethodHandles.lookup().lookupClass());
 
         // hidden nestmate is not listed in the return array of getNestMembers
         assertTrue(Stream.of(nestHost.getNestMembers()).noneMatch(k -> k == hiddenClass));
         assertTrue(hiddenClass.isNestmateOf(lookup.lookupClass()));
-        assertArrayEquals(nestHost.getNestMembers(), hiddenClass.getNestMembers());
+        assertTrue(Arrays.equals(hiddenClass.getNestMembers(), nestHost.getNestMembers()));
     }
 
     /*
@@ -76,19 +78,23 @@ public class HiddenNestmateTest {
         Lookup lookup = MethodHandles.lookup().defineHiddenClass(bytes, false);
         Class<?> c = lookup.lookupClass();
         assertTrue(lookup.hasFullPrivilegeAccess());
-        assertEquals(ORIGINAL, lookup.lookupModes() & ORIGINAL);
-        assertSame(c, c.getNestHost());  // host of its own nest
+        assertTrue((lookup.lookupModes() & ORIGINAL) == ORIGINAL);
+        assertTrue(c.getNestHost() == c);  // host of its own nest
         assertTrue(c.isHidden());
 
         // invoke int test(HiddenNestmateTest o) via MethodHandle
         MethodHandle ctor = lookup.findConstructor(c, MethodType.methodType(void.class));
         MethodHandle mh = lookup.findVirtual(c, "test", MethodType.methodType(int.class, HiddenNestmateTest.class));
-        assertThrows(IllegalAccessError.class, () -> {
+        try {
             int x = (int) mh.bindTo(ctor.invoke()).invokeExact(this);
-        });
+            throw new RuntimeException("should fail when accessing HiddenNestmateTest.privMethod()");
+        } catch (IllegalAccessError e) {}
 
         // invoke int test(HiddenNestmateTest o)
-        assertThrows(IllegalAccessError.class, () -> testInjectedClass(c));
+        try {
+            int x1 = testInjectedClass(c);
+            throw new RuntimeException("should fail when accessing HiddenNestmateTest.privMethod()");
+        } catch (IllegalAccessError e) {}
     }
 
     /*
@@ -105,11 +111,11 @@ public class HiddenNestmateTest {
         MethodHandle ctor = lookup.findConstructor(c, MethodType.methodType(void.class));
         MethodHandle mh = lookup.findVirtual(c, "test", MethodType.methodType(int.class, HiddenNestmateTest.class));
         int x = (int)mh.bindTo(ctor.invoke()).invokeExact( this);
-        assertEquals(privMethod(), x);
+        assertTrue(x == privMethod());
 
         // invoke int test(HiddenNestmateTest o)
         int x1 = testInjectedClass(c);
-        assertEquals(privMethod(), x1);
+        assertTrue(x1 == privMethod());
     }
 
     /*
@@ -125,10 +131,10 @@ public class HiddenNestmateTest {
     /*
      * Fail to create a hidden class if dropping PRIVATE lookup mode
      */
-    @Test
+    @Test(expectedExceptions = IllegalAccessException.class)
     public void noPrivateLookupAccess() throws Throwable {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
-        assertThrows(IllegalAccessException.class, () -> lookup.defineHiddenClass(bytes, false, NESTMATE));
+        lookup.defineHiddenClass(bytes, false, NESTMATE);
     }
 
     public void teleportToNestmate() throws Throwable {
@@ -137,8 +143,8 @@ public class HiddenNestmateTest {
 
         // Teleport to a hidden nestmate
         Lookup lc =  MethodHandles.lookup().in(lookup.lookupClass());
-        assertNotEquals(0, lc.lookupModes() & PRIVATE);
-        assertEquals(0, lc.lookupModes() & ORIGINAL);
+        assertTrue((lc.lookupModes() & PRIVATE) != 0);
+        assertTrue((lc.lookupModes() & ORIGINAL) == 0);
 
         Lookup lc2 = lc.defineHiddenClass(bytes, false, NESTMATE);
         assertNestmate(lc2);
@@ -147,9 +153,9 @@ public class HiddenNestmateTest {
     /*
      * Fail to create a hidden class in a different package from the lookup class' package
      */
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void notSamePackage() throws Throwable {
-        assertThrows(IllegalArgumentException.class, () -> MethodHandles.lookup().defineHiddenClass(classBytes("p/HiddenInjected"), false, NESTMATE));
+        MethodHandles.lookup().defineHiddenClass(classBytes("p/HiddenInjected"), false, NESTMATE);
     }
 
     /*

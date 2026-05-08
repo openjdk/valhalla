@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import static jdk.jpackage.internal.cli.StandardAppImageFileOption.LAUNCHER_AS_S
 import static jdk.jpackage.internal.cli.StandardAppImageFileOption.LAUNCHER_NAME;
 import static jdk.jpackage.internal.cli.StandardAppImageFileOption.LINUX_LAUNCHER_SHORTCUT;
 import static jdk.jpackage.internal.cli.StandardAppImageFileOption.MAC_APP_STORE;
+import static jdk.jpackage.internal.cli.StandardAppImageFileOption.MAC_SIGNED;
 import static jdk.jpackage.internal.cli.StandardAppImageFileOption.WIN_LAUNCHER_DESKTOP_SHORTCUT;
 import static jdk.jpackage.internal.cli.StandardAppImageFileOption.WIN_LAUNCHER_MENU_SHORTCUT;
 import static jdk.jpackage.internal.cli.StandardOption.APPCLASS;
@@ -108,9 +109,7 @@ public class AppImageFileTest {
 
     @Test
     public void testNoSuchFile() throws IOException {
-        var ex = assertThrowsExactly(JPackageException.class, () -> {
-            AppImageFile.load(DUMMY_LAYOUT.resolveAt(tempFolder), OperatingSystem.current());
-        });
+        var ex = assertThrowsExactly(JPackageException.class, () -> AppImageFile.load(DUMMY_LAYOUT.resolveAt(tempFolder)));
         Assertions.assertEquals(I18N.format("error.missing-app-image-file", ".jpackage.xml", tempFolder), ex.getMessage());
         assertNull(ex.getCause());
     }
@@ -119,9 +118,7 @@ public class AppImageFileTest {
     public void testDirectory() throws IOException {
         Files.createDirectory(AppImageFile.getPathInAppImage(DUMMY_LAYOUT.resolveAt(tempFolder)));
 
-        var ex = assertThrowsExactly(JPackageException.class, () -> {
-            AppImageFile.load(DUMMY_LAYOUT.resolveAt(tempFolder), OperatingSystem.current());
-        });
+        var ex = assertThrowsExactly(JPackageException.class, () -> AppImageFile.load(DUMMY_LAYOUT.resolveAt(tempFolder)));
         Assertions.assertEquals(I18N.format("error.reading-app-image-file", ".jpackage.xml", tempFolder), ex.getMessage());
         assertNotNull(ex.getCause());
     }
@@ -135,9 +132,7 @@ public class AppImageFileTest {
         Files.writeString(appImageFile, "");
 
         try (var out = new FileOutputStream(appImageFile.toFile()); var lock = out.getChannel().lock()) {
-            var ex = assertThrowsExactly(JPackageException.class, () -> {
-                AppImageFile.load(DUMMY_LAYOUT.resolveAt(tempFolder), OperatingSystem.current());
-            });
+            var ex = assertThrowsExactly(JPackageException.class, () -> AppImageFile.load(DUMMY_LAYOUT.resolveAt(tempFolder)));
             Assertions.assertEquals(I18N.format("error.reading-app-image-file", ".jpackage.xml", tempFolder), ex.getMessage());
             assertNotNull(ex.getCause());
         }
@@ -228,7 +223,7 @@ public class AppImageFileTest {
                     version,
                     null,
                     null,
-                    List.of(),
+                    Optional.empty(),
                     List.of(),
                     null,
                     Optional.empty(),
@@ -243,7 +238,7 @@ public class AppImageFileTest {
             final var copy = toSupplier(() -> {
                 var layout = DUMMY_LAYOUT.resolveAt(dir);
                 new AppImageFile(app).save(layout);
-                return AppImageFile.load(layout, OperatingSystem.current());
+                return AppImageFile.load(layout);
             }).get();
 
             assertEquals(createExternalApplication(OperatingSystem.current()), copy);
@@ -519,6 +514,7 @@ public class AppImageFileTest {
                 "<main-class>Foo</main-class>",
                 "<y/>",
                 "<x>property-x</x>",
+                "<signed>true</signed>",
                 "<app-store>False</app-store>",
                 "<add-launcher name='add-launcher'>",
                 "  <description>Quick brown fox</description>",
@@ -550,7 +546,8 @@ public class AppImageFileTest {
                 .addExtra(WIN_LAUNCHER_MENU_SHORTCUT, new LauncherShortcut(LauncherShortcutStartupDirectory.APP_DIR)).commit()).create());
 
         testCases.add(builder.os(OperatingSystem.MACOS).expect(appBuilder.get().commit()
-                .addExtra(MAC_APP_STORE, false)).create());
+                .addExtra(MAC_APP_STORE, false)
+                .addExtra(MAC_SIGNED, true)).create());
 
         return testCases;
     }
@@ -583,6 +580,7 @@ public class AppImageFileTest {
                         "<main-class>OverwrittenMain</main-class>",
                         "<main-class>Main</main-class>",
                         "<x>property-x</x>",
+                        "<signed>true</signed>",
                         "<add-launcher name='service-launcher' service='true'>",
                         "  <linux-shortcut><nested>foo</nested></linux-shortcut>",
                         "  <description>service-launcher description</description>",
@@ -644,7 +642,7 @@ public class AppImageFileTest {
 
     private static final ApplicationLayout DUMMY_LAYOUT = ApplicationLayout.build().setAll("").create();
 
-    private static final Map<OptionIdentifier, String> OPTIONS = Stream.of(AppImageFileOptionScope.values())
+    private final static Map<OptionIdentifier, String> OPTIONS = Stream.of(AppImageFileOptionScope.values())
             .flatMap(AppImageFileOptionScope::options)
             .collect(toMap(OptionValue::id, OptionValue::getName));
 

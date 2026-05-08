@@ -29,6 +29,7 @@
 //
 //
 // import jdk.internal.vm.annotation.NullRestricted;
+// import jdk.internal.vm.annotation.Strict;
 //
 //
 // public class LDTest {
@@ -40,6 +41,7 @@
 // 	       }
 //    }
 //
+//     @Strict
 //     @NullRestricted
 //     Point p = new Point((short)0, (short)0);
 //

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import jdk.test.lib.net.URIBuilder;
+import org.testng.Assert;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 import sun.net.spi.DefaultProxySelector;
 
 import java.io.IOException;
@@ -38,43 +42,35 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-/*
+/**
  * @test
  * @bug 6563286 6797318 8177648 8230220
  * @summary Tests that sun.net.www.protocol.http.HttpURLConnection when dealing with
  * sun.net.spi.DefaultProxySelector#select() handles any IllegalArgumentException
  * correctly
  * @library /test/lib
- * @run junit ${test.main.class}
+ * @run testng HttpURLProxySelectionTest
  * @modules java.base/sun.net.spi:+open
  */
 public class HttpURLProxySelectionTest {
 
     private static final String WEB_APP_CONTEXT = "/httpurlproxytest";
 
-    private static HttpServer server;
-    private static SimpleHandler handler;
-    private static ProxySelector previousDefault;
-    private static final CustomProxySelector ourProxySelector = new CustomProxySelector();
+    private HttpServer server;
+    private SimpleHandler handler;
+    private ProxySelector previousDefault;
+    private CustomProxySelector ourProxySelector = new CustomProxySelector();
 
-    @BeforeAll
-    public static void beforeTest() throws Exception {
+    @BeforeTest
+    public void beforeTest() throws Exception {
         previousDefault = ProxySelector.getDefault();
         ProxySelector.setDefault(ourProxySelector);
         handler = new SimpleHandler();
         server = createServer(handler);
     }
 
-    @AfterAll
-    public static void afterTest() {
+    @AfterTest
+    public void afterTest() {
         try {
             if (server != null) {
                 final int delaySeconds = 0;
@@ -90,7 +86,7 @@ public class HttpURLProxySelectionTest {
      * - Server receives request and sends a 301 redirect to an URI which doesn't have a "host"
      * - Redirect is expected to fail with IOException (caused by IllegalArgumentException from DefaultProxySelector)
      *
-     * @throws Exception if failed
+     * @throws Exception
      */
     @Test
     public void test() throws Exception {
@@ -102,16 +98,19 @@ public class HttpURLProxySelectionTest {
                 .toURL();
         System.out.println("Sending request to " + targetURL);
         final HttpURLConnection conn = (HttpURLConnection) targetURL.openConnection();
-        // expected because of the redirect to an invalid URL, for which a proxy can't be selected
-        IOException ioe = assertThrows(IOException.class, conn::getResponseCode,
-            "Request to " + targetURL + " was expected to fail during redirect");
+        try {
+            conn.getResponseCode();
+            Assert.fail("Request to " + targetURL + " was expected to fail during redirect");
+        } catch (IOException ioe) {
+            // expected because of the redirect to an invalid URL, for which a proxy can't be selected
 
-        // make sure the IOException was indeed a redirect
-        assertTrue(handler.redirectSent, "Server was expected to send a redirect, but didn't");
-        assertTrue(ourProxySelector.selectorUsedForRedirect, "Proxy selector wasn't used for redirect");
+            // make sure the it was indeed a redirect
+            Assert.assertTrue(handler.redirectSent, "Server was expected to send a redirect, but didn't");
+            Assert.assertTrue(ourProxySelector.selectorUsedForRedirect, "Proxy selector wasn't used for redirect");
 
-        // make sure the IOException was caused by an IllegalArgumentException
-        assertInstanceOf(IllegalArgumentException.class, ioe.getCause(), "Unexpected cause in the IOException");
+            // make sure the IOException was caused by an IllegalArgumentException
+            Assert.assertTrue(ioe.getCause() instanceof IllegalArgumentException, "Unexpected cause in the IOException");
+        }
     }
 
 

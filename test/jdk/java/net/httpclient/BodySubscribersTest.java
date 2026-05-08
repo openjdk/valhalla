@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
  * @test
  * @summary Basic test for the standard BodySubscribers default behavior
  * @bug 8225583 8334028
- * @run junit ${test.main.class}
+ * @run testng BodySubscribersTest
  */
 
 import java.net.http.HttpResponse.BodySubscriber;
@@ -34,18 +34,16 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Flow;
 import java.util.function.Supplier;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.net.http.HttpResponse.BodySubscribers.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.nio.file.StandardOpenOption.CREATE;
-
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.expectThrows;
+import static org.testng.Assert.fail;
 
 public class BodySubscribersTest {
 
@@ -80,7 +78,8 @@ public class BodySubscribersTest {
         @Override public void onComplete() { fail(); }
     }
 
-    public static Object[][] bodySubscriberSuppliers() { ;
+    @DataProvider(name = "bodySubscriberSuppliers")
+    public Object[][] bodySubscriberSuppliers() { ;
         List<Supplier<BodySubscriber<?>>> list = List.of(
             BSSupplier.create("ofByteArray",   () -> ofByteArray()),
             BSSupplier.create("ofInputStream", () -> ofInputStream()),
@@ -103,8 +102,7 @@ public class BodySubscribersTest {
         return list.stream().map(x -> new Object[] { x }).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("bodySubscriberSuppliers")
+    @Test(dataProvider = "bodySubscriberSuppliers")
     void nulls(Supplier<BodySubscriber<?>> bodySubscriberSupplier) {
         BodySubscriber<?> bodySubscriber = bodySubscriberSupplier.get();
         boolean subscribed = false;
@@ -113,18 +111,18 @@ public class BodySubscribersTest {
             assertNotNull(bodySubscriber.getBody());
             assertNotNull(bodySubscriber.getBody());
             assertNotNull(bodySubscriber.getBody());
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onSubscribe(null));
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onSubscribe(null));
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onSubscribe(null));
+            expectThrows(NPE, () -> bodySubscriber.onSubscribe(null));
+            expectThrows(NPE, () -> bodySubscriber.onSubscribe(null));
+            expectThrows(NPE, () -> bodySubscriber.onSubscribe(null));
 
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onNext(null));
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onNext(null));
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onNext(null));
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onNext(null));
+            expectThrows(NPE, () -> bodySubscriber.onNext(null));
+            expectThrows(NPE, () -> bodySubscriber.onNext(null));
+            expectThrows(NPE, () -> bodySubscriber.onNext(null));
+            expectThrows(NPE, () -> bodySubscriber.onNext(null));
 
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onError(null));
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onError(null));
-            Assertions.assertThrows(NPE, () -> bodySubscriber.onError(null));
+            expectThrows(NPE, () -> bodySubscriber.onError(null));
+            expectThrows(NPE, () -> bodySubscriber.onError(null));
+            expectThrows(NPE, () -> bodySubscriber.onError(null));
 
             if (!subscribed) {
                 out.println("subscribing");
@@ -140,8 +138,7 @@ public class BodySubscribersTest {
         } while (true);
     }
 
-    @ParameterizedTest
-    @MethodSource("bodySubscriberSuppliers")
+    @Test(dataProvider = "bodySubscriberSuppliers")
     void subscribeMoreThanOnce(Supplier<BodySubscriber<?>> bodySubscriberSupplier) {
         BodySubscriber<?> bodySubscriber = bodySubscriberSupplier.get();
         bodySubscriber.onSubscribe(new Flow.Subscription() {

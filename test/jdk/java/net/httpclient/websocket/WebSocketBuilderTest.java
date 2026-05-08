@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,11 @@
  * @bug 8159053
  * @build DummyWebSocketServer
  *        Support
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm WebSocketBuilderTest
  */
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -39,10 +42,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testng.Assert.assertThrows;
 
 /*
  * In some places in this test a new String is created out of a string literal.
@@ -98,8 +98,7 @@ public final class WebSocketBuilderTest {
                              .connectTimeout(null));
     }
 
-    @ParameterizedTest
-    @MethodSource("badURIs")
+    @Test(dataProvider = "badURIs")
     void illegalURI(URI uri) {
         WebSocket.Builder b = HttpClient.newHttpClient().newWebSocketBuilder();
         assertFails(IllegalArgumentException.class,
@@ -130,8 +129,7 @@ public final class WebSocketBuilderTest {
     // TODO: test for bad syntax headers
     // TODO: test for overwrites (subprotocols) and additions (headers)
 
-    @ParameterizedTest
-    @MethodSource("badSubprotocols")
+    @Test(dataProvider = "badSubprotocols")
     public void illegalSubprotocolsSyntax(String s) {
         WebSocket.Builder b = HttpClient.newHttpClient()
                 .newWebSocketBuilder()
@@ -140,8 +138,7 @@ public final class WebSocketBuilderTest {
                     b.buildAsync(VALID_URI, listener()));
     }
 
-    @ParameterizedTest
-    @MethodSource("duplicatingSubprotocols")
+    @Test(dataProvider = "duplicatingSubprotocols")
     public void illegalSubprotocolsDuplicates(String mostPreferred,
                                               String[] lesserPreferred) {
         WebSocket.Builder b = HttpClient.newHttpClient()
@@ -151,8 +148,7 @@ public final class WebSocketBuilderTest {
                     b.buildAsync(VALID_URI, listener()));
     }
 
-    @ParameterizedTest
-    @MethodSource("badConnectTimeouts")
+    @Test(dataProvider = "badConnectTimeouts")
     public void illegalConnectTimeout(Duration d) {
         WebSocket.Builder b = HttpClient.newHttpClient()
                 .newWebSocketBuilder()
@@ -161,7 +157,8 @@ public final class WebSocketBuilderTest {
                     b.buildAsync(VALID_URI, listener()));
     }
 
-    public static Object[][] badURIs() {
+    @DataProvider
+    public Object[][] badURIs() {
         return new Object[][]{
                 {URI.create("http://example.com")},
                 {URI.create("ftp://example.com")},
@@ -170,7 +167,8 @@ public final class WebSocketBuilderTest {
         };
     }
 
-    public static Object[][] badConnectTimeouts() {
+    @DataProvider
+    public Object[][] badConnectTimeouts() {
         return new Object[][]{
                 {Duration.ofDays(0)},
                 {Duration.ofDays(-1)},
@@ -190,6 +188,7 @@ public final class WebSocketBuilderTest {
 
     // https://tools.ietf.org/html/rfc7230#section-3.2.6
     // https://tools.ietf.org/html/rfc20
+    @DataProvider
     public static Object[][] badSubprotocols() {
         return new Object[][]{
                 {""},
@@ -216,6 +215,7 @@ public final class WebSocketBuilderTest {
         };
     }
 
+    @DataProvider
     public static Object[][] duplicatingSubprotocols() {
         return new Object[][]{
                 {"a.b.c", new String[]{"a.b.c"}},

@@ -25,7 +25,6 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHNUMBERSEQ_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHNUMBERSEQ_HPP
 
-#include "runtime/atomic.hpp"
 #include "utilities/numberSeq.hpp"
 
 // HDR sequence stores the low-resolution high-dynamic-range values.
@@ -60,7 +59,7 @@ public:
 // is not needed, it is preferred over HdrSeq.
 class BinaryMagnitudeSeq : public CHeapObj<mtGC> {
 private:
-  Atomic<size_t> _sum;
+  size_t  _sum;
   size_t* _mags;
 
 public:

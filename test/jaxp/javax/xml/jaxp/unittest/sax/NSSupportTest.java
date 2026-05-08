@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,20 +23,17 @@
 
 package sax;
 
-import org.junit.jupiter.api.Test;
-import org.xml.sax.helpers.NamespaceSupport;
-
 import java.util.Enumeration;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.testng.Assert;
+import org.testng.AssertJUnit;
+import org.testng.annotations.Test;
+import org.xml.sax.helpers.NamespaceSupport;
 
 /*
  * @test
  * @library /javax/xml/jaxp/libs /javax/xml/jaxp/unittest
- * @run junit/othervm sax.NSSupportTest
+ * @run testng/othervm sax.NSSupportTest
  * @summary Test NamespaceSupport.
  */
 public class NSSupportTest {
@@ -51,14 +48,14 @@ public class NSSupportTest {
 
         String[] parts = new String[3];
         nssupport.processName("dc:name1", parts, false);
-        assertEquals("http://www.purl.org/dc", parts[0]);
-        assertEquals("name1", parts[1]);
-        assertEquals("dc:name1", parts[2]);
+        Assert.assertTrue(parts[0].equals("http://www.purl.org/dc"));
+        Assert.assertTrue(parts[1].equals("name1"));
+        Assert.assertTrue(parts[2].equals("dc:name1"));
 
         nssupport.processName("name2", parts, false);
-        assertEquals("http://www.java.com", parts[0]);
-        assertEquals("name2", parts[1]);
-        assertEquals("name2", parts[2]);
+        Assert.assertTrue(parts[0].equals("http://www.java.com"));
+        Assert.assertTrue(parts[1].equals("name2"));
+        Assert.assertTrue(parts[2].equals("name2"));
     }
 
     @Test
@@ -67,30 +64,30 @@ public class NSSupportTest {
         NamespaceSupport nssupport = new NamespaceSupport();
 
         nssupport.pushContext();
-        assertFalse(nssupport.isNamespaceDeclUris());
+        Assert.assertFalse(nssupport.isNamespaceDeclUris());
         nssupport.declarePrefix("xmlns", "");
         nssupport.processName("xmlns:name", parts, true);
-        assertNull(parts[0]);
-        assertNull(parts[1]);
-        assertNull(parts[2]);
+        Assert.assertNull(parts[0]);
+        Assert.assertNull(parts[1]);
+        Assert.assertNull(parts[2]);
 
         nssupport.reset();
 
         nssupport.setNamespaceDeclUris(true);
         nssupport.declarePrefix("xmlns", "");
         nssupport.processName("xmlns:name", parts, true);
-        assertEquals(NamespaceSupport.NSDECL, parts[0]);
-        assertEquals("name", parts[1]);
-        assertEquals("xmlns:name", parts[2]);
+        Assert.assertTrue(parts[0].equals(NamespaceSupport.NSDECL));
+        Assert.assertTrue(parts[1].equals("name"));
+        Assert.assertTrue(parts[2].equals("xmlns:name"));
 
         nssupport.reset();
 
         nssupport.setNamespaceDeclUris(true);
         nssupport.declarePrefix("xml", "");
         nssupport.processName("xml:name", parts, true);
-        assertEquals(NamespaceSupport.XMLNS, parts[0]);
-        assertEquals("name", parts[1]);
-        assertEquals("xml:name", parts[2]);
+        Assert.assertTrue(parts[0].equals(NamespaceSupport.XMLNS));
+        Assert.assertTrue(parts[1].equals("name"));
+        Assert.assertTrue(parts[2].equals("xml:name"));
 
     }
 
@@ -101,14 +98,14 @@ public class NSSupportTest {
 
         nssupport.pushContext();
         nssupport.declarePrefix("dc", "http://www.purl.org/dc");
-        assertEquals("dc", nssupport.getPrefix("http://www.purl.org/dc"));
+        Assert.assertEquals(nssupport.getPrefix("http://www.purl.org/dc"), "dc");
 
         nssupport.popContext();
-        assertNull(nssupport.getPrefix("http://www.purl.org/dc"));
+        Assert.assertNull(nssupport.getPrefix("http://www.purl.org/dc"));
         nssupport.processName("dc:name1", parts, false);
-        assertNull(parts[0]);
-        assertNull(parts[1]);
-        assertNull(parts[2]);
+        Assert.assertNull(parts[0]);
+        Assert.assertNull(parts[1]);
+        Assert.assertNull(parts[2]);
     }
 
     @Test
@@ -127,9 +124,9 @@ public class NSSupportTest {
         nssupport.declarePrefix("dc2", "http://www.purl.org/dc2");
         nssupport.declarePrefix("dcnew", "http://www.purl.org/dcnew");
 
-        Enumeration<String> enu1 = nssupport.getDeclaredPrefixes();
+        Enumeration enu1 = nssupport.getDeclaredPrefixes();
         while (enu1.hasMoreElements()) {
-            String str = enu1.nextElement();
+            String str = (String) enu1.nextElement();
             if (str.equals("dc")) {
                 hasdc = true;
             } else if (str.equals("dc1")) {
@@ -140,8 +137,8 @@ public class NSSupportTest {
                 hasdcnew = true;
             }
         }
-        assertTrue(hasdcnew && hasdc1 && hasdc2);
-        assertFalse(hasdc);
+        AssertJUnit.assertTrue(hasdcnew && hasdc1 && hasdc2);
+        AssertJUnit.assertFalse(hasdc);
     }
 
     @Test
@@ -160,9 +157,9 @@ public class NSSupportTest {
         nssupport.declarePrefix("dc2", "http://www.purl.org/dc2");
         nssupport.declarePrefix("dcnew", "http://www.purl.org/dcnew");
 
-        Enumeration<String> enu1 = nssupport.getPrefixes();
+        Enumeration enu1 = nssupport.getPrefixes();
         while (enu1.hasMoreElements()) {
-            String str = enu1.nextElement();
+            String str = (String) enu1.nextElement();
             if (str.equals("dc")) {
                 hasdc = true;
             } else if (str.equals("dc1")) {
@@ -173,7 +170,7 @@ public class NSSupportTest {
                 hasdcnew = true;
             }
         }
-        assertTrue(hasdcnew && hasdc1 && hasdc2 && hasdc);
+        AssertJUnit.assertTrue(hasdcnew && hasdc1 && hasdc2 && hasdc);
     }
 
     @Test
@@ -192,9 +189,9 @@ public class NSSupportTest {
         nssupport.declarePrefix("dc2", "http://www.purl.org/dc2");
         nssupport.declarePrefix("dcnew", "http://www.purl.org/dcnew");
 
-        Enumeration<String> enu1 = nssupport.getPrefixes("http://www.purl.org/dc");
+        Enumeration enu1 = nssupport.getPrefixes("http://www.purl.org/dc");
         while (enu1.hasMoreElements()) {
-            String str = enu1.nextElement();
+            String str = (String) enu1.nextElement();
             if (str.equals("dc")) {
                 hasdc = true;
             } else if (str.equals("dc1")) {
@@ -205,9 +202,9 @@ public class NSSupportTest {
                 hasdcnew = true;
             }
         }
-        assertTrue(hasdc1 && hasdc);
-        assertFalse(hasdc2);
-        assertFalse(hasdcnew);
+        AssertJUnit.assertTrue(hasdc1 && hasdc);
+        AssertJUnit.assertFalse(hasdc2);
+        AssertJUnit.assertFalse(hasdcnew);
     }
 
     @Test
@@ -222,13 +219,13 @@ public class NSSupportTest {
         nssupport.declarePrefix("dc2", "http://www.purl.org/dc2");
         nssupport.declarePrefix("dcnew", "http://www.purl.org/dcnew");
 
-        assertEquals("http://www.purl.org/dc", nssupport.getURI("dc"));
-        assertEquals("http://www.purl.org/dc", nssupport.getURI("dc1"));
-        assertEquals("http://www.purl.org/dc2", nssupport.getURI("dc2"));
-        assertEquals("http://www.purl.org/dcnew", nssupport.getURI("dcnew"));
+        AssertJUnit.assertTrue(nssupport.getURI("dc").equals("http://www.purl.org/dc"));
+        AssertJUnit.assertTrue(nssupport.getURI("dc1").equals("http://www.purl.org/dc"));
+        AssertJUnit.assertTrue(nssupport.getURI("dc2").equals("http://www.purl.org/dc2"));
+        AssertJUnit.assertTrue(nssupport.getURI("dcnew").equals("http://www.purl.org/dcnew"));
 
         // Negative test
-        assertNull(nssupport.getURI("wrong_prefix"));
-        assertNull(nssupport.getURI(""));
+        Assert.assertNull(nssupport.getURI("wrong_prefix"));
+        Assert.assertNull(nssupport.getURI(""));
     }
 }

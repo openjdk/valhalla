@@ -78,9 +78,8 @@
 
 
 /*
- * Fixed-endian integers / floats.
+ * Big-endian integers.
  */
-
 
 /* Endian swap, used in Windows related backends */
 static inline constexpr uint16_t hb_uint16_swap (uint16_t v)
@@ -88,235 +87,119 @@ static inline constexpr uint16_t hb_uint16_swap (uint16_t v)
 static inline constexpr uint32_t hb_uint32_swap (uint32_t v)
 { return (hb_uint16_swap (v) << 16) | hb_uint16_swap (v >> 16); }
 
-template <typename Type>
-struct __attribute__((packed)) hb_packed_t { Type v; };
-
-#ifndef HB_FAST_NUM_ACCESS
-
+#ifndef HB_FAST_INT_ACCESS
 #if defined(__OPTIMIZE__) && \
     defined(__BYTE_ORDER) && \
     (__BYTE_ORDER == __BIG_ENDIAN || \
      (__BYTE_ORDER == __LITTLE_ENDIAN && \
       hb_has_builtin(__builtin_bswap16) && \
-      hb_has_builtin(__builtin_bswap32) && \
-      hb_has_builtin(__builtin_bswap64)))
-#define HB_FAST_NUM_ACCESS 1
+      hb_has_builtin(__builtin_bswap32)))
+#define HB_FAST_INT_ACCESS 1
 #else
-#define HB_FAST_NUM_ACCESS 0
+#define HB_FAST_INT_ACCESS 0
+#endif
 #endif
 
-// https://github.com/harfbuzz/harfbuzz/issues/5456
-#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ <= 12)
-#undef HB_FAST_NUM_ACCESS
-#define HB_FAST_NUM_ACCESS 0
-#endif
-
-#endif
-
-template <bool BE, typename Type, int Bytes = sizeof (Type)>
-struct HBInt;
-template <bool BE, typename Type>
-struct HBInt<BE, Type, 1>
+template <typename Type, int Bytes = sizeof (Type)>
+struct BEInt;
+template <typename Type>
+struct BEInt<Type, 1>
 {
   public:
-  HBInt () = default;
-  constexpr HBInt (Type V) : v {uint8_t (V)} {}
+  BEInt () = default;
+  constexpr BEInt (Type V) : v {uint8_t (V)} {}
   constexpr operator Type () const { return v; }
   private: uint8_t v;
 };
-template <bool BE, typename Type>
-struct HBInt<BE, Type, 2>
+template <typename Type>
+struct BEInt<Type, 2>
 {
-  public:
-  HBInt () = default;
+  struct __attribute__((packed)) packed_uint16_t { uint16_t v; };
 
-  HBInt (Type V)
-#if HB_FAST_NUM_ACCESS
-  {
-    if (BE == (__BYTE_ORDER == __BIG_ENDIAN))
-      ((hb_packed_t<uint16_t> *) v)->v = V;
-    else
-      ((hb_packed_t<uint16_t> *) v)->v = __builtin_bswap16 (V);
-  }
+  public:
+  BEInt () = default;
+
+  BEInt (Type V)
+#if HB_FAST_INT_ACCESS
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  { ((packed_uint16_t *) v)->v = __builtin_bswap16 (V); }
+#else /* __BYTE_ORDER == __BIG_ENDIAN */
+  { ((packed_uint16_t *) v)->v = V; }
+#endif
 #else
-    : v {BE ? uint8_t ((V >>  8) & 0xFF) : uint8_t ((V      ) & 0xFF),
-         BE ? uint8_t ((V      ) & 0xFF) : uint8_t ((V >>  8) & 0xFF)} {}
+    : v {uint8_t ((V >>  8) & 0xFF),
+         uint8_t ((V      ) & 0xFF)} {}
 #endif
 
-  constexpr operator Type () const
-  {
-#if HB_FAST_NUM_ACCESS
-    return (BE == (__BYTE_ORDER == __BIG_ENDIAN)) ?
-      ((const hb_packed_t<uint16_t> *) v)->v
-    :
-      __builtin_bswap16 (((const hb_packed_t<uint16_t> *) v)->v)
-    ;
+  constexpr operator Type () const {
+#if HB_FAST_INT_ACCESS
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    return __builtin_bswap16 (((packed_uint16_t *) v)->v);
+#else /* __BYTE_ORDER == __BIG_ENDIAN */
+    return ((packed_uint16_t *) v)->v;
+#endif
 #else
-    return (BE ? (v[0] <<  8) : (v[0]      ))
-         + (BE ? (v[1]      ) : (v[1] <<  8));
+    return (v[0] <<  8)
+         + (v[1]      );
 #endif
   }
   private: uint8_t v[2];
 };
-template <bool BE, typename Type>
-struct HBInt<BE, Type, 3>
+template <typename Type>
+struct BEInt<Type, 3>
 {
   static_assert (!std::is_signed<Type>::value, "");
   public:
-  HBInt () = default;
-  constexpr HBInt (Type V) : v {BE ? uint8_t ((V >> 16) & 0xFF) : uint8_t ((V >> 16) & 0xFF),
-                                BE ? uint8_t ((V >>  8) & 0xFF) : uint8_t ((V >>  8) & 0xFF),
-                                BE ? uint8_t ((V      ) & 0xFF) : uint8_t ((V      ) & 0xFF)} {}
+  BEInt () = default;
+  constexpr BEInt (Type V) : v {uint8_t ((V >> 16) & 0xFF),
+                                uint8_t ((V >>  8) & 0xFF),
+                                uint8_t ((V      ) & 0xFF)} {}
 
-  constexpr operator Type () const { return (BE ? (v[0] << 16) : (v[0]      ))
-                                          + (BE ? (v[1] <<  8) : (v[1] <<  8))
-                                          + (BE ? (v[2]      ) : (v[2] << 16)); }
+  constexpr operator Type () const { return (v[0] << 16)
+                                          + (v[1] <<  8)
+                                          + (v[2]      ); }
   private: uint8_t v[3];
 };
-template <bool BE, typename Type>
-struct HBInt<BE, Type, 4>
+template <typename Type>
+struct BEInt<Type, 4>
 {
-  template <bool, typename, int>
-  friend struct HBFloat;
+  struct __attribute__((packed)) packed_uint32_t { uint32_t v; };
 
   public:
-  HBInt () = default;
+  BEInt () = default;
 
-  HBInt (Type V)
-#if HB_FAST_NUM_ACCESS
-  {
-    if (BE == (__BYTE_ORDER == __BIG_ENDIAN))
-      ((hb_packed_t<uint32_t> *) v)->v = V;
-    else
-      ((hb_packed_t<uint32_t> *) v)->v = __builtin_bswap32 (V);
-  }
+  BEInt (Type V)
+#if HB_FAST_INT_ACCESS
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  { ((packed_uint32_t *) v)->v = __builtin_bswap32 (V); }
+#else /* __BYTE_ORDER == __BIG_ENDIAN */
+  { ((packed_uint32_t *) v)->v = V; }
+#endif
 #else
-    : v {BE ? uint8_t ((V >> 24) & 0xFF) : uint8_t ((V      ) & 0xFF),
-         BE ? uint8_t ((V >> 16) & 0xFF) : uint8_t ((V >>  8) & 0xFF),
-         BE ? uint8_t ((V >>  8) & 0xFF) : uint8_t ((V >> 16) & 0xFF),
-         BE ? uint8_t ((V      ) & 0xFF) : uint8_t ((V >> 24) & 0xFF)} {}
+    : v {uint8_t ((V >> 24) & 0xFF),
+         uint8_t ((V >> 16) & 0xFF),
+         uint8_t ((V >>  8) & 0xFF),
+         uint8_t ((V      ) & 0xFF)} {}
 #endif
 
   constexpr operator Type () const {
-#if HB_FAST_NUM_ACCESS
-    return (BE == (__BYTE_ORDER == __BIG_ENDIAN)) ?
-      ((const hb_packed_t<uint32_t> *) v)->v
-    :
-      __builtin_bswap32 (((const hb_packed_t<uint32_t> *) v)->v)
-    ;
+#if HB_FAST_INT_ACCESS
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    return __builtin_bswap32 (((packed_uint32_t *) v)->v);
+#else /* __BYTE_ORDER == __BIG_ENDIAN */
+    return ((packed_uint32_t *) v)->v;
+#endif
 #else
-    return (BE ? (v[0] << 24) : (v[0]      ))
-         + (BE ? (v[1] << 16) : (v[1] <<  8))
-         + (BE ? (v[2] <<  8) : (v[2] << 16))
-         + (BE ? (v[3]      ) : (v[3] << 24));
+    return (v[0] << 24)
+         + (v[1] << 16)
+         + (v[2] <<  8)
+         + (v[3]      );
 #endif
   }
   private: uint8_t v[4];
 };
-template <bool BE, typename Type>
-struct HBInt<BE, Type, 8>
-{
-  template <bool, typename, int>
-  friend struct HBFloat;
-
-  public:
-  HBInt () = default;
-
-  HBInt (Type V)
-#if HB_FAST_NUM_ACCESS
-  {
-    if (BE == (__BYTE_ORDER == __BIG_ENDIAN))
-      ((hb_packed_t<uint64_t> *) v)->v = V;
-    else
-      ((hb_packed_t<uint64_t> *) v)->v = __builtin_bswap64 (V);
-  }
-#else
-    : v {BE ? uint8_t ((V >> 56) & 0xFF) : uint8_t ((V      ) & 0xFF),
-         BE ? uint8_t ((V >> 48) & 0xFF) : uint8_t ((V >>  8) & 0xFF),
-         BE ? uint8_t ((V >> 40) & 0xFF) : uint8_t ((V >> 16) & 0xFF),
-         BE ? uint8_t ((V >> 32) & 0xFF) : uint8_t ((V >> 24) & 0xFF),
-         BE ? uint8_t ((V >> 24) & 0xFF) : uint8_t ((V >> 32) & 0xFF),
-         BE ? uint8_t ((V >> 16) & 0xFF) : uint8_t ((V >> 40) & 0xFF),
-         BE ? uint8_t ((V >>  8) & 0xFF) : uint8_t ((V >> 48) & 0xFF),
-         BE ? uint8_t ((V      ) & 0xFF) : uint8_t ((V >> 56) & 0xFF)} {}
-#endif
-
-  constexpr operator Type () const {
-#if HB_FAST_NUM_ACCESS
-    return (BE == (__BYTE_ORDER == __BIG_ENDIAN)) ?
-      ((const hb_packed_t<uint64_t> *) v)->v
-    :
-      __builtin_bswap64 (((const hb_packed_t<uint64_t> *) v)->v)
-    ;
-#else
-    return (BE ? (uint64_t (v[0]) << 56) : (uint64_t (v[0])      ))
-         + (BE ? (uint64_t (v[1]) << 48) : (uint64_t (v[1]) <<  8))
-         + (BE ? (uint64_t (v[2]) << 40) : (uint64_t (v[2]) << 16))
-         + (BE ? (uint64_t (v[3]) << 32) : (uint64_t (v[3]) << 24))
-         + (BE ? (uint64_t (v[4]) << 24) : (uint64_t (v[4]) << 32))
-         + (BE ? (uint64_t (v[5]) << 16) : (uint64_t (v[5]) << 40))
-         + (BE ? (uint64_t (v[6]) <<  8) : (uint64_t (v[6]) << 48))
-         + (BE ? (uint64_t (v[7])      ) : (uint64_t (v[7]) << 56));
-#endif
-  }
-  private: uint8_t v[8];
-};
 
 /* Floats. */
-
-template <bool BE, typename Type, int Bytes>
-struct HBFloat
-{
-  using IntType = typename std::conditional<Bytes == 4, uint32_t, uint64_t>::type;
-
-  public:
-  HBFloat () = default;
-
-  HBFloat (Type V)
-  {
-#if HB_FAST_NUM_ACCESS
-    {
-      if (BE == (__BYTE_ORDER == __BIG_ENDIAN))
-      {
-        ((hb_packed_t<Type> *) v)->v = V;
-        return;
-      }
-    }
-#endif
-
-    union {
-      hb_packed_t<Type> f;
-      hb_packed_t<IntType> i;
-    } u = {{V}};
-
-    const HBInt<BE, IntType> I = u.i.v;
-    for (unsigned i = 0; i < Bytes; i++)
-      v[i] = I.v[i];
-  }
-
-  /* c++14 constexpr */ operator Type () const
-  {
-#if HB_FAST_NUM_ACCESS
-    {
-      if (BE == (__BYTE_ORDER == __BIG_ENDIAN))
-        return ((const hb_packed_t<Type> *) v)->v;
-    }
-#endif
-
-    HBInt<BE, IntType> I;
-    for (unsigned i = 0; i < Bytes; i++)
-      I.v[i] = v[i];
-
-    union {
-      hb_packed_t<IntType> i;
-      hb_packed_t<Type> f;
-    } u = {{I}};
-
-    return u.f.v;
-  }
-  private: uint8_t v[Bytes];
-};
-
 
 /* We want our rounding towards +infinity. */
 static inline double
@@ -326,27 +209,6 @@ static inline float
 _hb_roundf (float x) { return floorf (x + .5f); }
 
 #define roundf(x) _hb_roundf(x)
-
-static inline void
-hb_sincos (float rotation, float &s, float &c)
-{
-#ifdef HAVE_SINCOSF
-  sincosf (rotation, &s, &c);
-#else
-  c = cosf (rotation);
-  s = sinf (rotation);
-#endif
-}
-static inline void
-hb_sincos (double rotation, double &s, double &c)
-{
-#ifdef HAVE_SINCOS
-  sincos (rotation, &s, &c);
-#else
-  c = cos (rotation);
-  s = sin (rotation);
-#endif
-}
 
 
 /* Encodes three unsigned integers in one 64-bit number.  If the inputs have more than 21 bits,
@@ -872,17 +734,6 @@ HB_FUNCOBJ (hb_clamp);
  * Bithacks.
  */
 
-/* Return the number of 1 bits in a uint8_t; faster than hb_popcount() */
-static inline unsigned
-hb_popcount8 (uint8_t v)
-{
-  static const uint8_t popcount4[16] = {
-    0, 1, 1, 2, 1, 2, 2, 3,
-    1, 2, 2, 3, 2, 3, 3, 4
-  };
-  return popcount4[v & 0xF] + popcount4[v >> 4];
-}
-
 /* Return the number of 1 bits in v. */
 template <typename T>
 static inline unsigned int
@@ -1219,7 +1070,6 @@ _hb_cmp_operator (const void *pkey, const void *pval)
 }
 
 template <typename V, typename K, typename ...Ts>
-HB_HOT
 static inline bool
 hb_bsearch_impl (unsigned *pos, /* Out */
                  const K& key,

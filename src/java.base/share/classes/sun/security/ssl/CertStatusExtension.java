@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -144,8 +144,7 @@ final class CertStatusExtension {
             if (statusType == CertStatusRequestType.OCSP.id) {
                 this.statusRequest = new OCSPStatusRequest(statusType, encoded);
             } else {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.info(
                         "Unknown certificate status request " +
                         "(status type: " + statusType + ")");
@@ -197,8 +196,7 @@ final class CertStatusExtension {
             if (type == CertStatusRequestType.OCSP.id) {
                 this.statusResponse = new OCSPStatusResponse(type, respData);
             } else {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.info(
                         "Unknown certificate status response " +
                         "(status type: " + type + ")");
@@ -559,8 +557,7 @@ final class CertStatusExtension {
             }
 
             if (!chc.sslConfig.isAvailable(SSLExtension.CH_STATUS_REQUEST)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "Ignore unavailable extension: " +
                         SSLExtension.CH_STATUS_REQUEST.name);
@@ -601,8 +598,7 @@ final class CertStatusExtension {
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (!shc.sslConfig.isAvailable(SSLExtension.CH_STATUS_REQUEST)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine("Ignore unavailable extension: " +
                         SSLExtension.CH_STATUS_REQUEST.name);
                 }
@@ -660,8 +656,7 @@ final class CertStatusExtension {
                     shc.handshakeExtensions.get(SSLExtension.CH_STATUS_REQUEST);
             if (spec == null) {
                 // Ignore, no status_request extension requested.
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finest("Ignore unavailable extension: " +
                         SSLExtension.CH_STATUS_REQUEST.name);
                 }
@@ -671,8 +666,7 @@ final class CertStatusExtension {
 
             // Is it a session resuming?
             if (shc.isResumption) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finest(
                         "No status_request response for session resuming");
                 }
@@ -845,8 +839,7 @@ final class CertStatusExtension {
                     statusRequests.add(
                             new OCSPStatusRequest(statusType, encoded));
                 } else {
-                    if (SSLLogger.isOn() &&
-                            SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                    if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                         SSLLogger.info(
                                 "Unknown certificate status request " +
                                 "(status type: " + statusType + ")");
@@ -922,8 +915,7 @@ final class CertStatusExtension {
             }
 
             if (!chc.sslConfig.isAvailable(SSLExtension.CH_STATUS_REQUEST_V2)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finest(
                         "Ignore unavailable status_request_v2 extension");
                 }
@@ -965,8 +957,7 @@ final class CertStatusExtension {
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
 
             if (!shc.sslConfig.isAvailable(SSLExtension.CH_STATUS_REQUEST_V2)) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finest(
                         "Ignore unavailable status_request_v2 extension");
                 }
@@ -1026,8 +1017,7 @@ final class CertStatusExtension {
                 shc.handshakeExtensions.get(SSLExtension.CH_STATUS_REQUEST_V2);
             if (spec == null) {
                 // Ignore, no status_request_v2 extension requested.
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finest(
                         "Ignore unavailable status_request_v2 extension");
                 }
@@ -1037,8 +1027,7 @@ final class CertStatusExtension {
 
             // Is it a session resuming?
             if (shc.isResumption) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finest(
                         "No status_request_v2 response for session resumption");
                 }
@@ -1123,8 +1112,7 @@ final class CertStatusExtension {
 
             // Stapling needs to be active and have valid data to proceed
             if (shc.stapleParams == null) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finest(
                         "Stapling is disabled for this connection");
                 }
@@ -1133,8 +1121,7 @@ final class CertStatusExtension {
 
             // There needs to be a non-null CertificateEntry to proceed
             if (shc.currentCertEntry == null) {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.finest("Found null CertificateEntry in context");
                 }
                 return null;
@@ -1153,7 +1140,7 @@ final class CertStatusExtension {
                 if (respBytes == null) {
                     // We're done with this entry.  Clear it from the context
                     if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE_VERBOSE)) {
+                            SSLLogger.isOn("ssl,handshake,verbose")) {
                         SSLLogger.finest("No status response found for " +
                                 x509Cert.getSubjectX500Principal());
                     }
@@ -1162,8 +1149,7 @@ final class CertStatusExtension {
                 }
 
                 // Build a proper response buffer from the stapling information
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE_VERBOSE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake,verbose")) {
                     SSLLogger.finest("Found status response for " +
                             x509Cert.getSubjectX500Principal() +
                             ", response length: " + respBytes.length);
@@ -1222,8 +1208,7 @@ final class CertStatusExtension {
                 respList.add(spec.statusResponse.encodedResponse);
                 chc.handshakeSession.setStatusResponses(respList);
             } else {
-                if (SSLLogger.isOn() &&
-                        SSLLogger.isOn(SSLLogger.Opt.HANDSHAKE_VERBOSE)) {
+                if (SSLLogger.isOn() && SSLLogger.isOn("ssl,handshake,verbose")) {
                     SSLLogger.finest(
                             "Ignoring stapled data on resumed session");
                 }

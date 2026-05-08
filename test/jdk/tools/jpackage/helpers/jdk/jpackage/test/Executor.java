@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,18 @@
  */
 package jdk.jpackage.test;
 
+import static java.util.stream.Collectors.joining;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.StringReader;
 import java.io.UncheckedIOException;
-import java.nio.charset.Charset;
+import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,18 +43,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.spi.ToolProvider;
-import java.util.stream.IntStream;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.jpackage.internal.util.CommandLineFormat;
-import jdk.jpackage.internal.util.CommandOutputControl;
-import jdk.jpackage.internal.util.CommandOutputControl.UnexpectedExitCodeException;
-import jdk.jpackage.internal.util.RetryExecutor;
-import jdk.jpackage.internal.util.function.ExceptionBox;
 import jdk.jpackage.internal.util.function.ThrowingSupplier;
+import jdk.jpackage.internal.util.function.ExceptionBox;
 
 public final class Executor extends CommandArguments<Executor> {
 
@@ -63,25 +69,8 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public Executor() {
-        commandOutputControl = new CommandOutputControl()
-                .dumpStdout(TKit.state().out())
-                .dumpStderr(TKit.state().err());
-        removeEnvVars = new HashSet<>();
-        setEnvVars = new HashMap<>();
-    }
-
-    public Executor(Executor other) {
-        toolProvider = other.toolProvider;
-        executable = other.executable;
-        commandOutputControl = other.commandOutputControl.copy();
-        directory = other.directory;
-        removeEnvVars = new HashSet<>(other.removeEnvVars);
-        setEnvVars = new HashMap<>(other.setEnvVars);
-        winTmpDir = other.winTmpDir;
-    }
-
-    public Executor copy() {
-        return new Executor(this);
+        outputStreamsControl = new OutputStreamsControl();
+        winEnglishOutput = false;
     }
 
     public Executor setExecutable(String v) {
@@ -102,10 +91,6 @@ public final class Executor extends CommandArguments<Executor> {
 
     public Executor setToolProvider(JavaTool v) {
         return setToolProvider(v.asToolProvider());
-    }
-
-    public Optional<ToolProvider> getToolProvider() {
-        return Optional.ofNullable(toolProvider);
     }
 
     public Optional<Path> getExecutable() {
@@ -133,6 +118,15 @@ public final class Executor extends CommandArguments<Executor> {
         return this;
     }
 
+    public Executor setWinRunWithEnglishOutput(boolean value) {
+        if (!TKit.isWindows()) {
+            throw new UnsupportedOperationException(
+                    "setWinRunWithEnglishOutput is only valid on Windows platform");
+        }
+        winEnglishOutput = value;
+        return this;
+    }
+
     public Executor setWindowsTmpDir(String tmp) {
         if (!TKit.isWindows()) {
             throw new UnsupportedOperationException(
@@ -142,31 +136,62 @@ public final class Executor extends CommandArguments<Executor> {
         return this;
     }
 
+    /**
+     * Configures this instance to save all stdout and stderr streams from the to be
+     * executed command.
+     * <p>
+     * This function is mutually exclusive with {@link #saveFirstLineOfOutput()}.
+     *
+     * @return this
+     */
     public Executor saveOutput() {
         return saveOutput(true);
     }
 
+    /**
+     * Configures if all stdout and stderr streams from the to be executed command
+     * should be saved.
+     * <p>
+     * If <code>v</code> is <code>true</code>, the function call is equivalent to
+     * {@link #saveOutput()} call. If <code>v</code> is <code>false</code>, command
+     * output will not be saved.
+     *
+     * @parameter v if both stdout and stderr streams should be saved
+     *
+     * @return this
+     */
     public Executor saveOutput(boolean v) {
-        commandOutputControl.saveOutput(v);
-        return this;
+        return setOutputControl(v, OutputControlOption.SAVE_ALL);
     }
 
+    /**
+     * Configures this instance to save the first line of a stream merged from
+     * stdout and stderr streams from the to be executed command.
+     * <p>
+     * This function is mutually exclusive with {@link #saveOutput()}.
+     *
+     * @return this
+     */
     public Executor saveFirstLineOfOutput() {
-        commandOutputControl.saveFirstLineOfOutput();
-        return this;
+        return setOutputControl(true, OutputControlOption.SAVE_FIRST_LINE);
     }
 
+    /**
+     * Configures this instance to dump both stdout and stderr streams from the to
+     * be executed command into {@link System.out}.
+     *
+     * @return this
+     */
     public Executor dumpOutput() {
         return dumpOutput(true);
     }
 
     public Executor dumpOutput(boolean v) {
-        commandOutputControl.dumpOutput(v);
-        return this;
+        return setOutputControl(v, OutputControlOption.DUMP);
     }
 
     public Executor discardStdout(boolean v) {
-        commandOutputControl.discardStdout(v);
+        outputStreamsControl.stdout().discard(v);
         return this;
     }
 
@@ -175,7 +200,7 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public Executor discardStderr(boolean v) {
-        commandOutputControl.discardStderr(v);
+        outputStreamsControl.stderr().discard(v);
         return this;
     }
 
@@ -183,131 +208,45 @@ public final class Executor extends CommandArguments<Executor> {
         return discardStderr(true);
     }
 
-    public Executor binaryOutput(boolean v) {
-        commandOutputControl.binaryOutput(v);
-        return this;
+    public interface Output {
+        public List<String> getOutput();
+
+        public default String getFirstLineOfOutput() {
+            return findFirstLineOfOutput().orElseThrow();
+        }
+
+        public default Optional<String> findFirstLineOfOutput() {
+            return getOutput().stream().findFirst();
+        }
     }
 
-    public Executor binaryOutput() {
-        return binaryOutput(true);
-    }
-
-    public Executor charset(Charset v) {
-        commandOutputControl.charset(v);
-        return this;
-    }
-
-    public Charset charset() {
-        return commandOutputControl.charset();
-    }
-
-    public Executor storeOutputInFiles(boolean v) {
-        commandOutputControl.storeOutputInFiles(v);
-        return this;
-    }
-
-    public Executor storeOutputInFiles() {
-        return storeOutputInFiles(true);
-    }
-
-    public Executor processListener(Consumer<Process> v) {
-        commandOutputControl.processListener(v);
-        return this;
-    }
-
-    public record Result(CommandOutputControl.Result base) {
+    public record Result(int exitCode, CommandOutput output, Supplier<String> cmdline) implements Output {
         public Result {
-            Objects.requireNonNull(base);
+            Objects.requireNonNull(output);
+            Objects.requireNonNull(cmdline);
         }
 
-        public Result(int exitCode) {
-            this(new CommandOutputControl.Result(exitCode));
+        public Result(int exitCode, Supplier<String> cmdline) {
+            this(exitCode, CommandOutput.EMPTY, cmdline);
         }
 
+        @Override
         public List<String> getOutput() {
-            return base.content();
+            return output.lines().orElse(null);
         }
 
-        public String getFirstLineOfOutput() {
-            return getOutput().getFirst();
+        public Output stdout() {
+            return createView(output.stdoutLines());
         }
 
-        public List<String> stdout() {
-            return base.stdout();
+        public Output stderr() {
+            return createView(output.stderrLines());
         }
 
-        public List<String> stderr() {
-            return base.stderr();
-        }
-
-        public Optional<List<String>> findContent() {
-            return base.findContent();
-        }
-
-        public Optional<List<String>> findStdout() {
-            return base.findStdout();
-        }
-
-        public Optional<List<String>> findStderr() {
-            return base.findStderr();
-        }
-
-        public byte[] byteContent() {
-            return base.byteContent();
-        }
-
-        public byte[] byteStdout() {
-            return base.byteStdout();
-        }
-
-        public byte[] byteStderr() {
-            return base.byteStderr();
-        }
-
-        public Optional<byte[]> findByteContent() {
-            return base.findByteContent();
-        }
-
-        public Optional<byte[]> findByteStdout() {
-            return base.findByteStdout();
-        }
-
-        public Optional<byte[]> findByteStderr() {
-            return base.findByteStderr();
-        }
-
-        public Result toCharacterResult(Charset charset, boolean keepByteContent) {
-            try {
-                return new Result(base.toCharacterResult(charset, keepByteContent));
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
-            }
-        }
-
-        public Result assertExitCodeIs(int main, int... other) {
-            if (other.length != 0) {
-                return assertExitCodeIs(IntStream.concat(IntStream.of(main), IntStream.of(other)).boxed().toList());
-            } else {
-                return assertExitCodeIs(List.of(main));
-            }
-        }
-
-        private Result assertExitCodeIs(List<Integer> expectedExitCodes) {
-            Objects.requireNonNull(expectedExitCodes);
-            switch (expectedExitCodes.size()) {
-                case 0 -> {
-                    throw new IllegalArgumentException();
-                } case 1 -> {
-                    long expectedExitCode = expectedExitCodes.getFirst();
-                    TKit.assertEquals(expectedExitCode, getExitCode(), String.format(
-                            "Check command %s exited with %d code",
-                            base.execAttrs().printableCommandLine(), expectedExitCode));
-                } default -> {
-                    TKit.assertTrue(expectedExitCodes.contains(getExitCode()), String.format(
-                            "Check command %s exited with one of %s codes",
-                            base.execAttrs().printableCommandLine(), expectedExitCodes.stream().sorted().toList()));
-                }
-            }
+        public Result assertExitCodeIs(int expectedExitCode) {
+            TKit.assertEquals(expectedExitCode, exitCode, String.format(
+                    "Check command %s exited with %d code",
+                    cmdline.get(), expectedExitCode));
             return this;
         }
 
@@ -316,11 +255,16 @@ public final class Executor extends CommandArguments<Executor> {
         }
 
         public int getExitCode() {
-            return base.getExitCode();
+            return exitCode;
         }
 
-        public String getPrintableCommandLine() {
-            return base.execAttrs().printableCommandLine();
+        private static Output createView(Optional<List<String>> lines) {
+            return new Output() {
+                @Override
+                public List<String> getOutput() {
+                    return lines.orElse(null);
+                }
+            };
         }
     }
 
@@ -328,6 +272,11 @@ public final class Executor extends CommandArguments<Executor> {
         if (toolProvider != null && directory != null) {
             throw new IllegalArgumentException(
                     "Can't change directory when using tool provider");
+        }
+
+        if (toolProvider != null && winEnglishOutput) {
+            throw new IllegalArgumentException(
+                    "Can't change locale when using tool provider");
         }
 
         return ThrowingSupplier.toSupplier(() -> {
@@ -343,8 +292,8 @@ public final class Executor extends CommandArguments<Executor> {
         }).get();
     }
 
-    Result execute(int mainExitCode, int... otherExitCodes) {
-        return executeWithoutExitCodeCheck().assertExitCodeIs(mainExitCode, otherExitCodes);
+    public Result execute(int expectedCode) {
+        return executeWithoutExitCodeCheck().assertExitCodeIs(expectedCode);
     }
 
     public Result execute() {
@@ -352,36 +301,28 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public String executeAndGetFirstLineOfOutput() {
-        return saveFirstLineOfOutput().execute().getOutput().getFirst();
+        return saveFirstLineOfOutput().execute().getFirstLineOfOutput();
     }
 
     public List<String> executeAndGetOutput() {
         return saveOutput().execute().getOutput();
     }
 
-    private static class FailedAttemptException extends Exception {
-        FailedAttemptException(Exception cause) {
-            super(Objects.requireNonNull(cause));
+    private static class BadResultException extends RuntimeException {
+        BadResultException(Result v) {
+            value = v;
         }
 
+        Result getValue() {
+            return value;
+        }
+
+        private final transient Result value;
         private static final long serialVersionUID = 1L;
     }
 
-    public RetryExecutor<Result, UnexpectedExitCodeException> retryUntilExitCodeIs(
-            int mainExpectedExitCode, int... otherExpectedExitCodes) {
-        return new RetryExecutor<Result, UnexpectedExitCodeException>(UnexpectedExitCodeException.class).setExecutable(() -> {
-            var result = executeWithoutExitCodeCheck();
-            result.base().expectExitCode(mainExpectedExitCode, otherExpectedExitCodes);
-            return result;
-        }).setExceptionMapper((UnexpectedExitCodeException ex) -> {
-            createResult(ex.getResult()).assertExitCodeIs(mainExpectedExitCode, otherExpectedExitCodes);
-            // Unreachable, because the above `Result.assertExitCodeIs(...)` must throw.
-            throw ExceptionBox.reachedUnreachable();
-        });
-    }
-
     /**
-     * Executes the configured command at most {@code max} times and waits for
+     * Executes the configured command {@code max} at most times and waits for
      * {@code wait} seconds between each execution until the command exits with
      * {@code expectedCode} exit code.
      *
@@ -391,10 +332,17 @@ public final class Executor extends CommandArguments<Executor> {
      *                         command
      */
     public Result executeAndRepeatUntilExitCode(int expectedExitCode, int max, int wait) {
-        return retryUntilExitCodeIs(expectedExitCode)
-                .setAttemptTimeout(wait, TimeUnit.SECONDS)
-                .setMaxAttemptsCount(max)
-                .executeUnchecked();
+        try {
+            return tryRunMultipleTimes(() -> {
+                Result result = executeWithoutExitCodeCheck();
+                if (result.getExitCode() != expectedExitCode) {
+                    throw new BadResultException(result);
+                }
+                return result;
+            }, max, wait).assertExitCodeIs(expectedExitCode);
+        } catch (BadResultException ex) {
+            return ex.getValue().assertExitCodeIs(expectedExitCode);
+        }
     }
 
     /**
@@ -411,16 +359,26 @@ public final class Executor extends CommandArguments<Executor> {
      * @param wait number of seconds to wait between executions of the
      */
     public static <T> T tryRunMultipleTimes(Supplier<T> task, int max, int wait) {
-        return new RetryExecutor<T, FailedAttemptException>(FailedAttemptException.class).setExecutable(() -> {
+        RuntimeException lastException = null;
+        int count = 0;
+
+        do {
             try {
                 return task.get();
             } catch (RuntimeException ex) {
-                throw new FailedAttemptException(ex);
+                lastException = ex;
             }
-        }).setExceptionMapper((FailedAttemptException ex) -> {
-            return (RuntimeException)ex.getCause();
-        }).setAttemptTimeout(wait, TimeUnit.SECONDS).setMaxAttemptsCount(max).executeUnchecked();
 
+            try {
+                Thread.sleep(wait * 1000);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+
+            count++;
+        } while (count < max);
+
+        throw lastException;
     }
 
     public static void tryRunMultipleTimes(Runnable task, int max, int wait) {
@@ -432,6 +390,12 @@ public final class Executor extends CommandArguments<Executor> {
 
     public List<String> executeWithoutExitCodeCheckAndGetOutput() {
         return saveOutput().executeWithoutExitCodeCheck().getOutput();
+    }
+
+    private Executor setOutputControl(boolean set, OutputControlOption v) {
+        outputStreamsControl.stdout().set(set, v);
+        outputStreamsControl.stderr().set(set, v);
+        return this;
     }
 
     private Path executablePath() {
@@ -449,8 +413,17 @@ public final class Executor extends CommandArguments<Executor> {
         return executable.toAbsolutePath();
     }
 
+    private List<String> prefixCommandLineArgs() {
+        if (winEnglishOutput) {
+            return List.of("cmd.exe", "/c", "chcp", "437", ">nul", "2>&1", "&&");
+        } else {
+            return List.of();
+        }
+    }
+
     private Result runExecutable() throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
+        command.addAll(prefixCommandLineArgs());
         command.add(executablePath().toString());
         command.addAll(args);
         ProcessBuilder builder = new ProcessBuilder(command);
@@ -458,8 +431,12 @@ public final class Executor extends CommandArguments<Executor> {
             builder.environment().put("TMP", winTmpDir);
         }
 
+        outputStreamsControl.applyTo(builder);
+
         StringBuilder sb = new StringBuilder(getPrintableCommandLine());
-        sb.append("; ").append(commandOutputControl.description());
+        outputStreamsControl.describe().ifPresent(desc -> {
+            sb.append("; ").append(desc);
+        });
 
         if (directory != null) {
             builder.directory(directory.toFile());
@@ -489,31 +466,141 @@ public final class Executor extends CommandArguments<Executor> {
             });
         }
 
-        return execute(sb, commandOutputControl.createExecutable(builder));
+        trace("Execute " + sb.toString() + "...");
+        Process process = builder.start();
+
+        var stdoutGobbler = CompletableFuture.<Optional<List<String>>>supplyAsync(() -> {
+            try {
+                return processProcessStream(outputStreamsControl.stdout(), process.getInputStream());
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
+        });
+
+        var stderrGobbler = CompletableFuture.<Optional<List<String>>>supplyAsync(() -> {
+            try {
+                return processProcessStream(outputStreamsControl.stderr(), process.getErrorStream());
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
+        });
+
+        final CommandOutput output;
+
+        try {
+            output = combine(stdoutGobbler.join(), stderrGobbler.join());
+        } catch (CompletionException ex) {
+            var cause = ex.getCause();
+            switch (cause) {
+                case UncheckedIOException uioex -> {
+                    throw uioex.getCause();
+                }
+                default -> {
+                    throw ExceptionBox.toUnchecked(ExceptionBox.unbox(cause));
+                }
+            }
+        }
+
+        final int exitCode = process.waitFor();
+        trace("Done. Exit code: " + exitCode);
+
+        return createResult(exitCode, output);
     }
 
-    private Result runToolProvider() throws IOException, InterruptedException {
+    private int runToolProvider(PrintStream out, PrintStream err) {
         final var sb = new StringBuilder(getPrintableCommandLine());
-        sb.append("; ").append(commandOutputControl.description());
-
-        return execute(sb, commandOutputControl.createExecutable(toolProvider, args.toArray(String[]::new)));
+        outputStreamsControl.describe().ifPresent(desc -> {
+            sb.append("; ").append(desc);
+        });
+        trace("Execute " + sb + "...");
+        final int exitCode = toolProvider.run(out, err, args.toArray(
+                String[]::new));
+        trace("Done. Exit code: " + exitCode);
+        return exitCode;
     }
 
-    private Result execute(StringBuilder traceMsg, CommandOutputControl.Executable exec) throws IOException, InterruptedException {
-        Objects.requireNonNull(traceMsg);
+    private Result runToolProvider() throws IOException {
+        final var toolProviderStreamConfig = ToolProviderStreamConfig.create(outputStreamsControl);
 
-        trace("Execute " + traceMsg + "...");
+        final var exitCode = runToolProvider(toolProviderStreamConfig);
 
-        var result = exec.execute();
-
-        trace("Done. Exit code: " + result.getExitCode());
-
-        return createResult(result);
+        final var output = combine(
+                read(outputStreamsControl.stdout(), toolProviderStreamConfig.out()),
+                read(outputStreamsControl.stderr(), toolProviderStreamConfig.err()));
+        return createResult(exitCode, output);
     }
 
-    private Result createResult(CommandOutputControl.Result baseResult) {
-        return new Result(baseResult.copyWithExecutableAttributes(
-                new ExecutableAttributes(baseResult.execAttrs(), getPrintableCommandLine())));
+    private int runToolProvider(ToolProviderStreamConfig cfg) throws IOException {
+        try {
+            return runToolProvider(cfg.out().ps(), cfg.err().ps());
+        } finally {
+            cfg.out().ps().flush();
+            cfg.err().ps().flush();
+        }
+    }
+
+    private static Optional<List<String>> processProcessStream(OutputControl outputControl, InputStream in) throws IOException {
+        List<String> outputLines = null;
+        try (final var bufReader = new BufferedReader(new InputStreamReader(in))) {
+            if (outputControl.dump() || outputControl.saveAll()) {
+                outputLines = bufReader.lines().toList();
+            } else if (outputControl.saveFirstLine()) {
+                outputLines = Optional.ofNullable(bufReader.readLine()).map(List::of).orElseGet(List::of);
+                // Read all input, or the started process may exit with an error (cmd.exe does so).
+                bufReader.transferTo(Writer.nullWriter());
+            } else {
+                // This should be empty input stream, fetch it anyway.
+                bufReader.transferTo(Writer.nullWriter());
+            }
+        } finally {
+            if (outputControl.dump() && outputLines != null) {
+                outputLines.forEach(System.out::println);
+                if (outputControl.saveFirstLine()) {
+                    outputLines = outputLines.stream().findFirst().map(List::of).orElseGet(List::of);
+                }
+            }
+            if (!outputControl.save()) {
+                outputLines = null;
+            }
+        }
+        return Optional.ofNullable(outputLines);
+    }
+
+    private static Optional<List<String>> read(OutputControl outputControl, CachingPrintStream cps) throws IOException {
+        final var bufferAsString = cps.bufferContents();
+        try (final var bufReader = new BufferedReader(new StringReader(bufferAsString.orElse("")))) {
+            if (outputControl.saveFirstLine()) {
+                return Optional.of(bufReader.lines().findFirst().map(List::of).orElseGet(List::of));
+            } else if (outputControl.saveAll()) {
+                return Optional.of(bufReader.lines().toList());
+            } else if (bufferAsString.isPresent()) {
+                return Optional.of(List.of());
+            } else {
+                return Optional.empty();
+            }
+        }
+    }
+
+    private CommandOutput combine(Optional<List<String>> out, Optional<List<String>> err) {
+        if (out.isEmpty() && err.isEmpty()) {
+            return new CommandOutput();
+        } else if (out.isEmpty()) {
+            return new CommandOutput(err, -1);
+        } else if (err.isEmpty()) {
+            return new CommandOutput(out, Integer.MAX_VALUE);
+        } else {
+            final var combined = Stream.of(out, err).map(Optional::orElseThrow).flatMap(List::stream);
+            if (outputStreamsControl.stdout().saveFirstLine() && outputStreamsControl.stderr().saveFirstLine()) {
+                return new CommandOutput(Optional.of(combined.findFirst().map(List::of).orElseGet(List::of)),
+                        Integer.min(1, out.orElseThrow().size()));
+            } else {
+                return new CommandOutput(Optional.of(combined.toList()), out.orElseThrow().size());
+            }
+        }
+    }
+
+    private Result createResult(int exitCode, CommandOutput output) {
+        return new Result(exitCode, output, this::getPrintableCommandLine);
     }
 
     public String getPrintableCommandLine() {
@@ -528,36 +615,362 @@ public final class Executor extends CommandArguments<Executor> {
             exec = executablePath().toString();
         }
 
-        var cmdline = Stream.of(List.of(exec), args).flatMap(List::stream).toList();
+        var cmdline = Stream.of(prefixCommandLineArgs(), List.of(exec), args).flatMap(
+                List::stream).toList();
 
-        return String.format(format, CommandLineFormat.DEFAULT.apply(cmdline), cmdline.size());
+        return String.format(format, printCommandLine(cmdline), cmdline.size());
     }
 
-    private record ExecutableAttributes(CommandOutputControl.ExecutableAttributes base, String printableCommandLine)
-            implements CommandOutputControl.ExecutableAttributes {
-
-        ExecutableAttributes {
-            Objects.requireNonNull(base);
-            if (printableCommandLine.isBlank()) {
-                throw new IllegalArgumentException();
-            }
-        }
-
-        @Override
-        public List<String> commandLine() {
-            return base.commandLine();
-        }
+    private static String printCommandLine(List<String> cmdline) {
+        // Want command line printed in a way it can be easily copy/pasted
+        // to be executed manually
+        Pattern regex = Pattern.compile("\\s");
+        return cmdline.stream().map(
+                v -> (v.isEmpty() || regex.matcher(v).find()) ? "\"" + v + "\"" : v).collect(
+                        Collectors.joining(" "));
     }
 
     private static void trace(String msg) {
         TKit.trace(String.format("exec: %s", msg));
     }
 
+    private static PrintStream nullPrintStream() {
+        return new PrintStream(OutputStream.nullOutputStream());
+    }
+
+    private record OutputStreamsControl(OutputControl stdout, OutputControl stderr) {
+        OutputStreamsControl {
+            Objects.requireNonNull(stdout);
+            Objects.requireNonNull(stderr);
+        }
+
+        OutputStreamsControl() {
+            this(new OutputControl(), new OutputControl());
+        }
+
+        void applyTo(ProcessBuilder pb) {
+            pb.redirectOutput(stdout.asProcessBuilderRedirect());
+            pb.redirectError(stderr.asProcessBuilderRedirect());
+        }
+
+        Optional<String> describe() {
+            final List<String> tokens = new ArrayList<>();
+            if (stdout.save() || stderr.save()) {
+                streamsLabel("save ", true).ifPresent(tokens::add);
+            }
+            if (stdout.dump() || stderr.dump()) {
+                streamsLabel("inherit ", true).ifPresent(tokens::add);
+            }
+            streamsLabel("discard ", false).ifPresent(tokens::add);
+            if (tokens.isEmpty()) {
+                return Optional.empty();
+            } else {
+                return Optional.of(String.join("; ", tokens));
+            }
+        }
+
+        Optional<String> streamsLabel(String prefix, boolean negate) {
+            Objects.requireNonNull(prefix);
+            final var str = Stream.of(stdoutLabel(negate), stderrLabel(negate))
+                    .filter(Optional::isPresent)
+                    .map(Optional::orElseThrow)
+                    .collect(joining("+"));
+            if (str.isEmpty()) {
+                return Optional.empty();
+            } else {
+                return Optional.of(prefix + str);
+            }
+        }
+
+        private Optional<String> stdoutLabel(boolean negate) {
+            if ((stdout.discard() && !negate) || (!stdout.discard() && negate)) {
+                return Optional.of("out");
+            } else {
+                return Optional.empty();
+            }
+        }
+
+        private Optional<String> stderrLabel(boolean negate) {
+            if ((stderr.discard() && !negate) || (!stderr.discard() && negate)) {
+                return Optional.of("err");
+            } else {
+                return Optional.empty();
+            }
+        }
+    }
+
+    private record CachingPrintStream(PrintStream ps, Optional<ByteArrayOutputStream> buf) {
+        CachingPrintStream {
+            Objects.requireNonNull(ps);
+            Objects.requireNonNull(buf);
+        }
+
+        Optional<String> bufferContents() {
+            return buf.map(ByteArrayOutputStream::toString);
+        }
+
+        static Builder build() {
+            return new Builder();
+        }
+
+        static final class Builder {
+
+            Builder save(boolean v) {
+                save = v;
+                return this;
+            }
+
+            Builder discard(boolean v) {
+                discard = v;
+                return this;
+            }
+
+            Builder dumpStream(PrintStream v) {
+                dumpStream = v;
+                return this;
+            }
+
+            CachingPrintStream create() {
+                final Optional<ByteArrayOutputStream> buf;
+                if (save && !discard) {
+                    buf = Optional.of(new ByteArrayOutputStream());
+                } else {
+                    buf = Optional.empty();
+                }
+
+                final PrintStream ps;
+                if (buf.isPresent() && dumpStream != null) {
+                    ps = new PrintStream(new TeeOutputStream(List.of(buf.orElseThrow(), dumpStream)), true, dumpStream.charset());
+                } else if (!discard) {
+                    ps = buf.map(PrintStream::new).or(() -> Optional.ofNullable(dumpStream)).orElseGet(Executor::nullPrintStream);
+                } else {
+                    ps = nullPrintStream();
+                }
+
+                return new CachingPrintStream(ps, buf);
+            }
+
+            private boolean save;
+            private boolean discard;
+            private PrintStream dumpStream;
+        }
+    }
+
+    private record ToolProviderStreamConfig(CachingPrintStream out, CachingPrintStream err) {
+        ToolProviderStreamConfig {
+            Objects.requireNonNull(out);
+            Objects.requireNonNull(err);
+        }
+
+        static ToolProviderStreamConfig create(OutputStreamsControl cfg) {
+            final var errCfgBuilder = cfg.stderr().buildCachingPrintStream(System.err);
+            if (cfg.stderr().dump() && cfg.stderr().save()) {
+                errCfgBuilder.dumpStream(System.out);
+            }
+            return new ToolProviderStreamConfig(
+                    cfg.stdout().buildCachingPrintStream(System.out).create(), errCfgBuilder.create());
+        }
+    }
+
+    private static final class OutputControl {
+
+        boolean save() {
+            return save.isPresent();
+        }
+
+        boolean saveAll() {
+            return save.orElse(null) == OutputControlOption.SAVE_ALL;
+        }
+
+        boolean saveFirstLine() {
+            return save.orElse(null) == OutputControlOption.SAVE_FIRST_LINE;
+        }
+
+        boolean discard() {
+            return discard || (!dump && save.isEmpty());
+        }
+
+        boolean dump() {
+            return !discard && dump;
+        }
+
+        OutputControl dump(boolean v) {
+            this.dump = v;
+            return this;
+        }
+
+        OutputControl discard(boolean v) {
+            this.discard = v;
+            return this;
+        }
+
+        OutputControl saveAll(boolean v) {
+            if (v) {
+                save = Optional.of(OutputControlOption.SAVE_ALL);
+            } else {
+                save = Optional.empty();
+            }
+            return this;
+        }
+
+        OutputControl saveFirstLine(boolean v) {
+            if (v) {
+                save = Optional.of(OutputControlOption.SAVE_FIRST_LINE);
+            } else {
+                save = Optional.empty();
+            }
+            return this;
+        }
+
+        OutputControl set(boolean set, OutputControlOption v) {
+            switch (v) {
+            case DUMP -> dump(set);
+            case SAVE_ALL -> saveAll(set);
+            case SAVE_FIRST_LINE -> saveFirstLine(set);
+            }
+            return this;
+        }
+
+        ProcessBuilder.Redirect asProcessBuilderRedirect() {
+            if (discard()) {
+                return ProcessBuilder.Redirect.DISCARD;
+            } else if (dump && !save()) {
+                return ProcessBuilder.Redirect.INHERIT;
+            } else {
+                return ProcessBuilder.Redirect.PIPE;
+            }
+        }
+
+        CachingPrintStream.Builder buildCachingPrintStream(PrintStream dumpStream) {
+            Objects.requireNonNull(dumpStream);
+            final var builder = CachingPrintStream.build().save(save()).discard(discard());
+            if (dump()) {
+                builder.dumpStream(dumpStream);
+            }
+            return builder;
+        }
+
+        private boolean dump;
+        private boolean discard;
+        private Optional<OutputControlOption> save = Optional.empty();
+    }
+
+    private static final class TeeOutputStream extends OutputStream {
+
+        public TeeOutputStream(Iterable<OutputStream> streams) {
+            streams.forEach(Objects::requireNonNull);
+            this.streams = streams;
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            for (final var out : streams) {
+                out.write(b);
+            }
+        }
+
+        @Override
+        public void write(byte[] b) throws IOException {
+            for (final var out : streams) {
+                out.write(b);
+            }
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            for (final var out : streams) {
+                out.write(b, off, len);
+            }
+        }
+
+        @Override
+        public void flush() throws IOException {
+            forEach(OutputStream::flush);
+        }
+
+        @Override
+        public void close() throws IOException {
+            forEach(OutputStream::close);
+        }
+
+        private void forEach(OutputStreamConsumer c) throws IOException {
+            IOException firstEx = null;
+            for (final var out : streams) {
+                try {
+                    c.accept(out);
+                } catch (IOException e) {
+                    if (firstEx == null) {
+                        firstEx = e;
+                    }
+                }
+            }
+            if (firstEx != null) {
+                throw firstEx;
+            }
+        }
+
+        @FunctionalInterface
+        private static interface OutputStreamConsumer {
+            void accept(OutputStream out) throws IOException;
+        }
+
+        private final Iterable<OutputStream> streams;
+    }
+
+    private static final class CommandOutput {
+        CommandOutput(Optional<List<String>> lines, int stdoutLineCount) {
+            this.lines = Objects.requireNonNull(lines);
+            this.stdoutLineCount = stdoutLineCount;
+        }
+
+        CommandOutput() {
+            this(Optional.empty(), 0);
+        }
+
+        Optional<List<String>> lines() {
+            return lines;
+        }
+
+        Optional<List<String>> stdoutLines() {
+            if (lines.isEmpty() || stdoutLineCount < 0) {
+                return Optional.empty();
+            }
+
+            final var theLines = lines.orElseThrow();
+            if (stdoutLineCount == theLines.size()) {
+                return lines;
+            } else {
+                return Optional.of(theLines.subList(0, Integer.min(stdoutLineCount, theLines.size())));
+            }
+        }
+
+        Optional<List<String>> stderrLines() {
+            if (lines.isEmpty() || stdoutLineCount > lines.orElseThrow().size()) {
+                return Optional.empty();
+            } else if (stdoutLineCount == 0) {
+                return lines;
+            } else {
+                final var theLines = lines.orElseThrow();
+                return Optional.of(theLines.subList(stdoutLineCount, theLines.size()));
+            }
+        }
+
+        private final Optional<List<String>> lines;
+        private final int stdoutLineCount;
+
+        static final CommandOutput EMPTY = new CommandOutput();
+    }
+
     private ToolProvider toolProvider;
     private Path executable;
-    private final CommandOutputControl commandOutputControl;
+    private OutputStreamsControl outputStreamsControl;
     private Path directory;
-    private final Set<String> removeEnvVars;
-    private final Map<String, String> setEnvVars;
-    private String winTmpDir;
+    private Set<String> removeEnvVars = new HashSet<>();
+    private Map<String, String> setEnvVars = new HashMap<>();
+    private boolean winEnglishOutput;
+    private String winTmpDir = null;
+
+    private static enum OutputControlOption {
+        SAVE_ALL, SAVE_FIRST_LINE, DUMP
+    }
 }

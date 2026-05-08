@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@ import jdk.internal.misc.Unsafe;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 /*
  * @test id=no-flattening
@@ -46,9 +47,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -XX:-UseFieldFlattening -XX:-UseArrayFlattening
- *                   -XX:+StressGCM -XX:+StressLCM
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
 
@@ -64,9 +65,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -XX:-UseFieldFlattening -XX:-UseArrayFlattening
- *                   -XX:+StressGCM -XX:+StressLCM
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -83,10 +84,10 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
 
@@ -102,10 +103,10 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -XX:-UseFieldFlattening -XX:-UseArrayFlattening
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseFieldFlattening -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -122,8 +123,8 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
- *                   -XX:+WhiteBoxAPI -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -Xcomp -XX:-TieredCompilation
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -140,9 +141,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
- *                   -XX:+WhiteBoxAPI -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
- *                   -XX:+StressGCM -XX:+StressLCM
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
 
@@ -158,9 +159,9 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
- *                   -XX:+WhiteBoxAPI -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
- *                   -XX:+StressGCM -XX:+StressLCM
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -177,10 +178,10 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
- *                   -XX:+WhiteBoxAPI -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
 
@@ -196,10 +197,10 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.vm.annotation
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
- *                   -XX:+WhiteBoxAPI -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseArrayFlattening
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseArrayFlattening
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.inlinetypes.TestTearing
  */
@@ -238,11 +239,10 @@ value class MyValueTearing {
 
     MyValueTearing incrementAndCheckUnsafe() {
         Asserts.assertEQ(x, y, "Inconsistent field values");
-        MyValueTearing[] vt = (MyValueTearing[]) ValueClass.newNullRestrictedAtomicArray(MyValueTearing.class, 1, this);
-        long baseOffset = U.arrayInstanceBaseOffset(vt) - U.valueHeaderSize(MyValueTearing.class);
-        U.putShort(vt, baseOffset + X_OFFSET, (short)(x + 1));
-        U.putShort(vt, baseOffset + Y_OFFSET, (short)(y + 1));
-        return vt[0];
+        MyValueTearing vt = U.makePrivateBuffer(this);
+        U.putShort(vt, X_OFFSET, (short)(x + 1));
+        U.putShort(vt, Y_OFFSET, (short)(y + 1));
+        return U.finishPrivateBuffer(vt);
     }
 }
 
@@ -253,16 +253,15 @@ public class TestTearing {
          WHITE_BOX.getBooleanVMFlag("SafepointALot") ||
          WHITE_BOX.getBooleanVMFlag("DeoptimizeALot") ||
          WHITE_BOX.getBooleanVMFlag("DeoptimizeNMethodBarriersALot") ||
-        !WHITE_BOX.getBooleanVMFlag("UseTLAB") ||
-         WHITE_BOX.getBooleanVMFlag("VerifyOops") ||
-         WHITE_BOX.getBooleanVMFlag("CheckUnhandledOops");
-    private static final boolean HAS_FLAT_ARRAY = WHITE_BOX.getBooleanVMFlag("UseArrayFlattening");
+        !WHITE_BOX.getBooleanVMFlag("UseTLAB");
 
     // Null-free, volatile -> atomic access
+    @Strict
     @NullRestricted
     volatile static MyValueTearing field1 = MyValueTearing.DEFAULT;
+    @Strict
     @NullRestricted
-    volatile MyValueTearing field2;
+    volatile MyValueTearing field2 = MyValueTearing.DEFAULT;
 
     // Nullable fields are always atomic
     static MyValueTearing field3 = new MyValueTearing((short)0, (short)0);
@@ -315,11 +314,6 @@ public class TestTearing {
         }
     }
 
-    public TestTearing() {
-        field2 = MyValueTearing.DEFAULT;
-        super();
-    }
-
     static class Runner extends Thread {
         TestTearing test;
         private final int loopLimit;
@@ -370,24 +364,22 @@ public class TestTearing {
                 array11[0] = ((MyValueTearing)array11[0]).incrementAndCheck();
                 array12[0] = ((MyValueTearing)array12[0]).incrementAndCheck();
 
-                if (HAS_FLAT_ARRAY) {
-                    test.field1 = test.field1.incrementAndCheckUnsafe();
-                    test.field2 = test.field2.incrementAndCheckUnsafe();
-                    test.field3 = test.field3.incrementAndCheckUnsafe();
-                    test.field4 = test.field4.incrementAndCheckUnsafe();
-                    array1[0] = array1[0].incrementAndCheckUnsafe();
-                    array2[0] = array2[0].incrementAndCheckUnsafe();
-                    array3[0] = array3[0].incrementAndCheckUnsafe();
-                    array4[0] = array4[0].incrementAndCheckUnsafe();
-                    array5[0] = array5[0].incrementAndCheckUnsafe();
-                    array6[0] = array6[0].incrementAndCheckUnsafe();
-                    array7[0] = ((MyValueTearing) array7[0]).incrementAndCheckUnsafe();
-                    array8[0] = ((MyValueTearing) array8[0]).incrementAndCheckUnsafe();
-                    array9[0] = ((MyValueTearing) array9[0]).incrementAndCheckUnsafe();
-                    array10[0] = ((MyValueTearing) array10[0]).incrementAndCheckUnsafe();
-                    array11[0] = ((MyValueTearing) array11[0]).incrementAndCheckUnsafe();
-                    array12[0] = ((MyValueTearing) array12[0]).incrementAndCheckUnsafe();
-                }
+                test.field1 = test.field1.incrementAndCheckUnsafe();
+                test.field2 = test.field2.incrementAndCheckUnsafe();
+                test.field3 = test.field3.incrementAndCheckUnsafe();
+                test.field4 = test.field4.incrementAndCheckUnsafe();
+                array1[0] = array1[0].incrementAndCheckUnsafe();
+                array2[0] = array2[0].incrementAndCheckUnsafe();
+                array3[0] = array3[0].incrementAndCheckUnsafe();
+                array4[0] = array4[0].incrementAndCheckUnsafe();
+                array5[0] = array5[0].incrementAndCheckUnsafe();
+                array6[0] = array6[0].incrementAndCheckUnsafe();
+                array7[0] = ((MyValueTearing)array7[0]).incrementAndCheckUnsafe();
+                array8[0] = ((MyValueTearing)array8[0]).incrementAndCheckUnsafe();
+                array9[0] = ((MyValueTearing)array9[0]).incrementAndCheckUnsafe();
+                array10[0] = ((MyValueTearing)array10[0]).incrementAndCheckUnsafe();
+                array11[0] = ((MyValueTearing)array11[0]).incrementAndCheckUnsafe();
+                array12[0] = ((MyValueTearing)array12[0]).incrementAndCheckUnsafe();
 
                 try {
                     test.field1 = (MyValueTearing)incrementAndCheck_mh.invokeExact(test.field1);
@@ -416,7 +408,7 @@ public class TestTearing {
     public static void main(String[] args) throws Exception {
         // Create threads that concurrently update some value class (array) fields
         // and check the fields of the value classes for consistency to detect tearing.
-        int loopLimit = 250_000;
+        int loopLimit = 1_000_000;
         if (SLOW_CONFIGURATION) {
             // Lower the number of iterations in slow configurations
             loopLimit = 50_000;

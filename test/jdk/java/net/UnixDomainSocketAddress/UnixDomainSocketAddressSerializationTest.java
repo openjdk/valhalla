@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,7 @@
  * questions.
  */
 
+import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,56 +35,51 @@ import java.io.Serializable;
 import java.net.UnixDomainSocketAddress;
 import java.nio.file.Path;
 import static java.io.ObjectStreamConstants.*;
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 /*
  * @test
  * @summary UnixDomainSocketAddress serialization test
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm UnixDomainSocketAddressSerializationTest
  */
 
+@Test
 public class UnixDomainSocketAddressSerializationTest {
     private static final UnixDomainSocketAddress addr =
             UnixDomainSocketAddress.of(Path.of("test.sock"));
 
-    @Test
-    public void test() throws Exception {
-        assertInstanceOf(Serializable.class, addr);
+    public static void test() throws Exception {
+        assertTrue(addr instanceof Serializable);
 
         byte[] serialized = serialize(addr);
         assertTrue(serialized.length > 0);
 
         UnixDomainSocketAddress deserialized =
                 deserialize(serialized, UnixDomainSocketAddress.class);
-        assertEquals(addr.getPath(), deserialized.getPath());
-        assertEquals(addr.toString(), deserialized.toString());
-        assertEquals(addr.hashCode(), deserialized.hashCode());
-        assertEquals(addr, deserialized);
+        assertEquals(deserialized.getPath(), addr.getPath());
+        assertEquals(deserialized.toString(), addr.toString());
+        assertEquals(deserialized.hashCode(), addr.hashCode());
+        assertEquals(deserialized, addr);
     }
 
     static final Class<InvalidObjectException> IOE = InvalidObjectException.class;
     static final Class<NullPointerException> NPE = NullPointerException.class;
 
     /** Tests that UnixDomainSocketAddress in the byte-stream is disallowed. */
-    @Test
-    public void testUnixDomainSocketAddressInStream() throws Exception {
+    public static void testUnixDomainSocketAddressInStream() throws Exception {
         long suid = ObjectStreamClass.lookup(UnixDomainSocketAddress.class).getSerialVersionUID();
         byte[] bytes = byteStreamFor(UnixDomainSocketAddress.class.getName(), suid);
-        assertThrows(IOE, () -> deserialize(bytes, UnixDomainSocketAddress.class));
+        expectThrows(IOE, () -> deserialize(bytes, UnixDomainSocketAddress.class));
     }
 
     /** Tests that SerialProxy with a null/absent path value in the byte-stream is disallowed. */
-    @Test
-    public void testSerialProxyNoStreamValues() throws Exception {
+    public static void testSerialProxyNoStreamValues() throws Exception {
         Class<?> c = Class.forName("java.net.UnixDomainSocketAddress$Ser");
         long suid = ObjectStreamClass.lookup(c).getSerialVersionUID();
         byte[] bytes = byteStreamFor(c.getName(), suid);
-        assertThrows(NPE, () -> deserialize(bytes, UnixDomainSocketAddress.class));
+        expectThrows(NPE, () -> deserialize(bytes, UnixDomainSocketAddress.class));
     }
 
     private static <T extends Serializable> byte[] serialize(T t)

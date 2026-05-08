@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  *          in interfaces and/or in inheritance
  * @bug 7184826
  * @build helper.Mod helper.Declared DefaultStaticTestData
- * @run junit DefaultStaticInvokeTest
+ * @run testng DefaultStaticInvokeTest
  * @author Yong Lu
  */
 
@@ -40,19 +40,23 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
+import org.testng.annotations.Test;
+
 import static helper.Mod.*;
 import static helper.Declared.*;
-import static org.junit.jupiter.api.Assertions.*;
-
 import helper.Mod;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+
 
 public class DefaultStaticInvokeTest {
 
     // getMethods(): Make sure getMethods returns the expected methods.
-    @ParameterizedTest
-    @MethodSource({"DefaultStaticTestData#testClasses", "DefaultStaticTestData#testInterfaces"})
+    @Test(dataProvider = "testCasesAll",
+            dataProviderClass = DefaultStaticTestData.class)
     public void testGetMethods(String testTarget, Object param)
             throws Exception {
         testMethods(ALL_METHODS, testTarget, param);
@@ -60,8 +64,8 @@ public class DefaultStaticInvokeTest {
 
 
     // getDeclaredMethods(): Make sure getDeclaredMethods returns the expected methods.
-    @ParameterizedTest
-    @MethodSource({"DefaultStaticTestData#testClasses", "DefaultStaticTestData#testInterfaces"})
+    @Test(dataProvider = "testCasesAll",
+            dataProviderClass = DefaultStaticTestData.class)
     public void testGetDeclaredMethods(String testTarget, Object param)
             throws Exception {
         testMethods(DECLARED_ONLY, testTarget, param);
@@ -69,8 +73,8 @@ public class DefaultStaticInvokeTest {
 
 
     // getMethod(): Make sure that getMethod finds all methods it should find.
-    @ParameterizedTest
-    @MethodSource({"DefaultStaticTestData#testClasses", "DefaultStaticTestData#testInterfaces"})
+    @Test(dataProvider = "testCasesAll",
+            dataProviderClass = DefaultStaticTestData.class)
     public void testGetMethod(String testTarget, Object param)
             throws Exception {
 
@@ -87,8 +91,8 @@ public class DefaultStaticInvokeTest {
 
 
     // getMethod(): Make sure that getMethod does *not* find certain methods.
-    @ParameterizedTest
-    @MethodSource({"DefaultStaticTestData#testClasses", "DefaultStaticTestData#testInterfaces"})
+    @Test(dataProvider = "testCasesAll",
+            dataProviderClass = DefaultStaticTestData.class)
     public void testGetMethodSuperInterfaces(String testTarget, Object param)
             throws Exception {
 
@@ -120,8 +124,8 @@ public class DefaultStaticInvokeTest {
 
 
     // Method.invoke(): Make sure Method.invoke returns the expected value.
-    @ParameterizedTest
-    @MethodSource({"DefaultStaticTestData#testClasses", "DefaultStaticTestData#testInterfaces"})
+    @Test(dataProvider = "testCasesAll",
+            dataProviderClass = DefaultStaticTestData.class)
     public void testMethodInvoke(String testTarget, Object param)
             throws Exception {
         Class<?> typeUnderTest = Class.forName(testTarget);
@@ -137,8 +141,8 @@ public class DefaultStaticInvokeTest {
 
 
     // MethodHandle.invoke(): Make sure MethodHandle.invoke returns the expected value.
-    @ParameterizedTest
-    @MethodSource({"DefaultStaticTestData#testClasses", "DefaultStaticTestData#testInterfaces"})
+    @Test(dataProvider = "testCasesAll",
+            dataProviderClass = DefaultStaticTestData.class)
     public void testMethodHandleInvoke(String testTarget, Object param)
             throws Throwable {
         Class<?> typeUnderTest = Class.forName(testTarget);
@@ -165,14 +169,14 @@ public class DefaultStaticInvokeTest {
                         : (String) methodHandle.invoke(typeUnderTest.newInstance(), param);
             }
 
-            assertEquals(expectedReturn, result);
+            assertEquals(result, expectedReturn);
         }
 
     }
 
     // Lookup.findStatic / .findVirtual: Make sure IllegalAccessException is thrown as expected.
-    @ParameterizedTest
-    @MethodSource("DefaultStaticTestData#testClasses")
+    @Test(dataProvider = "testClasses",
+            dataProviderClass = DefaultStaticTestData.class)
     public void testIAE(String testTarget, Object param)
             throws ClassNotFoundException {
 
@@ -185,8 +189,14 @@ public class DefaultStaticInvokeTest {
             if (mod != STATIC && typeUnderTest.isInterface()) {
                 continue;
             }
-            assertThrowsExactly(IllegalAccessException.class, () ->
-                    getTestMH(typeUnderTest, mName, param, true));
+            Exception caught = null;
+            try {
+                getTestMH(typeUnderTest, mName, param, true);
+            } catch (Exception e) {
+                caught = e;
+            }
+            assertNotNull(caught);
+            assertEquals(caught.getClass(), IllegalAccessException.class);
         }
     }
 
@@ -244,7 +254,7 @@ public class DefaultStaticInvokeTest {
             }
         }
 
-        assertEquals(expectedMethods.length, myMethods.size());
+        assertEquals(myMethods.size(), expectedMethods.length);
 
         for (MethodDesc toTest : expectedMethods) {
 
@@ -274,15 +284,16 @@ public class DefaultStaticInvokeTest {
                 assertFalse(method.isDefault());
 
                 // Test invoke it
-                assertEquals(expectedReturn, tryInvoke(method, null, param));
+                assertEquals(tryInvoke(method, null, param), expectedReturn);
                 break;
             case DEFAULT:
                 // if typeUnderTest is a class then instantiate and invoke
                 if (!typeUnderTest.isInterface()) {
-                    assertEquals(expectedReturn, tryInvoke(
+                    assertEquals(tryInvoke(
                             method,
                             typeUnderTest,
-                            param));
+                            param),
+                            expectedReturn);
                 }
 
                 //assert candidate is default
@@ -291,10 +302,11 @@ public class DefaultStaticInvokeTest {
                 break;
             case REGULAR:
                 // if typeUnderTest must be a class
-                assertEquals(expectedReturn, tryInvoke(
+                assertEquals(tryInvoke(
                         method,
                         typeUnderTest,
-                        param));
+                        param),
+                        expectedReturn);
 
                 //assert candidate is neither default nor static
                 assertFalse(Modifier.isStatic(method.getModifiers()));

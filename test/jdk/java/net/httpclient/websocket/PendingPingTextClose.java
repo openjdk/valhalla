@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,23 +24,22 @@
 /*
  * @test
  * @build DummyWebSocketServer
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.httpclient.sendBufferSize=8192
- *       ${test.main.class}
+ *       PendingPingTextClose
  */
 
 // This test produce huge logs (14Mb+) so disable logging by default
 // *      -Djdk.internal.httpclient.debug=true
 // *      -Djdk.internal.httpclient.websocket.debug=true
 
+import org.testng.annotations.Test;
+
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 public class PendingPingTextClose extends PendingOperations {
 
@@ -49,8 +48,7 @@ public class PendingPingTextClose extends PendingOperations {
     CompletableFuture<WebSocket> cfPing;
     CompletableFuture<WebSocket> cfClose;
 
-    @ParameterizedTest
-    @MethodSource("booleans")
+    @Test(dataProvider = "booleans")
     public void pendingPingTextClose(boolean last) throws Exception {
         try {
             repeatable(() -> {

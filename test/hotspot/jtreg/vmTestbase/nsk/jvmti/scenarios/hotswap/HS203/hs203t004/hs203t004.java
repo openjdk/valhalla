@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,11 +82,11 @@ public class hs203t004 extends RedefineAgent {
                 Thread.yield();
             }
 
-            suspendThread(myThread.getThread());
+            suspendThread(myThread);
 
-            popThreadFrame(myThread.getThread());
+            popThreadFrame(myThread);
 
-            resumeThread(myThread.getThread());
+            resumeThread(myThread);
 
             MyThread.stop = false;
             myThread.join();

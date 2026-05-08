@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,13 +59,17 @@ import static java.net.http.HttpOption.H3_DISCOVERY;
  *           if HTTP3_ONLY is specified
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.common.HttpServerAdapters
- * @run main/othervm ${test.main.class}
+ * @run main/othervm H3ProxyTest
  * @author danielfuchs
  */
 public class H3ProxyTest implements HttpServerAdapters {
 
     static {
-        SSLContext.setDefault(SimpleSSLContext.findSSLContext());
+        try {
+            SSLContext.setDefault(new SimpleSSLContext().get());
+        } catch (IOException ex) {
+            throw new ExceptionInInitializerError(ex);
+        }
     }
 
     static final String RESPONSE = "<html><body><p>Hello World!</body></html>";
@@ -153,7 +157,7 @@ public class H3ProxyTest implements HttpServerAdapters {
                     InetSocketAddress.createUnresolved("localhost", proxy.getAddress().getPort()));
             HttpClient client = HttpServerAdapters.createClientBuilderForH3()
                     .version(Version.HTTP_3)
-                    .sslContext(SimpleSSLContext.findSSLContext())
+                    .sslContext(new SimpleSSLContext().get())
                     .proxy(ps)
                     .build();
             try (client) {

@@ -40,6 +40,20 @@
 ShenandoahNMethodTable* ShenandoahCodeRoots::_nmethod_table;
 int ShenandoahCodeRoots::_disarmed_value = 1;
 
+bool ShenandoahCodeRoots::use_nmethod_barriers_for_mark() {
+  // Continuations need nmethod barriers for scanning stack chunk nmethods.
+  if (Continuations::enabled()) return true;
+
+  // Concurrent class unloading needs nmethod barriers.
+  // When a nmethod is about to be executed, we need to make sure that all its
+  // metadata are marked. The alternative is to remark thread roots at final mark
+  // pause, which would cause latency issues.
+  if (ShenandoahHeap::heap()->unload_classes()) return true;
+
+  // Otherwise, we can go without nmethod barriers.
+  return false;
+}
+
 void ShenandoahCodeRoots::initialize() {
   _nmethod_table = new ShenandoahNMethodTable();
 }
@@ -54,14 +68,27 @@ void ShenandoahCodeRoots::unregister_nmethod(nmethod* nm) {
   _nmethod_table->unregister_nmethod(nm);
 }
 
-void ShenandoahCodeRoots::arm_nmethods() {
+void ShenandoahCodeRoots::arm_nmethods_for_mark() {
+  if (use_nmethod_barriers_for_mark()) {
+    BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
+  }
+}
+
+void ShenandoahCodeRoots::arm_nmethods_for_evac() {
   BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
 }
 
 class ShenandoahDisarmNMethodClosure : public NMethodClosure {
+private:
+  BarrierSetNMethod* const _bs;
+
 public:
+  ShenandoahDisarmNMethodClosure() :
+    _bs(BarrierSet::barrier_set()->barrier_set_nmethod()) {
+  }
+
   virtual void do_nmethod(nmethod* nm) {
-    ShenandoahNMethod::disarm_nmethod(nm);
+    _bs->disarm(nm);
   }
 };
 
@@ -84,8 +111,10 @@ public:
 };
 
 void ShenandoahCodeRoots::disarm_nmethods() {
-  ShenandoahDisarmNMethodsTask task;
-  ShenandoahHeap::heap()->workers()->run_task(&task);
+  if (use_nmethod_barriers_for_mark()) {
+    ShenandoahDisarmNMethodsTask task;
+    ShenandoahHeap::heap()->workers()->run_task(&task);
+  }
 }
 
 class ShenandoahNMethodUnlinkClosure : public NMethodClosure {
@@ -107,13 +136,13 @@ public:
     assert(!nm_data->is_unregistered(), "Should not see unregistered entry");
 
     if (nm->is_unloading()) {
-      ShenandoahNMethodLocker locker(nm_data->lock());
+      ShenandoahReentrantLocker locker(nm_data->lock());
       nm->unlink();
       return;
     }
 
     {
-      ShenandoahNMethodLocker locker(nm_data->lock());
+      ShenandoahReentrantLocker locker(nm_data->lock());
 
       // Heal oops
       if (_bs->is_armed(nm)) {
@@ -125,7 +154,7 @@ public:
     }
 
     // Clear compiled ICs and exception caches
-    ShenandoahNMethodLocker locker(nm_data->ic_lock());
+    ShenandoahReentrantLocker locker(nm_data->ic_lock());
     nm->unload_nmethod_caches(_unloading_occurred);
   }
 };

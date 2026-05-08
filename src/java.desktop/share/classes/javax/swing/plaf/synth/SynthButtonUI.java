@@ -25,6 +25,8 @@
 
 package javax.swing.plaf.synth;
 
+import sun.awt.AppContext;
+
 import javax.swing.*;
 import java.awt.*;
 import java.beans.*;

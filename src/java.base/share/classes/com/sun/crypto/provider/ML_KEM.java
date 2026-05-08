@@ -498,7 +498,7 @@ public final class ML_KEM {
     /*
     Main internal algorithms from Section 6 of specification
      */
-    protected ML_KEM_KeyPair generateKemKeyPair(byte[] kem_d_z) {
+    protected ML_KEM_KeyPair generateKemKeyPair(byte[] kem_d, byte[] kem_z) {
         MessageDigest mlKemH;
         try {
             mlKemH = MessageDigest.getInstance(HASH_H_NAME);
@@ -508,8 +508,7 @@ public final class ML_KEM {
         }
 
         //Generate K-PKE keys
-        //The 1st 32-byte `d` is used in K-PKE key pair generation
-        var kPkeKeyPair = generateK_PkeKeyPair(kem_d_z);
+        var kPkeKeyPair = generateK_PkeKeyPair(kem_d);
         //encaps key = kPke encryption key
         byte[] encapsKey = kPkeKeyPair.publicKey.keyBytes;
 
@@ -528,19 +527,12 @@ public final class ML_KEM {
             // This should never happen.
             throw new RuntimeException(e);
         }
-        // The 2nd 32-byte `z` is copied into decapsKey
-        System.arraycopy(kem_d_z, 32, decapsKey,
+        System.arraycopy(kem_z, 0, decapsKey,
             kPkePrivateKey.length + encapsKey.length + 32, 32);
 
         return new ML_KEM_KeyPair(
             new ML_KEM_EncapsulationKey(encapsKey),
             new ML_KEM_DecapsulationKey(decapsKey));
-    }
-
-    public byte[] privKeyToPubKey(byte[] decapsKey) {
-        int pkLen = (mlKem_k * ML_KEM_N * 12) / 8 + 32 /* rho */;
-        int skLen = (mlKem_k * ML_KEM_N * 12) / 8;
-        return Arrays.copyOfRange(decapsKey, skLen, skLen + pkLen);
     }
 
     protected ML_KEM_EncapsulateResult encapsulate(
@@ -656,12 +648,10 @@ public final class ML_KEM {
             throw new RuntimeException(e);
         }
 
-        // Note: only the 1st 32-byte in the seed is used
-        mlKemG.update(seed, 0, 32);
+        mlKemG.update(seed);
         mlKemG.update((byte)mlKem_k);
 
         var rhoSigma = mlKemG.digest();
-        mlKemG.reset();
         var rho = Arrays.copyOfRange(rhoSigma, 0, 32);
         var sigma = Arrays.copyOfRange(rhoSigma, 32, 64);
         Arrays.fill(rhoSigma, (byte)0);
@@ -1363,16 +1353,22 @@ public final class ML_KEM {
         }
     }
 
-    // An intrinsic implementation assumes that the input and output buffers
-    // are such that condensed can be read in chunks of 192 bytes and
-    // parsed can be written in chunks of 128 shorts, so callers should allocate
-    // the condensed and parsed arrays accordingly, see the assert()
+    // The intrinsic implementations assume that the input and output buffers
+    // are such that condensed can be read in 96-byte chunks and
+    // parsed can be written in 64 shorts chunks except for the last chunk
+    // that can be either 48 or 64 shorts. In other words,
+    // if (i - 1) * 64 < parsedLengths <= i * 64 then
+    // parsed.length should be either i * 64 or (i-1) * 64 + 48 and
+    // condensed.length should be at least index + i * 96.
     private void twelve2Sixteen(byte[] condensed, int index,
                                 short[] parsed, int parsedLength) {
-        int n = (parsedLength + 127) / 128;
-        assert ((parsed.length >= n * 128) &&
-                (condensed.length >= index + n * 192));
-
+        int i = parsedLength / 64;
+        int remainder = parsedLength - i * 64;
+        if (remainder != 0) {
+            i++;
+        }
+        assert ((remainder == 0) || (remainder == 48)) &&
+                (index + i * 96 <= condensed.length);
         implKyber12To16(condensed, index, parsed, parsedLength);
     }
 

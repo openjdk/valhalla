@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,7 +76,9 @@ public final class ObjectMethods {
     private static final MethodTypeDesc MTD_OBJECT_BOOLEAN = MethodTypeDesc.of(CD_boolean, CD_Object);
     private static final MethodTypeDesc MTD_INT = MethodTypeDesc.of(CD_int);
 
-    private static final HashMap<Class<?>, MethodHandle> primitiveEquals = new HashMap<>();
+    /* package-private */
+    static final HashMap<Class<?>, MethodHandle> primitiveEquals = new HashMap<>();
+
     private static final HashMap<Class<?>, MethodHandle> primitiveHashers = new HashMap<>();
 
     static {
@@ -363,9 +365,9 @@ public final class ObjectMethods {
      * @return the method handle
      */
     private static MethodHandle makeToString(MethodHandles.Lookup lookup,
-                                             Class<?> receiverClass,
-                                             MethodHandle[] getters,
-                                             List<String> names) {
+                                            Class<?> receiverClass,
+                                            MethodHandle[] getters,
+                                            List<String> names) {
         assert getters.length == names.size();
         if (getters.length == 0) {
             // special case
@@ -516,24 +518,25 @@ public final class ObjectMethods {
         requireNonNull(type);
         requireNonNull(recordClass);
         requireNonNull(names);
-        List<MethodHandle> getterList = List.of(getters); // deep null check
-
+        requireNonNull(getters);
+        Arrays.stream(getters).forEach(Objects::requireNonNull);
         MethodType methodType;
-        if (type instanceof MethodType mt)
+        if (type instanceof MethodType mt) {
             methodType = mt;
-        else {
+            if (mt.parameterType(0) != recordClass) {
+                throw new IllegalArgumentException("Bad method type: " + mt);
+            }
+        } else {
             methodType = null;
             if (!MethodHandle.class.equals(type))
                 throw new IllegalArgumentException(type.toString());
         }
-
+        List<MethodHandle> getterList = List.of(getters);
         for (MethodHandle getter : getterList) {
-            var getterType = getter.type();
-            if (getterType.parameterCount() != 1 || getterType.returnType() == void.class || getterType.parameterType(0) != recordClass) {
-                throw new IllegalArgumentException("Illegal getter type %s for recordClass %s".formatted(getterType, recordClass.getTypeName()));
+            if (getter.type().parameterType(0) != recordClass) {
+                throw new IllegalArgumentException("Bad receiver type: " + getter);
             }
         }
-
         MethodHandle handle = switch (methodName) {
             case "equals"   -> {
                 if (methodType != null && !methodType.equals(MethodType.methodType(boolean.class, recordClass, Object.class)))
@@ -548,7 +551,7 @@ public final class ObjectMethods {
             case "toString" -> {
                 if (methodType != null && !methodType.equals(MethodType.methodType(String.class, recordClass)))
                     throw new IllegalArgumentException("Bad method type: " + methodType);
-                List<String> nameList = names.isEmpty() ? List.of() : List.of(names.split(";"));
+                List<String> nameList = "".equals(names) ? List.of() : List.of(names.split(";"));
                 if (nameList.size() != getterList.size())
                     throw new IllegalArgumentException("Name list and accessor list do not match");
                 yield makeToString(lookup, recordClass, getters, nameList);

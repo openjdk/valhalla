@@ -64,7 +64,6 @@ public class AOTLinkedVarHandles {
         OutputAnalyzer dumpOut = CDSTestUtils.createArchiveAndCheck(opts);
         dumpOut.shouldMatch(s + "java/lang/invoke/VarHandle.compareAndExchangeAcquire:\\(\\[DIDI\\)D =>");
         dumpOut.shouldMatch(s + "java/lang/invoke/VarHandle.get:\\(\\[DI\\)D => ");
-        dumpOut.shouldNotContain("rejected .* CP entry.*");
 
         CDSOptions runOpts = (new CDSOptions())
             .setUseVersion(false)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package javax.lang.model.element;
 
-import jdk.internal.javac.PreviewFeature;
 
 /**
  * Represents a modifier on a program element such
@@ -123,6 +122,11 @@ public enum Modifier {
     },
 
     /**
+     * The modifier {@code value}
+     * @since Valhalla
+     */
+    VALUE,
+    /**
      * The modifier {@code final}
      *
      * @jls 8.1.1.2 {@code sealed}, {@code non-sealed}, and {@code final} Classes
@@ -166,16 +170,7 @@ public enum Modifier {
      * @jls 8.4.3.5 {@code strictfp} Methods
      * @jls 9.1.1.2 {@code strictfp} Interfaces
      */
-    STRICTFP,
-
-    /**
-     * The modifier {@code value}
-     *
-     * @jls value-objects-9.1.1.5 {@code value} Classes
-     * @since Valhalla
-     */
-    @PreviewFeature(feature=PreviewFeature.Feature.LANGUAGE_MODEL, reflective=true)
-    VALUE;
+    STRICTFP;
 
     /**
      * Returns this modifier's name as defined in <cite>The

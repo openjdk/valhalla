@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,19 +27,17 @@
  * @library /test/lib
  * @summary Ensure that correct exceptions are being thrown in
  *          BasicAuthenticator constructor
- * @run junit BasicAuthenticatorExceptionCheck
+ * @run testng BasicAuthenticatorExceptionCheck
  */
 
 
 import java.nio.charset.Charset;
 import com.sun.net.httpserver.BasicAuthenticator;
+import org.testng.annotations.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
+import static org.testng.Assert.expectThrows;
+import static org.testng.Assert.assertEquals;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
 
 
 public class BasicAuthenticatorExceptionCheck {
@@ -64,42 +62,42 @@ public class BasicAuthenticatorExceptionCheck {
     @Test
     public void testAuthenticationException() {
 
-        Throwable ex = Assertions.assertThrows(NPE, () ->
+        Throwable ex = expectThrows(NPE, () ->
                 createBasicAuthenticator("/test", null));
         System.out.println("Valid realm and Null charset provided - " +
                 "NullPointerException thrown as expected: " + ex);
 
-        ex = Assertions.assertThrows(NPE, () ->
+        ex = expectThrows(NPE, () ->
                 createBasicAuthenticator(null, UTF_8));
         System.out.println("Null realm and valid charset provided - " +
                 "NullPointerException thrown as expected: " + ex);
 
-        ex = Assertions.assertThrows(IAE, () ->
+        ex = expectThrows(IAE, () ->
                 createBasicAuthenticator("", UTF_8));
-        assertEquals("realm must not be empty", ex.getMessage());
+        assertEquals(ex.getMessage(), "realm must not be empty");
         System.out.println("Empty string for realm and valid charset provided - " +
                 "IllegalArgumentException thrown as expected: " + ex);
 
-        ex = Assertions.assertThrows(NPE, () ->
+        ex = expectThrows(NPE, () ->
                 createBasicAuthenticator(null));
         System.out.println("Null realm provided - " +
                 "NullPointerException thrown as expected: " + ex);
 
-        ex = Assertions.assertThrows(IAE, () ->
+        ex = expectThrows(IAE, () ->
                 createBasicAuthenticator(""));
-        assertEquals("realm must not be empty", ex.getMessage());
+        assertEquals(ex.getMessage(), "realm must not be empty");
         System.out.println("Empty string for realm provided - " +
                 "IllegalArgumentException thrown as expected: " + ex);
 
-        ex = Assertions.assertThrows(IAE, () ->
+        ex = expectThrows(IAE, () ->
                 createBasicAuthenticator("\"/test\""));
-        assertEquals("realm invalid: \"/test\"", ex.getMessage());
+        assertEquals(ex.getMessage(), "realm invalid: \"/test\"");
         System.out.println("Invalid string for realm provided - " +
                 "IllegalArgumentException thrown as expected: " + ex);
 
-        ex = Assertions.assertThrows(IAE, () ->
+        ex = expectThrows(IAE, () ->
                 createBasicAuthenticator("\""));
-        assertEquals("realm invalid: \"", ex.getMessage());
+        assertEquals(ex.getMessage(), "realm invalid: \"");
         System.out.println("Invalid string for realm provided - " +
                 "IllegalArgumentException thrown as expected: " + ex);
 

@@ -55,6 +55,7 @@ import com.sun.source.doctree.TextTree;
 import com.sun.tools.javac.tree.DCTree.DCDocComment;
 import com.sun.tools.javac.tree.DCTree;
 
+import com.sun.tools.javac.tree.EndPosTable;
 import com.sun.tools.javac.util.Context.Factory;
 import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.source.tree.CompilationUnitTree;
@@ -582,9 +583,9 @@ public class JavadocLog extends Log implements Reporter {
         }
         CompilationUnitTree compUnit = tp.getCompilationUnit();
         JCTree tree = (JCTree) tp.getLeaf();
-        int start = (int) posns.getStartPosition(tree);
+        int start = (int) posns.getStartPosition(compUnit, tree);
         int pos = tree.getPreferredPosition();
-        int end = (int) posns.getEndPosition(tree);
+        int end = (int) posns.getEndPosition(compUnit, tree);
         return createDiagnosticPosition(tree, start, pos, end);
     }
 
@@ -615,7 +616,7 @@ public class JavadocLog extends Log implements Reporter {
             }
 
             @Override
-            public int getEndPosition() {
+            public int getEndPosition(EndPosTable endPosTable) {
                 return end;
             }
         };

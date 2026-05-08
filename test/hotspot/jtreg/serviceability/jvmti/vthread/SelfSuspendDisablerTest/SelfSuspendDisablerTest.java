@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
 /*
  * @test id=default
  * @summary Test verifies that selfsuspend doesn' block unmount by VTMTDisabler
- * @requires test.thread.factory == null
  * @library /test/lib
  * @compile SelfSuspendDisablerTest.java
  * @run main/othervm/native -agentlib:SelfSuspendDisablerTest SelfSuspendDisablerTest
@@ -33,7 +32,6 @@
 /*
  * @test id=no-vmcontinuations
  * @requires vm.continuations
- * @requires test.thread.factory == null
  * @library /test/lib
  * @compile SelfSuspendDisablerTest.java
  * @run main/othervm/native -agentlib:SelfSuspendDisablerTest -XX:+UnlockExperimentalVMOptions -XX:-VMContinuations SelfSuspendDisablerTest
@@ -111,7 +109,7 @@ public class SelfSuspendDisablerTest {
         t3.start();
 
         while(!isSuspended(t3)) {
-            sleep(1);
+            sleep(100);
         }
 
         testJvmtiThreadState(t3, SUSPENDED);

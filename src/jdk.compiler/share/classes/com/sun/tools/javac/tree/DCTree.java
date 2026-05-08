@@ -305,7 +305,7 @@ public abstract class DCTree implements DocTree {
             }
 
             @Override
-            public int getEndPosition() {
+            public int getEndPosition(EndPosTable endPosTable) {
                 return comment.getSourcePos(end);
             }
         };

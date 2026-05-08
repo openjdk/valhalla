@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,11 @@
  * @test
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.httpclient.HttpClient.log=errors,requests,responses,trace
  *      -Djdk.httpclient.http3.maxConcurrentPushStreams=45
- *      ${test.main.class}
+ *      H3ServerPushCancel
  * @summary This test checks that the client deals correctly with a
  *      CANCEL_PUSH frame sent by the server
  */
@@ -73,6 +73,9 @@ import java.util.function.Supplier;
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.internal.net.http.common.Utils;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
 
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.net.http.HttpClient.Version.HTTP_3;
@@ -80,14 +83,10 @@ import static java.net.http.HttpOption.Http3DiscoveryMode.ALT_SVC;
 import static java.net.http.HttpOption.Http3DiscoveryMode.ANY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 public class H3ServerPushCancel implements HttpServerAdapters {
 
@@ -96,7 +95,7 @@ public class H3ServerPushCancel implements HttpServerAdapters {
     static final PrintStream err = System.err;
     static final PrintStream out = System.out;
 
-    static final Map<String,String> PUSH_PROMISES = Map.of(
+    static Map<String,String> PUSH_PROMISES = Map.of(
             "/x/y/z/1", "the first push promise body",
             "/x/y/z/2", "the second push promise body",
             "/x/y/z/3", "the third push promise body",
@@ -110,14 +109,14 @@ public class H3ServerPushCancel implements HttpServerAdapters {
     static final String MAIN_RESPONSE_BODY = "the main response body";
     static final int REQUESTS = 5;
 
-    private static HttpTestServer server;
-    private static URI uri;
-    private static URI headURI;
-    private static ServerPushHandler pushHandler;
+    HttpTestServer  server;
+    URI uri;
+    URI headURI;
+    ServerPushHandler pushHandler;
 
-    @BeforeAll
-    public static void setup() throws Exception {
-        server = HttpTestServer.create(ANY, SimpleSSLContext.findSSLContext());
+    @BeforeTest
+    public void setup() throws Exception {
+        server = HttpTestServer.create(ANY, new SimpleSSLContext().get());
         pushHandler = new ServerPushHandler(MAIN_RESPONSE_BODY, PUSH_PROMISES);
         server.addHandler(pushHandler, "/push/");
         server.addHandler(new HttpHeadOrGetHandler(), "/head/");
@@ -127,14 +126,14 @@ public class H3ServerPushCancel implements HttpServerAdapters {
         headURI = new URI("https://" + server.serverAuthority() + "/head/x");
     }
 
-    @AfterAll
-    public static void teardown() {
+    @AfterTest
+    public void teardown() {
         server.stop();
     }
 
     static <T> HttpResponse<T> assert200ResponseCode(HttpResponse<T> response) {
-        assertEquals(200, response.statusCode());
-        assertEquals(HTTP_3, response.version());
+        assertEquals(response.statusCode(), 200);
+        assertEquals(response.version(), HTTP_3);
         return response;
     }
 
@@ -142,8 +141,8 @@ public class H3ServerPushCancel implements HttpServerAdapters {
         HttpRequest headRequest = HttpRequest.newBuilder(headURI)
                 .HEAD().version(HTTP_2).build();
         var headResponse = client.send(headRequest, BodyHandlers.ofString());
-        assertEquals(200, headResponse.statusCode());
-        assertEquals(HTTP_2, headResponse.version());
+        assertEquals(headResponse.statusCode(), 200);
+        assertEquals(headResponse.version(), HTTP_2);
     }
 
     static final class TestPushPromiseHandler<T> implements PushPromiseHandler<T> {
@@ -223,7 +222,7 @@ public class H3ServerPushCancel implements HttpServerAdapters {
         try (HttpClient client = newClientBuilderForH3()
                 .proxy(Builder.NO_PROXY)
                 .version(HTTP_3)
-                .sslContext(SimpleSSLContext.findSSLContext())
+                .sslContext(new SimpleSSLContext().get())
                 .build()) {
 
             sendHeadRequest(client);
@@ -284,14 +283,14 @@ public class H3ServerPushCancel implements HttpServerAdapters {
                                     throw new AssertionError("Unexpected message: " + msg, ex);
                                 }
                             } else {
-                                assertEquals(PUSH_PROMISES.get(request.uri().getPath()), join(value).body());
+                                assertEquals(join(value).body(), PUSH_PROMISES.get(request.uri().getPath()));
                             }
                             expectedPushIds.add(pushId);
-                        } else assertEquals(Http3PushId.class, pushId.getClass());
+                        } else assertEquals(pushId.getClass(), Http3PushId.class);
                     } else {
                         HttpResponse<String> response = join(value);
-                        assertEquals(200, response.statusCode());
-                        assertEquals(MAIN_RESPONSE_BODY, response.body());
+                        assertEquals(response.statusCode(), 200);
+                        assertEquals(response.body(), MAIN_RESPONSE_BODY);
                     }
                 });
 
@@ -312,12 +311,12 @@ public class H3ServerPushCancel implements HttpServerAdapters {
                     client.sendAsync(HttpRequest.newBuilder(uri).build(), BodyHandlers.ofString())
                             .thenApply(H3ServerPushCancel::assert200ResponseCode)
                             .thenApply(HttpResponse::body)
-                            .thenAccept(body -> assertEquals(MAIN_RESPONSE_BODY, body))
+                            .thenAccept(body -> assertEquals(body, MAIN_RESPONSE_BODY))
                             .join();
                 } catch (CompletionException c) {
                     throw new AssertionError(c.getCause());
                 }
-                assertEquals(0, promises.size());
+                assertEquals(promises.size(), 0);
 
                 // Send with no promise handler, but use pushId bigger than allowed.
                 // This should cause the connection to get closed
@@ -329,7 +328,7 @@ public class H3ServerPushCancel implements HttpServerAdapters {
                     client.sendAsync(bigger, BodyHandlers.ofString())
                             .thenApply(H3ServerPushCancel::assert200ResponseCode)
                             .thenApply(HttpResponse::body)
-                            .thenAccept(body -> assertEquals(MAIN_RESPONSE_BODY, body))
+                            .thenAccept(body -> assertEquals(body, MAIN_RESPONSE_BODY))
                             .join();
                     throw new AssertionError("Expected IOException not thrown");
                 } catch (CompletionException c) {
@@ -348,7 +347,7 @@ public class H3ServerPushCancel implements HttpServerAdapters {
                         throw new AssertionError("Unexpected exception: " + c.getCause(), c.getCause());
                     }
                 }
-                assertEquals(0, promises.size());
+                assertEquals(promises.size(), 0);
 
                 // the next time around we should have a new connection,
                 // so we can restart from scratch
@@ -409,7 +408,7 @@ public class H3ServerPushCancel implements HttpServerAdapters {
             // excluding those that got cancelled,
             // we should have received REQUEST-1 notifications
             // per push promise and per connection
-            assertEquals((PUSH_PROMISES.size()-3)*2*(REQUESTS-1), count,
+            assertEquals(count, (PUSH_PROMISES.size()-3)*2*(REQUESTS-1),
                     "Unexpected notification: " + notified);
         }
     }

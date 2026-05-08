@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,8 +93,9 @@ import static java.time.temporal.ChronoUnit.NANOS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.time.temporal.ChronoUnit.WEEKS;
 import static java.time.temporal.ChronoUnit.YEARS;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -105,20 +106,19 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.ValueRange;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TCKChronoField {
 
     //-----------------------------------------------------------------------
     // getBaseUnit() and getRangeUnit()
     //-----------------------------------------------------------------------
+    @DataProvider(name="fieldUnit")
     Object[][] data_fieldUnit() {
         return new Object[][] {
                 {YEAR, YEARS, FOREVER},
@@ -141,16 +141,16 @@ public class TCKChronoField {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_fieldUnit")
+    @Test(dataProvider = "fieldUnit")
     public void test_getBaseUnit(ChronoField field, ChronoUnit baseUnit, ChronoUnit rangeUnit) {
-        assertEquals(baseUnit, field.getBaseUnit());
-        assertEquals(rangeUnit, field.getRangeUnit());
+        assertEquals(field.getBaseUnit(), baseUnit);
+        assertEquals(field.getRangeUnit(), rangeUnit);
     }
 
     //-----------------------------------------------------------------------
     // isDateBased() and isTimeBased()
     //-----------------------------------------------------------------------
+    @DataProvider(name="fieldBased")
     Object[][] data_fieldBased() {
         return new Object[][] {
                 {DAY_OF_WEEK, true, false},
@@ -185,16 +185,16 @@ public class TCKChronoField {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_fieldBased")
+    @Test(dataProvider = "fieldBased")
     public void test_isDateBased(ChronoField field, boolean isDateBased, boolean isTimeBased) {
-        assertEquals(isDateBased, field.isDateBased());
-        assertEquals(isTimeBased, field.isTimeBased());
+        assertEquals(field.isDateBased(), isDateBased);
+        assertEquals(field.isTimeBased(), isTimeBased);
     }
 
     //-----------------------------------------------------------------------
     // isSupportedBy(TemporalAccessor temporal) and getFrom(TemporalAccessor temporal)
     //-----------------------------------------------------------------------
+    @DataProvider(name="fieldAndAccessor")
     Object[][] data_fieldAndAccessor() {
         return new Object[][] {
                 {YEAR, LocalDate.of(2000, 2, 29), true, 2000},
@@ -235,12 +235,11 @@ public class TCKChronoField {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_fieldAndAccessor")
+    @Test(dataProvider = "fieldAndAccessor")
     public void test_supportedAccessor(ChronoField field, TemporalAccessor accessor, boolean isSupported, long value) {
-        assertEquals(isSupported, field.isSupportedBy(accessor));
+        assertEquals(field.isSupportedBy(accessor), isSupported);
         if (isSupported) {
-            assertEquals(value, field.getFrom(accessor));
+            assertEquals(field.getFrom(accessor), value);
         }
     }
 
@@ -249,11 +248,11 @@ public class TCKChronoField {
     //-----------------------------------------------------------------------
     @Test
     public void test_range() {
-        assertEquals(ValueRange.of(1, 12), MONTH_OF_YEAR.range());
-        assertEquals(ValueRange.of(1, 12), MONTH_OF_YEAR.rangeRefinedBy(LocalDate.of(2000, 2, 29)));
+        assertEquals(MONTH_OF_YEAR.range(), ValueRange.of(1, 12));
+        assertEquals(MONTH_OF_YEAR.rangeRefinedBy(LocalDate.of(2000, 2, 29)), ValueRange.of(1, 12));
 
-        assertEquals(ValueRange.of(1, 28, 31), DAY_OF_MONTH.range());
-        assertEquals(ValueRange.of(1, 29), DAY_OF_MONTH.rangeRefinedBy(LocalDate.of(2000, 2, 29)));
+        assertEquals(DAY_OF_MONTH.range(), ValueRange.of(1, 28, 31));
+        assertEquals(DAY_OF_MONTH.rangeRefinedBy(LocalDate.of(2000, 2, 29)), ValueRange.of(1, 29));
     }
 
     //-----------------------------------------------------------------------
@@ -262,7 +261,7 @@ public class TCKChronoField {
     @Test
     public void test_valueOf() {
         for (ChronoField field : ChronoField.values()) {
-            assertEquals(field, ChronoField.valueOf(field.name()));
+            assertEquals(ChronoField.valueOf(field.name()), field);
         }
     }
 
@@ -270,7 +269,9 @@ public class TCKChronoField {
     // matches the minimum and maximum supported epoch second by Instant.
     @Test
     public void testMinMaxInstantSeconds() {
-        assertEquals(Instant.MIN.getLong(ChronoField.INSTANT_SECONDS), ChronoField.INSTANT_SECONDS.range().getMinimum());
-        assertEquals(Instant.MAX.getLong(ChronoField.INSTANT_SECONDS), ChronoField.INSTANT_SECONDS.range().getMaximum());
+        assertEquals(ChronoField.INSTANT_SECONDS.range().getMinimum(),
+                Instant.MIN.getLong(ChronoField.INSTANT_SECONDS));
+        assertEquals(ChronoField.INSTANT_SECONDS.range().getMaximum(),
+                Instant.MAX.getLong(ChronoField.INSTANT_SECONDS));
     }
 }

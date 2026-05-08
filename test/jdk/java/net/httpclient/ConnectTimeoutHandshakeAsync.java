@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,7 @@
 
 import java.net.http.HttpClient.Version;
 import java.time.Duration;
-
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.Test;
 
 /*
  * @test
@@ -33,15 +31,14 @@ import org.junit.jupiter.params.provider.MethodSource;
  * @bug 8208391
  * @library /test/lib
  * @build AbstractConnectTimeoutHandshake
- * @run junit/othervm ${test.main.class}
+ * @run testng/othervm ConnectTimeoutHandshakeAsync
  */
 
 public class ConnectTimeoutHandshakeAsync
     extends AbstractConnectTimeoutHandshake
 {
+    @Test(dataProvider = "variants")
     @Override
-    @ParameterizedTest
-    @MethodSource("variants")
     public void timeoutAsync(Version requestVersion,
                              String method,
                              Duration connectTimeout,

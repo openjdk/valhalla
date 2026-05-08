@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,9 @@
  *
  */
 
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,35 +39,32 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testng.Assert.*;
 
 /**
  * @test
  * @bug 8231451
  * @summary Basic tests for ZipFileInputStream::skip
  * @modules jdk.zipfs
- * @run junit/othervm ZipFileInputStreamSkipTest
+ * @run testng/othervm ZipFileInputStreamSkipTest
  */
 public class ZipFileInputStreamSkipTest {
 
     // Stored and Deflated Zip File paths used by the tests
-    private static final Path STORED_ZIPFILE = Path.of("skipStoredEntries.zip");
-    private static final Path DEFLATED_ZIPFILE = Path.of("skipDeflatedEntries.zip");
+    private final Path STORED_ZIPFILE = Path.of("skipStoredEntries.zip");
+    private final Path DEFLATED_ZIPFILE = Path.of("skipDeflatedEntries.zip");
 
     // Saved Entries added to the relevant Zip file
-    private static final HashMap<String, Entry> STORED_ZIP_ENTRIES = new HashMap<>();
-    private static final HashMap<String, Entry> DEFLATED_ZIP_ENTRIES = new HashMap<>();
+    private final HashMap<String, Entry> STORED_ZIP_ENTRIES = new HashMap<>();
+    private final HashMap<String, Entry> DEFLATED_ZIP_ENTRIES = new HashMap<>();
 
     /**
      * Create the Zip Files used by the tests
      *
      * @throws IOException If an error occurs creating the Zip Files
      */
-    @BeforeAll
-    static void createZip() throws IOException {
+    @BeforeClass
+    private void createZip() throws IOException {
         Entry e0 = Entry.of("Entry-0", ZipEntry.STORED, "Tennis Pro");
         Entry e1 = Entry.of("Entry-1", ZipEntry.STORED,
                 "United States Tennis Association");
@@ -97,8 +92,8 @@ public class ZipFileInputStreamSkipTest {
      *
      * @throws IOException If an error occurs during cleanup
      */
-    @AfterAll
-    static void cleanUp() throws IOException {
+    @AfterClass
+    private void cleanUp() throws IOException {
         Files.deleteIfExists(STORED_ZIPFILE);
         Files.deleteIfExists(DEFLATED_ZIPFILE);
     }
@@ -124,28 +119,28 @@ public class ZipFileInputStreamSkipTest {
 
                     // Check that if we specify 0, that we return the correct
                     // skip value value
-                    assertEquals(0, in.skip(0));
+                    assertEquals(in.skip(0), 0);
 
                     // Try to skip past EOF and should return remaining bytes
-                    assertEquals(entrySize, in.skip(entrySize + 100));
+                    assertEquals(in.skip(entrySize + 100), entrySize);
 
                     // Return to BOF and then specify a value which would
                     // overflow the projected skip value and return the
                     // number of bytes moved to reach EOF
-                    assertEquals(-entrySize, in.skip(-entrySize));
-                    assertEquals(entrySize, in.skip(Long.MAX_VALUE));
+                    assertEquals(in.skip(-entrySize), -entrySize);
+                    assertEquals(in.skip(Long.MAX_VALUE), entrySize);
 
                     // From midpoint, try to skip past EOF and then skip back
                     // to BOF
-                    assertEquals(-entrySize, in.skip(-entrySize));
-                    assertEquals(midpoint, in.skip(midpoint));
-                    assertEquals(entrySize - midpoint, in.skip(1000));
-                    assertEquals(-entrySize, in.skip(-entrySize));
+                    assertEquals(in.skip(-entrySize), -entrySize);
+                    assertEquals(in.skip(midpoint), midpoint);
+                    assertEquals(in.skip(1000), entrySize - midpoint);
+                    assertEquals(in.skip(-entrySize), -entrySize);
 
                     // Read remaining bytes and validate against expected bytes
                     byte[] bytes = in.readAllBytes();
-                    assertArrayEquals(expected.bytes, bytes);
-                    assertEquals(expected.bytes.length, bytes.length);
+                    assertEquals(bytes, expected.bytes);
+                    assertEquals(bytes.length, expected.bytes.length);
                 }
             }
         }
@@ -172,25 +167,25 @@ public class ZipFileInputStreamSkipTest {
 
                     // Check that if you try to move past BOF
                     // that we return the correct value
-                    assertEquals(0, in.skip(-1));
-                    assertEquals(0, in.skip(-100));
-                    assertEquals(0, in.skip(Long.MIN_VALUE));
+                    assertEquals(in.skip(-1), 0);
+                    assertEquals(in.skip(-100), 0);
+                    assertEquals(in.skip(Long.MIN_VALUE), 0);
 
                     // Go to midpoint in file; then specify a value before
                     // BOF which should result in the number of
                     // bytes to BOF returned
-                    assertEquals(midpoint, in.skip(midpoint));
-                    assertEquals(-midpoint, in.skip(-(midpoint + 10)));
+                    assertEquals(in.skip(midpoint), midpoint);
+                    assertEquals(in.skip(-(midpoint + 10)), -midpoint);
 
                     // From midpoint, move back a couple of bytes
-                    assertEquals(midpoint, in.skip(midpoint));
-                    assertEquals(-2, in.skip(-2));
+                    assertEquals(in.skip(midpoint), midpoint);
+                    assertEquals(in.skip(-2), -2);
 
                     // Read the remaining bytes and compare to the expected bytes
                     byte[] bytes = in.readAllBytes();
-                    assertArrayEquals(Arrays.copyOfRange(expected.bytes,
-                            (int)midpoint - 2, (int) entrySize), bytes);
-                    assertEquals(entrySize - midpoint + 2, bytes.length);
+                    assertEquals(bytes, Arrays.copyOfRange(expected.bytes,
+                            (int)midpoint - 2, (int) entrySize));
+                    assertEquals(bytes.length, entrySize - midpoint + 2);
                 }
             }
         }
@@ -212,12 +207,12 @@ public class ZipFileInputStreamSkipTest {
                 Entry expected = DEFLATED_ZIP_ENTRIES.get(entry.getName());
                 assertNotNull(expected);
                 try (InputStream in = zf.getInputStream(entry)) {
-                    assertEquals(toSkip, in.skip(toSkip));
+                    assertEquals(in.skip(toSkip), toSkip);
                     byte[] bytes = in.readAllBytes();
                     var ebytes = Arrays.copyOfRange(expected.bytes,
                             toSkip, expected.bytes.length);
-                    assertArrayEquals(ebytes, bytes);
-                    assertEquals(expected.bytes.length - toSkip, bytes.length);
+                    assertEquals(bytes, ebytes);
+                    assertEquals(bytes.length, expected.bytes.length - toSkip);
                 }
             }
         }
@@ -253,7 +248,7 @@ public class ZipFileInputStreamSkipTest {
      * @param entries The entries to add to the Zip File
      * @throws IOException If an error occurs while creating the Zip file
      */
-    private static void createZipFile(Path zipFile, Map<String, String> env,
+    private void createZipFile(Path zipFile, Map<String, String> env,
                                Entry... entries) throws IOException {
         try (FileSystem zipfs =
                      FileSystems.newFileSystem(zipFile, env)) {

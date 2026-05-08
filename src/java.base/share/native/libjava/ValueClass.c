@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,16 +46,10 @@ Java_jdk_internal_value_ValueClass_newNullableAtomicArray(JNIEnv *env, jclass cl
     return JVM_NewNullableAtomicArray(env, elmClass, len);
 }
 
-JNIEXPORT jarray JNICALL
-Java_jdk_internal_value_ValueClass_newReferenceArray(JNIEnv *env, jclass cls, jclass elmClass, jint len)
-{
-    return JVM_NewReferenceArray(env, elmClass, len);
-}
-
 JNIEXPORT jboolean JNICALL
-Java_jdk_internal_value_ValueClass_isFlatArray(JNIEnv *env, jclass cls, jarray array)
+Java_jdk_internal_value_ValueClass_isFlatArray(JNIEnv *env, jclass cls, jobject obj)
 {
-    return JVM_IsFlatArray(env, array);
+    return JVM_IsFlatArray(env, obj);
 }
 
 JNIEXPORT jarray JNICALL
@@ -65,13 +59,13 @@ Java_jdk_internal_value_ValueClass_copyOfSpecialArray0(JNIEnv *env, jclass cls, 
 }
 
 JNIEXPORT jboolean JNICALL
-Java_jdk_internal_value_ValueClass_isNullRestrictedArray(JNIEnv *env, jclass cls, jarray array)
+Java_jdk_internal_value_ValueClass_isNullRestrictedArray(JNIEnv *env, jclass cls, jobject obj)
 {
-    return JVM_IsNullRestrictedArray(env, array);
+    return JVM_IsNullRestrictedArray(env, obj);
 }
 
 JNIEXPORT jboolean JNICALL
-Java_jdk_internal_value_ValueClass_isAtomicArray(JNIEnv *env, jclass cls, jarray array)
+Java_jdk_internal_value_ValueClass_isAtomicArray(JNIEnv *env, jclass cls, jobject obj)
 {
-    return JVM_IsAtomicArray(env, array);
+    return JVM_IsAtomicArray(env, obj);
 }

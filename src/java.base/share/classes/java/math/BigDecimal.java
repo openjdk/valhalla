@@ -1026,11 +1026,12 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
             return;
         }
         // Normalize
-        int nTrailingZeros = Long.numberOfTrailingZeros(significand);
-        significand >>= nTrailingZeros;
-        exponent += nTrailingZeros;
-        // Calculate intVal and scale
+        while ((significand & 1) == 0) { // i.e., significand is even
+            significand >>= 1;
+            exponent++;
+        }
         int scl = 0;
+        // Calculate intVal and scale
         BigInteger rb;
         long compactVal = sign * significand;
         if (exponent == 0) {

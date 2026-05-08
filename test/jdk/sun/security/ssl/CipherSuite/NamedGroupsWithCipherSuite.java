@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,6 @@
  * questions.
  */
 
-import java.util.Arrays;
-import java.util.List;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
@@ -31,7 +29,7 @@ import jdk.test.lib.security.SecurityUtils;
 
 /*
   * @test
-  * @bug 8224650 8242929 8314323
+  * @bug 8224650 8242929
   * @library /javax/net/ssl/templates
   *          /javax/net/ssl/TLSCommon
   *          /test/lib
@@ -46,20 +44,17 @@ import jdk.test.lib.security.SecurityUtils;
   * @run main/othervm NamedGroupsWithCipherSuite ffdhe4096
   * @run main/othervm NamedGroupsWithCipherSuite ffdhe6144
   * @run main/othervm NamedGroupsWithCipherSuite ffdhe8192
-  * @run main/othervm NamedGroupsWithCipherSuite X25519MLKEM768
-  * @run main/othervm NamedGroupsWithCipherSuite SecP256r1MLKEM768
-  * @run main/othervm NamedGroupsWithCipherSuite SecP384r1MLKEM1024
  */
 public class NamedGroupsWithCipherSuite extends SSLSocketTemplate {
 
-    private static final List<Protocol> PROTOCOLS = List.of(
+    private static final Protocol[] PROTOCOLS = new Protocol[] {
             Protocol.TLSV1_3,
             Protocol.TLSV1_2,
             Protocol.TLSV1_1,
             Protocol.TLSV1
-    );
+    };
 
-    private static final List<CipherSuite> CIPHER_SUITES = List.of(
+    private static final CipherSuite[] CIPHER_SUITES = new CipherSuite[] {
             CipherSuite.TLS_AES_128_GCM_SHA256,
             CipherSuite.TLS_AES_256_GCM_SHA384,
             CipherSuite.TLS_CHACHA20_POLY1305_SHA256,
@@ -80,23 +75,7 @@ public class NamedGroupsWithCipherSuite extends SSLSocketTemplate {
             CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
             CipherSuite.TLS_DHE_RSA_WITH_AES_256_CBC_SHA256,
             CipherSuite.TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-    );
-
-    private static final List<String> HYBRID_NAMEDGROUPS = List.of(
-            "X25519MLKEM768",
-            "SecP256r1MLKEM768",
-            "SecP384r1MLKEM1024"
-    );
-
-    private static final List<Protocol> HYBRID_PROTOCOL = List.of(
-            Protocol.TLSV1_3
-    );
-
-    private static final List<CipherSuite> HYBRID_CIPHER_SUITES = List.of(
-            CipherSuite.TLS_AES_128_GCM_SHA256,
-            CipherSuite.TLS_AES_256_GCM_SHA384,
-            CipherSuite.TLS_CHACHA20_POLY1305_SHA256
-    );
+    };
 
     private String protocol;
     private String cipher;
@@ -172,59 +151,48 @@ public class NamedGroupsWithCipherSuite extends SSLSocketTemplate {
         // Re-enable TLSv1 and TLSv1.1 since test depends on it.
         SecurityUtils.removeFromDisabledTlsAlgs("TLSv1", "TLSv1.1");
 
-        boolean hybridGroup = HYBRID_NAMEDGROUPS.contains(namedGroup);
-        List<Protocol> protocolList = hybridGroup ?
-                HYBRID_PROTOCOL : PROTOCOLS;
-        List<CipherSuite> cipherList = hybridGroup ?
-                HYBRID_CIPHER_SUITES : CIPHER_SUITES;
-
-        // non-Hybrid named group converted to lower case just
-        // to satisfy Test condition
-        String normalizedGroup = hybridGroup ?
-                namedGroup : namedGroup.toLowerCase();
-
-        for (Protocol protocol : protocolList) {
-            for (CipherSuite cipherSuite : cipherList) {
+        for (Protocol protocol : PROTOCOLS) {
+            for (CipherSuite cipherSuite : CIPHER_SUITES) {
+                // Named group converted to lower case just
+                // to satisfy Test condition
                 if (cipherSuite.supportedByProtocol(protocol)
-                        && groupSupportedByCipher(normalizedGroup,
-                        cipherSuite)) {
+                        && groupSupportdByCipher(namedGroup.toLowerCase(),
+                                cipherSuite)) {
                     System.out.printf("Protocol: %s, cipher suite: %s%n",
                             protocol, cipherSuite);
+                    // Named group converted to lower case just
+                    // to satisfy Test condition
                     new NamedGroupsWithCipherSuite(protocol,
-                            cipherSuite, normalizedGroup).run();
+                            cipherSuite, namedGroup.toLowerCase()).run();
                 }
             }
         }
     }
 
-    private static boolean groupSupportedByCipher(String group,
+    private static boolean groupSupportdByCipher(String group,
             CipherSuite cipherSuite) {
-        if (HYBRID_NAMEDGROUPS.contains(group)) {
-            return cipherSuite.keyExAlgorithm == null;
-        }
-
         return (group.startsWith("x")
-                        && xdhGroupSupportedByCipher(cipherSuite))
+                        && xdhGroupSupportdByCipher(cipherSuite))
                 || (group.startsWith("secp")
-                        && ecdhGroupSupportedByCipher(cipherSuite))
+                        && ecdhGroupSupportdByCipher(cipherSuite))
                 || (group.startsWith("ffdhe")
-                        && ffdhGroupSupportedByCipher(cipherSuite));
+                        && ffdhGroupSupportdByCipher(cipherSuite));
     }
 
-    private static boolean xdhGroupSupportedByCipher(
+    private static boolean xdhGroupSupportdByCipher(
             CipherSuite cipherSuite) {
         return cipherSuite.keyExAlgorithm == null
                 || cipherSuite.keyExAlgorithm == KeyExAlgorithm.ECDHE_RSA;
     }
 
-    private static boolean ecdhGroupSupportedByCipher(
+    private static boolean ecdhGroupSupportdByCipher(
             CipherSuite cipherSuite) {
         return cipherSuite.keyExAlgorithm == null
                 || cipherSuite.keyExAlgorithm == KeyExAlgorithm.ECDHE_RSA
                 || cipherSuite.keyExAlgorithm == KeyExAlgorithm.ECDHE_ECDSA;
     }
 
-    private static boolean ffdhGroupSupportedByCipher(
+    private static boolean ffdhGroupSupportdByCipher(
             CipherSuite cipherSuite) {
         return cipherSuite.keyExAlgorithm == null
                 || cipherSuite.keyExAlgorithm == KeyExAlgorithm.DHE_DSS

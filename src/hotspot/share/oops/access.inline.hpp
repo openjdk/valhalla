@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,15 +202,8 @@ namespace AccessInternal {
 
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_VALUE_COPY, decorators>: public AllStatic {
-    static void access_barrier(const ValuePayload& src, const ValuePayload& dst) {
-      GCBarrierType::value_copy_in_heap(src, dst);
-    }
-  };
-
-  template <class GCBarrierType, DecoratorSet decorators>
-  struct PostRuntimeDispatch<GCBarrierType, BARRIER_VALUE_STORE_NULL, decorators>: public AllStatic {
-    static void access_barrier(const ValuePayload& dst) {
-      GCBarrierType::value_store_null_in_heap(dst);
+    static void access_barrier(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+      GCBarrierType::value_copy_in_heap(src, dst, md, lk);
     }
   };
 
@@ -363,17 +356,10 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators, typename T>
-  void RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::value_copy_init(const ValuePayload& src, const ValuePayload& dst) {
+  void RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::value_copy_init(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_VALUE_COPY>::resolve_barrier();
     _value_copy_func = function;
-    function(src, dst);
-  }
-
-  template <DecoratorSet decorators, typename T>
-  void RuntimeDispatch<decorators, T, BARRIER_VALUE_STORE_NULL>::value_store_null_init(const ValuePayload& dst) {
-    func_t function = BarrierResolver<decorators, func_t, BARRIER_VALUE_STORE_NULL>::resolve_barrier();
-    _value_store_null_func = function;
-    function(dst);
+    function(src, dst, md,lk);
   }
 }
 

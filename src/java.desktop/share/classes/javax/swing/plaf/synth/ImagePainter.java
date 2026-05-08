@@ -28,6 +28,7 @@ import java.awt.*;
 import java.lang.ref.WeakReference;
 import java.net.*;
 import javax.swing.*;
+import sun.awt.AppContext;
 import sun.swing.plaf.synth.Paint9Painter;
 
 /**
@@ -40,6 +41,8 @@ import sun.swing.plaf.synth.Paint9Painter;
  * @author Scott Violet
  */
 class ImagePainter extends SynthPainter {
+    private static final StringBuffer CACHE_KEY =
+                               new StringBuffer("SynthCacheKey");
 
     private Image image;
     private Insets sInsets;
@@ -50,17 +53,22 @@ class ImagePainter extends SynthPainter {
     private Paint9Painter imageCache;
     private boolean center;
 
-    private static volatile WeakReference<Paint9Painter> cacheRef;
-
     private static Paint9Painter getPaint9Painter() {
         // A SynthPainter is created per <imagePainter>.  We want the
-        // cache to be shared by all. It's held via
+        // cache to be shared by all, and we don't use a static because we
+        // don't want it to persist between look and feels.  For that reason
+        // we use a AppContext specific Paint9Painter.  It's backed via
         // a WeakRef so that it can go away if the look and feel changes.
-        synchronized(ImagePainter.class) {
+        synchronized(CACHE_KEY) {
+            @SuppressWarnings("unchecked")
+            WeakReference<Paint9Painter> cacheRef =
+                     (WeakReference<Paint9Painter>)AppContext.getAppContext().
+                     get(CACHE_KEY);
             Paint9Painter painter;
             if (cacheRef == null || (painter = cacheRef.get()) == null) {
                 painter = new Paint9Painter(30);
                 cacheRef = new WeakReference<Paint9Painter>(painter);
+                AppContext.getAppContext().put(CACHE_KEY, cacheRef);
             }
             return painter;
         }

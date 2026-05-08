@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ import java.nio.charset.StandardCharsets;
  * The string format is based on the master file representation in
  * RFC 1035.
  *
+ * @author Scott Seligman
  */
 
 
@@ -483,11 +484,11 @@ public class ResourceRecord {
         pos += 2;
         int preference = getUShort(pos);
         pos += 2;
-        StringBuilder flags = new StringBuilder();
+        StringBuffer flags = new StringBuffer();
         pos += decodeCharString(pos, flags);
-        StringBuilder services = new StringBuilder();
+        StringBuffer services = new StringBuffer();
         pos += decodeCharString(pos, services);
-        StringBuilder regexp = new StringBuilder(rdlen);
+        StringBuffer regexp = new StringBuffer(rdlen);
         pos += decodeCharString(pos, regexp);
         DnsName replacement = decodeName(pos);
 
@@ -500,7 +501,7 @@ public class ResourceRecord {
      * The rdata consists of one or more <character-string>s.
      */
     private String decodeTxt(int pos) {
-        StringBuilder buf = new StringBuilder(rdlen);
+        StringBuffer buf = new StringBuffer(rdlen);
         int end = pos + rdlen;
         while (pos < end) {
             pos += decodeCharString(pos, buf);
@@ -516,7 +517,7 @@ public class ResourceRecord {
      * The rdata consists of two <character-string>s.
      */
     private String decodeHinfo(int pos) {
-        StringBuilder buf = new StringBuilder(rdlen);
+        StringBuffer buf = new StringBuffer(rdlen);
         pos += decodeCharString(pos, buf);
         buf.append(' ');
         pos += decodeCharString(pos, buf);
@@ -531,7 +532,7 @@ public class ResourceRecord {
      * Returns the size of the encoded string, including the initial
      * length octet.
      */
-    private int decodeCharString(int pos, StringBuilder buf) {
+    private int decodeCharString(int pos, StringBuffer buf) {
         int start = buf.length();       // starting index of this string
         int len = getUByte(pos++);      // encoded string length
         boolean quoted = (len == 0);    // quote string if empty

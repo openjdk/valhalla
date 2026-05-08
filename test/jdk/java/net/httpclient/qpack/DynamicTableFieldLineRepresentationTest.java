@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import jdk.internal.net.http.qpack.DecodingCallback;
 import jdk.internal.net.http.qpack.DynamicTable;
 import jdk.internal.net.http.qpack.Encoder;
 import jdk.test.lib.RandomFactory;
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,8 +37,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.*;
 
 /*
  * @test
@@ -55,10 +55,10 @@ import org.junit.jupiter.api.Test;
  *          java.net.http/jdk.internal.net.http.http3.frames
  *          java.net.http/jdk.internal.net.http.http3
  * @build EncoderDecoderConnector
- * @run junit/othervm -Djdk.internal.httpclient.qpack.log.level=EXTRA
+ * @run testng/othervm -Djdk.internal.httpclient.qpack.log.level=EXTRA
  *                     -Djdk.http.qpack.allowBlockingEncoding=true
  *                     -Djdk.http.qpack.decoderBlockedStreams=4
- *                     ${test.main.class}
+ *                     DynamicTableFieldLineRepresentationTest
  */
 public class DynamicTableFieldLineRepresentationTest {
 
@@ -105,7 +105,7 @@ public class DynamicTableFieldLineRepresentationTest {
 
         // Write the header
         headerFrameWriter.write(headersBb);
-        assertNotEquals(0, headersBb.position());
+        assertNotEquals(headersBb.position(), 0);
         headersBb.flip();
         buffers.add(headersBb);
 
@@ -115,7 +115,7 @@ public class DynamicTableFieldLineRepresentationTest {
         // Decode headers
         decoder.decodeHeader(buffers.get(0), false, headerFrameReader);
         decoder.decodeHeader(buffers.get(1), true, headerFrameReader);
-        assertEquals(name, callback.lastIndexedName);
+        assertEquals(callback.lastIndexedName,name);
     }
 
     //4.5.3.  Indexed Field Line with Post-Base Index
@@ -160,7 +160,7 @@ public class DynamicTableFieldLineRepresentationTest {
 
         // Write the header
         headerFrameWriter.write(headersBb);
-        assertNotEquals(0, headersBb.position());
+        assertNotEquals(headersBb.position(), 0);
         headersBb.flip();
         buffers.add(headersBb);
 
@@ -170,8 +170,8 @@ public class DynamicTableFieldLineRepresentationTest {
         // Decode headers
         decoder.decodeHeader(buffers.get(0), false, headerFrameReader);
         decoder.decodeHeader(buffers.get(1), true, headerFrameReader);
-        assertEquals(name, callback.lastIndexedName);
-        assertEquals(value, callback.lastValue);
+        assertEquals(callback.lastIndexedName,name);
+        assertEquals(callback.lastValue,value);
     }
 
     // 4.5.4.  Literal Field Line with Name Reference
@@ -221,7 +221,7 @@ public class DynamicTableFieldLineRepresentationTest {
 
         // Write the header
         headerFrameWriter.write(headersBb);
-        assertNotEquals(0, headersBb.position());
+        assertNotEquals(headersBb.position(), 0);
         headersBb.flip();
         buffers.add(headersBb);
 
@@ -231,7 +231,7 @@ public class DynamicTableFieldLineRepresentationTest {
         // Decode headers
         decoder.decodeHeader(buffers.get(0), false, headerFrameReader);
         decoder.decodeHeader(buffers.get(1), true, headerFrameReader);
-        assertEquals(name, callback.lastReferenceName);
+        assertEquals(callback.lastReferenceName, name);
     }
 
     //4.5.5.  Literal Field Line with Post-Base Name Reference
@@ -276,7 +276,7 @@ public class DynamicTableFieldLineRepresentationTest {
 
         // Write the header
         headerFrameWriter.write(headersBb);
-        assertNotEquals(0, headersBb.position());
+        assertNotEquals(headersBb.position(), 0);
         headersBb.flip();
         buffers.add(headersBb);
 
@@ -286,8 +286,8 @@ public class DynamicTableFieldLineRepresentationTest {
         // Decode headers
         decoder.decodeHeader(buffers.get(0), false, headerFrameReader);
         decoder.decodeHeader(buffers.get(1), true, headerFrameReader);
-        assertEquals(name, callback.lastReferenceName);
-        assertEquals(value, callback.lastValue);
+        assertEquals(callback.lastReferenceName, name);
+        assertEquals(callback.lastValue, value);
     }
 
     private void configureConnector(EncoderDecoderConnector.EncoderDecoderPair connector, int numberOfEntries){
@@ -362,8 +362,8 @@ public class DynamicTableFieldLineRepresentationTest {
         @Override
         public void onIndexed(long actualIndex, CharSequence actualName, CharSequence actualValue) {
             System.out.println("Indexed called");
-            assertEquals(name, actualName);
-            assertEquals(value, actualValue);
+            assertEquals(actualName, name);
+            assertEquals(actualValue, value);
             lastValue = value;
             lastIndexedName = name;
         }
@@ -375,8 +375,8 @@ public class DynamicTableFieldLineRepresentationTest {
                                                boolean valueHuffman,
                                                boolean hideIntermediary) {
             System.out.println("Literal with name reference called");
-            assertEquals(name, actualName.toString());
-            assertEquals(value, actualValue.toString());
+            assertEquals(actualName.toString(), name);
+            assertEquals(actualValue.toString(), value);
             lastReferenceName = name;
             lastValue = value;
         }
@@ -386,8 +386,8 @@ public class DynamicTableFieldLineRepresentationTest {
                                              CharSequence actualValue, boolean valueHuffman,
                                              boolean hideIntermediary) {
             System.out.println("Literal with literal name called");
-            assertEquals(name, actualName.toString());
-            assertEquals(value, actualValue.toString());
+            assertEquals(actualName.toString(), name);
+            assertEquals(actualValue.toString(), value);
             lastLiteralName = name;
             lastValue = value;
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,15 +27,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
 
 public class FramesDecoderTest {
 
-    abstract static class TestFrameProcessor implements FramesDecoder.FrameProcessor {
+    abstract class TestFrameProcessor implements FramesDecoder.FrameProcessor {
         protected volatile int count;
         public int numberOfFramesDecoded() { return count; }
     }
@@ -69,17 +69,17 @@ public class FramesDecoderTest {
                 assertTrue(frame instanceof DataFrame);
                 DataFrame dataFrame = (DataFrame) frame;
                 List<ByteBuffer> list = dataFrame.getData();
-                assertEquals(1, list.size());
+                assertEquals(list.size(), 1);
                 ByteBuffer data = list.get(0);
                 byte[] bytes = new byte[data.remaining()];
                 data.get(bytes);
                 if (count == 0) {
-                    assertEquals("XXXX", new String(bytes, UTF_8));
+                    assertEquals(new String(bytes, UTF_8), "XXXX");
                     out.println("First data received:" + data);
-                    assertEquals(data.limit(), data.position());  // since bytes read
-                    assertEquals(data.capacity(), data.limit());
+                    assertEquals(data.position(), data.limit());  // since bytes read
+                    assertEquals(data.limit(), data.capacity());
                 } else {
-                    assertEquals("YYYY", new String(bytes, UTF_8));
+                    assertEquals(new String(bytes, UTF_8), "YYYY");
                     out.println("Second data received:" + data);
                 }
                 count++;
@@ -89,7 +89,7 @@ public class FramesDecoderTest {
 
         out.println("Sending " + combined + " to decoder: ");
         decoder.decode(combined);
-        assertEquals(2, testFrameProcessor.numberOfFramesDecoded());
+        Assert.assertEquals(testFrameProcessor.numberOfFramesDecoded(), 2);
     }
 
 
@@ -119,15 +119,15 @@ public class FramesDecoderTest {
                 assertTrue(frame instanceof DataFrame);
                 DataFrame dataFrame = (DataFrame) frame;
                 List<ByteBuffer> list = dataFrame.getData();
-                assertEquals(1, list.size());
+                assertEquals(list.size(), 1);
                 ByteBuffer data = list.get(0);
                 byte[] bytes = new byte[data.remaining()];
                 data.get(bytes);
-                assertEquals("XXXX", new String(bytes, UTF_8));
+                assertEquals(new String(bytes, UTF_8), "XXXX");
                 out.println("First data received:" + data);
-                assertEquals(data.limit(), data.position());  // since bytes read
+                assertEquals(data.position(), data.limit());  // since bytes read
                 //assertNotEquals(data.limit(), data.capacity());
-                assertEquals(1024 - 9 /*frame header*/, data.capacity());
+                assertEquals(data.capacity(), 1024 - 9 /*frame header*/);
                 count++;
             }
         };
@@ -135,6 +135,6 @@ public class FramesDecoderTest {
 
         out.println("Sending " + combined + " to decoder: ");
         decoder.decode(combined);
-        assertEquals(1, testFrameProcessor.numberOfFramesDecoded());
+        Assert.assertEquals(testFrameProcessor.numberOfFramesDecoded(), 1);
     }
 }

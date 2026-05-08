@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,7 +30,6 @@
 #include "gc/shared/threadLocalAllocBuffer.hpp"
 #include "jni.h"
 #include "memory/allocation.hpp"
-#include "runtime/atomic.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
@@ -239,9 +238,9 @@ class Thread: public ThreadShadow {
 
   // Support for GlobalCounter
  private:
-  Atomic<uintx> _rcu_counter;
+  volatile uintx _rcu_counter;
  public:
-  Atomic<uintx>* get_rcu_counter() {
+  volatile uintx* get_rcu_counter() {
     return &_rcu_counter;
   }
 
@@ -257,7 +256,7 @@ class Thread: public ThreadShadow {
 
  private:
   ThreadLocalAllocBuffer _tlab;                 // Thread-local eden
-  uint64_t _allocated_bytes;                    // Cumulative number of bytes allocated on
+  jlong _allocated_bytes;                       // Cumulative number of bytes allocated on
                                                 // the Java heap
   ThreadHeapSampler _heap_sampler;              // For use when sampling the memory.
 
@@ -405,14 +404,14 @@ class Thread: public ThreadShadow {
 
   // Thread-Local Allocation Buffer (TLAB) support
   ThreadLocalAllocBuffer& tlab()                 { return _tlab; }
-  const ThreadLocalAllocBuffer& tlab() const     { return _tlab; }
   void initialize_tlab();
   void retire_tlab(ThreadLocalAllocStats* stats = nullptr);
   void fill_tlab(HeapWord* start, size_t pre_reserved, size_t new_size);
 
-  uint64_t allocated_bytes()               { return _allocated_bytes; }
-  void incr_allocated_bytes(uint64_t size) { _allocated_bytes += size; }
-  inline uint64_t cooked_allocated_bytes() const;
+  jlong allocated_bytes()               { return _allocated_bytes; }
+  void set_allocated_bytes(jlong value) { _allocated_bytes = value; }
+  void incr_allocated_bytes(jlong size) { _allocated_bytes += size; }
+  inline jlong cooked_allocated_bytes();
 
   ThreadHeapSampler& heap_sampler()     { return _heap_sampler; }
 
@@ -603,21 +602,18 @@ protected:
   jint _hashStateY;
   jint _hashStateZ;
 
-#ifdef MACOS_AARCH64
+#if defined(__APPLE__) && defined(AARCH64)
  private:
   DEBUG_ONLY(bool _wx_init);
   WXMode _wx_state;
  public:
   void init_wx();
   WXMode enable_wx(WXMode new_state);
-  bool wx_enable_write();
+
   void assert_wx_state(WXMode expected) {
     assert(_wx_state == expected, "wrong state");
   }
-  WXMode get_wx_state() {
-    return _wx_state;
-  }
-#endif // MACOS_AARCH64
+#endif // __APPLE__ && AARCH64
 
  private:
   bool _in_asgct = false;

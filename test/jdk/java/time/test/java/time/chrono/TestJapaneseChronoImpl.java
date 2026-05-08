@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,7 @@
  */
 package test.java.time.chrono;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -71,20 +71,19 @@ import java.util.GregorianCalendar;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestJapaneseChronoImpl {
 
     /**
      * Range of years to check consistency with java.util.Calendar
      */
+    @DataProvider(name="RangeVersusCalendar")
     Object[][] provider_rangeVersusCalendar() {
         return new Object[][] {
             {LocalDate.of(1873, 1, 1), LocalDate.of(2100, 1, 1)},
@@ -94,14 +93,13 @@ public class TestJapaneseChronoImpl {
     //-----------------------------------------------------------------------
     // Verify  Japanese Calendar matches java.util.Calendar for range
     //-----------------------------------------------------------------------
-    @ParameterizedTest
-    @MethodSource("provider_rangeVersusCalendar")
+    @Test(dataProvider="RangeVersusCalendar")
     public void test_JapaneseChrono_vsCalendar(LocalDate isoStartDate, LocalDate isoEndDate) {
         Locale locale = Locale.forLanguageTag("ja-JP-u-ca-japanese");
-        assertEquals("ja_JP_#u-ca-japanese", locale.toString(), "Unexpected locale");
+        assertEquals(locale.toString(), "ja_JP_#u-ca-japanese", "Unexpected locale");
 
         Calendar cal = java.util.Calendar.getInstance(locale);
-        assertEquals("japanese", cal.getCalendarType(), "Unexpected calendar type");
+        assertEquals(cal.getCalendarType(), "japanese", "Unexpected calendar type");
 
         JapaneseDate jDate = JapaneseChronology.INSTANCE.date(isoStartDate);
 
@@ -112,9 +110,9 @@ public class TestJapaneseChronoImpl {
         cal.setTimeInMillis(millis);
 
         while (jDate.isBefore(isoEndDate)) {
-            assertEquals(cal.get(Calendar.DAY_OF_MONTH), jDate.get(ChronoField.DAY_OF_MONTH), "Day mismatch in " + jDate + ";  cal: " + cal);
-            assertEquals(cal.get(Calendar.MONTH) + 1, jDate.get(ChronoField.MONTH_OF_YEAR), "Month mismatch in " + jDate);
-            assertEquals(cal.get(Calendar.YEAR), jDate.get(ChronoField.YEAR_OF_ERA), "Year mismatch in " + jDate);
+            assertEquals(jDate.get(ChronoField.DAY_OF_MONTH), cal.get(Calendar.DAY_OF_MONTH), "Day mismatch in " + jDate + ";  cal: " + cal);
+            assertEquals(jDate.get(ChronoField.MONTH_OF_YEAR), cal.get(Calendar.MONTH) + 1, "Month mismatch in " + jDate);
+            assertEquals(jDate.get(ChronoField.YEAR_OF_ERA), cal.get(Calendar.YEAR), "Year mismatch in " + jDate);
 
             jDate = jDate.plus(1, ChronoUnit.DAYS);
             cal.add(Calendar.DAY_OF_MONTH, 1);
@@ -138,11 +136,11 @@ public class TestJapaneseChronoImpl {
                 cal.setTimeZone(TimeZone.getTimeZone("GMT+00"));
                 cal.setTimeInMillis(millis);
 
-                assertEquals(cal.get(Calendar.DAY_OF_YEAR), jd.get(ChronoField.DAY_OF_YEAR),
+                assertEquals(jd.get(ChronoField.DAY_OF_YEAR), cal.get(Calendar.DAY_OF_YEAR),
                         "different DAY_OF_YEAR values in " + era + ", year: " + year);
-                assertEquals(cal.getActualMaximum(Calendar.DAY_OF_YEAR), jd.range(ChronoField.DAY_OF_YEAR).getMaximum(),
+                assertEquals(jd.range(ChronoField.DAY_OF_YEAR).getMaximum(), cal.getActualMaximum(Calendar.DAY_OF_YEAR),
                         "different maximum for DAY_OF_YEAR in " + era + ", year: " + year);
-                assertEquals(cal.getActualMinimum(Calendar.DAY_OF_YEAR), jd.range(ChronoField.DAY_OF_YEAR).getMinimum(),
+                assertEquals(jd.range(ChronoField.DAY_OF_YEAR).getMinimum(), cal.getActualMinimum(Calendar.DAY_OF_YEAR),
                         "different minimum for DAY_OF_YEAR in " + era + ",  year: " + year);
             }
         }

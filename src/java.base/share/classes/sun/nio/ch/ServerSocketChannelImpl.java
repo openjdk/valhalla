@@ -90,8 +90,8 @@ class ServerSocketChannelImpl
     private static final int ST_CLOSED = 2;
     private int state;
 
-    // Thread currently blocked in this channel, for signalling
-    private Thread thread;
+    // ID of native thread currently blocked in this channel, for signalling
+    private long thread;
 
     // Binding
     private SocketAddress localAddress; // null => unbound
@@ -349,7 +349,7 @@ class ServerSocketChannelImpl
             if (localAddress == null)
                 throw new NotYetBoundException();
             if (blocking)
-                thread = NativeThread.threadToSignal();
+                thread = NativeThread.current();
         }
     }
 
@@ -364,7 +364,7 @@ class ServerSocketChannelImpl
     {
         if (blocking) {
             synchronized (stateLock) {
-                thread = null;
+                thread = 0;
                 if (state == ST_CLOSING) {
                     tryFinishClose();
                 }
@@ -551,7 +551,7 @@ class ServerSocketChannelImpl
      */
     private boolean tryClose() throws IOException {
         assert Thread.holdsLock(stateLock) && state == ST_CLOSING;
-        if ((thread == null) && !isRegistered()) {
+        if ((thread == 0) && !isRegistered()) {
             state = ST_CLOSED;
             nd.close(fd);
             return true;
@@ -583,7 +583,7 @@ class ServerSocketChannelImpl
             assert state < ST_CLOSING;
             state = ST_CLOSING;
             if (!tryClose()) {
-                nd.preClose(fd, thread, null);
+                nd.preClose(fd, thread, 0);
             }
         }
     }

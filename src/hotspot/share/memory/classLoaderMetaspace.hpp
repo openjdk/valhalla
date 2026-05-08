@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,10 +40,9 @@ namespace metaspace {
 
 // A ClassLoaderMetaspace manages MetaspaceArena(s) for a CLD.
 //
-// 64-bit:
-//
-// A CLD owns two MetaspaceArenas - one for the Klass* objects from the class space,
-// one for the other types of MetaspaceObjs from the non-class space.
+// A CLD owns one MetaspaceArena if UseCompressedClassPointers is false. Otherwise
+// it owns two - one for the Klass* objects from the class space, one for the other
+// types of MetaspaceObjs from the non-class space.
 //
 // +------+       +----------------------+       +-------------------+
 // | CLD  | --->  | ClassLoaderMetaspace | ----> | (non class) Arena |
@@ -59,11 +58,6 @@ namespace metaspace {
 //                                                               ^
 //                                                               alloc top
 //
-// 32-bit:
-//
-// A CLD owns just one MetaspaceArena. In that arena all metadata - Klass and other -
-// are placed.
-
 class ClassLoaderMetaspace : public CHeapObj<mtClass> {
   friend class metaspace::ClmsTester; // for gtests
 
@@ -73,10 +67,11 @@ class ClassLoaderMetaspace : public CHeapObj<mtClass> {
   const Metaspace::MetaspaceType _space_type;
 
   // Arena for allocations from non-class  metaspace
+  //  (resp. for all allocations if -XX:-UseCompressedClassPointers).
   metaspace::MetaspaceArena* _non_class_space_arena;
 
   // Arena for allocations from class space
-  //  (null for 32-bit).
+  //  (null if -XX:-UseCompressedClassPointers).
   metaspace::MetaspaceArena* _class_space_arena;
 
   Mutex* lock() const                             { return _lock; }

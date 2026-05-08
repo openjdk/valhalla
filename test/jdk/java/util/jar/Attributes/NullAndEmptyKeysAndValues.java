@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,8 @@
  * questions.
  */
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -29,16 +31,14 @@ import java.util.jar.Manifest;
 import java.util.jar.Attributes.Name;
 import java.lang.reflect.Field;
 
-import org.junit.jupiter.api.Test;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.jupiter.api.Assertions.*;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 /**
  * @test
  * @bug 8066619
  * @modules java.base/java.util.jar:+open
- * @run junit/othervm --enable-final-field-mutation=ALL-UNNAMED NullAndEmptyKeysAndValues
+ * @run testng/othervm --enable-final-field-mutation=ALL-UNNAMED NullAndEmptyKeysAndValues
  * @summary Tests manifests with {@code null} and empty string {@code ""}
  * values as section name, header name, or value in both main and named
  * attributes sections.
@@ -108,7 +108,7 @@ public class NullAndEmptyKeysAndValues {
         attr.set(mf, mainAtts);
         mf.getMainAttributes().put(Name.MANIFEST_VERSION, "1.0");
         mf = writeAndRead(mf);
-        assertEquals(NULL_TEXT, mf.getMainAttributes().getValue(SOME_KEY));
+        assertEquals(mf.getMainAttributes().getValue(SOME_KEY), NULL_TEXT);
     }
 
     @Test
@@ -122,7 +122,7 @@ public class NullAndEmptyKeysAndValues {
         attr.set(mf, mainAtts);
         mf.getMainAttributes().put(Name.MANIFEST_VERSION, "1.0");
         mf = writeAndRead(mf);
-        assertEquals(EMPTY_STR, mf.getMainAttributes().getValue(SOME_KEY));
+        assertEquals(mf.getMainAttributes().getValue(SOME_KEY), EMPTY_STR);
     }
 
     @Test
@@ -171,7 +171,8 @@ public class NullAndEmptyKeysAndValues {
             map.put(new Name(SOME_KEY), null);
         }});
         mf = writeAndRead(mf);
-        assertEquals(NULL_TEXT, mf.getEntries().get(SOME_KEY).getValue(SOME_KEY));
+        assertEquals(mf.getEntries().get(SOME_KEY).getValue(SOME_KEY),
+                NULL_TEXT);
     }
 
     @Test
@@ -182,7 +183,8 @@ public class NullAndEmptyKeysAndValues {
             map.put(new Name(SOME_KEY), EMPTY_STR);
         }});
         mf = writeAndRead(mf);
-        assertEquals(EMPTY_STR, mf.getEntries().get(SOME_KEY).getValue(SOME_KEY));
+        assertEquals(mf.getEntries().get(SOME_KEY).getValue(SOME_KEY),
+                EMPTY_STR);
     }
 
     static Manifest writeAndRead(Manifest mf) throws IOException {

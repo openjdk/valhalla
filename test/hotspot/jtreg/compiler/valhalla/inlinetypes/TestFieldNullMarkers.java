@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,9 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 
 import jdk.test.lib.Asserts;
-import jdk.test.lib.helpers.StrictInit;
 
 /*
  * @test id=noFlags
@@ -35,13 +35,9 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/timeout=300 compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -51,17 +47,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:-UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
+ *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -71,17 +61,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:-UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:-UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -91,17 +75,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:-UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
+ *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -111,17 +89,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:-UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:-UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -131,17 +103,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -151,17 +117,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:-UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -171,17 +131,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:-UseNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -191,17 +145,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
@@ -211,17 +159,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               -XX:CompileCommand=dontinline,*::testHelper*
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -232,17 +174,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               -XX:+InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -253,17 +189,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               -XX:-InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -274,17 +204,11 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               -XX:+InlineTypeReturnedAsFields -XX:-InlineTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
@@ -295,34 +219,16 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @compile TestFieldNullMarkers.java
- * @run driver jdk.test.lib.helpers.StrictProcessor
- *             compiler.valhalla.inlinetypes.TestFieldNullMarkers$StrictFieldHolder
  * @run main/othervm/timeout=300 -Xbatch
- *                               -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions
- *                               -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                               -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
  *                               -XX:-InlineTypeReturnedAsFields -XX:+InlineTypePassFieldsAsArgs
  *                               compiler.valhalla.inlinetypes.TestFieldNullMarkers
  */
 
 public class TestFieldNullMarkers {
-
-    public TestFieldNullMarkers() {
-        field12 = new MyValue8((byte)0);
-        field13 = MyValue14.DEFAULT;
-        field16 = MyValue14.DEFAULT;
-        field17 = new MyValue15(null);
-        field19 = new MyValue16(null, null);
-        field20 = new MyValue17(null, (byte)0, (byte)0);
-        emptyField1 = new MyValueEmpty();
-        emptyField2 = new MyValueEmpty();
-        super();
-    }
 
     // Value class with two nullable flat fields
     @LooselyConsistentValue
@@ -523,6 +429,7 @@ public class TestFieldNullMarkers {
     // Test value class with nullable and null-free fields
     @LooselyConsistentValue
     static value class MyValue14 {
+        @Strict
         @NullRestricted
         MyValue8 nullfree;
         MyValue8 nullable;
@@ -591,50 +498,62 @@ public class TestFieldNullMarkers {
     MyValue12 field10; // Flat
     MyValue13 field11; // Flat
 
+    @Strict
     @NullRestricted
-    volatile MyValue8 field12;
+    volatile MyValue8 field12 = new MyValue8((byte)0);
 
+    @Strict
     @NullRestricted
-    MyValue14 field13; // Null-free, flat
+    MyValue14 field13 = MyValue14.DEFAULT; // Null-free, flat
     volatile MyValue14 field14; // Nullable, atomic, flat
     MyValue14 field15;          // Nullable, (atomic), flat
+    @Strict
     @NullRestricted
-    volatile MyValue14 field16; // Null-free, atomic, flat
+    volatile MyValue14 field16 = MyValue14.DEFAULT; // Null-free, atomic, flat
 
+    @Strict
     @NullRestricted
-    volatile MyValue15 field17;
+    volatile MyValue15 field17 = new MyValue15(null);
     MyValue15 field18;
+    @Strict
     @NullRestricted
-    volatile MyValue16 field19;
+    volatile MyValue16 field19 = new MyValue16(null, null);
+    @Strict
     @NullRestricted
-    volatile MyValue17 field20;
+    volatile MyValue17 field20 = new MyValue17(null, (byte)0, (byte)0);
     MyValue17 field21;
 
     // Combinations of strict fields
     static class StrictFieldHolder {
-        @StrictInit
+        @Strict
         MyValue8 strictField1;
-        @StrictInit
+        @Strict
         final MyValue8 strictField2;
+        @Strict
         @NullRestricted
         MyValue8 strictField3;
+        @Strict
         @NullRestricted
         final MyValue8 strictField4;
-        @StrictInit
+        @Strict
         volatile MyValue8 strictField5;
+        @Strict
         @NullRestricted
         volatile MyValue8 strictField6;
 
-        @StrictInit
+        @Strict
         TwoBytes strictField7;
-        @StrictInit
+        @Strict
         final TwoBytes strictField8;
+        @Strict
         @NullRestricted
         TwoBytes strictField9;
+        @Strict
         @NullRestricted
         final TwoBytes strictField10;
-        @StrictInit
+        @Strict
         volatile TwoBytes strictField11;
+        @Strict
         @NullRestricted
         volatile TwoBytes strictField12;
 
@@ -652,14 +571,15 @@ public class TestFieldNullMarkers {
             strictField10 = twoBytesNullFree;
             strictField11 = twoBytesNullFree;
             strictField12 = twoBytesNullFree;
-            super();
         }
     }
 
+    @Strict
     @NullRestricted
-    MyValueEmpty emptyField1;
+    MyValueEmpty emptyField1 = new MyValueEmpty();
+    @Strict
     @NullRestricted
-    volatile MyValueEmpty emptyField2;
+    volatile MyValueEmpty emptyField2 = new MyValueEmpty();
     MyValueEmpty emptyField3;
     volatile MyValueEmpty emptyField4;
 
@@ -688,15 +608,11 @@ public class TestFieldNullMarkers {
     public static class Cage1 {
         MyValue8 canary1 = CANARY_VALUE;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field;
+        volatile TwoBytes field = TwoBytes.DEFAULT;
 
         MyValue8 canary2 = CANARY_VALUE;
-
-        public Cage1() {
-            field = TwoBytes.DEFAULT;
-            super();
-        }
 
         public void verify(TwoBytes val) {
             Asserts.assertEQ(canary1, CANARY_VALUE);
@@ -706,21 +622,17 @@ public class TestFieldNullMarkers {
     }
 
     public static class Cage2 {
+        @Strict
         @NullRestricted
-        MyValue8 canary1;
+        MyValue8 canary1 = CANARY_VALUE;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field;
+        volatile TwoBytes field = TwoBytes.DEFAULT;
 
+        @Strict
         @NullRestricted
-        MyValue8 canary2;
-
-        public Cage2() {
-            canary1 = CANARY_VALUE;
-            field = TwoBytes.DEFAULT;
-            canary2 = CANARY_VALUE;
-            super();
-        }
+        MyValue8 canary2 = CANARY_VALUE;
 
         public void verify(TwoBytes val) {
             Asserts.assertEQ(canary1, CANARY_VALUE);
@@ -730,19 +642,15 @@ public class TestFieldNullMarkers {
     }
 
     public static class Cage3 {
+        @Strict
         @NullRestricted
-        MyValue8 canary1;
+        MyValue8 canary1 = CANARY_VALUE;
 
         volatile TwoBytes field;
 
+        @Strict
         @NullRestricted
-        MyValue8 canary2;
-
-        public Cage3() {
-            canary1 = CANARY_VALUE;
-            canary2 = CANARY_VALUE;
-            super();
-        }
+        MyValue8 canary2 = CANARY_VALUE;
 
         public void verify(TwoBytes val) {
             Asserts.assertEQ(canary1, CANARY_VALUE);
@@ -1041,21 +949,17 @@ public class TestFieldNullMarkers {
     }
 
     public static class MyHolderClass9 {
+        @Strict
         @NullRestricted
-        TwoBytes field1;
+        TwoBytes field1 = TwoBytes.DEFAULT;
 
         TwoBytes field2;
 
+        @Strict
         @NullRestricted
-        volatile TwoBytes field3;
+        volatile TwoBytes field3 = TwoBytes.DEFAULT;
 
         volatile TwoBytes field4;
-
-        public MyHolderClass9() {
-            field1 = TwoBytes.DEFAULT;
-            field3 = TwoBytes.DEFAULT;
-            super();
-        }
     }
 
     static final MyHolderClass9 constantHolder = new MyHolderClass9();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "gc/g1/g1MonotonicArena.inline.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/vmOperations.hpp"
 #include "utilities/globalCounter.inline.hpp"
 
@@ -52,7 +53,7 @@ void G1MonotonicArena::Segment::delete_segment(Segment* segment) {
     GlobalCounter::write_synchronize();
   }
   segment->~Segment();
-  FREE_C_HEAP_ARRAY(segment);
+  FREE_C_HEAP_ARRAY(_mem_tag, segment);
 }
 
 void G1MonotonicArena::SegmentFreeList::bulk_add(Segment& first,
@@ -60,13 +61,13 @@ void G1MonotonicArena::SegmentFreeList::bulk_add(Segment& first,
                                                  size_t num,
                                                  size_t mem_size) {
   _list.prepend(first, last);
-  _num_segments.add_then_fetch(num, memory_order_relaxed);
-  _mem_size.add_then_fetch(mem_size, memory_order_relaxed);
+  AtomicAccess::add(&_num_segments, num, memory_order_relaxed);
+  AtomicAccess::add(&_mem_size, mem_size, memory_order_relaxed);
 }
 
 void G1MonotonicArena::SegmentFreeList::print_on(outputStream* out, const char* prefix) {
   out->print_cr("%s: segments %zu size %zu",
-                prefix, _num_segments.load_relaxed(), _mem_size.load_relaxed());
+                prefix, AtomicAccess::load(&_num_segments), AtomicAccess::load(&_mem_size));
 }
 
 G1MonotonicArena::Segment* G1MonotonicArena::SegmentFreeList::get_all(size_t& num_segments,
@@ -74,12 +75,12 @@ G1MonotonicArena::Segment* G1MonotonicArena::SegmentFreeList::get_all(size_t& nu
   GlobalCounter::CriticalSection cs(Thread::current());
 
   Segment* result = _list.pop_all();
-  num_segments = _num_segments.load_relaxed();
-  mem_size = _mem_size.load_relaxed();
+  num_segments = AtomicAccess::load(&_num_segments);
+  mem_size = AtomicAccess::load(&_mem_size);
 
   if (result != nullptr) {
-    _num_segments.sub_then_fetch(num_segments, memory_order_relaxed);
-    _mem_size.sub_then_fetch(mem_size, memory_order_relaxed);
+    AtomicAccess::sub(&_num_segments, num_segments, memory_order_relaxed);
+    AtomicAccess::sub(&_mem_size, mem_size, memory_order_relaxed);
   }
   return result;
 }
@@ -95,8 +96,8 @@ void G1MonotonicArena::SegmentFreeList::free_all() {
     Segment::delete_segment(cur);
   }
 
-  _num_segments.sub_then_fetch(num_freed, memory_order_relaxed);
-  _mem_size.sub_then_fetch(mem_size_freed, memory_order_relaxed);
+  AtomicAccess::sub(&_num_segments, num_freed, memory_order_relaxed);
+  AtomicAccess::sub(&_mem_size, mem_size_freed, memory_order_relaxed);
 }
 
 G1MonotonicArena::Segment* G1MonotonicArena::new_segment(Segment* const prev) {
@@ -114,7 +115,7 @@ G1MonotonicArena::Segment* G1MonotonicArena::new_segment(Segment* const prev) {
   }
 
   // Install it as current allocation segment.
-  Segment* old = _first.compare_exchange(prev, next);
+  Segment* old = AtomicAccess::cmpxchg(&_first, prev, next);
   if (old != prev) {
     // Somebody else installed the segment, use that one.
     Segment::delete_segment(next);
@@ -125,9 +126,9 @@ G1MonotonicArena::Segment* G1MonotonicArena::new_segment(Segment* const prev) {
       _last = next;
     }
     // Successfully installed the segment into the list.
-    _num_segments.add_then_fetch(1u, memory_order_relaxed);
-    _mem_size.add_then_fetch(next->mem_size(), memory_order_relaxed);
-    _num_total_slots.add_then_fetch(next->num_slots(), memory_order_relaxed);
+    AtomicAccess::inc(&_num_segments, memory_order_relaxed);
+    AtomicAccess::add(&_mem_size, next->mem_size(), memory_order_relaxed);
+    AtomicAccess::add(&_num_total_slots, next->num_slots(), memory_order_relaxed);
     return next;
   }
 }
@@ -154,7 +155,7 @@ uint G1MonotonicArena::slot_size() const {
 }
 
 void G1MonotonicArena::drop_all() {
-  Segment* cur = _first.load_acquire();
+  Segment* cur = AtomicAccess::load_acquire(&_first);
 
   if (cur != nullptr) {
     assert(_last != nullptr, "If there is at least one segment, there must be a last one.");
@@ -174,25 +175,25 @@ void G1MonotonicArena::drop_all() {
       cur = next;
     }
 #endif
-    assert(num_segments == _num_segments.load_relaxed(), "Segment count inconsistent %u %u", num_segments, _num_segments.load_relaxed());
-    assert(mem_size == _mem_size.load_relaxed(), "Memory size inconsistent");
+    assert(num_segments == _num_segments, "Segment count inconsistent %u %u", num_segments, _num_segments);
+    assert(mem_size == _mem_size, "Memory size inconsistent");
     assert(last == _last, "Inconsistent last segment");
 
-    _segment_free_list->bulk_add(*first, *_last, _num_segments.load_relaxed(), _mem_size.load_relaxed());
+    _segment_free_list->bulk_add(*first, *_last, _num_segments, _mem_size);
   }
 
-  _first.store_relaxed(nullptr);
+  _first = nullptr;
   _last = nullptr;
-  _num_segments.store_relaxed(0);
-  _mem_size.store_relaxed(0);
-  _num_total_slots.store_relaxed(0);
-  _num_allocated_slots.store_relaxed(0);
+  _num_segments = 0;
+  _mem_size = 0;
+  _num_total_slots = 0;
+  _num_allocated_slots = 0;
 }
 
 void* G1MonotonicArena::allocate() {
   assert(slot_size() > 0, "instance size not set.");
 
-  Segment* cur = _first.load_acquire();
+  Segment* cur = AtomicAccess::load_acquire(&_first);
   if (cur == nullptr) {
     cur = new_segment(cur);
   }
@@ -200,7 +201,7 @@ void* G1MonotonicArena::allocate() {
   while (true) {
     void* slot = cur->allocate_slot();
     if (slot != nullptr) {
-      _num_allocated_slots.add_then_fetch(1u, memory_order_relaxed);
+      AtomicAccess::inc(&_num_allocated_slots, memory_order_relaxed);
       guarantee(is_aligned(slot, _alloc_options->slot_alignment()),
                 "result " PTR_FORMAT " not aligned at %u", p2i(slot), _alloc_options->slot_alignment());
       return slot;
@@ -212,7 +213,7 @@ void* G1MonotonicArena::allocate() {
 }
 
 uint G1MonotonicArena::num_segments() const {
-  return _num_segments.load_relaxed();
+  return AtomicAccess::load(&_num_segments);
 }
 
 #ifdef ASSERT
@@ -237,7 +238,7 @@ uint G1MonotonicArena::calculate_length() const {
 
 template <typename SegmentClosure>
 void G1MonotonicArena::iterate_segments(SegmentClosure& closure) const {
-  Segment* cur = _first.load_acquire();
+  Segment* cur = AtomicAccess::load_acquire(&_first);
 
   assert((cur != nullptr) == (_last != nullptr),
          "If there is at least one segment, there must be a last one");

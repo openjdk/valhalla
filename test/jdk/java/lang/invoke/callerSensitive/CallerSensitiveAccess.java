@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /* @test
  * @bug 8196830 8235351 8257874 8327639
  * @modules java.base/jdk.internal.reflect
- * @run junit/othervm CallerSensitiveAccess
+ * @run testng/othervm CallerSensitiveAccess
  * @summary Check Lookup findVirtual, findStatic and unreflect behavior with
  *          caller sensitive methods with focus on AccessibleObject.setAccessible
  */
@@ -50,24 +50,25 @@ import java.util.stream.Stream;
 
 import jdk.internal.reflect.CallerSensitive;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.NoInjection;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
 public class CallerSensitiveAccess {
     // Cache the list of Caller Sensitive Methods
     private static List<Method> CALLER_SENSITIVE_METHODS;
 
-    @BeforeAll
-    public static void setupCallerSensitiveMethods() {
+    @BeforeClass
+    private void setupCallerSensitiveMethods() {
         CALLER_SENSITIVE_METHODS = callerSensitiveMethods(Object.class.getModule());
     }
 
     /**
      * Caller sensitive methods in APIs exported by java.base.
      */
+    @DataProvider(name = "callerSensitiveMethods")
     static Object[][] callerSensitiveMethods() {
         return CALLER_SENSITIVE_METHODS.stream()
                 .map(m -> new Object[]{m, shortDescription(m)})
@@ -78,35 +79,34 @@ public class CallerSensitiveAccess {
      * Using publicLookup, attempt to use findVirtual or findStatic to obtain a
      * method handle to a caller sensitive method.
      */
-    @ParameterizedTest
-    @MethodSource("callerSensitiveMethods")
-    public void testPublicLookupFind(Method method, String desc) throws Exception {
+    @Test(dataProvider = "callerSensitiveMethods",
+            expectedExceptions = IllegalAccessException.class)
+    public void testPublicLookupFind(@NoInjection Method method, String desc) throws Exception {
         Lookup lookup = MethodHandles.publicLookup();
         Class<?> refc = method.getDeclaringClass();
         String name = method.getName();
         MethodType mt = MethodType.methodType(method.getReturnType(), method.getParameterTypes());
-        assertThrows(IllegalAccessException.class, () -> {
-            if (Modifier.isStatic(method.getModifiers())) {
-                lookup.findStatic(refc, name, mt);
-            } else {
-                lookup.findVirtual(refc, name, mt);
-            }
-        });
+        if (Modifier.isStatic(method.getModifiers())) {
+            lookup.findStatic(refc, name, mt);
+        } else {
+            lookup.findVirtual(refc, name, mt);
+        }
     }
 
     /**
      * Using publicLookup, attempt to use unreflect to obtain a method handle to a
      * caller sensitive method.
      */
-    @ParameterizedTest
-    @MethodSource("callerSensitiveMethods")
-    public void testPublicLookupUnreflect(Method method, String desc) throws Exception {
-        assertThrows(IllegalAccessException.class, () -> MethodHandles.publicLookup().unreflect(method));
+    @Test(dataProvider = "callerSensitiveMethods",
+            expectedExceptions = IllegalAccessException.class)
+    public void testPublicLookupUnreflect(@NoInjection Method method, String desc) throws Exception {
+        MethodHandles.publicLookup().unreflect(method);
     }
 
     /**
      * public accessible caller sensitive methods in APIs exported by java.base.
      */
+    @DataProvider(name = "accessibleCallerSensitiveMethods")
     static Object[][] accessibleCallerSensitiveMethods() {
         return CALLER_SENSITIVE_METHODS.stream()
                 .filter(m -> Modifier.isPublic(m.getModifiers()))
@@ -119,43 +119,41 @@ public class CallerSensitiveAccess {
      * Using publicLookup, attempt to use unreflect to obtain a method handle to a
      * caller sensitive method.
      */
-    @ParameterizedTest
-    @MethodSource("accessibleCallerSensitiveMethods")
-    public void testLookupUnreflect(Method method, String desc) throws Exception {
-        assertThrows(IllegalAccessException.class, () -> MethodHandles.publicLookup().unreflect(method));
+    @Test(dataProvider = "accessibleCallerSensitiveMethods",
+            expectedExceptions = IllegalAccessException.class)
+    public void testLookupUnreflect(@NoInjection Method method, String desc) throws Exception {
+        MethodHandles.publicLookup().unreflect(method);
     }
 
     /**
      * Using a Lookup with no original access that can't lookup caller-sensitive
      * method
      */
-    @ParameterizedTest
-    @MethodSource("callerSensitiveMethods")
-    public void testLookupNoOriginalAccessFind(Method method, String desc) throws Exception {
+    @Test(dataProvider = "callerSensitiveMethods",
+            expectedExceptions = IllegalAccessException.class)
+    public void testLookupNoOriginalAccessFind(@NoInjection Method method, String desc) throws Exception {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.ORIGINAL);
         assertTrue(lookup.hasFullPrivilegeAccess());
         Class<?> refc = method.getDeclaringClass();
         String name = method.getName();
         MethodType mt = MethodType.methodType(method.getReturnType(), method.getParameterTypes());
-        assertThrows(IllegalAccessException.class, () -> {
-            if (Modifier.isStatic(method.getModifiers())) {
-                lookup.findStatic(refc, name, mt);
-            } else {
-                lookup.findVirtual(refc, name, mt);
-            }
-        });
+        if (Modifier.isStatic(method.getModifiers())) {
+            lookup.findStatic(refc, name, mt);
+        } else {
+            lookup.findVirtual(refc, name, mt);
+        }
     }
 
     /**
      * Using a Lookup with no original access that can't unreflect caller-sensitive
      * method
      */
-    @ParameterizedTest
-    @MethodSource("callerSensitiveMethods")
-    public void testLookupNoOriginalAccessUnreflect(Method method, String desc) throws Exception {
+    @Test(dataProvider = "callerSensitiveMethods",
+            expectedExceptions = IllegalAccessException.class)
+    public void testLookupNoOriginalAccessUnreflect(@NoInjection Method method, String desc) throws Exception {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.ORIGINAL);
         assertTrue(lookup.hasFullPrivilegeAccess());
-        assertThrows(IllegalAccessException.class, () -> lookup.unreflect(method));
+        lookup.unreflect(method);
     }
 
     // -- Test method handles to setAccessible --
@@ -163,12 +161,21 @@ public class CallerSensitiveAccess {
     private int aField;
 
     Field accessibleField() {
-        var clazz = getClass();
-        return assertDoesNotThrow(() -> clazz.getDeclaredField("aField"));
+        try {
+            return getClass().getDeclaredField("aField");
+        } catch (NoSuchFieldException e) {
+            fail();
+            return null;
+        }
     }
 
     Field inaccessibleField() {
-        return assertDoesNotThrow(() -> String.class.getDeclaredField("hash"));
+        try {
+            return String.class.getDeclaredField("hash");
+        } catch (NoSuchFieldException e) {
+            fail();
+            return null;
+        }
     }
 
     void findAndInvokeSetAccessible(Class<? extends AccessibleObject> refc, Field f) throws Throwable {
@@ -213,23 +220,23 @@ public class CallerSensitiveAccess {
      * Create a method handle to setAccessible and attempt to use it to suppress
      * access to an inaccessible member.
      */
-    @Test
+    @Test(expectedExceptions = InaccessibleObjectException.class)
     public void testSetAccessible5() throws Throwable {
-        assertThrows(InaccessibleObjectException.class, () -> findAndInvokeSetAccessible(AccessibleObject.class, inaccessibleField()));
+        findAndInvokeSetAccessible(AccessibleObject.class, inaccessibleField());
     }
-    @Test
+    @Test(expectedExceptions = InaccessibleObjectException.class)
     public void testSetAccessible6() throws Throwable {
-        assertThrows(InaccessibleObjectException.class, () -> findAndInvokeSetAccessible(Field.class, inaccessibleField()));
+        findAndInvokeSetAccessible(Field.class, inaccessibleField());
     }
-    @Test
+    @Test(expectedExceptions = InaccessibleObjectException.class)
     public void testSetAccessible7() throws Throwable {
         Method m = AccessibleObject.class.getMethod("setAccessible", boolean.class);
-        assertThrows(InaccessibleObjectException.class, () -> unreflectAndInvokeSetAccessible(m, inaccessibleField()));
+        unreflectAndInvokeSetAccessible(m, inaccessibleField());
     }
-    @Test
+    @Test(expectedExceptions = InaccessibleObjectException.class)
     public void testSetAccessible8() throws Throwable {
         Method m = Field.class.getMethod("setAccessible", boolean.class);
-        assertThrows(InaccessibleObjectException.class, () -> unreflectAndInvokeSetAccessible(m, inaccessibleField()));
+        unreflectAndInvokeSetAccessible(m, inaccessibleField());
     }
 
 
@@ -239,6 +246,7 @@ public class CallerSensitiveAccess {
      * Custom AccessibleObject objects. One class overrides setAccessible, the other
      * does not override this method.
      */
+    @DataProvider(name = "customAccessibleObjects")
     static Object[][] customAccessibleObjectClasses() {
         return new Object[][] { { new S1() }, { new S2() } };
     }
@@ -268,20 +276,20 @@ public class CallerSensitiveAccess {
      * Using publicLookup, create a method handle to setAccessible and invoke it
      * on a custom AccessibleObject object.
      */
-    @Test
+    @Test(expectedExceptions = IllegalAccessException.class)
     public void testPublicLookupSubclass1() throws Throwable {
         // S1 does not override setAccessible
-        assertThrows(IllegalAccessException.class, () -> findAndInvokeSetAccessible(MethodHandles.publicLookup(), new S1()));
+        findAndInvokeSetAccessible(MethodHandles.publicLookup(), new S1());
     }
     @Test
     public void testPublicLookupSubclass2() throws Throwable {
         // S2 overrides setAccessible
         findAndInvokeSetAccessible(MethodHandles.publicLookup(), new S2());
     }
-    @Test
+    @Test(expectedExceptions = IllegalAccessException.class)
     public void testPublicLookupSubclass3() throws Throwable {
         // S1 does not override setAccessible
-        assertThrows(IllegalAccessException.class, () -> unreflectAndInvokeSetAccessible(MethodHandles.publicLookup(), new S1()));
+        unreflectAndInvokeSetAccessible(MethodHandles.publicLookup(), new S1());
     }
     @Test
     public void testPublicLookupSubclass4() throws Throwable {
@@ -293,13 +301,11 @@ public class CallerSensitiveAccess {
      * Using a full power lookup, create a method handle to setAccessible and
      * invoke it on a custom AccessibleObject object.
      */
-    @ParameterizedTest
-    @MethodSource("customAccessibleObjectClasses")
+    @Test(dataProvider = "customAccessibleObjects")
     public void testLookupSubclass1(AccessibleObject obj) throws Throwable {
         findAndInvokeSetAccessible(MethodHandles.lookup(), obj);
     }
-    @ParameterizedTest
-    @MethodSource("customAccessibleObjectClasses")
+    @Test(dataProvider = "customAccessibleObjects")
     public void testLookupSubclass2(AccessibleObject obj) throws Throwable {
         unreflectAndInvokeSetAccessible(MethodHandles.lookup(), obj);
     }
@@ -308,13 +314,13 @@ public class CallerSensitiveAccess {
      * Using a full power lookup, create a method handle to setAccessible on a
      * sub-class of AccessibleObject and then attempt to invoke it on a Field object.
      */
-    @ParameterizedTest
-    @MethodSource("customAccessibleObjectClasses")
+    @Test(dataProvider = "customAccessibleObjects",
+            expectedExceptions = ClassCastException.class)
     public void testLookupSubclass3(AccessibleObject obj) throws Throwable {
         MethodType mt = MethodType.methodType(void.class, boolean.class);
         Lookup lookup = MethodHandles.lookup();
         MethodHandle mh = lookup.findVirtual(obj.getClass(), "setAccessible", mt);
-        assertThrows(ClassCastException.class, () -> mh.invoke(accessibleField(), true));
+        mh.invoke(accessibleField(), true);  // should throw ClassCastException
     }
 
     /**
@@ -332,29 +338,29 @@ public class CallerSensitiveAccess {
         mh.invoke(f, true);
         assertTrue(f.isAccessible());
     }
-    @Test
+    @Test(expectedExceptions = InaccessibleObjectException.class)
     public void testLookupSubclass5() throws Throwable {
         // S1 does not override setAccessible
         Method m = S1.class.getMethod("setAccessible", boolean.class);
         assertTrue(m.getDeclaringClass() == AccessibleObject.class);
         MethodHandle mh = MethodHandles.lookup().unreflect(m);
-        assertThrows(InaccessibleObjectException.class, () -> mh.invoke(inaccessibleField(), true));
+        mh.invoke(inaccessibleField(), true);  // should throw InaccessibleObjectException
     }
-    @Test
+    @Test(expectedExceptions = ClassCastException.class)
     public void testLookupSubclass6() throws Throwable {
         // S2 overrides setAccessible
         Method m = S2.class.getMethod("setAccessible", boolean.class);
         assertTrue(m.getDeclaringClass() == S2.class);
         MethodHandle mh = MethodHandles.lookup().unreflect(m);
-        assertThrows(ClassCastException.class, () -> mh.invoke(accessibleField(), true));
+        mh.invoke(accessibleField(), true);  // should throw ClassCastException
     }
-    @Test
+    @Test(expectedExceptions = ClassCastException.class)
     public void testLookupSubclass7() throws Throwable {
         // S2 overrides setAccessible
         Method m = S2.class.getMethod("setAccessible", boolean.class);
         assertTrue(m.getDeclaringClass() == S2.class);
         MethodHandle mh = MethodHandles.lookup().unreflect(m);
-        assertThrows(ClassCastException.class, () -> mh.invoke(inaccessibleField(), true));
+        mh.invoke(inaccessibleField(), true);  // should throw ClassCastException
     }
 
     /**
@@ -372,7 +378,7 @@ public class CallerSensitiveAccess {
         // Field::getInt
         mh = MethodHandles.lookup().findVirtual(Field.class, "getInt", MethodType.methodType(int.class, Object.class));
         int value = (int)mh.invokeExact(f, (Object)null);
-        assertEquals(5, value);
+        assertTrue(value == 5);
     }
 
     private static class Inner {
@@ -400,7 +406,7 @@ public class CallerSensitiveAccess {
      * Returns a List instead of a stream so the ModuleReader can be closed before returning.
      */
     static List<Method> callerSensitiveMethods(Module module) {
-        assertTrue(module.isNamed());
+        assert module.isNamed();
         ModuleReference mref = module.getLayer().configuration()
                 .findModule(module.getName())
                 .orElseThrow(() -> new RuntimeException())

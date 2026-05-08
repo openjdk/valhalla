@@ -642,7 +642,7 @@ public class ObjectReader {
    public Object readMethodOrConstructor(sun.jvm.hotspot.oops.Method m)
                      throws NoSuchMethodException, ClassNotFoundException {
       String name = m.getName().asString();
-      if (name.equals("<init>")) {
+      if (name.equals("<init>") || name.equals("<vnew>")) {
          return readConstructor(m);
       } else {
          return readMethod(m);

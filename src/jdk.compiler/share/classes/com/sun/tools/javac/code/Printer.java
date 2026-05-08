@@ -53,7 +53,6 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
 
     List<Type> seenCaptured = List.nil();
     static final int PRIME = 997;  // largest prime less than 1000
-    private boolean printingMethodArgs;
 
     protected Printer() { }
 
@@ -196,9 +195,6 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
     }
 
     private String printAnnotations(Type t, boolean prefix) {
-        if (printingMethodArgs) {
-            return "";
-        }
         StringBuilder sb = new StringBuilder();
         List<Attribute.TypeCompound> annos = t.getAnnotationMirrors();
         if (!annos.isEmpty()) {
@@ -341,28 +337,27 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
      * @return localized string representation
      */
     protected String printMethodArgs(List<Type> args, boolean varArgs, Locale locale) {
-        boolean prev = printingMethodArgs;
-        printingMethodArgs = true;
-        try {
-            if (!varArgs) {
-                return visitTypes(args, locale);
-            } else {
-                StringBuilder buf = new StringBuilder();
-                while (args.tail.nonEmpty()) {
-                    buf.append(visit(args.head, locale));
-                    args = args.tail;
-                    buf.append(',');
-                }
-                if (args.head.hasTag(TypeTag.ARRAY)) {
-                    buf.append(visit(((ArrayType) args.head).elemtype, locale));
-                    buf.append("...");
-                } else {
-                    buf.append(visit(args.head, locale));
-                }
-                return buf.toString();
+        if (!varArgs) {
+            return visitTypes(args, locale);
+        } else {
+            StringBuilder buf = new StringBuilder();
+            while (args.tail.nonEmpty()) {
+                buf.append(visit(args.head, locale));
+                args = args.tail;
+                buf.append(',');
             }
-        } finally {
-          printingMethodArgs = prev;
+            if (args.head.hasTag(TypeTag.ARRAY)) {
+                buf.append(visit(((ArrayType) args.head).elemtype, locale));
+                if (args.head.getAnnotationMirrors().nonEmpty()) {
+                    buf.append(' ');
+                    buf.append(args.head.getAnnotationMirrors());
+                    buf.append(' ');
+                }
+                buf.append("...");
+            } else {
+                buf.append(visit(args.head, locale));
+            }
+            return buf.toString();
         }
     }
 

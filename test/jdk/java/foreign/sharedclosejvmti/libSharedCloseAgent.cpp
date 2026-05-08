@@ -23,12 +23,10 @@
 
 #include <jvmti.h>
 
-#include <cstring>
-#include <cstdlib>
+#include <string.h>
 
 static jclass MAIN_CLS;
 static jmethodID TARGET_ID;
-static jclass EXCEPTION_CLS;
 
 static const char* TARGET_CLASS_NAME = "TestSharedCloseJvmti$EventDuringScopedAccessRunner";
 static const char* TARGET_METHOD_NAME = "target";
@@ -36,8 +34,6 @@ static const char* TARGET_METHOD_SIG = "()V";
 
 static const char* INTERCEPT_CLASS_NAME = "Ljdk/internal/foreign/MemorySessionImpl;";
 static const char* INTERCEPT_METHOD_NAME = "checkValidStateRaw";
-
-static const char* EXCEPTION_CLASS_NAME = "Ljdk/internal/misc/ScopedMemoryAccess$ScopedAccessError;";
 
 void start(jvmtiEnv*, JNIEnv* jni_env, jthread) {
 
@@ -54,14 +50,6 @@ void start(jvmtiEnv*, JNIEnv* jni_env, jthread) {
     jni_env->ExceptionDescribe();
     return;
   }
-
-  jclass ex_cls = jni_env->FindClass(EXCEPTION_CLASS_NAME);
-  if (ex_cls == nullptr) {
-    jni_env->ExceptionDescribe();
-    return;
-  }
-
-  EXCEPTION_CLS = (jclass) jni_env->NewGlobalRef(ex_cls);
 }
 
 void method_exit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread, jmethodID method,
@@ -72,44 +60,38 @@ void method_exit(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread, jmethodID
     return;
   }
 
-  bool is_intercept_method = strcmp(method_name, INTERCEPT_METHOD_NAME) == 0;
-  jvmti_env->Deallocate((unsigned char*) method_name);
-  if (!is_intercept_method) {
+  if (strcmp(method_name, INTERCEPT_METHOD_NAME) != 0) {
+    jvmti_env->Deallocate((unsigned char*) method_name);
     return;
   }
 
   jclass cls;
   err = jvmti_env->GetMethodDeclaringClass(method, &cls);
   if (err != JVMTI_ERROR_NONE) {
+    jvmti_env->Deallocate((unsigned char*) method_name);
     return;
   }
 
   char* class_sig = nullptr;
   err = jvmti_env->GetClassSignature(cls, &class_sig, nullptr);
   if (err != JVMTI_ERROR_NONE) {
+    jvmti_env->Deallocate((unsigned char*) method_name);
     return;
   }
 
-  bool is_intercept_class = strcmp(class_sig, INTERCEPT_CLASS_NAME) == 0;
-  jvmti_env->Deallocate((unsigned char*) class_sig);
-  if (!is_intercept_class) {
+  if (strcmp(class_sig, INTERCEPT_CLASS_NAME) != 0) {
+    jvmti_env->Deallocate((unsigned char*) method_name);
+    jvmti_env->Deallocate((unsigned char*) class_sig);
     return;
   }
 
   jni_env->CallStaticVoidMethod(MAIN_CLS, TARGET_ID);
-  jthrowable ex = jni_env->ExceptionOccurred();
-  if (ex != nullptr) {
-    // we can not return with a pending exception from this JMVTI callback,
-    // and there is no way to propagate it to the caller so that the memory
-    // access will be interrupted.
-    // We log the exception for testing purposes end then terminate the process.
+  if (jni_env->ExceptionOccurred()) {
     jni_env->ExceptionDescribe();
-    if (jni_env->IsInstanceOf(ex, EXCEPTION_CLS)) {
-      exit(0); // success
-    }
-    // else, another exception was thrown. Let the java logic handle the lack of
-    // ScopedAccessError
   }
+
+  jvmti_env->Deallocate((unsigned char*) method_name);
+  jvmti_env->Deallocate((unsigned char*) class_sig);
 }
 
 JNIEXPORT jint JNICALL

@@ -39,8 +39,7 @@ static int icache_flush(address addr, int lines, int magic) {
   // We need to make sure stores happens before the I/D cache synchronization.
   __asm__ volatile("fence rw, rw" : : : "memory");
 
-  uintptr_t end = (uintptr_t)addr + ((uintptr_t)lines << ICache::log2_line_size);
-  RiscvFlushIcache::flush((uintptr_t)addr, end);
+  RiscvFlushIcache::flush((uintptr_t)addr, ((uintptr_t)lines) << ICache::log2_line_size);
 
   return magic;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@ package org.openjdk.bench.valhalla.sum;
 
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.NullRestricted;
+import jdk.internal.vm.annotation.Strict;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.CompilerControl;
 import org.openjdk.jmh.annotations.Fork;
@@ -60,6 +61,7 @@ public class ValueNullFree extends SumBase {
     }
 
     public static value class ValueInt2_w2_d1 implements InterfaceSum {
+        @Strict
         @NullRestricted
         public final ValueInt v0, v1;
 
@@ -93,6 +95,7 @@ public class ValueNullFree extends SumBase {
     }
 
     public static value class ValueInt4_w4_d1 implements InterfaceSum {
+        @Strict
         @NullRestricted
         public final ValueInt v0, v1, v2, v3;
 
@@ -113,6 +116,7 @@ public class ValueNullFree extends SumBase {
     }
 
     public static value  class ValueInt4_w2_d1 implements InterfaceSum {
+        @Strict
         @NullRestricted
         public final ValueInt2_w2_d0 v0, v1;
 
@@ -131,6 +135,7 @@ public class ValueNullFree extends SumBase {
     }
 
     public static value class ValueInt4_w2_d2 implements InterfaceSum {
+        @Strict
         @NullRestricted
         public final ValueInt2_w2_d1 v0, v1;
 

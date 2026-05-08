@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,13 @@
 /*
  * @test
  * @build DummyWebSocketServer
- * @run junit/othervm
+ * @run testng/othervm
  *      -Djdk.internal.httpclient.debug=true
  *      -Djdk.internal.httpclient.websocket.debug=true
- *       ${test.main.class}
+ *       BlowupOutputQueue
  */
+
+import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.net.http.WebSocket;
@@ -41,8 +43,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.testng.Assert.assertFalse;
 
 public class BlowupOutputQueue extends PendingOperations {
 

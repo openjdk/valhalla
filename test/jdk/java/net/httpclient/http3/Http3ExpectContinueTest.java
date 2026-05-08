@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,15 +27,20 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @compile ../ReferenceTracker.java
  * @build jdk.httpclient.test.lib.common.HttpServerAdapters
- * @run junit/othervm -Djdk.internal.httpclient.debug=true
+ * @run testng/othervm -Djdk.internal.httpclient.debug=true
  *                     -Djdk.httpclient.HttpClient.log=errors,requests,headers
- *                     ${test.main.class}
+ *                     Http3ExpectContinueTest
  */
 
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.httpclient.test.lib.http3.Http3TestServer;
 import jdk.httpclient.test.lib.quic.QuicServer;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.TestException;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -55,20 +60,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static java.net.http.HttpClient.Version.HTTP_3;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.*;
 
 public class Http3ExpectContinueTest implements HttpServerAdapters {
 
-    private static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
+    ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
-    private static Http3TestServer http3TestServer;
+    Http3TestServer http3TestServer;
 
-    private static URI h3postUri, h3forcePostUri, h3hangUri;
+    URI h3postUri, h3forcePostUri, h3hangUri;
 
     static PrintStream err = new PrintStream(System.err);
     static PrintStream out = new PrintStream(System.out);
@@ -76,9 +76,10 @@ public class Http3ExpectContinueTest implements HttpServerAdapters {
     static final String CONTINUE_100 = "100 Continue";
     static final String RESPONSE_BODY= "Verify response received";
     static final String BODY = "Post body";
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
+    private SSLContext sslContext;
 
-    public static Object[][] urisData() {
+    @DataProvider(name = "uris")
+    public Object[][] urisData() {
         return new Object[][]{
                 // URI, Expected Status Code, Will finish with Exception
                 { h3postUri, 200, false },
@@ -87,8 +88,7 @@ public class Http3ExpectContinueTest implements HttpServerAdapters {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("urisData")
+    @Test(dataProvider = "uris")
     public void test(URI uri, int expectedStatusCode, boolean exceptionally)
             throws CancellationException, InterruptedException, ExecutionException, IOException {
 
@@ -149,8 +149,12 @@ public class Http3ExpectContinueTest implements HttpServerAdapters {
         }
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null) {
+            throw new AssertionError("Unexpected null sslContext");
+        }
         final QuicServer quicServer = Http3TestServer.quicServerBuilder()
                 .sslContext(sslContext)
                 .build();
@@ -167,8 +171,8 @@ public class Http3ExpectContinueTest implements HttpServerAdapters {
         http3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws IOException {
+    @AfterTest
+    public void teardown() throws IOException {
         var error = TRACKER.check(500);
         if (error != null) throw error;
         http3TestServer.stop();
@@ -233,11 +237,11 @@ public class Http3ExpectContinueTest implements HttpServerAdapters {
         }
         if (exceptionally && testThrowable != null) {
             err.println("Finished exceptionally Test throwable: " + testThrowable);
-            assertEquals(testThrowable.getClass(), IOException.class);
+            assertEquals(IOException.class, testThrowable.getClass());
         } else if (exceptionally) {
-            fail("Expected case to finish with an IOException but testException is null");
+            throw new TestException("Expected case to finish with an IOException but testException is null");
         } else if (resp != null) {
-            assertEquals(expectedStatusCode, resp.statusCode());
+            assertEquals(resp.statusCode(), expectedStatusCode);
             err.println("Request completed successfully for path " + path);
             err.println("Response Headers: " + resp.headers());
             err.println("Response Status Code: " + resp.statusCode());

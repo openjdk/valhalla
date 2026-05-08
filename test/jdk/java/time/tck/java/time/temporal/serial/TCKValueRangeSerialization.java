@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,8 @@
  */
 package tck.java.time.temporal.serial;
 
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -70,20 +71,19 @@ import java.io.ObjectOutputStream;
 import java.time.temporal.ValueRange;
 import java.util.Arrays;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 import tck.java.time.AbstractTCKTest;
 
 /**
  * Test serialization of ValueRange.
  */
+@Test
 public class TCKValueRangeSerialization extends AbstractTCKTest {
 
     //-----------------------------------------------------------------------
     // Serialization
     //-----------------------------------------------------------------------
-    @Test
     public void test_serialization() throws Exception {
         ValueRange range = ValueRange.of(1, 2, 3, 4);
         assertSerializable(range);
@@ -94,7 +94,6 @@ public class TCKValueRangeSerialization extends AbstractTCKTest {
      * Verify Serialized bytes of a ValueRange.
      * @throws IOException if thrown during serialization is an unexpected test tailure
      */
-    @Test
     public void test_valueRangeSerialized() throws IOException {
         byte[] expected = {
             (byte)172, (byte)237,   0,   5, 115, 114,   0,  29, 106,  97, /* \u00ac \u00ed \u0000 \u0005 s r \u0000 \u001d j a */
@@ -119,7 +118,7 @@ public class TCKValueRangeSerialization extends AbstractTCKTest {
             oos.writeObject(range);
 
             byte[] actual = baos.toByteArray();
-            Assertions.assertArrayEquals(expected, actual, "Serialized bytes incorrect");
+            assertEquals(actual, expected, "Serialized bytes incorrect");
         }
     }
 

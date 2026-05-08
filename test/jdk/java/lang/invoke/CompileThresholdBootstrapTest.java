@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,19 +26,27 @@
  * @bug 8143232
  * @summary Test verifies that LF bootstraps properly when run with COMPILE_THRESHOLD set
  * @compile CompileThresholdBootstrapTest.java
- * @run junit/othervm -Djava.lang.invoke.MethodHandle.COMPILE_THRESHOLD=30 test.java.lang.invoke.CompileThresholdBootstrapTest
+ * @run testng/othervm -Djava.lang.invoke.MethodHandle.COMPILE_THRESHOLD=30 test.java.lang.invoke.CompileThresholdBootstrapTest
  */
 package test.java.lang.invoke;
 
 import java.lang.invoke.MethodHandles;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.testng.*;
+import org.testng.annotations.*;
 
 public final class CompileThresholdBootstrapTest {
 
     @Test
     public void testBootstrap() throws Throwable {
-        assertEquals(0, (int)MethodHandles.constant(int.class, (int)0).invokeExact());
+        Assert.assertEquals((int)MethodHandles.constant(int.class, (int)0).invokeExact(), 0);
+    }
+
+    public static void main(String ... args) {
+        try {
+            CompileThresholdBootstrapTest test = new CompileThresholdBootstrapTest();
+            test.testBootstrap();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 }

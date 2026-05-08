@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,6 @@ import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.reflect.AccessFlagSet;
 import jdk.internal.vm.annotation.Stable;
 import sun.reflect.annotation.AnnotationParser;
 import sun.reflect.annotation.AnnotationSupport;
@@ -94,15 +93,31 @@ public abstract sealed class Executable extends AccessibleObject
                getDeclaringClass());
     }
 
-    // Appends source modifiers of this declaration to a display string builder.
-    abstract void appendModifiers(StringBuilder sb);
+    void printModifiersIfNonzero(StringBuilder sb, int mask, boolean isDefault) {
+        int mod = getModifiers() & mask;
 
-    String sharedToString(Class<?>[] parameterTypes,
+        if (mod != 0 && !isDefault) {
+            sb.append(Modifier.toString(mod)).append(' ');
+        } else {
+            int access_mod = mod & Modifier.ACCESS_MODIFIERS;
+            if (access_mod != 0)
+                sb.append(Modifier.toString(access_mod)).append(' ');
+            if (isDefault)
+                sb.append("default ");
+            mod = (mod & ~Modifier.ACCESS_MODIFIERS);
+            if (mod != 0)
+                sb.append(Modifier.toString(mod)).append(' ');
+        }
+    }
+
+    String sharedToString(int modifierMask,
+                          boolean isDefault,
+                          Class<?>[] parameterTypes,
                           Class<?>[] exceptionTypes) {
         try {
             StringBuilder sb = new StringBuilder();
 
-            appendModifiers(sb);
+            printModifiersIfNonzero(sb, modifierMask, isDefault);
             specificToStringHeader(sb);
             sb.append(Arrays.stream(parameterTypes)
                       .map(Type::getTypeName)
@@ -136,11 +151,11 @@ public abstract sealed class Executable extends AccessibleObject
         }
     }
 
-    String sharedToGenericString() {
+    String sharedToGenericString(int modifierMask, boolean isDefault) {
         try {
             StringBuilder sb = new StringBuilder();
 
-            appendModifiers(sb);
+            printModifiersIfNonzero(sb, modifierMask, isDefault);
 
             TypeVariable<?>[] typeparms = getTypeParameters();
             if (typeparms.length > 0) {
@@ -211,7 +226,9 @@ public abstract sealed class Executable extends AccessibleObject
      */
     @Override
     public Set<AccessFlag> accessFlags() {
-        return AccessFlagSet.ofValidated(AccessFlagSet.METHOD_FLAGS, getModifiers());
+        return reflectionFactory.parseAccessFlags(getModifiers(),
+                                                  AccessFlag.Location.METHOD,
+                                                  getDeclaringClass());
     }
 
     /**
@@ -532,9 +549,7 @@ public abstract sealed class Executable extends AccessibleObject
      * {@return a string describing this {@code Executable}, including
      * any type parameters}
      */
-    public String toGenericString() {
-        return sharedToGenericString();
-    }
+    public abstract String toGenericString();
 
     /**
      * {@return {@code true} if this executable was declared to take a

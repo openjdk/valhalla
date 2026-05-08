@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -124,19 +124,21 @@ final class CfgFile {
         Files.write(cfgFile, (Iterable<String>) lines::iterator);
     }
 
-    private record Referencies(Path appModsDirectory, Path appDirectory) {
+    private record Referencies(Path appModsDirectory) {
 
         Referencies {
-            if (!appModsDirectory.startsWith(appDirectory)) {
+            if (!appModsDirectory.startsWith(appDirectory())) {
                 throw new IllegalArgumentException();
             }
         }
 
         Referencies(ApplicationLayout appLayout) {
-            this(BASEDIR.resolve(appLayout.appModsDirectory().getFileName()), BASEDIR);
+            this(Path.of("$APPDIR").resolve(appLayout.appModsDirectory().getFileName()));
         }
 
-        private static final Path BASEDIR = Path.of("$APPDIR");
+        Path appDirectory() {
+            return Path.of("$APPDIR");
+        }
     }
 
     private final LauncherStartupInfo startupInfo;

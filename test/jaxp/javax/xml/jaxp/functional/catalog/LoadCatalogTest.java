@@ -23,12 +23,6 @@
 
 package catalog;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import javax.xml.catalog.CatalogException;
-import javax.xml.catalog.CatalogResolver;
-
 import static catalog.CatalogTestUtils.CATALOG_PUBLIC;
 import static catalog.CatalogTestUtils.CATALOG_SYSTEM;
 import static catalog.CatalogTestUtils.CATALOG_URI;
@@ -36,13 +30,18 @@ import static catalog.CatalogTestUtils.catalogResolver;
 import static catalog.CatalogTestUtils.catalogUriResolver;
 import static catalog.ResolutionChecker.checkSysIdResolution;
 import static catalog.ResolutionChecker.checkUriResolution;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import javax.xml.catalog.CatalogException;
+import javax.xml.catalog.CatalogResolver;
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.LoadCatalogTest
+ * @run testng/othervm catalog.LoadCatalogTest
  * @summary When catalog resolver loads catalog files, the current catalog file
  *          and the catalog files specified by the nextCatalog entries may not
  *          accessible. This case tests how does the resolver handle this issue.
@@ -56,14 +55,14 @@ public class LoadCatalogTest {
     private static final String ID_ALICE_URI = "http://remote/dtd/uri/alice/docAlice.dtd";
     private static final String ID_DUMMY = "http://remote/dtd/doc.dtd";
 
-    @ParameterizedTest
-    @MethodSource("entityResolver")
+    @Test(dataProvider = "entityResolver")
     public void testMatchOnEntityResolver(CatalogResolver resolver) {
         checkSysIdResolution(resolver, ID_ALICE,
                 "http://local/dtd/docAliceSys.dtd");
     }
 
-    public static Object[][] entityResolver() {
+    @DataProvider(name = "entityResolver")
+    public Object[][] entityResolver() {
         return new Object[][] {
                 // This EntityResolver loads multiple catalog files one by one.
                 // All of the files are available.
@@ -76,14 +75,14 @@ public class LoadCatalogTest {
                         CATALOG_SYSTEM) } };
     }
 
-    @ParameterizedTest
-    @MethodSource("uriResolver")
+    @Test(dataProvider = "uriResolver")
     public void testMatchOnUriResolver(CatalogResolver resolver) {
         checkUriResolution(resolver, ID_ALICE_URI,
                 "http://local/dtd/docAliceURI.dtd");
     }
 
-    public static Object[][] uriResolver() {
+    @DataProvider(name = "uriResolver")
+    public Object[][] uriResolver() {
         return new Object[][] {
                 // This URIResolver loads multiple catalog files one by one.
                 // All of the files are available.
@@ -96,21 +95,20 @@ public class LoadCatalogTest {
                         CATALOG_URI) } };
     }
 
-    @ParameterizedTest
-    @MethodSource("catalogName")
-    public void testException(String[] catalogName) {
-        CatalogResolver resolver = catalogResolver(catalogName);
-        assertThrows(CatalogException.class, () -> resolver.resolveEntity(null, ID_DUMMY));
+    @Test(dataProvider = "catalogName",
+            expectedExceptions = CatalogException.class)
+    public void testExceptionOnEntityResolver(String[] catalogName) {
+        catalogResolver(catalogName).resolveEntity(null, ID_DUMMY);
     }
 
-    @ParameterizedTest
-    @MethodSource("catalogName")
+    @Test(dataProvider = "catalogName",
+            expectedExceptions = CatalogException.class)
     public void testExceptionOnUriResolver(String[] catalogName) {
-        CatalogResolver resolver = catalogUriResolver(catalogName);
-        assertThrows(CatalogException.class, () -> resolver.resolve(ID_DUMMY, null));
+        catalogUriResolver(catalogName).resolve(ID_DUMMY, null);
     }
 
-    public static Object[][] catalogName() {
+    @DataProvider(name = "catalogName")
+    public Object[][] catalogName() {
         return new Object[][] {
                 // This catalog file set includes null catalog files.
                 { (String[]) null },

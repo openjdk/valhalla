@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -134,10 +134,11 @@ Java_sun_nio_ch_IOUtil_setfdVal(JNIEnv *env, jclass clazz, jobject fdo, jint val
 
 JNIEXPORT void JNICALL
 Java_sun_nio_ch_IOUtil_configureBlocking(JNIEnv *env, jclass clazz,
-                                         jint fd, jboolean blocking)
+                                        jobject fdo, jboolean blocking)
 {
     u_long argp;
     int result = 0;
+    jint fd = fdval(env, fdo);
 
     if (blocking == JNI_FALSE) {
         argp = SET_NONBLOCKING;

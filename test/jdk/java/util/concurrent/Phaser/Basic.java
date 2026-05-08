@@ -434,9 +434,11 @@ public class Basic {
             String name = info.getThreadName();
             if ("Signal Dispatcher".equals(name))
                 continue;
-            if ("Reference Handler".equals(name))
+            if ("Reference Handler".equals(name)
+                && info.getLockName().startsWith("java.lang.ref.Reference$Lock"))
                 continue;
-            if ("Finalizer".equals(name))
+            if ("Finalizer".equals(name)
+                && info.getLockName().startsWith("java.lang.ref.ReferenceQueue$Lock"))
                 continue;
             if (name.startsWith("process reaper"))
                 continue;

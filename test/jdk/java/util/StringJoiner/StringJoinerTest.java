@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,25 +26,18 @@
  * @summary tests StringJoinerTest
  * @modules java.base/jdk.internal.util
  * @requires vm.bits == "64" & os.maxMemory > 4G
- * @run junit/othervm -Xmx4g -XX:+CompactStrings StringJoinerTest
+ * @run testng/othervm -Xmx4g -XX:+CompactStrings StringJoinerTest
  * @author Jim Gish
  */
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
-
 import java.util.ArrayList;
 import java.util.StringJoiner;
-
+import org.testng.annotations.Test;
 import static jdk.internal.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
-@Tag("unit")
-@Tag("string")
-@Tag("util")
-@Tag("libs")
+
+@Test(groups = {"unit","string","util","libs"})
 public class StringJoinerTest {
 
     private static final String EMPTY = "EMPTY";
@@ -58,7 +51,6 @@ public class StringJoinerTest {
     private static final String DASH = "-";
     private static final String MAX_STRING = "*".repeat(SOFT_MAX_ARRAY_LENGTH);
 
-    @Test
     public void addAddAll() {
         StringJoiner sj = new StringJoiner(DASH, "{", "}");
         sj.add(ONE);
@@ -69,7 +61,7 @@ public class StringJoinerTest {
         nextOne.stream().forEachOrdered(sj::add);
 
         String expected = "{"+ONE+DASH+TWO+DASH+THREE+"}";
-        assertEquals(expected, sj.toString());
+        assertEquals(sj.toString(), expected);
     }
 
     void addAlladd() {
@@ -83,11 +75,10 @@ public class StringJoinerTest {
         sj.add(THREE);
 
         String expected = "{"+ONE+DASH+TWO+DASH+THREE+"}";
-        assertEquals(expected, sj.toString());
+        assertEquals(sj.toString(), expected);
     }
 
     // The following tests do two successive adds of different types
-    @Test
     public void addAlladdAll() {
         StringJoiner sj = new StringJoiner(DASH, "{", "}");
         ArrayList<String> firstOne = new ArrayList<>();
@@ -102,10 +93,9 @@ public class StringJoinerTest {
         nextOne.stream().forEachOrdered(sj::add);
 
         String expected = "{"+ONE+DASH+TWO+DASH+THREE+DASH+FOUR+DASH+FIVE+"}";
-        assertEquals(expected, sj.toString());
+        assertEquals(sj.toString(), expected);
     }
 
-    @Test
     public void addCharSequence() {
         StringJoiner sj = new StringJoiner(",");
         CharSequence cs_one = ONE;
@@ -114,13 +104,13 @@ public class StringJoinerTest {
         sj.add(cs_one);
         sj.add(cs_two);
 
-        assertEquals(ONE + "," + TWO, sj.toString());
+        assertEquals(sj.toString(), ONE + "," + TWO);
 
         sj = new StringJoiner(DASH, "{", "}");
         sj.add(cs_one);
         sj.add(cs_two);
 
-        assertEquals("{" + ONE + DASH + TWO + "}", sj.toString());
+        assertEquals(sj.toString(), "{" + ONE + DASH + TWO + "}");
 
         StringBuilder builder = new StringBuilder(ONE);
         StringBuffer buffer = new StringBuffer(THREE);
@@ -128,14 +118,13 @@ public class StringJoinerTest {
         sj.add(builder).add(buffer);
         builder.append(TWO);
         buffer.append(FOUR);
-        assertEquals("{ " + ONE + ", " + THREE + " }", sj.toString(),
+        assertEquals(sj.toString(), "{ " + ONE + ", " + THREE + " }",
                 "CharSequence is copied when add");
         sj.add(builder);
-        assertEquals("{ " + ONE + ", " + THREE + ", " + ONE +
-                TWO + " }", sj.toString());
+        assertEquals(sj.toString(), "{ " + ONE + ", " + THREE + ", " + ONE +
+                TWO + " }");
     }
 
-    @Test
     public void addCharSequenceWithEmptyValue() {
         StringJoiner sj = new StringJoiner(",").setEmptyValue(EMPTY);
         CharSequence cs_one = ONE;
@@ -144,200 +133,189 @@ public class StringJoinerTest {
         sj.add(cs_one);
         sj.add(cs_two);
 
-        assertEquals(ONE + "," + TWO, sj.toString());
+        assertEquals(sj.toString(), ONE + "," + TWO);
 
         sj = new StringJoiner(DASH, "{", "}");
         sj.add(cs_one);
         sj.add(cs_two);
-        assertEquals("{" + ONE + DASH + TWO + "}", sj.toString());
+        assertEquals(sj.toString(), "{" + ONE + DASH + TWO + "}");
 
         sj = new StringJoiner(DASH, "{", "}");
-        assertEquals("{}", sj.toString());
+        assertEquals(sj.toString(), "{}");
 
         sj = new StringJoiner("=", "{", "}").setEmptyValue("");
-        assertEquals("", sj.toString());
+        assertEquals(sj.toString(), "");
 
         sj = new StringJoiner(DASH, "{", "}").setEmptyValue(EMPTY);
-        assertEquals(EMPTY, sj.toString());
+        assertEquals(sj.toString(), EMPTY);
 
         sj.add(cs_one);
         sj.add(cs_two);
-        assertEquals("{" + ONE + DASH + TWO + "}", sj.toString());
+        assertEquals(sj.toString(), "{" + ONE + DASH + TWO + "}");
     }
 
-    @Test
     public void addString() {
         StringJoiner sj = new StringJoiner(DASH);
         sj.add(ONE);
-        assertEquals(ONE, sj.toString());
+        assertEquals(sj.toString(), ONE);
 
         sj = new StringJoiner(DASH, "{", "}");
         sj.add(ONE);
-        assertEquals("{" + ONE + "}", sj.toString());
+        assertEquals(sj.toString(), "{" + ONE + "}");
 
         sj.add(TWO);
-        assertEquals("{" + ONE + DASH + TWO + "}", sj.toString());
+        assertEquals(sj.toString(), "{" + ONE + DASH + TWO + "}");
     }
 
-    @Test
     public void lengthWithCustomEmptyValue() {
         StringJoiner sj = new StringJoiner(DASH, "<", ">").setEmptyValue(EMPTY);
-        assertEquals(EMPTY.length(), sj.length());
+        assertEquals(sj.length(), EMPTY.length());
         sj.add("");
-        assertEquals("<>".length(), sj.length());
+        assertEquals(sj.length(), "<>".length());
         sj.add("");
-        assertEquals("<->".length(), sj.length());
+        assertEquals(sj.length(), "<->".length());
         sj.add(ONE);
-        assertEquals(4 + ONE_LEN, sj.length());
-        assertEquals(sj.length(), sj.toString().length());
+        assertEquals(sj.length(), 4 + ONE_LEN);
+        assertEquals(sj.toString().length(), sj.length());
         sj.add(TWO);
-        assertEquals(5 + ONE_LEN + TWO_LEN, sj.length());
-        assertEquals(sj.length(), sj.toString().length());
+        assertEquals(sj.length(), 5 + ONE_LEN + TWO_LEN);
+        assertEquals(sj.toString().length(), sj.length());
         sj = new StringJoiner("||", "<", "-->");
-        assertEquals(4, sj.length());
-        assertEquals(sj.length(), sj.toString().length());
+        assertEquals(sj.length(), 4);
+        assertEquals(sj.toString().length(), sj.length());
         sj.add("abcdef");
-        assertEquals(10, sj.length());
-        assertEquals(sj.length(), sj.toString().length());
+        assertEquals(sj.length(), 10);
+        assertEquals(sj.toString().length(), sj.length());
         sj.add("xyz");
-        assertEquals(15, sj.length());
-        assertEquals(sj.length(), sj.toString().length());
+        assertEquals(sj.length(), 15);
+        assertEquals(sj.toString().length(), sj.length());
     }
 
-    @Test
     public void noAddAndEmptyValue() {
         StringJoiner sj = new StringJoiner(DASH, "", "").setEmptyValue(EMPTY);
-        assertEquals(EMPTY, sj.toString());
+        assertEquals(sj.toString(), EMPTY);
 
         sj = new StringJoiner(DASH, "<..", "");
-        assertEquals("<..", sj.toString());
+        assertEquals(sj.toString(), "<..");
 
         sj = new StringJoiner(DASH, "<..", "");
-        assertEquals("<..", sj.toString());
+        assertEquals(sj.toString(), "<..");
 
         sj = new StringJoiner(DASH, "", "==>");
-        assertEquals("==>", sj.toString());
+        assertEquals(sj.toString(), "==>");
 
         sj = new StringJoiner(DASH, "{", "}");
-        assertEquals("{}", sj.toString());
+        assertEquals(sj.toString(), "{}");
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void setEmptyValueNull() {
-        Assertions.assertThrows(NullPointerException.class,
-                () -> new StringJoiner(DASH, "{", "}").setEmptyValue(null));
+        new StringJoiner(DASH, "{", "}").setEmptyValue(null);
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void setDelimiterNull() {
-        Assertions.assertThrows(NullPointerException.class,
-                () -> new StringJoiner(null));
+        new StringJoiner(null);
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void setPrefixNull() {
-        Assertions.assertThrows(NullPointerException.class,
-                () -> new StringJoiner(DASH, null, "}"));
+        new StringJoiner(DASH, null, "}");
     }
 
-    @Test
+    @Test(expectedExceptions = {NullPointerException.class})
     public void setSuffixNull() {
-        Assertions.assertThrows(NullPointerException.class,
-                () -> new StringJoiner(DASH, "{", null));
+        new StringJoiner(DASH, "{", null);
     }
 
-    @Test
     public void stringFromtoString() {
         StringJoiner sj = new StringJoiner(", ");
-        assertEquals("", sj.toString());
+        assertEquals(sj.toString(), "");
         sj = new StringJoiner(",", "{", "}");
-        assertEquals("{}", sj.toString());
+        assertEquals(sj.toString(), "{}");
 
         sj = new StringJoiner(",");
         sj.add(ONE);
-        assertEquals(ONE, sj.toString());
+        assertEquals(sj.toString(), ONE);
 
         sj.add(TWO);
-        assertEquals(ONE + "," + TWO, sj.toString());
+        assertEquals(sj.toString(), ONE + "," + TWO);
 
         sj = new StringJoiner(",", "{--", "--}");
         sj.add(ONE);
         sj.add(TWO);
-        assertEquals("{--" + ONE + "," + TWO + "--}", sj.toString());
+        assertEquals(sj.toString(), "{--" + ONE + "," + TWO + "--}");
 
     }
 
-    @Test
     public void stringFromtoStringWithEmptyValue() {
         StringJoiner sj = new StringJoiner(" ", "", "");
-        assertEquals("", sj.toString());
+        assertEquals(sj.toString(), "");
         sj = new StringJoiner(", ");
-        assertEquals("", sj.toString());
+        assertEquals(sj.toString(), "");
         sj = new StringJoiner(",", "{", "}");
-        assertEquals("{}", sj.toString());
+        assertEquals(sj.toString(), "{}");
 
         sj = new StringJoiner(",", "{", "}").setEmptyValue("");
-        assertEquals("", sj.toString());
+        assertEquals(sj.toString(), "");
 
         sj = new StringJoiner(",");
         sj.add(ONE);
-        assertEquals(ONE, sj.toString());
+        assertEquals(sj.toString(), ONE);
 
         sj.add(TWO);
-        assertEquals(ONE + "," + TWO, sj.toString());
+        assertEquals(sj.toString(), ONE + "," + TWO);
 
         sj = new StringJoiner(",", "{--", "--}");
         sj.add(ONE);
-        assertEquals("{--" + ONE + "--}", sj.toString() );
+        assertEquals(sj.toString(), "{--" + ONE + "--}" );
 
         sj.add(TWO);
-        assertEquals("{--" + ONE + "," + TWO + "--}", sj.toString());
+        assertEquals(sj.toString(), "{--" + ONE + "," + TWO + "--}");
 
     }
 
-    @Test
     public void toStringWithCustomEmptyValue() {
         StringJoiner sj = new StringJoiner(DASH, "<", ">").setEmptyValue(EMPTY);
-        assertEquals(EMPTY, sj.toString());
+        assertEquals(sj.toString(), EMPTY);
         sj.add("");
-        assertEquals("<>", sj.toString());
+        assertEquals(sj.toString(), "<>");
         sj.add("");
-        assertEquals("<->", sj.toString());
+        assertEquals(sj.toString(), "<->");
     }
 
     private void testCombos(String infix, String prefix, String suffix) {
         StringJoiner sj = new StringJoiner(infix, prefix, suffix);
-        assertEquals(prefix + suffix, sj.toString());
-        assertEquals(sj.length(), sj.toString().length());
+        assertEquals(sj.toString(), prefix + suffix);
+        assertEquals(sj.toString().length(), sj.length());
         // EmptyValue
         sj = new StringJoiner(infix, prefix, suffix).setEmptyValue("<NONE>");
-        assertEquals("<NONE>", sj.toString());
-        assertEquals(sj.length(), sj.toString().length());
+        assertEquals(sj.toString(), "<NONE>");
+        assertEquals(sj.toString().length(), sj.length());
 
         // empty in front
         sj.add("");
-        assertEquals(prefix + suffix, sj.toString());
+        assertEquals(sj.toString(), prefix + suffix);
         // empty in middle
         sj.add("");
-        assertEquals(prefix + infix + suffix, sj.toString());
+        assertEquals(sj.toString(), prefix + infix + suffix);
         sj.add("1");
-        assertEquals(prefix + infix + infix + "1" + suffix, sj.toString());
+        assertEquals(sj.toString(), prefix + infix + infix + "1" + suffix);
         // empty at end
         sj.add("");
-        assertEquals(prefix + infix + infix + "1" + infix + suffix, sj.toString());
+        assertEquals(sj.toString(), prefix + infix + infix + "1" + infix + suffix);
 
         sj = new StringJoiner(infix, prefix, suffix).setEmptyValue("<NONE>");
         sj.add("1");
-        assertEquals(prefix + "1" + suffix, sj.toString());
+        assertEquals(sj.toString(), prefix + "1" + suffix);
         sj.add("2");
-        assertEquals(prefix + "1" + infix + "2" + suffix, sj.toString());
+        assertEquals(sj.toString(), prefix + "1" + infix + "2" + suffix);
         sj.add("");
-        assertEquals(prefix + "1" + infix + "2" + infix + suffix, sj.toString());
+        assertEquals(sj.toString(), prefix + "1" + infix + "2" + infix + suffix);
         sj.add("3");
-        assertEquals(prefix + "1" + infix + "2" + infix + infix + "3" + suffix, sj.toString());
+        assertEquals(sj.toString(), prefix + "1" + infix + "2" + infix + infix + "3" + suffix);
     }
 
-    @Test
     public void testDelimiterCombinations() {
         testCombos("", "", "");
         testCombos("", "<", "");
@@ -349,7 +327,6 @@ public class StringJoinerTest {
         testCombos(",", "<", ">");
     }
 
-    @Test
     public void OOM1() {
         try {
             new StringJoiner(MAX_STRING, MAX_STRING, MAX_STRING).toString();
@@ -359,7 +336,6 @@ public class StringJoinerTest {
         }
     }
 
-    @Test
     public void OOM2() {
         try {
             new StringJoiner(MAX_STRING, MAX_STRING, "").toString();
@@ -369,7 +345,6 @@ public class StringJoinerTest {
         }
     }
 
-    @Test
     public void OOM3() {
         try {
             new StringJoiner(MAX_STRING, "", MAX_STRING).toString();
@@ -379,7 +354,6 @@ public class StringJoinerTest {
         }
     }
 
-    @Test
     public void OOM4() {
         try {
             new StringJoiner("", MAX_STRING, MAX_STRING).toString();

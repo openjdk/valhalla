@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8013527
- * @run junit/othervm ChainedLookupTest
+ * @run testng/othervm ChainedLookupTest
  * @summary Test MethodHandles.lookup method to produce the Lookup object with
  *          proper lookup class if invoked through reflection and method handle.
  */
@@ -33,11 +33,11 @@ import java.lang.invoke.*;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Method;
 
+import org.testng.annotations.Test;
 
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.*;
 
 public class ChainedLookupTest {
     /**
@@ -121,7 +121,7 @@ public class ChainedLookupTest {
     }
 
     void test(Lookup lookup, String msg) throws Throwable {
-        assertSame(ChainedLookupTest.class, lookup.lookupClass());
+        assertTrue(lookup.lookupClass() == ChainedLookupTest.class);
         assertTrue(lookup.hasFullPrivilegeAccess());
 
         MethodHandle mh = lookup.findStatic(lookup.lookupClass(), "say", methodType(void.class, String.class));

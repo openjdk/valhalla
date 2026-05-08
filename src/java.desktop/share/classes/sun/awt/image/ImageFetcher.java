@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,17 @@
 package sun.awt.image;
 
 import java.util.Vector;
+import sun.awt.AppContext;
 
 /**
   * An ImageFetcher is a thread used to fetch ImageFetchable objects.
   * Once an ImageFetchable object has been fetched, the ImageFetcher
   * thread may also be used to animate it if necessary, via the
   * startingAnimation() / stoppingAnimation() methods.
+  *
+  * There can be up to FetcherInfo.MAX_NUM_FETCHERS_PER_APPCONTEXT
+  * ImageFetcher threads for each AppContext.  A per-AppContext queue
+  * of ImageFetchables is used to track objects to fetch.
   *
   * @author Jim Graham
   * @author Fred Ecks
@@ -148,6 +153,7 @@ class ImageFetcher extends Thread {
                         info.numWaiting++;
                         info.waitList.wait(end - now);
                     } catch (InterruptedException e) {
+                        // A normal occurrence as an AppContext is disposed
                         return null;
                     } finally {
                         info.numWaiting--;
@@ -274,20 +280,28 @@ class ImageFetcher extends Thread {
        // We need to instantiate a new ImageFetcher thread.
        // First, figure out which ThreadGroup we'll put the
        // new ImageFetcher into
-       // We don't want the root ("system") ThreadGroup.
-       // We instead want to use its child: the "main"
-       // ThreadGroup.  Thus, we start with the current
-       // ThreadGroup, and go up the tree until
-       // threadGroup.getParent().getParent() == null.
-       ThreadGroup threadGroup = Thread.currentThread().getThreadGroup();
-       ThreadGroup parent = threadGroup.getParent();
-       while ((parent != null)
-            && (parent.getParent() != null)) {
-            threadGroup = parent;
-            parent = threadGroup.getParent();
+       final AppContext appContext = AppContext.getAppContext();
+       ThreadGroup threadGroup = appContext.getThreadGroup();
+       ThreadGroup fetcherThreadGroup;
+       if (threadGroup.getParent() != null) {
+           // threadGroup is not the root, so we proceed
+           fetcherThreadGroup = threadGroup;
+       } else {
+           // threadGroup is the root ("system") ThreadGroup.
+           // We instead want to use its child: the "main"
+           // ThreadGroup.  Thus, we start with the current
+           // ThreadGroup, and go up the tree until
+           // threadGroup.getParent().getParent() == null.
+           threadGroup = Thread.currentThread().getThreadGroup();
+           ThreadGroup parent = threadGroup.getParent();
+           while ((parent != null)
+                && (parent.getParent() != null)) {
+                threadGroup = parent;
+                parent = threadGroup.getParent();
+           }
+           fetcherThreadGroup = threadGroup;
        }
-       final ThreadGroup fetcherGroup = threadGroup;
-
+       final ThreadGroup fetcherGroup = fetcherThreadGroup;
 
        for (int i = 0; i < info.fetchers.length; i++) {
            if (info.fetchers[i] == null) {
@@ -306,27 +320,38 @@ class ImageFetcher extends Thread {
 }
 
 /**
-  * The FetcherInfo class encapsulates the ImageFetcher
+  * The FetcherInfo class encapsulates the per-AppContext ImageFetcher
   * information.  This includes the array of ImageFetchers, as well as
   * the queue of ImageFetchable objects.
   */
 class FetcherInfo {
-    static final int MAX_NUM_FETCHERS = 4;
-    static final FetcherInfo FETCHER_INFO = new FetcherInfo();
+    static final int MAX_NUM_FETCHERS_PER_APPCONTEXT = 4;
 
-    final Thread[] fetchers;
+    Thread[] fetchers;
     int numFetchers;
     int numWaiting;
-    final Vector<ImageFetchable> waitList;
+    Vector<ImageFetchable> waitList;
 
     private FetcherInfo() {
-        fetchers = new Thread[MAX_NUM_FETCHERS];
+        fetchers = new Thread[MAX_NUM_FETCHERS_PER_APPCONTEXT];
         numFetchers = 0;
         numWaiting = 0;
         waitList = new Vector<>();
     }
 
+    /* The key to put()/get() the FetcherInfo into/from the AppContext. */
+    private static final Object FETCHER_INFO_KEY =
+                                        new StringBuffer("FetcherInfo");
+
     static FetcherInfo getFetcherInfo() {
-        return FETCHER_INFO;
+        AppContext appContext = AppContext.getAppContext();
+        synchronized(appContext) {
+            FetcherInfo info = (FetcherInfo)appContext.get(FETCHER_INFO_KEY);
+            if (info == null) {
+                info = new FetcherInfo();
+                appContext.put(FETCHER_INFO_KEY, info);
+            }
+            return info;
+        }
     }
 }

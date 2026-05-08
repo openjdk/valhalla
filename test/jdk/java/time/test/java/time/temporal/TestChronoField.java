@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,8 @@
  */
 package test.java.time.temporal;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
 import java.time.temporal.ChronoField;
 import java.time.temporal.IsoFields;
@@ -63,18 +64,18 @@ import java.time.temporal.WeekFields;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestChronoField {
     Map<ChronoField, String> fieldMap;
 
 
-    @BeforeAll
+    @BeforeClass
     public void initClass() {
         fieldMap = new HashMap<>();
         fieldMap.put(ChronoField.ERA, "era");
@@ -90,6 +91,7 @@ public class TestChronoField {
         fieldMap.put(ChronoField.OFFSET_SECONDS, "zone");
     }
 
+    @DataProvider(name = "localeList")
     Locale[] data_localeList() {
         return new Locale[] {
                 Locale.US,
@@ -99,6 +101,7 @@ public class TestChronoField {
         };
     }
     //-----------------------------------------------------------------------
+    @DataProvider(name = "localeDisplayNames")
     Object[][] data_localeDisplayNames() {
         return new Object[][] {
                 {ChronoField.ERA},
@@ -118,14 +121,12 @@ public class TestChronoField {
     public void test_IsoFields_week_based_year() {
         Locale locale = Locale.US;
         String name = IsoFields.WEEK_OF_WEEK_BASED_YEAR.getDisplayName(locale);
-        assertEquals("week", name);
+        assertEquals(name, "week");
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_nullIsoFields_week_based_year() {
-        Assertions.assertThrows(NullPointerException.class, () -> {
-            String name = IsoFields.WEEK_OF_WEEK_BASED_YEAR.getDisplayName((Locale)null);
-        });
+        String name = IsoFields.WEEK_OF_WEEK_BASED_YEAR.getDisplayName((Locale)null);
     }
 
     @Test
@@ -133,28 +134,24 @@ public class TestChronoField {
         Locale locale = Locale.US;
         TemporalField weekOfYearField = WeekFields.SUNDAY_START.weekOfYear();
         String name = weekOfYearField.getDisplayName(locale);
-        assertEquals("week", name);
+        assertEquals(name, "week");
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_nullWeekFields_week_based_year() {
-        Assertions.assertThrows(NullPointerException.class, () -> {
-            TemporalField weekOfYearField = WeekFields.SUNDAY_START.weekOfYear();
-            String name = weekOfYearField.getDisplayName((Locale)null);
-        });
+        TemporalField weekOfYearField = WeekFields.SUNDAY_START.weekOfYear();
+        String name = weekOfYearField.getDisplayName((Locale)null);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_nullLocaleChronoFieldDisplayName() {
-        Assertions.assertThrows(NullPointerException.class, () -> ChronoField.YEAR.getDisplayName((Locale)null));
+        ChronoField.YEAR.getDisplayName((Locale)null);
     }
 
-    @Test
+    @Test(expectedExceptions=NullPointerException.class)
     public void test_nullLocaleTemporalFieldDisplayName() {
-        Assertions.assertThrows(NullPointerException.class, () -> {
-            // Test the default method in TemporalField using the
-            // IsoFields.DAY_OF_QUARTER which does not override getDisplayName
-            IsoFields.DAY_OF_QUARTER.getDisplayName((Locale)null);
-        });
+        // Test the default method in TemporalField using the
+        // IsoFields.DAY_OF_QUARTER which does not override getDisplayName
+        IsoFields.DAY_OF_QUARTER.getDisplayName((Locale)null);
     }
 }

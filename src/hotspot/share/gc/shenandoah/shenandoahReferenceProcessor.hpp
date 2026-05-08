@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2020, 2021, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -31,7 +31,6 @@
 #include "gc/shared/referenceProcessorStats.hpp"
 #include "gc/shenandoah/shenandoahPhaseTimings.hpp"
 #include "memory/allocation.hpp"
-#include "runtime/atomic.hpp"
 
 class ShenandoahMarkRefsSuperClosure;
 class WorkerThreads;
@@ -134,10 +133,10 @@ private:
 
   ShenandoahRefProcThreadLocal* _ref_proc_thread_locals;
 
-  Atomic<oop> _pending_list;
+  oop _pending_list;
   void* _pending_list_tail; // T*
 
-  Atomic<uint> _iterate_discovered_list_id;
+  volatile uint _iterate_discovered_list_id;
 
   ReferenceProcessorStats _stats;
 

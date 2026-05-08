@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,24 +24,19 @@
 /* @test
  * @bug  8158169
  * @summary unit tests for java.lang.invoke.MethodHandles
- * @run junit test.java.lang.invoke.DropArgumentsTest
+ * @run testng test.java.lang.invoke.DropArgumentsTest
  */
 package test.java.lang.invoke;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.testng.AssertJUnit.*;
+import org.testng.annotations.*;
 
 public class DropArgumentsTest {
 
@@ -58,7 +53,8 @@ public class DropArgumentsTest {
 
     }
 
-    private static Object[][] dropArgumentsToMatchNPEData()
+    @DataProvider(name = "dropArgumentsToMatchNPEData")
+    private Object[][] dropArgumentsToMatchNPEData()
             throws NoSuchMethodException, IllegalAccessException {
         MethodHandle cat = lookup().findVirtual(String.class, "concat", methodType(String.class, String.class));
         return new Object[][] {
@@ -67,13 +63,13 @@ public class DropArgumentsTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("dropArgumentsToMatchNPEData")
+    @Test(dataProvider = "dropArgumentsToMatchNPEData", expectedExceptions = { NullPointerException.class })
     public void dropArgumentsToMatchNPE(MethodHandle target, int pos, List<Class<?>> valueType, int skip) {
-        assertThrows(NullPointerException.class, () -> MethodHandles.dropArgumentsToMatch(target, pos, valueType, skip));
+        MethodHandles.dropArgumentsToMatch(target, pos, valueType , skip);
     }
 
-    private static Object[][] dropArgumentsToMatchIAEData()
+    @DataProvider(name = "dropArgumentsToMatchIAEData")
+    private Object[][] dropArgumentsToMatchIAEData()
         throws NoSuchMethodException, IllegalAccessException {
         MethodHandle cat = lookup().findVirtual(String.class, "concat", methodType(String.class, String.class));
         MethodType bigType = cat.type().insertParameterTypes(0, String.class, String.class, int.class);
@@ -86,20 +82,17 @@ public class DropArgumentsTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("dropArgumentsToMatchIAEData")
+    @Test(dataProvider = "dropArgumentsToMatchIAEData", expectedExceptions = { IllegalArgumentException.class })
     public void dropArgumentsToMatchIAE(MethodHandle target, int pos, List<Class<?>> valueType, int skip) {
-        assertThrows(IllegalArgumentException.class, () -> MethodHandles.dropArgumentsToMatch(target, pos, valueType, skip));
+        MethodHandles.dropArgumentsToMatch(target, pos, valueType , skip);
     }
 
-    @Test
+    @Test(expectedExceptions = { IllegalArgumentException.class })
     public void dropArgumentsToMatchTestWithVoid() throws Throwable {
         MethodHandle cat = lookup().findVirtual(String.class, "concat",
-                MethodType.methodType(String.class, String.class));
-        List<Class<?>> bigTypewithVoid = new ArrayList<>(cat.type().parameterList());
-        bigTypewithVoid.addAll(0, List.of(void.class, String.class, int.class));
-        assertThrows(IllegalArgumentException.class, () ->
-                MethodHandles.dropArgumentsToMatch(cat, 0, bigTypewithVoid, 1));
+                                   MethodType.methodType(String.class, String.class));
+        MethodType bigTypewithVoid = cat.type().insertParameterTypes(0, void.class, String.class, int.class);
+        MethodHandle handle2 = MethodHandles.dropArgumentsToMatch(cat, 0, bigTypewithVoid.parameterList(), 1);
     }
 
     public static class MethodSet {

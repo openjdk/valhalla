@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,14 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @build TrySetAccessibleTest
  * @modules java.base/java.lang:open
  *          java.base/jdk.internal.module
  *          java.base/jdk.internal.perf
  *          java.base/jdk.internal.misc:+open
- * @run junit/othervm TrySetAccessibleTest
+ * @run testng/othervm TrySetAccessibleTest
  * @summary Test AccessibleObject::trySetAccessible method
  */
 
@@ -43,18 +43,21 @@ import jdk.internal.module.ModulePath;
 import jdk.internal.perf.Perf;
 import java.security.ProtectionDomain;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
+@Test
 public class TrySetAccessibleTest {
     /**
      * Invoke a private constructor on a public class in an exported package
      */
-    @Test
     public void testPrivateConstructorInExportedPackage() throws Exception {
         Constructor<?> ctor = Perf.class.getDeclaredConstructor();
 
-        assertThrows(IllegalAccessException.class, () -> ctor.newInstance());
+        try {
+            ctor.newInstance();
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
 
         assertFalse(ctor.trySetAccessible());
         assertFalse(ctor.canAccess(null));
@@ -63,11 +66,13 @@ public class TrySetAccessibleTest {
     /**
      * Invoke a private constructor on a public class in an open package
      */
-    @Test
     public void testPrivateConstructorInOpenedPackage() throws Exception {
         Constructor<?> ctor = Unsafe.class.getDeclaredConstructor();
 
-        assertThrows(IllegalAccessException.class, () -> ctor.newInstance());
+        try {
+            ctor.newInstance();
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
 
         assertTrue(ctor.trySetAccessible());
         assertTrue(ctor.canAccess(null));
@@ -77,10 +82,12 @@ public class TrySetAccessibleTest {
     /**
      * Invoke a private method on a public class in an exported package
      */
-    @Test
     public void testPrivateMethodInExportedPackage() throws Exception {
         Method m = ModulePath.class.getDeclaredMethod("packageName", String.class);
-        assertThrows(IllegalAccessException.class, () -> m.invoke(null));
+        try {
+            m.invoke(null);
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
 
         assertFalse(m.trySetAccessible());
         assertFalse(m.canAccess(null));
@@ -90,42 +97,54 @@ public class TrySetAccessibleTest {
     /**
      * Invoke a private method on a public class in an open package
      */
-    @Test
     public void testPrivateMethodInOpenedPackage() throws Exception {
         Method m = Unsafe.class.getDeclaredMethod("throwIllegalAccessError");
         assertFalse(m.canAccess(null));
 
-        assertThrows(IllegalAccessException.class, () -> m.invoke(null));
+        try {
+            m.invoke(null);
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
 
         assertTrue(m.trySetAccessible());
         assertTrue(m.canAccess(null));
-
-        InvocationTargetException e = assertThrows(InvocationTargetException.class, () ->
-                m.invoke(null));
-        assertInstanceOf(IllegalAccessError.class, e.getCause());
+        try {
+            m.invoke(null);
+            assertTrue(false);
+        } catch (InvocationTargetException e) {
+            // thrown by throwIllegalAccessError
+            assertTrue(e.getCause() instanceof IllegalAccessError);
+        }
     }
 
     /**
      * Invoke a private method on a public class in an exported package
      */
-    @Test
     public void testPrivateFieldInExportedPackage() throws Exception {
         Field f = Perf.class.getDeclaredField("instance");
-        assertThrows(IllegalAccessException.class, () -> f.get(null));
+        try {
+            f.get(null);
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
 
         assertFalse(f.trySetAccessible());
         assertFalse(f.canAccess(null));
-        assertThrows(IllegalAccessException.class, () -> f.get(null));
+        try {
+            f.get(null);
+            assertTrue(false);
+        } catch (IllegalAccessException expected) {}
     }
 
     /**
      * Access a private field in a public class that is an exported package
      */
-    @Test
     public void testPrivateFieldInOpenedPackage() throws Exception {
         Field f = Unsafe.class.getDeclaredField("theUnsafe");
 
-        assertThrows(IllegalAccessException.class, () -> f.get(null));
+        try {
+            f.get(null);
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
 
         assertTrue(f.trySetAccessible());
         assertTrue(f.canAccess(null));
@@ -136,29 +155,32 @@ public class TrySetAccessibleTest {
     /**
      * Invoke a public constructor on a public class in a non-exported package
      */
-    @Test
     public void testPublicConstructorInNonExportedPackage() throws Exception {
         Class<?> clazz = Class.forName("sun.security.x509.X500Name");
         Constructor<?> ctor = clazz.getConstructor(String.class);
 
-        assertThrows(IllegalAccessException.class, () -> ctor.newInstance("cn=duke"));
+        try {
+            ctor.newInstance("cn=duke");
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
 
         assertFalse(ctor.trySetAccessible());
         assertFalse(ctor.canAccess(null));
-        assertFalse(ctor.trySetAccessible());
-        assertFalse(ctor.isAccessible()); // should match trySetAccessible
+        assertTrue(ctor.trySetAccessible() == ctor.isAccessible());
     }
 
 
     /**
      * Access a public field in a public class that in a non-exported package
      */
-    @Test
     public void testPublicFieldInNonExportedPackage() throws Exception {
         Class<?> clazz = Class.forName("sun.security.x509.X500Name");
         Field f = clazz.getField("SERIALNUMBER_OID");
 
-        assertThrows(IllegalAccessException.class, () -> f.get(null));
+        try {
+            f.get(null);
+            assertTrue(false);
+        } catch (IllegalAccessException expected) { }
 
         assertFalse(f.trySetAccessible());
         assertFalse(f.canAccess(null));
@@ -168,7 +190,6 @@ public class TrySetAccessibleTest {
     /**
      * Test that the Class constructor cannot be make accessible.
      */
-    @Test
     public void testJavaLangClass() throws Exception {
 
         // non-public constructor

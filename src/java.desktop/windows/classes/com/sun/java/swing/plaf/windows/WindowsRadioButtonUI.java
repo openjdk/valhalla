@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,12 +38,14 @@ import javax.swing.plaf.ComponentUI;
 import javax.swing.plaf.basic.BasicGraphicsUtils;
 import javax.swing.plaf.basic.BasicRadioButtonUI;
 
+import sun.awt.AppContext;
+
 /**
  * Windows rendition of the component.
  */
 public class WindowsRadioButtonUI extends BasicRadioButtonUI
 {
-    private static final ComponentUI UI = new WindowsRadioButtonUI();
+    private static final Object WINDOWS_RADIO_BUTTON_UI_KEY = new Object();
 
     protected int dashedRectGapX;
     protected int dashedRectGapY;
@@ -58,7 +60,14 @@ public class WindowsRadioButtonUI extends BasicRadioButtonUI
     //          Create PLAF
     // ********************************
     public static ComponentUI createUI(JComponent c) {
-        return UI;
+        AppContext appContext = AppContext.getAppContext();
+        WindowsRadioButtonUI windowsRadioButtonUI =
+                (WindowsRadioButtonUI) appContext.get(WINDOWS_RADIO_BUTTON_UI_KEY);
+        if (windowsRadioButtonUI == null) {
+            windowsRadioButtonUI = new WindowsRadioButtonUI();
+            appContext.put(WINDOWS_RADIO_BUTTON_UI_KEY, windowsRadioButtonUI);
+        }
+        return windowsRadioButtonUI;
     }
 
     // ********************************

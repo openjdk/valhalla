@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Scope;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
+import static com.sun.source.tree.Tree.Kind.METHOD;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.YieldTree;
@@ -80,7 +81,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
-import java.util.TreeSet;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -114,6 +114,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
@@ -148,10 +149,14 @@ import javax.tools.JavaFileManager.Location;
 import javax.tools.StandardLocation;
 
 import jdk.jshell.ExpressionToTypeInfo.ExpressionInfo;
+import static jdk.jshell.Util.REPL_DOESNOTMATTER_CLASS_NAME;
 import static jdk.jshell.SourceCodeAnalysis.Completeness.DEFINITELY_INCOMPLETE;
 import static jdk.jshell.TreeDissector.printType;
 
 import static java.util.stream.Collectors.joining;
+import static javax.lang.model.element.ElementKind.CONSTRUCTOR;
+import static javax.lang.model.element.ElementKind.MODULE;
+import static javax.lang.model.element.ElementKind.PACKAGE;
 
 import javax.lang.model.type.IntersectionType;
 import javax.lang.model.util.Elements;
@@ -464,7 +469,7 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                         ImportTree it = findImport(tp);
 
                         if (it != null && it.isModule()) {
-                            int selectStart = (int) sp.getStartPosition(tp.getLeaf());
+                            int selectStart = (int) sp.getStartPosition(topLevel, tp.getLeaf());
                             String qualifiedPrefix = it.getQualifiedIdentifier().getKind() == Kind.MEMBER_SELECT
                                 ? ((MemberSelectTree) it.getQualifiedIdentifier()).getExpression().toString() + "."
                                 : "";
@@ -634,7 +639,7 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                             Element annotationType = tp.getParentPath().getParentPath().getLeaf().getKind() == Kind.ANNOTATION
                                     ? at.trees().getElement(tp.getParentPath().getParentPath())
                                     : at.trees().getElement(tp.getParentPath().getParentPath().getParentPath());
-                            if (sp.getEndPosition(tp.getParentPath().getLeaf()) == (-1)) {
+                            if (sp.getEndPosition(topLevel, tp.getParentPath().getLeaf()) == (-1)) {
                                 //synthetic 'value':
                                 //TODO: filter out existing:
                                 addElements(javadoc, ElementFilter.methodsIn(annotationType.getEnclosedElements()), TRUE, TRUE, cursor, prefix, result);
@@ -810,13 +815,13 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
         };
         String wrappedCode = codeWrap.wrapped();
         return this.proc.taskFactory.analyze(codeWrap, task -> {
-            TreeSet<Highlight> result = new TreeSet<>(Comparator.comparing(Highlight::start).thenComparing(Highlight::end));
+            List<Highlight> result = new ArrayList<>();
             CompilationUnitTree cut = task.cuTrees().iterator().next();
             Trees trees = task.trees();
             SourcePositions sp = trees.getSourcePositions();
             List<Token> tokens = new ArrayList<>();
             Context ctx = new Context();
-            ctx.put(DiagnosticListener.class, (DiagnosticListener<?>) d -> {});
+            ctx.put(DiagnosticListener.class, (DiagnosticListener) d -> {});
             Scanner scanner = ScannerFactory.instance(ctx).newScanner(wrappedCode, false);
             Log.instance(ctx).useSource(cut.getSourceFile());
             scanner.nextToken();
@@ -846,14 +851,14 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
             new TreePathScanner<Void, Void>() {
                 @Override
                 public Void visitIdentifier(IdentifierTree node, Void p) {
-                    long start = sp.getStartPosition(node);
-                    long end = sp.getEndPosition(node);
+                    long start = sp.getStartPosition(cut, node);
+                    long end = sp.getEndPosition(cut, node);
                     handleElement(false, start, end);
                     return super.visitIdentifier(node, p);
                 }
                 @Override
                 public Void visitMemberSelect(MemberSelectTree node, Void p) {
-                    long exprEnd = sp.getEndPosition(node.getExpression());
+                    long exprEnd = sp.getEndPosition(cut, node.getExpression());
                     Token ident = findTokensFrom(exprEnd, TokenKind.DOT, TokenKind.IDENTIFIER);
                     if (ident != null) {
                         handleElement(false, ident.pos, ident.endPos);
@@ -866,16 +871,16 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                     if (mods.getFlags().contains(Modifier.SEALED) ||
                         mods.getFlags().contains(Modifier.NON_SEALED)) {
                         List<Token> modifierTokens = new ArrayList<>();
-                        long modsStart = sp.getStartPosition(mods);
-                        long modsEnd = sp.getEndPosition(mods);
+                        long modsStart = sp.getStartPosition(cut, mods);
+                        long modsEnd = sp.getEndPosition(cut, mods);
                         for (Token t : tokens) {
                             if (t.pos >= modsStart && t.endPos <= modsEnd) {
                                 modifierTokens.add(t);
                             }
                         }
                         for (AnnotationTree at : mods.getAnnotations()) {
-                            long annStart = sp.getStartPosition(at);
-                            long annEnd = sp.getEndPosition(at);
+                            long annStart = sp.getStartPosition(cut, at);
+                            long annEnd = sp.getEndPosition(cut, at);
                             modifierTokens.removeIf(t -> t.pos >= annStart && t.endPos <= annEnd);
                         }
                         OUTER: for (int i = 0; i < modifierTokens.size(); i++) {
@@ -912,7 +917,7 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                         handleElement(true, ident.pos, ident.endPos);
                     }
                     if (!node.getPermitsClause().isEmpty()) {
-                        long start = sp.getStartPosition(node.getPermitsClause().get(0));
+                        long start = sp.getStartPosition(cut, node.getPermitsClause().get(0));
                         Token permitsCandidate = findTokensBefore(start, TokenKind.IDENTIFIER);
                         if (permitsCandidate != null && permitsCandidate.name().contentEquals("permits")) {
                             addKeyword.accept(permitsCandidate);
@@ -932,7 +937,7 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                 @Override
                 public Void visitVariable(VariableTree node, Void p) {
                     int pos = ((JCTree) node).pos;
-                    if (node.getType() != null && node.getType().getKind() == Kind.VAR_TYPE) {
+                    if (sp.getEndPosition(cut, node.getType()) == (-1)) {
                         Token varCandidate = findTokensBefore(pos, TokenKind.IDENTIFIER);
                         if (varCandidate != null && "var".equals(varCandidate.name().toString())) {
                             addKeyword.accept(varCandidate);
@@ -946,7 +951,7 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                 }
                 @Override
                 public Void visitYield(YieldTree node, Void p) {
-                    long start = sp.getStartPosition(node);
+                    long start = sp.getStartPosition(cut, node);
                     Token yield = findTokensFrom(start, TokenKind.IDENTIFIER);
                     addKeyword.accept(yield);
                     return super.visitYield(node, p);
@@ -961,7 +966,7 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                 @Override
                 public Void scan(Tree tree, Void p) {
                     if (tree != null) {
-                        long end = sp.getEndPosition(tree);
+                        long end = sp.getEndPosition(cut, tree);
                         if (end == (-1)) {
                             //synthetic
                             return null;
@@ -1045,7 +1050,8 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                 }
             }.scan(cut, null);
             result.removeIf(h -> h.start() == h.end());
-            return new ArrayList<>(result);
+            Collections.sort(result, (h1, h2) -> h1.start() - h2.start());
+            return result;
         });
     }
 
@@ -1072,14 +1078,14 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
                 if (tree == null)
                     return null;
 
-                long start = sp.getStartPosition(tree);
-                long end = sp.getEndPosition(tree);
+                long start = sp.getStartPosition(topLevel, tree);
+                long end = sp.getEndPosition(topLevel, tree);
 
                 if (end == (-1) && tree.getKind() == Kind.ASSIGNMENT &&
                     getCurrentPath() != null &&
                     getCurrentPath().getLeaf().getKind() == Kind.ANNOTATION) {
                     //the assignment is synthetically generated, take the end pos of the nested tree:
-                    end = sp.getEndPosition(((AssignmentTree) tree).getExpression());
+                    end = sp.getEndPosition(topLevel, ((AssignmentTree) tree).getExpression());
                 }
                 if (start <= wrapEndPos && wrapEndPos <= end &&
                     (deepest[0] == null || deepest[0].getLeaf() == getCurrentPath().getLeaf())) {

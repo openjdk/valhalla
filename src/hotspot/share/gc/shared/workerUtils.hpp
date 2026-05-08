@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
 #include "cppstdlib/type_traits.hpp"
 #include "memory/allocation.hpp"
 #include "metaprogramming/enableIf.hpp"
-#include "runtime/atomic.hpp"
 #include "runtime/mutex.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -80,11 +79,11 @@ public:
 // enumeration type.
 
 class SubTasksDone: public CHeapObj<mtInternal> {
-  Atomic<bool>* _tasks;
+  volatile bool* _tasks;
   uint _n_tasks;
 
   // make sure verification logic is run exactly once to avoid duplicate assertion failures
-  DEBUG_ONLY(Atomic<bool> _verification_done;)
+  DEBUG_ONLY(volatile bool _verification_done = false;)
   void all_tasks_claimed_impl(uint skipped[], size_t skipped_size) NOT_DEBUG_RETURN;
 
   NONCOPYABLE(SubTasksDone);
@@ -128,7 +127,7 @@ public:
 class SequentialSubTasksDone : public CHeapObj<mtInternal> {
 
   uint _num_tasks;     // Total number of tasks available.
-  Atomic<uint> _num_claimed;    // Number of tasks claimed.
+  volatile uint _num_claimed;   // Number of tasks claimed.
 
   NONCOPYABLE(SequentialSubTasksDone);
 
@@ -136,8 +135,7 @@ public:
   SequentialSubTasksDone(uint num_tasks) : _num_tasks(num_tasks), _num_claimed(0) { }
   ~SequentialSubTasksDone() {
     // Claiming may try to claim more tasks than there are.
-    assert(_num_claimed.load_relaxed() >= _num_tasks,
-           "Claimed %u tasks of %u", _num_claimed.load_relaxed(), _num_tasks);
+    assert(_num_claimed >= _num_tasks, "Claimed %u tasks of %u", _num_claimed, _num_tasks);
   }
 
   // Attempt to claim the next unclaimed task in the sequence,

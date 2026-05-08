@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @requires (os.family == "linux" | os.family == "mac" | os.family == "aix")
  * @library .. /test/lib
  * @build jdk.test.lib.Platform
- * @run junit SecureDS
+ * @run main SecureDS
  */
 
 import java.nio.file.*;
@@ -35,34 +35,23 @@ import static java.nio.file.Files.*;
 import static java.nio.file.StandardOpenOption.*;
 import static java.nio.file.LinkOption.*;
 import java.nio.file.attribute.*;
+import java.nio.channels.*;
 import java.io.IOException;
 import java.util.*;
 
 import jdk.test.lib.Platform;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public class SecureDS {
     static boolean supportsSymbolicLinks;
 
-    @ParameterizedTest
-    @ValueSource(strings = {"tmp","cwd"})
-    public void testSecureDS(String mode) throws IOException {
-        Path dir;
-        if (mode.equals("cwd")) {
-            dir = TestUtil.createTemporaryDirectory(System.getProperty("user.dir"));
-        } else {
-            dir = TestUtil.createTemporaryDirectory();
-        }
+    public static void main(String[] args) throws IOException {
+        Path dir = TestUtil.createTemporaryDirectory();
         try {
             DirectoryStream<Path> stream = newDirectoryStream(dir);
             stream.close();
-            assumeTrue(stream instanceof SecureDirectoryStream);
+            if (!(stream instanceof SecureDirectoryStream)) {
+                throw new AssertionError("SecureDirectoryStream not supported.");
+            }
 
             supportsSymbolicLinks = TestUtil.supportsSymbolicLinks(dir);
 
@@ -105,7 +94,7 @@ public class SecureDS {
         // Test: iterate over all entries
         int count = 0;
         for (Path entry: stream) { count++; }
-        assertEquals((supportsSymbolicLinks ? 4 : 2), count);
+        assertTrue(count == (supportsSymbolicLinks ? 4 : 2));
 
         // Test: getFileAttributeView to access directory's attributes
         assertTrue(stream
@@ -154,12 +143,13 @@ public class SecureDS {
         stream.newByteChannel(fileEntry, opts).close();
         if (supportsSymbolicLinks) {
             stream.newByteChannel(link1Entry, opts).close();
-            assertThrows(IOException.class, () -> {
+            try {
                 Set<OpenOption> mixed = new HashSet<>();
                 mixed.add(READ);
                 mixed.add(NOFOLLOW_LINKS);
                 stream.newByteChannel(link1Entry, mixed).close();
-            });
+                shouldNotGetHere();
+            } catch (IOException x) { }
         }
 
         // Test: newDirectoryStream
@@ -167,10 +157,11 @@ public class SecureDS {
         stream.newDirectoryStream(dirEntry, LinkOption.NOFOLLOW_LINKS).close();
         if (supportsSymbolicLinks) {
             stream.newDirectoryStream(link2Entry).close();
-            assertThrows(IOException.class, () -> {
+            try {
                 stream.newDirectoryStream(link2Entry, LinkOption.NOFOLLOW_LINKS)
                     .close();
-            });
+                shouldNotGetHere();
+            } catch (IOException x) { }
         }
 
         // Test: delete
@@ -198,10 +189,10 @@ public class SecureDS {
 
             // Test setting permission on directory with no permissions
             setPosixFilePermissions(aDir, noperms);
-            assertEquals(noperms, getPosixFilePermissions(aDir));
+            assertTrue(getPosixFilePermissions(aDir).equals(noperms));
             PosixFileAttributeView view = stream.getFileAttributeView(PosixFileAttributeView.class);
             view.setPermissions(permsDir);
-            assertEquals(permsDir, getPosixFilePermissions(aDir));
+            assertTrue(getPosixFilePermissions(aDir).equals(permsDir));
 
             if (supportsSymbolicLinks) {
                 // Create a file and a link to the file
@@ -215,21 +206,22 @@ public class SecureDS {
                 // Test following link to file
                 view = stream.getFileAttributeView(link, PosixFileAttributeView.class);
                 view.setPermissions(noperms);
-                assertEquals(noperms, getPosixFilePermissions(file));
-                assertEquals(permsLink, getPosixFilePermissions(link, NOFOLLOW_LINKS));
+                assertTrue(getPosixFilePermissions(file).equals(noperms));
+                assertTrue(getPosixFilePermissions(link, NOFOLLOW_LINKS).equals(permsLink));
                 view.setPermissions(permsFile);
-                assertEquals(permsFile, getPosixFilePermissions(file));
-                assertEquals(permsLink, getPosixFilePermissions(link, NOFOLLOW_LINKS));
+                assertTrue(getPosixFilePermissions(file).equals(permsFile));
+                assertTrue(getPosixFilePermissions(link, NOFOLLOW_LINKS).equals(permsLink));
+
                 // Symbolic link permissions do not apply on Linux
                 if (!Platform.isLinux()) {
                     // Test not following link to file
                     view = stream.getFileAttributeView(link, PosixFileAttributeView.class, NOFOLLOW_LINKS);
                     view.setPermissions(noperms);
-                    assertEquals(permsFile, getPosixFilePermissions(file));
-                    assertEquals(noperms, getPosixFilePermissions(link, NOFOLLOW_LINKS));
+                    assertTrue(getPosixFilePermissions(file).equals(permsFile));
+                    assertTrue(getPosixFilePermissions(link, NOFOLLOW_LINKS).equals(noperms));
                     view.setPermissions(permsLink);
-                    assertEquals(permsFile, getPosixFilePermissions(file));
-                    assertEquals(permsLink, getPosixFilePermissions(link, NOFOLLOW_LINKS));
+                    assertTrue(getPosixFilePermissions(file).equals(permsFile));
+                    assertTrue(getPosixFilePermissions(link, NOFOLLOW_LINKS).equals(permsLink));
                 }
 
                 delete(link);
@@ -291,42 +283,18 @@ public class SecureDS {
                 SecureDirectoryStream<Path> ts =
                     (SecureDirectoryStream<Path>)newDirectoryStream(testDir);
                 createFile(dir1.resolve(fileEntry));
-                assertThrows(AtomicMoveNotSupportedException.class, () -> {
+                try {
                     stream1.move(fileEntry, ts, target);
-                });
+                    shouldNotGetHere();
+                } catch (AtomicMoveNotSupportedException x) { }
                 ts.close();
                 stream1.deleteFile(fileEntry);
             }
         }
 
-        // Test: move to cwd
-        final String TEXT = "Sous le pont Mirabeau coule la Seine";
-        Path file = Path.of("file");
-        Path filepath = dir.resolve(file);
-        Path cwd = Path.of(System.getProperty("user.dir"));
-        Path result = cwd.resolve(file);
-        Files.writeString(filepath, TEXT);
-        try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir);) {
-            if (ds instanceof SecureDirectoryStream<Path> sds) {
-                try {
-                    sds.move(file, null, file);
-                } catch (AtomicMoveNotSupportedException e) {
-                    assumeTrue(Files.getFileStore(cwd).equals(Files.getFileStore(dir)));
-                    // re-throw if move between same volume
-                    throw e;
-                }
-                assertEquals(TEXT, Files.readString(result), result + " content incorrect");
-            } else {
-                fail("Not a SecureDirectoryStream");
-            }
-        } finally {
-            boolean fileDeleted = Files.deleteIfExists(filepath);
-            if (!fileDeleted)
-                Files.deleteIfExists(result);
-            // clean-up
-            delete(dir1);
-            delete(dir2);
-        }
+        // clean-up
+        delete(dir1);
+        delete(dir2);
     }
 
     // null and ClosedDirectoryStreamException
@@ -338,59 +306,86 @@ public class SecureDS {
             (SecureDirectoryStream<Path>)newDirectoryStream(dir);
 
         // NullPointerException
-        assertThrows(NullPointerException.class, () -> {
+        try {
             stream.getFileAttributeView(null);
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.getFileAttributeView(null, BasicFileAttributeView.class);
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.getFileAttributeView(file, null);
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.newByteChannel(null, EnumSet.of(CREATE,WRITE));
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.newByteChannel(null, EnumSet.of(CREATE,WRITE,null));
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.newByteChannel(file, null);
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.move(null, stream, file);
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
+            stream.move(file, null, file);
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.move(file, stream, null);
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.newDirectoryStream(null);
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.deleteFile(null);
-        });
-        assertThrows(NullPointerException.class, () -> {
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
+        try {
             stream.deleteDirectory(null);
-        });
+            shouldNotGetHere();
+        } catch (NullPointerException x) { }
 
         // close stream
         stream.close();
         stream.close();     // should be no-op
 
         // ClosedDirectoryStreamException
-        assertThrows(ClosedDirectoryStreamException.class, () -> {
+        try {
             stream.newDirectoryStream(file);
-        });
-        assertThrows(ClosedDirectoryStreamException.class, () -> {
+            shouldNotGetHere();
+        } catch (ClosedDirectoryStreamException x) { }
+        try {
             stream.newByteChannel(file, EnumSet.of(READ));
-        });
-        assertThrows(ClosedDirectoryStreamException.class, () -> {
+            shouldNotGetHere();
+        } catch (ClosedDirectoryStreamException x) { }
+        try {
             stream.move(file, stream, file);
-        });
-        assertThrows(ClosedDirectoryStreamException.class, () -> {
+            shouldNotGetHere();
+        } catch (ClosedDirectoryStreamException x) { }
+        try {
             stream.deleteFile(file);
-        });
+            shouldNotGetHere();
+        } catch (ClosedDirectoryStreamException x) { }
 
         // clean-up
         delete(dir.resolve(file));
+    }
+
+    static void assertTrue(boolean b) {
+        if (!b) throw new RuntimeException("Assertion failed");
+    }
+
+    static void shouldNotGetHere() {
+        assertTrue(false);
     }
 }

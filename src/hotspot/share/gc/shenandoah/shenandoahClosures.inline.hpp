@@ -209,13 +209,15 @@ void ShenandoahCleanUpdateWeakOopsClosure<CONCURRENT, IsAlive, KeepAlive>::do_oo
 }
 
 ShenandoahNMethodAndDisarmClosure::ShenandoahNMethodAndDisarmClosure(OopClosure* cl) :
-  NMethodToOopClosure(cl, true /* fix_relocations */) {}
+  NMethodToOopClosure(cl, true /* fix_relocations */),
+   _bs(BarrierSet::barrier_set()->barrier_set_nmethod()) {
+}
 
 void ShenandoahNMethodAndDisarmClosure::do_nmethod(nmethod* nm) {
   assert(nm != nullptr, "Sanity");
   assert(!ShenandoahNMethod::gc_data(nm)->is_unregistered(), "Should not be here");
   NMethodToOopClosure::do_nmethod(nm);
-  ShenandoahNMethod::disarm_nmethod(nm);
+  _bs->disarm(nm);
 }
 
 

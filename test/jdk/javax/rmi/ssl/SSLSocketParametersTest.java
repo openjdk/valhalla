@@ -137,7 +137,6 @@ public class SSLSocketParametersTest extends SSLContextTemplate {
     }
 
     public static void main(String[] args) throws Exception {
-        System.setProperty("jdk.rmi.ssl.client.enableEndpointIdentification", "false");
         SSLSocketParametersTest test = new SSLSocketParametersTest();
         test.runTest(Integer.parseInt(args[0]));
     }

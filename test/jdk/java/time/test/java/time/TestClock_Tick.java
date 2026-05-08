@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,8 +59,8 @@
  */
 package test.java.time;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -69,11 +69,12 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test tick clock.
  */
+@Test
 public class TestClock_Tick {
 
     private static final ZoneId MOSCOW = ZoneId.of("Europe/Moscow");
@@ -81,7 +82,6 @@ public class TestClock_Tick {
     private static final ZonedDateTime ZDT = LocalDateTime.of(2008, 6, 30, 11, 30, 10, 500).atZone(ZoneOffset.ofHours(2));
 
     //-------------------------------------------------------------------------
-    @Test
     public void test_withZone_same() {
         Clock test = Clock.tick(Clock.system(PARIS), Duration.ofMillis(500));
         Clock changed = test.withZone(PARIS);
@@ -89,16 +89,14 @@ public class TestClock_Tick {
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_toString() {
         Clock test = Clock.tick(Clock.systemUTC(), Duration.ofMillis(500));
-        assertEquals("TickClock[SystemClock[Z],PT0.5S]", test.toString());
+        assertEquals(test.toString(), "TickClock[SystemClock[Z],PT0.5S]");
     }
 
     //-----------------------------------------------------------------------
     // Ensure divide-by-zero will not be thrown
     // @bug 8310232
-    @Test
     public void test_millis() {
         var test = Clock.tick(Clock.systemUTC(), Duration.ofNanos(1000));
         test.millis();

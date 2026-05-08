@@ -23,35 +23,33 @@
 
 package catalog;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import javax.xml.catalog.CatalogException;
-import javax.xml.catalog.CatalogResolver;
-
 import static catalog.CatalogTestUtils.CATALOG_SYSTEM;
 import static catalog.CatalogTestUtils.catalogResolver;
 import static catalog.ResolutionChecker.checkNoMatch;
 import static catalog.ResolutionChecker.checkSysIdResolution;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import javax.xml.catalog.CatalogException;
+import javax.xml.catalog.CatalogResolver;
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.SystemTest
+ * @run testng/othervm catalog.SystemTest
  * @summary Get matched URIs from system entries.
  */
 public class SystemTest {
 
-    @ParameterizedTest
-    @MethodSource("dataOnMatch")
+    @Test(dataProvider = "systemId-matchedUri")
     public void testMatch(String systemId, String matchedUri) {
         checkSysIdResolution(createResolver(), systemId, matchedUri);
     }
 
-    public static Object[][] dataOnMatch() {
+    @DataProvider(name = "systemId-matchedUri")
+    public Object[][] dataOnMatch() {
         return new Object[][] {
                 // The matched URI of the specified system id is defined in a
                 // system entry. The match is an absolute path.
@@ -82,12 +80,12 @@ public class SystemTest {
     /*
      * If no match is found, a CatalogException should be thrown.
      */
-    @Test
+    @Test(expectedExceptions = CatalogException.class)
     public void testNoMatch() {
-        assertThrows(CatalogException.class, () -> checkNoMatch(createResolver()));
+        checkNoMatch(createResolver());
     }
 
-    private static CatalogResolver createResolver() {
+    private CatalogResolver createResolver() {
         return catalogResolver(CATALOG_SYSTEM);
     }
 }

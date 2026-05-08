@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,32 +23,30 @@
 
 /*
  * @test
- * @run junit TestSegmentOffset
+ * @run testng TestSegmentOffset
  */
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.SkipException;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.IntFunction;
-import java.util.stream.Stream;
-
 import static java.lang.System.out;
 import static java.lang.foreign.ValueLayout.JAVA_BYTE;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
 
-final class TestSegmentOffset {
+public class TestSegmentOffset {
 
-    @ParameterizedTest
-    @MethodSource("slices")
-    void testOffset(SegmentSlice s1, SegmentSlice s2) {
+    @Test(dataProvider = "slices")
+    public void testOffset(SegmentSlice s1, SegmentSlice s2) {
+        if (s1.kind != s2.kind) {
+            throw new SkipException("Slices of different segment kinds");
+        }
         if (s1.contains(s2)) {
             // check that a segment and its overlapping segment point to same elements
             long offset = s1.offset(s2);
@@ -56,7 +54,7 @@ final class TestSegmentOffset {
                 out.format("testOffset s1:%s, s2:%s, offset:%d, i:%s\n", s1, s2, offset, i);
                 byte expected = s2.segment.get(JAVA_BYTE, i);
                 byte found = s1.segment.get(JAVA_BYTE, i + offset);
-                assertEquals(expected, found);
+                assertEquals(found, expected);
             }
         } else if (!s2.contains(s1)) {
             // disjoint segments - check that offset is out of bounds
@@ -74,7 +72,7 @@ final class TestSegmentOffset {
         }
     }
 
-    final static class SegmentSlice {
+    static class SegmentSlice {
 
         enum Kind {
             NATIVE(i -> Arena.ofAuto().allocate(i, 1)),
@@ -96,7 +94,7 @@ final class TestSegmentOffset {
         final int last;
         final MemorySegment segment;
 
-        SegmentSlice(Kind kind, int first, int last, MemorySegment segment) {
+        public SegmentSlice(Kind kind, int first, int last, MemorySegment segment) {
             this.kind = kind;
             this.first = first;
             this.last = last;
@@ -118,8 +116,8 @@ final class TestSegmentOffset {
         }
     }
 
-
-    static Stream<Arguments> slices() {
+    @DataProvider(name = "slices")
+    static Object[][] slices() {
         int[] sizes = { 16, 8, 4, 2, 1 };
         List<SegmentSlice> slices = new ArrayList<>();
         for (SegmentSlice.Kind kind : SegmentSlice.Kind.values()) {
@@ -136,15 +134,12 @@ final class TestSegmentOffset {
                 }
             }
         }
-        SegmentSlice[][] sliceArray = new SegmentSlice[slices.size() * slices.size()][];
+        Object[][] sliceArray = new Object[slices.size() * slices.size()][];
         for (int i = 0 ; i < slices.size() ; i++) {
             for (int j = 0 ; j < slices.size() ; j++) {
-                sliceArray[i * slices.size() + j] = new SegmentSlice[] { slices.get(i), slices.get(j) };
+                sliceArray[i * slices.size() + j] = new Object[] { slices.get(i), slices.get(j) };
             }
         }
-        return Arrays.stream(sliceArray)
-                // Only consider segment slices of the same kind
-                .filter(a -> a[0].kind == a[1].kind)
-                .map(Arguments::of);
+        return sliceArray;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -41,7 +40,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.flagless
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -56,7 +54,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -71,7 +68,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -87,7 +83,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.flagless
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -102,7 +97,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -117,7 +111,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -133,7 +126,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.flagless
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -149,7 +141,6 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
- * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -239,7 +230,7 @@ public class TestOopsInReturnConvention {
         garbage_producer.start();
 
         // Trigger compilation
-        for (int i = 0; i < 100_000; i++) {
+        for (int i = 0; i < 500_000; i++) {
             boolean useNull = (i % 2) == 0;
             LargeValueWithOops val = useNull ? null : new LargeValueWithOops(i);
             caller(val, i, useNull);

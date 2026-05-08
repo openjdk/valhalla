@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,9 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDesc;
@@ -44,20 +47,18 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static java.lang.constant.ConstantDescs.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
 
 /*
  * @test
  * @compile ConstantDescsTest.java
- * @run junit ConstantDescsTest
+ * @run testng ConstantDescsTest
  * @summary unit tests for java.lang.constant.ConstantDescs
  */
 public class ConstantDescsTest {
 
-    public static Object[][] knownFieldsData() {
+    @DataProvider(name = "validateFields")
+    public Object[][] knownFieldsData() {
         return new Object[][]{
                 {CD_Object, Object.class},
                 {CD_String, String.class},
@@ -116,11 +117,10 @@ public class ConstantDescsTest {
      * constants.
      * @throws ReflectiveOperationException if the test fails
      */
-    @ParameterizedTest
-    @MethodSource("knownFieldsData")
+    @Test(dataProvider = "validateFields")
     public void validateFields(ConstantDesc desc, Object value) throws ReflectiveOperationException {
         // Use a minimally-trusted lookup
-        assertEquals(value, desc.resolveConstantDesc(MethodHandles.publicLookup()));
+        assertEquals(desc.resolveConstantDesc(MethodHandles.publicLookup()), value);
     }
 
     /**

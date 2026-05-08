@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -511,8 +511,8 @@ class Instruction: public CompilationResourceObj {
   }
 
   bool is_loaded_flat_array() const;
-  bool maybe_flat_array() const;
-  bool maybe_null_free_array() const;
+  bool maybe_flat_array();
+  bool maybe_null_free_array();
 
   Instruction *insert_after_same_bci(Instruction *i) {
 #ifndef PRODUCT
@@ -967,15 +967,15 @@ class DelayedLoadIndexed;
 
 LEAF(LoadIndexed, AccessIndexed)
  private:
-  NullCheck*  _explicit_null_check;  // For explicit null check elimination
-  Value _buffer;                     // Buffer for load from flat arrays
+  NullCheck*  _explicit_null_check;              // For explicit null check elimination
+  NewInstance* _vt;
   DelayedLoadIndexed* _delayed;
 
  public:
   // creation
   LoadIndexed(Value array, Value index, Value length, BasicType elt_type, ValueStack* state_before, bool mismatched = false)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _explicit_null_check(nullptr), _buffer(nullptr), _delayed(nullptr) {}
+  , _explicit_null_check(nullptr), _vt(nullptr), _delayed(nullptr) {}
 
   // accessors
   NullCheck* explicit_null_check() const         { return _explicit_null_check; }
@@ -987,26 +987,14 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  Value buffer() const { return _buffer; }
-
-  void set_buffer(Value buffer) {
-    assert(buffer == nullptr || buffer->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must be a NewInstance");
-    _buffer = buffer;
-  }
+  NewInstance* vt() const { return _vt; }
+  void set_vt(NewInstance* vt) { _vt = vt; }
 
   DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
 
-  virtual void input_values_do(ValueVisitor* f) {
-    AccessIndexed::input_values_do(f);
-    if (_buffer != nullptr) {
-      f->visit(&_buffer);
-      assert(_buffer->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must stay a NewInstance");
-    }
-  }
-
   // generic;
-  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), buffer())
+  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), vt())
 };
 
 class DelayedLoadIndexed : public CompilationResourceObj {
@@ -1297,11 +1285,10 @@ LEAF(Invoke, StateSplit)
   Values*         _args;
   BasicTypeList*  _signature;
   ciMethod*       _target;
-  ciType*         _return_type;
 
  public:
   // creation
-  Invoke(Bytecodes::Code code, ciType* return_type, Value recv, Values* args,
+  Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
          ciMethod* target, ValueStack* state_before);
 
   // accessors

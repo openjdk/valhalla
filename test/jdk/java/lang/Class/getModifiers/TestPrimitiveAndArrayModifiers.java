@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 
 import jdk.internal.misc.PreviewFeatures;
 
-import java.lang.classfile.ClassFile;
 import java.lang.reflect.Modifier;
 import java.lang.annotation.*;
 
@@ -75,7 +74,7 @@ public class TestPrimitiveAndArrayModifiers {
                 testCase.getAnnotation(ExpectedModifiers.class).value();
             if (PreviewFeatures.isEnabled()) {
                 // All arrays under preview also have IDENTITY
-                expectedModifiers |= ClassFile.ACC_IDENTITY;
+                expectedModifiers |= Modifier.IDENTITY;
             }
             Class<?> arrayClass = testCase.arrayType();
             int actualModifiers = arrayClass.getModifiers();

@@ -22,26 +22,19 @@
  */
 
 /*
- * @test id=withCertificateCompression
- * @bug 8203433 8276559 8372526
+ * @test
+ * @bug 8203433 8276559
  * @summary Tests Client handles HEAD and 304 responses correctly.
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm -Djdk.httpclient.HttpClient.log=trace,headers,requests ${test.main.class}
- */
-
-/*
- * @test id=withoutCertificateCompression
- * @bug 8203433 8276559 8372526
- * @summary Tests Client handles HEAD and 304 responses correctly.
- * @library /test/lib /test/jdk/java/net/httpclient/lib
- * @build jdk.test.lib.net.SimpleSSLContext
- * @run junit/othervm -Djdk.tls.client.disableExtensions=compress_certificate
- *                    -Djdk.tls.server.disableExtensions=compress_certificate
- *                    -Djdk.httpclient.HttpClient.log=trace,headers,requests HeadTest
+ * @run testng/othervm -Djdk.httpclient.HttpClient.log=trace,headers,requests HeadTest
  */
 
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -62,24 +55,19 @@ import static java.net.http.HttpClient.Version.HTTP_1_1;
 import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static jdk.httpclient.test.lib.common.HttpServerAdapters.createClientBuilderForH3;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
 
 public class HeadTest implements HttpServerAdapters {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpTestServer httpTestServer;        // HTTP/1.1
-    private static HttpTestServer httpsTestServer;       // HTTPS/1.1
-    private static HttpTestServer http2TestServer;       // HTTP/2 ( h2c )
-    private static HttpTestServer https2TestServer;      // HTTP/2 ( h2  )
-    private static HttpTestServer https3TestServer;      // HTTP/3
-    private static String httpURI, httpsURI;
-    private static String http2URI, https2URI;
-    private static String https3URI;
+    SSLContext sslContext;
+    HttpTestServer httpTestServer;        // HTTP/1.1
+    HttpTestServer httpsTestServer;       // HTTPS/1.1
+    HttpTestServer http2TestServer;       // HTTP/2 ( h2c )
+    HttpTestServer https2TestServer;      // HTTP/2 ( h2  )
+    HttpTestServer https3TestServer;      // HTTP/3
+    String httpURI, httpsURI;
+    String http2URI, https2URI;
+    String https3URI;
 
     static final String CONTENT_LEN = "300";
 
@@ -92,7 +80,8 @@ public class HeadTest implements HttpServerAdapters {
     static final int HTTP_OK = 200;
     static final PrintStream out = System.out;
 
-    public static Object[][] positive() {
+    @DataProvider(name = "positive")
+    public Object[][] positive() {
         return new Object[][] {
                 // HTTP/1.1
                 { httpURI, "GET", HTTP_NOT_MODIFIED, HTTP_1_1  },
@@ -114,8 +103,7 @@ public class HeadTest implements HttpServerAdapters {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("positive")
+    @Test(dataProvider = "positive")
     void test(String uriString, String method,
                         int expResp, Version version) throws Exception {
         out.printf("%n---- starting (%s) ----%n", uriString);
@@ -148,17 +136,21 @@ public class HeadTest implements HttpServerAdapters {
 
             out.println("  Got response: " + response);
 
-            assertEquals(expResp, response.statusCode());
-            assertEquals("", response.body());
-            assertEquals(CONTENT_LEN, response.headers().firstValue("Content-length").get());
-            assertEquals(request.version().get(), response.version());
+            assertEquals(response.statusCode(), expResp);
+            assertEquals(response.body(), "");
+            assertEquals(response.headers().firstValue("Content-length").get(), CONTENT_LEN);
+            assertEquals(response.version(), request.version().get());
         }
     }
 
     // -- Infrastructure
     // TODO: See if test performs better with Vthreads, see H3SimplePost and H3SimpleGet
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         httpTestServer = HttpTestServer.create(HTTP_1_1);
         httpTestServer.addHandler(new HeadHandler(), "/");
         httpURI = "http://" + httpTestServer.serverAuthority() + "/";
@@ -185,8 +177,8 @@ public class HeadTest implements HttpServerAdapters {
         https3TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         httpTestServer.stop();
         httpsTestServer.stop();
         http2TestServer.stop();

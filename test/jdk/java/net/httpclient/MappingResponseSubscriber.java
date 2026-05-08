@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @build jdk.test.lib.net.SimpleSSLContext jdk.httpclient.test.lib.http2.Http2TestServer
  *        jdk.httpclient.test.lib.common.TestServerConfigurator
- * @run junit/othervm
+ * @run testng/othervm
  *       -Djdk.internal.httpclient.debug=true
  *      MappingResponseSubscriber
  */
@@ -64,32 +64,30 @@ import jdk.httpclient.test.lib.http2.Http2TestExchange;
 import jdk.httpclient.test.lib.http2.Http2Handler;
 import jdk.test.lib.Utils;
 import jdk.test.lib.net.SimpleSSLContext;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.System.out;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class MappingResponseSubscriber {
 
-    private static final SSLContext sslContext = SimpleSSLContext.findSSLContext();
-    private static HttpServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
-    private static HttpsServer httpsTestServer;       // HTTPS/1.1
-    private static Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
-    private static Http2TestServer https2TestServer;  // HTTP/2 ( h2  )
-    private static String httpURI_fixed;
-    private static String httpURI_chunk;
-    private static String httpsURI_fixed;
-    private static String httpsURI_chunk;
-    private static String http2URI_fixed;
-    private static String http2URI_chunk;
-    private static String https2URI_fixed;
-    private static String https2URI_chunk;
+    SSLContext sslContext;
+    HttpServer httpTestServer;         // HTTP/1.1    [ 4 servers ]
+    HttpsServer httpsTestServer;       // HTTPS/1.1
+    Http2TestServer http2TestServer;   // HTTP/2 ( h2c )
+    Http2TestServer https2TestServer;  // HTTP/2 ( h2  )
+    String httpURI_fixed;
+    String httpURI_chunk;
+    String httpsURI_fixed;
+    String httpsURI_chunk;
+    String http2URI_fixed;
+    String http2URI_chunk;
+    String https2URI_fixed;
+    String https2URI_chunk;
 
     static final int ITERATION_COUNT = 3;
     // a shared executor helps reduce the amount of threads created by the test
@@ -97,7 +95,8 @@ public class MappingResponseSubscriber {
 
     static final ReferenceTracker TRACKER = ReferenceTracker.INSTANCE;
 
-    public static Object[][] variants() {
+    @DataProvider(name = "variants")
+    public Object[][] variants() {
         return new Object[][]{
                 { httpURI_fixed,    false },
                 { httpURI_chunk,    false },
@@ -126,8 +125,7 @@ public class MappingResponseSubscriber {
                          .build();
     }
 
-    @ParameterizedTest
-    @MethodSource("variants")
+    @Test(dataProvider = "variants")
     public void testAsBytes(String uri, boolean sameClient) throws Exception {
         HttpClient client = null;
         for (int i = 0; i < ITERATION_COUNT; i++) {
@@ -139,7 +137,7 @@ public class MappingResponseSubscriber {
             BodyHandler<byte[]> handler = new CRSBodyHandler();
             HttpResponse<byte[]> response = client.send(req, handler);
             byte[] body = response.body();
-            Assertions.assertArrayEquals(bytes, body);
+            assertEquals(body, bytes);
 
             // if sameClient we will reuse the client for the next
             // operation, so there's nothing more to do.
@@ -165,7 +163,7 @@ public class MappingResponseSubscriber {
     static class CRSBodyHandler implements BodyHandler<byte[]> {
         @Override
         public BodySubscriber<byte[]> apply(HttpResponse.ResponseInfo rinfo) {
-            assertEquals(200, rinfo.statusCode());
+            assertEquals(rinfo.statusCode(), 200);
             return BodySubscribers.mapping(
                 new CRSBodySubscriber(), (s) -> s.getBytes(UTF_8)
             );
@@ -215,8 +213,12 @@ public class MappingResponseSubscriber {
                 + server.getAddress().getPort();
     }
 
-    @BeforeAll
-    public static void setup() throws Exception {
+    @BeforeTest
+    public void setup() throws Exception {
+        sslContext = new SimpleSSLContext().get();
+        if (sslContext == null)
+            throw new AssertionError("Unexpected null sslContext");
+
         // HTTP/1.1
         HttpHandler h1_fixedLengthHandler = new HTTP1_FixedLengthHandler();
         HttpHandler h1_chunkHandler = new HTTP1_ChunkedHandler();
@@ -256,8 +258,8 @@ public class MappingResponseSubscriber {
         https2TestServer.start();
     }
 
-    @AfterAll
-    public static void teardown() throws Exception {
+    @AfterTest
+    public void teardown() throws Exception {
         httpTestServer.stop(0);
         httpsTestServer.stop(0);
         http2TestServer.stop();

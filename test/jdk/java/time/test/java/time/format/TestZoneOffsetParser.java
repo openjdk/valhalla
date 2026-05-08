@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,26 +60,24 @@
 package test.java.time.format;
 
 import static java.time.temporal.ChronoField.OFFSET_SECONDS;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.text.ParsePosition;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAccessor;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /**
  * Test ZoneOffsetPrinterParser.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Test
 public class TestZoneOffsetParser extends AbstractTestPrinterParser {
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="error")
     Object[][] data_error() {
         return new Object[][] {
             {"+HH:MM:ss", "Z", "hello", -1, IndexOutOfBoundsException.class},
@@ -87,8 +85,7 @@ public class TestZoneOffsetParser extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("data_error")
+    @Test(dataProvider="error")
     public void test_parse_error(String pattern, String noOffsetText, String text, int pos, Class<?> expected) {
         try {
             getFormatter(pattern, noOffsetText).parseUnresolved(text, new ParsePosition(pos));
@@ -98,72 +95,65 @@ public class TestZoneOffsetParser extends AbstractTestPrinterParser {
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_parse_exactMatch_UTC() throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "Z").parseUnresolved("Z", pos);
-        assertEquals(1, pos.getIndex());
+        assertEquals(pos.getIndex(), 1);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
-    @Test
     public void test_parse_startStringMatch_UTC() throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "Z").parseUnresolved("ZOTHER", pos);
-        assertEquals(1, pos.getIndex());
+        assertEquals(pos.getIndex(), 1);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
-    @Test
     public void test_parse_midStringMatch_UTC() throws Exception {
         ParsePosition pos = new ParsePosition(5);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "Z").parseUnresolved("OTHERZOTHER", pos);
-        assertEquals(6, pos.getIndex());
+        assertEquals(pos.getIndex(), 6);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
-    @Test
     public void test_parse_endStringMatch_UTC() throws Exception {
         ParsePosition pos = new ParsePosition(5);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "Z").parseUnresolved("OTHERZ", pos);
-        assertEquals(6, pos.getIndex());
+        assertEquals(pos.getIndex(), 6);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_parse_exactMatch_UTC_EmptyUTC() throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "").parseUnresolved("", pos);
-        assertEquals(0, pos.getIndex());
+        assertEquals(pos.getIndex(), 0);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
-    @Test
     public void test_parse_startStringMatch_UTC_EmptyUTC() throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "").parseUnresolved("OTHER", pos);
-        assertEquals(0, pos.getIndex());
+        assertEquals(pos.getIndex(), 0);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
-    @Test
     public void test_parse_midStringMatch_UTC_EmptyUTC() throws Exception {
         ParsePosition pos = new ParsePosition(5);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "").parseUnresolved("OTHEROTHER", pos);
-        assertEquals(5, pos.getIndex());
+        assertEquals(pos.getIndex(), 5);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
-    @Test
     public void test_parse_endStringMatch_UTC_EmptyUTC() throws Exception {
         ParsePosition pos = new ParsePosition(5);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "").parseUnresolved("OTHER", pos);
-        assertEquals(5, pos.getIndex());
+        assertEquals(pos.getIndex(), 5);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="offsets")
     Object[][] provider_offsets() {
         return new Object[][] {
             {"+HH", "+00", ZoneOffset.UTC},
@@ -238,79 +228,72 @@ public class TestZoneOffsetParser extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_parse_exactMatch(String pattern, String parse, ZoneOffset expected) throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter(pattern, "Z").parseUnresolved(parse, pos);
-        assertEquals(parse.length(), pos.getIndex());
+        assertEquals(pos.getIndex(), parse.length());
         assertParsed(parsed, expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_parse_startStringMatch(String pattern, String parse, ZoneOffset expected) throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter(pattern, "Z").parseUnresolved(parse + ":OTHER", pos);
-        assertEquals(parse.length(), pos.getIndex());
+        assertEquals(pos.getIndex(), parse.length());
         assertParsed(parsed, expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_parse_midStringMatch(String pattern, String parse, ZoneOffset expected) throws Exception {
         ParsePosition pos = new ParsePosition(5);
         TemporalAccessor parsed = getFormatter(pattern, "Z").parseUnresolved("OTHER" + parse + ":OTHER", pos);
-        assertEquals(parse.length() + 5, pos.getIndex());
+        assertEquals(pos.getIndex(), parse.length() + 5);
         assertParsed(parsed, expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_parse_endStringMatch(String pattern, String parse, ZoneOffset expected) throws Exception {
         ParsePosition pos = new ParsePosition(5);
         TemporalAccessor parsed = getFormatter(pattern, "Z").parseUnresolved("OTHER" + parse, pos);
-        assertEquals(parse.length() + 5, pos.getIndex());
+        assertEquals(pos.getIndex(), parse.length() + 5);
         assertParsed(parsed, expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_parse_exactMatch_EmptyUTC(String pattern, String parse, ZoneOffset expected) throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter(pattern, "").parseUnresolved(parse, pos);
-        assertEquals(parse.length(), pos.getIndex());
+        assertEquals(pos.getIndex(), parse.length());
         assertParsed(parsed, expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_parse_startStringMatch_EmptyUTC(String pattern, String parse, ZoneOffset expected) throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter(pattern, "").parseUnresolved(parse + ":OTHER", pos);
-        assertEquals(parse.length(), pos.getIndex());
+        assertEquals(pos.getIndex(), parse.length());
         assertParsed(parsed, expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_parse_midStringMatch_EmptyUTC(String pattern, String parse, ZoneOffset expected) throws Exception {
         ParsePosition pos = new ParsePosition(5);
         TemporalAccessor parsed = getFormatter(pattern, "").parseUnresolved("OTHER" + parse + ":OTHER", pos);
-        assertEquals(parse.length() + 5, pos.getIndex());
+        assertEquals(pos.getIndex(), parse.length() + 5);
         assertParsed(parsed, expected);
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_offsets")
+    @Test(dataProvider="offsets")
     public void test_parse_endStringMatch_EmptyUTC(String pattern, String parse, ZoneOffset expected) throws Exception {
         ParsePosition pos = new ParsePosition(5);
         TemporalAccessor parsed = getFormatter(pattern, "").parseUnresolved("OTHER" + parse, pos);
-        assertEquals(parse.length() + 5, pos.getIndex());
+        assertEquals(pos.getIndex(), parse.length() + 5);
         assertParsed(parsed, expected);
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="bigOffsets")
     Object[][] provider_bigOffsets() {
         return new Object[][] {
             {"+HH", "+19", 19 * 3600},
@@ -336,16 +319,16 @@ public class TestZoneOffsetParser extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_bigOffsets")
+    @Test(dataProvider="bigOffsets")
     public void test_parse_bigOffsets(String pattern, String parse, long offsetSecs) throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter(pattern, "").parseUnresolved(parse, pos);
-        assertEquals(parse.length(), pos.getIndex());
-        assertEquals(offsetSecs, parsed.getLong(OFFSET_SECONDS));
+        assertEquals(pos.getIndex(), parse.length());
+        assertEquals(parsed.getLong(OFFSET_SECONDS), offsetSecs);
     }
 
     //-----------------------------------------------------------------------
+    @DataProvider(name="badOffsets")
     Object[][] provider_badOffsets() {
         return new Object[][] {
             {"+HH", "+1", 0},
@@ -407,60 +390,55 @@ public class TestZoneOffsetParser extends AbstractTestPrinterParser {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("provider_badOffsets")
+    @Test(dataProvider="badOffsets")
     public void test_parse_invalid(String pattern, String parse, int expectedPosition) throws Exception {
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter(pattern, "Z").parseUnresolved(parse, pos);
-        assertEquals(expectedPosition, pos.getErrorIndex());
-        assertEquals(null, parsed);
+        assertEquals(pos.getErrorIndex(), expectedPosition);
+        assertEquals(parsed, null);
     }
 
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
     //-----------------------------------------------------------------------
-    @Test
     public void test_parse_caseSensitiveUTC_matchedCase() throws Exception {
         setCaseSensitive(true);
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "Z").parseUnresolved("Z", pos);
-        assertEquals(1, pos.getIndex());
+        assertEquals(pos.getIndex(), 1);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
-    @Test
     public void test_parse_caseSensitiveUTC_unmatchedCase() throws Exception {
         setCaseSensitive(true);
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "Z").parseUnresolved("z", pos);
-        assertEquals(0, pos.getErrorIndex());
-        assertEquals(null, parsed);
+        assertEquals(pos.getErrorIndex(), 0);
+        assertEquals(parsed, null);
     }
 
-    @Test
     public void test_parse_caseInsensitiveUTC_matchedCase() throws Exception {
         setCaseSensitive(false);
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "Z").parseUnresolved("Z", pos);
-        assertEquals(1, pos.getIndex());
+        assertEquals(pos.getIndex(), 1);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
-    @Test
     public void test_parse_caseInsensitiveUTC_unmatchedCase() throws Exception {
         setCaseSensitive(false);
         ParsePosition pos = new ParsePosition(0);
         TemporalAccessor parsed = getFormatter("+HH:MM:ss", "Z").parseUnresolved("z", pos);
-        assertEquals(1, pos.getIndex());
+        assertEquals(pos.getIndex(), 1);
         assertParsed(parsed, ZoneOffset.UTC);
     }
 
     private void assertParsed(TemporalAccessor parsed, ZoneOffset expectedOffset) {
         if (expectedOffset == null) {
-            assertEquals(null, parsed);
+            assertEquals(parsed, null);
         } else {
-            assertEquals(true, parsed.isSupported(OFFSET_SECONDS));
-            assertEquals((long) expectedOffset.getTotalSeconds(), parsed.getLong(OFFSET_SECONDS));
+            assertEquals(parsed.isSupported(OFFSET_SECONDS), true);
+            assertEquals(parsed.getLong(OFFSET_SECONDS), (long) expectedOffset.getTotalSeconds());
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,6 +123,7 @@ import javax.swing.text.JTextComponent;
 
 import sun.awt.AWTAccessor;
 import sun.awt.AWTAutoShutdown;
+import sun.awt.AppContext;
 import sun.awt.DisplayChangedListener;
 import sun.awt.LightweightFrame;
 import sun.awt.SunToolkit;
@@ -776,7 +777,20 @@ public final class WToolkit extends SunToolkit implements Runnable {
                 ((DisplayChangedListener) lge).displayChanged();
             }
         };
-        EventQueue.invokeLater(runnable);
+        if (AppContext.getAppContext() != null) {
+            // Common case, standalone application
+            EventQueue.invokeLater(runnable);
+        } else {
+            if (displayChangeExecutor == null) {
+                // No synchronization, called on the Toolkit thread only
+                displayChangeExecutor = Executors.newFixedThreadPool(1, r -> {
+                    Thread t = Executors.defaultThreadFactory().newThread(r);
+                    t.setDaemon(true);
+                    return t;
+                });
+            }
+            displayChangeExecutor.submit(runnable);
+        }
     }
 
     /**
@@ -896,7 +910,17 @@ public final class WToolkit extends SunToolkit implements Runnable {
         }
 
         updateXPStyleEnabled(props.get(XPSTYLE_THEME_ACTIVE));
-        EventQueue.invokeLater(() -> updateProperties(props));
+
+        if (AppContext.getAppContext() == null) {
+            // We cannot post the update to any EventQueue. Listeners will
+            // be called on EDTs by DesktopPropertyChangeSupport
+            updateProperties(props);
+        } else {
+            // Cannot update on Toolkit thread.
+            // DesktopPropertyChangeSupport will call listeners on Toolkit
+            // thread if it has AppContext (standalone mode)
+            EventQueue.invokeLater(() -> updateProperties(props));
+        }
     }
 
     private synchronized void updateProperties(final Map<String, Object> props) {

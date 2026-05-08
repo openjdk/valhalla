@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
 package nsk.jvmti.CompiledMethodUnload;
 
 import java.io.*;
+import java.math.*;
+import java.util.*;
 
 import nsk.share.*;
 import nsk.share.jvmti.*;
@@ -45,7 +47,7 @@ public class compmethunload001 {
     private final static String CLS_TO_BE_UNLOADED =
         "nsk.jvmti.CompiledMethodUnload.compmethunload001u";
 
-    private final static int MAX_ITERATIONS = 10;
+    private final static int MAX_ITERATIONS = 5;
 
     static {
         try {
@@ -91,11 +93,9 @@ public class compmethunload001 {
         hotCls = null;
         c = null;
 
-        // BackgroundCompilation is on by default so wait for compiler threads
-        // to drop references to the to-be-unloaded class.
-        if (!clsUnLoader.unloadClassAndWait(10_000)) {
-            throw new Failure("Class should have been unloaded");
-        }
+        boolean clsUnloaded = clsUnLoader.unloadClass();
+        clsUnLoader = null;
+        System.gc();
     }
 
     private int runThis(String argv[], PrintStream out) throws Exception {
@@ -110,13 +110,12 @@ public class compmethunload001 {
         int num = unloaded();
         int iter = 0;
         while (num == 0) {
-            // The unload is delayed because it happens async
-            Thread.sleep(1000);
-            num = unloaded();
-            iter++;
-            if (iter > MAX_ITERATIONS) {
-                throw new Failure("PRODUCT BUG: no classunloading callback in " + MAX_ITERATIONS);
-            }
+           System.gc();
+           num = unloaded();
+           iter++;
+           if (iter > MAX_ITERATIONS) {
+               throw new Failure("PRODUCT BUG: class was not unloaded in " + MAX_ITERATIONS);
+           }
         }
         System.out.println("Number of unloaded events " + num + " number of iterations " + iter);
         return check();

@@ -118,6 +118,7 @@ static void assert_unlocked_state(markWord mark) {
   EXPECT_FALSE(mark.has_displaced_mark_helper());
   EXPECT_FALSE(mark.is_fast_locked());
   EXPECT_FALSE(mark.has_monitor());
+  EXPECT_FALSE(mark.is_being_inflated());
   EXPECT_FALSE(mark.is_locked());
   EXPECT_TRUE(mark.is_unlocked());
 }
@@ -133,6 +134,8 @@ static void assert_copy_set_hash(markWord mark) {
 static void assert_type(markWord mark) {
   EXPECT_FALSE(mark.is_flat_array());
   EXPECT_FALSE(mark.is_inline_type());
+  EXPECT_FALSE(mark.is_larval_state());
+  EXPECT_FALSE(mark.is_null_free_array());
 }
 
 TEST_VM(markWord, prototype) {
@@ -158,9 +161,22 @@ static void assert_inline_type(markWord mark) {
 TEST_VM(markWord, inline_type_prototype) {
   markWord mark = markWord::inline_type_prototype();
   assert_unlocked_state(mark);
-  // Don't call mark.is_neutral() on value class instances
+  EXPECT_FALSE(mark.is_neutral());
   assert_test_pattern(&mark, " inline_type");
 
+  assert_inline_type(mark);
+  EXPECT_FALSE(mark.is_larval_state());
+
+  EXPECT_TRUE(mark.has_no_hash());
+  EXPECT_FALSE(mark.is_marked());
+
+  markWord larval = mark.enter_larval_state();
+  EXPECT_TRUE(larval.is_larval_state());
+  assert_inline_type(larval);
+  assert_test_pattern(&larval, " inline_type=larval");
+
+  mark = larval.exit_larval_state();
+  EXPECT_FALSE(mark.is_larval_state());
   assert_inline_type(mark);
 
   EXPECT_TRUE(mark.has_no_hash());
@@ -172,10 +188,11 @@ TEST_VM(markWord, inline_type_prototype) {
 static void assert_flat_array_type(markWord mark) {
   EXPECT_TRUE(mark.is_flat_array());
   EXPECT_FALSE(mark.is_inline_type());
+  EXPECT_FALSE(mark.is_larval_state());
 }
 
 TEST_VM(markWord, null_free_flat_array_prototype) {
-  markWord mark = markWord::flat_array_prototype(true /* null_free */);
+  markWord mark = markWord::flat_array_prototype(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT);
   assert_unlocked_state(mark);
   EXPECT_TRUE(mark.is_neutral());
 
@@ -193,7 +210,7 @@ TEST_VM(markWord, null_free_flat_array_prototype) {
 }
 
 TEST_VM(markWord, nullable_flat_array_prototype) {
-  markWord mark = markWord::flat_array_prototype(false /* null_free */);
+  markWord mark = markWord::flat_array_prototype(LayoutKind::NULLABLE_ATOMIC_FLAT);
   assert_unlocked_state(mark);
   EXPECT_TRUE(mark.is_neutral());
 
@@ -213,6 +230,7 @@ TEST_VM(markWord, nullable_flat_array_prototype) {
 static void assert_null_free_array_type(markWord mark) {
   EXPECT_FALSE(mark.is_flat_array());
   EXPECT_FALSE(mark.is_inline_type());
+  EXPECT_FALSE(mark.is_larval_state());
   EXPECT_TRUE(mark.is_null_free_array());
 }
 

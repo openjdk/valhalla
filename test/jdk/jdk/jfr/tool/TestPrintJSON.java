@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
@@ -63,7 +62,7 @@ public class TestPrintJSON {
 
         JSONValue o = JSONValue.parse(json);
         JSONValue recording = o.get("recording");
-        List<JSONValue> jsonEvents = recording.get("events").elements();
+        JSONArray jsonEvents = recording.get("events").asArray();
         List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
         Collections.sort(events, new EndTicksComparator());
         // Verify events are equal
@@ -80,7 +79,7 @@ public class TestPrintJSON {
     private static void assertEquals(Object jsonObject, Object jfrObject) throws Exception {
         // Check object
         if (jfrObject instanceof RecordedObject) {
-            Map<String, JSONValue> values = ((JSONValue) jsonObject).get("values").members();
+            JSONValue values = ((JSONValue) jsonObject).get("values");
             RecordedObject recObject = (RecordedObject) jfrObject;
             Asserts.assertEquals(values.size(), recObject.getFields().size());
             for (ValueDescriptor v : recObject.getFields()) {
@@ -103,7 +102,7 @@ public class TestPrintJSON {
         // Check array
         if (jfrObject != null && jfrObject.getClass().isArray()) {
             Object[] jfrArray = (Object[]) jfrObject;
-            List<JSONValue> jsArray = ((JSONValue) jsonObject).elements();
+            JSONArray jsArray = ((JSONArray) jsonObject);
             for (int i = 0; i < jfrArray.length; i++) {
                 assertEquals(jsArray.get(i), jfrArray[i]);
             }

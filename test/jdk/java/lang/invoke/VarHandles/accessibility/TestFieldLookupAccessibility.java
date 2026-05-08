@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,14 @@
  * @compile TestFieldLookupAccessibility.java
  *          pkg/A.java pkg/B_extends_A.java pkg/C.java
  *          pkg/subpkg/B_extends_A.java pkg/subpkg/C.java
- * @run junit/othervm --enable-final-field-mutation=ALL-UNNAMED -DwriteAccess=true TestFieldLookupAccessibility
- * @run junit/othervm --illegal-final-field-mutation=deny -DwriteAccess=false TestFieldLookupAccessibility
+ * @run testng/othervm --enable-final-field-mutation=ALL-UNNAMED -DwriteAccess=true TestFieldLookupAccessibility
+ * @run testng/othervm --illegal-final-field-mutation=deny -DwriteAccess=false TestFieldLookupAccessibility
  */
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.testng.Assert.*;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import pkg.B_extends_A;
 
 import java.lang.invoke.MethodHandles;
@@ -45,14 +48,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
 public class TestFieldLookupAccessibility {
     static boolean writeAccess;
 
-    @BeforeAll
+    @BeforeClass
     static void setup() {
         String s = System.getProperty("writeAccess");
         assertNotNull(s);
@@ -188,7 +188,8 @@ public class TestFieldLookupAccessibility {
         }
     }
 
-    public static Object[][] lookupProvider() throws Exception {
+    @DataProvider
+    public Object[][] lookupProvider() throws Exception {
         Stream<List<Object>> baseCases = Stream.of(
                 // Look up from same package
                 List.of(pkg.A.class, pkg.A.lookup(), pkg.A.inaccessibleFields()),
@@ -214,8 +215,7 @@ public class TestFieldLookupAccessibility {
         return pl.toArray();
     }
 
-    @ParameterizedTest
-    @MethodSource("lookupProvider")
+    @Test(dataProvider = "lookupProvider")
     public void test(FieldLookup fl, Class<?> src, MethodHandles.Lookup l, Set<String> inaccessibleFields) {
         // Add to the expected failures all inaccessible fields due to accessibility modifiers
         Set<String> expected = fl.inaccessibleFields(inaccessibleFields);
@@ -240,10 +240,10 @@ public class TestFieldLookupAccessibility {
                 collect(Collectors.toSet());
         if (!actualFieldNames.equals(expected)) {
             if (actualFieldNames.isEmpty()) {
-                assertEquals(expected, actualFieldNames, "No accessibility failures:");
+                assertEquals(actualFieldNames, expected, "No accessibility failures:");
             }
             else {
-                assertEquals(expected, actualFieldNames, "Accessibility failures differ:");
+                assertEquals(actualFieldNames, expected, "Accessibility failures differ:");
             }
         }
         else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,10 +99,25 @@ inline void ParCompactionManager::FollowStackClosure::do_void() {
   }
 }
 
+template <typename T>
+inline void follow_array_specialized(objArrayOop obj, size_t start, size_t end, ParCompactionManager* cm) {
+  assert(start <= end, "invariant");
+  T* const base = (T*)obj->base();
+  T* const beg = base + start;
+  T* const chunk_end = base + end;
+
+  // Push the non-null elements of the next stride on the marking stack.
+  for (T* e = beg; e < chunk_end; e++) {
+    cm->mark_and_push<T>(e);
+  }
+}
+
 inline void ParCompactionManager::follow_array(objArrayOop obj, size_t start, size_t end) {
-  obj->oop_iterate_elements_range(&_mark_and_push_closure,
-                                  checked_cast<int>(start),
-                                  checked_cast<int>(end));
+  if (UseCompressedOops) {
+    follow_array_specialized<narrowOop>(obj, start, end, this);
+  } else {
+    follow_array_specialized<oop>(obj, start, end, this);
+  }
 }
 
 inline void ParCompactionManager::follow_contents(const ScannerTask& task, bool stolen) {
@@ -112,8 +127,8 @@ inline void ParCompactionManager::follow_contents(const ScannerTask& task, bool 
   } else {
     oop obj = task.to_oop();
     assert(PSParallelCompact::mark_bitmap()->is_marked(obj), "should be marked");
-    if (obj->is_array_with_oops()) {
-      push_objArray((objArrayOop)obj);
+    if (obj->is_refArray()) {
+      push_objArray(obj);
     } else {
       obj->oop_iterate(&_mark_and_push_closure);
     }

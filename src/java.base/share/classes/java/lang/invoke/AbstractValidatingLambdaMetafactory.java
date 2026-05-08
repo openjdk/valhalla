@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -268,7 +268,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             if (!implClass.isAssignableFrom(receiverClass)) {
                 throw new LambdaConversionException(
                         String.format("Invalid receiver type %s; not a subtype of implementation type %s",
-                                      receiverClass, implClass));
+                                      receiverClass.descriptorString(), implClass.descriptorString()));
             }
         } else {
             // no receiver
@@ -368,7 +368,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                     return !strict;
                 }
             } else {
-                // both are reference types: fromType should be a superclass of toType.
+                // fromType should be a superclass of toType
                 return !strict || toType.isAssignableFrom(fromType);
             }
         }

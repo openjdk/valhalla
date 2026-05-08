@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_G1_G1CONCURRENTREFINETHREAD_HPP
 #define SHARE_GC_G1_G1CONCURRENTREFINETHREAD_HPP
 
+#include "gc/g1/g1ConcurrentRefineStats.hpp"
 #include "gc/shared/concurrentGCThread.hpp"
 #include "runtime/mutex.hpp"
 #include "utilities/globalDefinitions.hpp"

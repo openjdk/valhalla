@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,15 +37,14 @@ import java.util.logging.Logger;
 import jdk.test.lib.net.URIBuilder;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.SimpleFileServer;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.net.http.HttpClient.Builder.NO_PROXY;
 import static java.nio.file.StandardOpenOption.CREATE;
-
-import org.junit.jupiter.api.AfterAll;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /*
  * @test
@@ -53,7 +52,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  *          set of binary request sequences
  * @library /test/lib
  * @build jdk.test.lib.net.URIBuilder
- * @run junit/othervm IdempotencyAndCommutativityTest
+ * @run testng/othervm IdempotencyAndCommutativityTest
  */
 public class IdempotencyAndCommutativityTest {
 
@@ -70,8 +69,8 @@ public class IdempotencyAndCommutativityTest {
     static final boolean ENABLE_LOGGING = true;
     static final Logger LOGGER = Logger.getLogger("com.sun.net.httpserver");
 
-    @BeforeAll
-    public static void setup() throws IOException {
+    @BeforeTest
+    public void setup() throws IOException {
         if (ENABLE_LOGGING) {
             ConsoleHandler ch = new ConsoleHandler();
             LOGGER.setLevel(Level.ALL);
@@ -90,7 +89,8 @@ public class IdempotencyAndCommutativityTest {
     record ExchangeValues(String method, String resource, int respCode, String contentType) {}
 
     // Creates an exhaustive set of binary exchange sequences
-    public static Object[][] allBinarySequences() {
+    @DataProvider
+    public Object[][] allBinarySequences() {
         final List<ExchangeValues> sequences =  List.of(
                 new ExchangeValues("GET",     FILE_NAME,         200, "text/plain"),
                 new ExchangeValues("GET",     DIR_NAME,          200, "text/html; charset=UTF-8"),
@@ -108,8 +108,7 @@ public class IdempotencyAndCommutativityTest {
                         .toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("allBinarySequences")
+    @Test(dataProvider = "allBinarySequences")
     public void testBinarySequences(ExchangeValues e1, ExchangeValues e2) throws Exception {
         System.out.println("---");
         System.out.println(e1);
@@ -123,15 +122,15 @@ public class IdempotencyAndCommutativityTest {
                                             .method(e.method(), HttpRequest.BodyPublishers.noBody())
                                             .build();
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        assertEquals(e.respCode(), response.statusCode());
+        assertEquals(response.statusCode(), e.respCode());
         if (e.contentType != null) {
-            assertEquals(e.contentType(), response.headers().firstValue("content-type").get());
+            assertEquals(response.headers().firstValue("content-type").get(), e.contentType());
         } else {
             assertTrue(response.headers().firstValue("content-type").isEmpty());
         }
     }
 
-    @AfterAll
+    @AfterTest
     public static void teardown() {
         server.stop(0);
     }

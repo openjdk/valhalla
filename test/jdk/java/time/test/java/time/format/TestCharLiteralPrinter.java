@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,45 +59,42 @@
  */
 package test.java.time.format;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.Test;
+import static org.testng.Assert.assertEquals;
+
+import org.testng.annotations.Test;
 
 /**
  * Test CharLiteralPrinterParser.
  */
+@Test
 public class TestCharLiteralPrinter extends AbstractTestPrinterParser {
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_print_emptyCalendrical() throws Exception {
         buf.append("EXISTING");
         getFormatter('a').formatTo(EMPTY_DTA, buf);
-        assertEquals("EXISTINGa", buf.toString());
+        assertEquals(buf.toString(), "EXISTINGa");
     }
 
-    @Test
     public void test_print_dateTime() throws Exception {
         buf.append("EXISTING");
         getFormatter('a').formatTo(dta, buf);
-        assertEquals("EXISTINGa", buf.toString());
+        assertEquals(buf.toString(), "EXISTINGa");
     }
 
-    @Test
     public void test_print_emptyAppendable() throws Exception {
         getFormatter('a').formatTo(dta, buf);
-        assertEquals("a", buf.toString());
+        assertEquals(buf.toString(), "a");
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_toString() throws Exception {
-        assertEquals("'a'", getFormatter('a').toString());
+        assertEquals(getFormatter('a').toString(), "'a'");
     }
 
     //-----------------------------------------------------------------------
-    @Test
     public void test_toString_apos() throws Exception {
-        assertEquals("''", getFormatter('\'').toString());
+        assertEquals(getFormatter('\'').toString(), "''");
     }
 
 }

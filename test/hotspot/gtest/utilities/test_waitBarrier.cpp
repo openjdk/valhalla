@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,23 +21,23 @@
  * questions.
  */
 
-#include "runtime/atomic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "utilities/spinYield.hpp"
 #include "utilities/waitBarrier.hpp"
 #include "threadHelper.inline.hpp"
 
-static Atomic<int> wait_tag{0};
-static Atomic<int> valid_value{0};
+static volatile int wait_tag = 0;
+static volatile int valid_value = 0;
 
 template <typename WaitBarrierImpl>
 class WBThread : public JavaTestThread {
 public:
-  static Atomic<bool> _exit;
+  static volatile bool _exit;
   WaitBarrierType<WaitBarrierImpl>* _wait_barrier;
   Semaphore* _wrt_start;
-  Atomic<int> _on_barrier;
+  volatile int _on_barrier;
 
   WBThread(Semaphore* post, WaitBarrierType<WaitBarrierImpl>* wb, Semaphore* wrt_start)
     : JavaTestThread(post), _wait_barrier(wb), _wrt_start(wrt_start) {};
@@ -46,12 +46,12 @@ public:
     _wrt_start->signal();
     int vv, tag;
     // Similar to how a JavaThread would stop in a safepoint.
-    while (!_exit.load_relaxed()) {
+    while (!_exit) {
       // Load the published tag.
-      tag = wait_tag.load_acquire();
+      tag = AtomicAccess::load_acquire(&wait_tag);
       // Publish the tag this thread is going to wait for.
-      _on_barrier.release_store(tag);
-      if (_on_barrier.load_relaxed() == 0) {
+      AtomicAccess::release_store(&_on_barrier, tag);
+      if (_on_barrier == 0) {
         SpinPause();
         continue;
       }
@@ -59,15 +59,15 @@ public:
       // Wait until we are woken.
       _wait_barrier->wait(tag);
       // Verify that we do not see an invalid value.
-      vv = valid_value.load_acquire();
+      vv = AtomicAccess::load_acquire(&valid_value);
       ASSERT_EQ((vv & 0x1), 0);
-      _on_barrier.release_store(0);
+      AtomicAccess::release_store(&_on_barrier, 0);
     }
   }
 };
 
 template <typename WaitBarrierImpl>
-Atomic<bool> WBThread<WaitBarrierImpl>::_exit{false};
+volatile bool WBThread<WaitBarrierImpl>::_exit = false;
 
 template <typename WaitBarrierImpl>
 class WBArmerThread : public JavaTestThread {
@@ -103,35 +103,35 @@ public:
       // Arm next tag.
       wb.arm(next_tag);
       // Publish tag.
-      wait_tag.release_store_fence(next_tag);
+      AtomicAccess::release_store_fence(&wait_tag, next_tag);
 
       // Wait until threads picked up new tag.
-      while (reader1->_on_barrier.load_relaxed() != wait_tag.load_relaxed() ||
-             reader2->_on_barrier.load_relaxed() != wait_tag.load_relaxed() ||
-             reader3->_on_barrier.load_relaxed() != wait_tag.load_relaxed() ||
-             reader4->_on_barrier.load_relaxed() != wait_tag.load_relaxed()) {
+      while (reader1->_on_barrier != wait_tag ||
+             reader2->_on_barrier != wait_tag ||
+             reader3->_on_barrier != wait_tag ||
+             reader4->_on_barrier != wait_tag) {
         SpinPause();
       }
 
       // Set an invalid value.
-      valid_value.release_store(valid_value.load_relaxed() + 1); // odd
+      AtomicAccess::release_store(&valid_value, valid_value + 1); // odd
       os::naked_yield();
       // Set a valid value.
-      valid_value.release_store(valid_value.load_relaxed() + 1); // even
+      AtomicAccess::release_store(&valid_value, valid_value + 1); // even
       // Publish inactive tag.
-      wait_tag.release_store_fence(0); // Stores in WB must not float up.
+      AtomicAccess::release_store_fence(&wait_tag, 0); // Stores in WB must not float up.
       wb.disarm();
 
       // Wait until threads done valid_value verification.
-      while (reader1->_on_barrier.load_relaxed() != 0 ||
-             reader2->_on_barrier.load_relaxed() != 0 ||
-             reader3->_on_barrier.load_relaxed() != 0 ||
-             reader4->_on_barrier.load_relaxed() != 0) {
+      while (reader1->_on_barrier != 0 ||
+             reader2->_on_barrier != 0 ||
+             reader3->_on_barrier != 0 ||
+             reader4->_on_barrier != 0) {
         SpinPause();
       }
       ++next_tag;
     }
-    WBThread<WaitBarrierImpl>::_exit.store_relaxed(true);
+    WBThread<WaitBarrierImpl>::_exit = true;
     for (int i = 0; i < NUMBER_OF_READERS; i++) {
       post.wait();
     }
@@ -139,13 +139,13 @@ public:
 };
 
 TEST_VM(WaitBarrier, default_wb) {
-  WBThread<WaitBarrierDefault>::_exit.store_relaxed(false);
+  WBThread<WaitBarrierDefault>::_exit = false;
   mt_test_doer<WBArmerThread<WaitBarrierDefault> >();
 }
 
 #if defined(LINUX)
 TEST_VM(WaitBarrier, generic_wb) {
-  WBThread<GenericWaitBarrier>::_exit.store_relaxed(false);
+  WBThread<GenericWaitBarrier>::_exit = false;
   mt_test_doer<WBArmerThread<GenericWaitBarrier> >();
 }
 #endif

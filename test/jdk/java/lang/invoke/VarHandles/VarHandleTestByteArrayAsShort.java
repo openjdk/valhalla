@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,25 +26,25 @@
  * @bug 8154556
  * @comment Set CompileThresholdScaling to 0.1 so that the warmup loop sets to 2000 iterations
  *          to hit compilation thresholds
- * @run junit/othervm/timeout=360 -Diters=2000 -XX:CompileThresholdScaling=0.1 -XX:TieredStopAtLevel=1 VarHandleTestByteArrayAsShort
- * @run junit/othervm/timeout=360 -Diters=2000 -XX:CompileThresholdScaling=0.1                         VarHandleTestByteArrayAsShort
- * @run junit/othervm/timeout=360 -Diters=2000 -XX:CompileThresholdScaling=0.1 -XX:-TieredCompilation  VarHandleTestByteArrayAsShort
+ * @run testng/othervm/timeout=360 -Diters=2000 -XX:CompileThresholdScaling=0.1 -XX:TieredStopAtLevel=1 VarHandleTestByteArrayAsShort
+ * @run testng/othervm/timeout=360 -Diters=2000 -XX:CompileThresholdScaling=0.1                         VarHandleTestByteArrayAsShort
+ * @run testng/othervm/timeout=360 -Diters=2000 -XX:CompileThresholdScaling=0.1 -XX:-TieredCompilation  VarHandleTestByteArrayAsShort
  */
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.*;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
     static final int SIZE = Short.BYTES;
 
@@ -107,8 +107,7 @@ public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("VarHandleBaseByteArrayTest#varHandlesProvider")
+    @Test(dataProvider = "varHandlesProvider")
     public void testIsAccessModeSupported(VarHandleSource vhs) {
         VarHandle vh = vhs.s;
 
@@ -159,16 +158,17 @@ public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
             assertFalse(vh.isAccessModeSupported(VarHandle.AccessMode.GET_AND_BITWISE_XOR_RELEASE));
     }
 
-    @ParameterizedTest
-    @MethodSource("typesProvider")
+    @Test(dataProvider = "typesProvider")
     public void testTypes(VarHandle vh, List<java.lang.Class<?>> pts) {
-        assertEquals(short.class, vh.varType());
+        assertEquals(vh.varType(), short.class);
 
-        assertEquals(pts, vh.coordinateTypes());
+        assertEquals(vh.coordinateTypes(), pts);
 
         testTypes(vh);
     }
 
+
+    @DataProvider
     public Object[][] accessTestCaseProvider() throws Exception {
         List<AccessTestCase<?>> cases = new ArrayList<>();
 
@@ -230,8 +230,7 @@ public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
         return cases.stream().map(tc -> new Object[]{tc.toString(), tc}).toArray(Object[][]::new);
     }
 
-    @ParameterizedTest
-    @MethodSource("accessTestCaseProvider")
+    @Test(dataProvider = "accessTestCaseProvider")
     public <T> void testAccess(String desc, AccessTestCase<T> atc) throws Throwable {
         T t = atc.get();
         int iters = atc.requiresLoop() ? ITERS : 1;
@@ -239,6 +238,7 @@ public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
             atc.testAccess(t);
         }
     }
+
 
     static void testArrayNPE(ByteArraySource bs, VarHandleSource vhs) {
         VarHandle vh = vhs.s;
@@ -740,7 +740,7 @@ public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
             {
                 vh.set(array, i, VALUE_1);
                 short x = (short) vh.get(array, i);
-                assertEquals(VALUE_1, x, "get short value");
+                assertEquals(x, VALUE_1, "get short value");
             }
         }
     }
@@ -759,7 +759,7 @@ public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
             {
                 vh.set(array, i, VALUE_1);
                 short x = (short) vh.get(array, i);
-                assertEquals(VALUE_1, x, "get short value");
+                assertEquals(x, VALUE_1, "get short value");
             }
 
             if (iAligned) {
@@ -767,21 +767,21 @@ public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
                 {
                     vh.setVolatile(array, i, VALUE_2);
                     short x = (short) vh.getVolatile(array, i);
-                    assertEquals(VALUE_2, x, "setVolatile short value");
+                    assertEquals(x, VALUE_2, "setVolatile short value");
                 }
 
                 // Lazy
                 {
                     vh.setRelease(array, i, VALUE_1);
                     short x = (short) vh.getAcquire(array, i);
-                    assertEquals(VALUE_1, x, "setRelease short value");
+                    assertEquals(x, VALUE_1, "setRelease short value");
                 }
 
                 // Opaque
                 {
                     vh.setOpaque(array, i, VALUE_2);
                     short x = (short) vh.getOpaque(array, i);
-                    assertEquals(VALUE_2, x, "setOpaque short value");
+                    assertEquals(x, VALUE_2, "setOpaque short value");
                 }
 
 
@@ -807,26 +807,26 @@ public class VarHandleTestByteArrayAsShort extends VarHandleBaseByteArrayTest {
             // Plain
             {
                 short x = (short) vh.get(array, i);
-                assertEquals(v, x, "get short value");
+                assertEquals(x, v, "get short value");
             }
 
             if (iAligned) {
                 // Volatile
                 {
                     short x = (short) vh.getVolatile(array, i);
-                    assertEquals(v, x, "getVolatile short value");
+                    assertEquals(x, v, "getVolatile short value");
                 }
 
                 // Lazy
                 {
                     short x = (short) vh.getAcquire(array, i);
-                    assertEquals(v, x, "getRelease short value");
+                    assertEquals(x, v, "getRelease short value");
                 }
 
                 // Opaque
                 {
                     short x = (short) vh.getOpaque(array, i);
-                    assertEquals(v, x, "getOpaque short value");
+                    assertEquals(x, v, "getOpaque short value");
                 }
             }
         }

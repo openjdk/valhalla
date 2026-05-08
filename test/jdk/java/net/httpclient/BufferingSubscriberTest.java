@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,15 +38,14 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.BodySubscribers;
 import jdk.test.lib.RandomFactory;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 import static java.lang.Long.MAX_VALUE;
+import static java.lang.Long.min;
 import static java.lang.System.out;
 import static java.util.concurrent.CompletableFuture.delayedExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static org.testng.Assert.*;
 
 /*
  * @test
@@ -55,7 +54,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * @key randomness
  * @library /test/lib
  * @build jdk.test.lib.RandomFactory
- * @run junit/othervm/timeout=480 -Djdk.internal.httpclient.debug=true ${test.main.class}
+ * @run testng/othervm/timeout=480 -Djdk.internal.httpclient.debug=true BufferingSubscriberTest
  */
 
 public class BufferingSubscriberTest {
@@ -81,41 +80,37 @@ public class BufferingSubscriberTest {
         time = time + ms + "ms";
         out.println(what + "\t ["+time+"]\t "+ String.format(fmt,args));
     }
-    public static Object[][] negatives() {
+    @DataProvider(name = "negatives")
+    public Object[][] negatives() {
         return new Object[][] {  { 0 }, { -1 }, { -1000 } };
     }
 
-    @ParameterizedTest
-    @MethodSource("negatives")
+    @Test(dataProvider = "negatives", expectedExceptions = IllegalArgumentException.class)
     public void subscriberThrowsIAE(int bufferSize) {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            printStamp(START, "subscriberThrowsIAE(%d)", bufferSize);
-            try {
-                BodySubscriber<?> bp = BodySubscribers.ofByteArray();
-                BodySubscribers.buffering(bp, bufferSize);
-            } finally {
-                printStamp(END, "subscriberThrowsIAE(%d)", bufferSize);
-            }
-        });
+        printStamp(START, "subscriberThrowsIAE(%d)", bufferSize);
+        try {
+            BodySubscriber<?> bp = BodySubscribers.ofByteArray();
+            BodySubscribers.buffering(bp, bufferSize);
+        } finally {
+            printStamp(END, "subscriberThrowsIAE(%d)", bufferSize);
+        }
     }
 
-    @ParameterizedTest
-    @MethodSource("negatives")
+    @Test(dataProvider = "negatives", expectedExceptions = IllegalArgumentException.class)
     public void handlerThrowsIAE(int bufferSize) {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            printStamp(START, "handlerThrowsIAE(%d)", bufferSize);
-            try {
-                BodyHandler<?> bp = BodyHandlers.ofByteArray();
-                BodyHandlers.buffering(bp, bufferSize);
-            } finally {
-                printStamp(END, "handlerThrowsIAE(%d)", bufferSize);
-            }
-        });
+        printStamp(START, "handlerThrowsIAE(%d)", bufferSize);
+        try {
+            BodyHandler<?> bp = BodyHandlers.ofByteArray();
+            BodyHandlers.buffering(bp, bufferSize);
+        } finally {
+            printStamp(END, "handlerThrowsIAE(%d)", bufferSize);
+        }
     }
 
     // ---
 
-    public static Object[][] config() {
+    @DataProvider(name = "config")
+    public Object[][] config() {
         return new Object[][] {
             // iterations delayMillis numBuffers bufferSize maxBufferSize minBufferSize
             { 1,              0,          1,         1,         2,            1   },
@@ -134,8 +129,7 @@ public class BufferingSubscriberTest {
         };
     }
 
-    @ParameterizedTest
-    @MethodSource("config")
+    @Test(dataProvider = "config")
     public void test(int iterations,
                      int delayMillis,
                      int numBuffers,
@@ -288,8 +282,8 @@ public class BufferingSubscriberTest {
                 }
                 count++;
                 onNextInvocations++;
-                assertNotEquals(0L, sz, "Unexpected empty buffers");
-                items.stream().forEach(b -> assertEquals(0, b.position()));
+                assertNotEquals(sz, 0L, "Unexpected empty buffers");
+                items.stream().forEach(b -> assertEquals(b.position(), 0));
                 assertFalse(noMoreOnNext);
 
                 if (sz != bufferSize) {
@@ -302,20 +296,20 @@ public class BufferingSubscriberTest {
                             "Possibly received last buffer: sz=%d, accumulated=%d, total=%d",
                             sz, totalBytesReceived, totalBytesReceived + sz);
                 } else {
-                    assertEquals(bufferSize, sz, "Expected to receive exactly bufferSize");
+                    assertEquals(sz, bufferSize, "Expected to receive exactly bufferSize");
                 }
                 lastSeenSize = sz;
 
                 // Ensure expected contents
                 for (ByteBuffer b : items) {
                     while (b.hasRemaining()) {
-                        assertEquals((byte) (index % 100), b.get());
+                        assertEquals(b.get(), (byte) (index % 100));
                         index++;
                     }
                 }
 
                 totalBytesReceived += sz;
-                assertEquals(index, totalBytesReceived);
+                assertEquals(totalBytesReceived, index);
                 if (delayMillis > 0 && ((expectedTotalSize - totalBytesReceived) > bufferSize))
                     delayedExecutor.execute(this::requestMore);
                 else

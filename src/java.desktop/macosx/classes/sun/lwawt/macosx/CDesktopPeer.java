@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,10 +34,7 @@ import java.awt.peer.DesktopPeer;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.annotation.Native;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 
 /**
@@ -47,12 +44,6 @@ import java.nio.file.Path;
  */
 public final class CDesktopPeer implements DesktopPeer {
 
-    @Native private static final int OPEN = 0;
-    @Native private static final int BROWSE = 1;
-    @Native private static final int EDIT = 2;
-    @Native private static final int PRINT = 3;
-    @Native private static final int MAIL = 4;
-
     @Override
     public boolean isSupported(Action action) {
         return true;
@@ -60,27 +51,27 @@ public final class CDesktopPeer implements DesktopPeer {
 
     @Override
     public void open(File file) throws IOException {
-        this.lsOpenFile(file, OPEN);
+        this.lsOpenFile(file, false);
     }
 
     @Override
     public void edit(File file) throws IOException {
-        this.lsOpenFile(file, EDIT);
+        this.lsOpenFile(file, false);
     }
 
     @Override
     public void print(File file) throws IOException {
-        this.lsOpenFile(file, PRINT);
+        this.lsOpenFile(file, true);
     }
 
     @Override
     public void mail(URI uri) throws IOException {
-        this.lsOpen(uri, MAIL);
+        this.lsOpen(uri);
     }
 
     @Override
     public void browse(URI uri) throws IOException {
-        this.lsOpen(uri, BROWSE);
+        this.lsOpen(uri);
     }
 
     @Override
@@ -171,44 +162,24 @@ public final class CDesktopPeer implements DesktopPeer {
         }
     }
 
-    private void lsOpen(URI uri, int action) throws IOException {
-        int status = _lsOpenURI(uri.toString(), action);
+    private void lsOpen(URI uri) throws IOException {
+        int status = _lsOpenURI(uri.toString());
 
         if (status != 0 /* noErr */) {
-            String actionString = (action == MAIL) ? "mail" : "browse";
-            throw new IOException("Failed to " + actionString + " " + uri
-                                  + ". Error code: " + status);
+            throw new IOException("Failed to mail or browse " + uri + ". Error code: " + status);
         }
     }
 
-    private void lsOpenFile(File file, int action) throws IOException {
-        int status = -1;
-        Path tmpFile = null;
-        String tmpTxtPath = null;
+    private void lsOpenFile(File file, boolean print) throws IOException {
+        int status = _lsOpenFile(file.getCanonicalPath(), print);
 
-        try {
-            if (action == EDIT) {
-                tmpFile = Files.createTempFile("TmpFile", ".txt");
-                tmpTxtPath = tmpFile.toAbsolutePath().toString();
-            }
-            status = _lsOpenFile(file.getCanonicalPath(), action, tmpTxtPath);
-        } catch (Exception e) {
-            throw new IOException("Failed to create tmp file: ", e);
-        } finally {
-            if (tmpFile != null) {
-                Files.deleteIfExists(tmpFile);
-            }
-        }
         if (status != 0 /* noErr */) {
-            String actionString = (action == OPEN) ? "open"
-                                                   : (action == EDIT) ? "edit" : "print";
-            throw new IOException("Failed to " + actionString + " " + file
-                                  + ". Error code: " + status);
+            throw new IOException("Failed to open, edit or print " + file + ". Error code: " + status);
         }
     }
 
-    private static native int _lsOpenURI(String uri, int action);
+    private static native int _lsOpenURI(String uri);
 
-    private static native int _lsOpenFile(String path, int action, String tmpTxtPath);
+    private static native int _lsOpenFile(String path, boolean print);
 
 }

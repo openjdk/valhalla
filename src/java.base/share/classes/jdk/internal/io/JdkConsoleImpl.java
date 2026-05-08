@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Formatter;
@@ -83,14 +84,18 @@ public final class JdkConsoleImpl implements JdkConsole {
     @Override
     public String readLine(Locale locale, String format, Object ... args) {
         String line = null;
-        if (!format.isEmpty())
-            pw.format(locale, format, args);
-        try {
-            char[] ca = readline(false);
-            if (ca != null)
-                line = new String(ca);
-        } catch (IOException x) {
-            throw new IOError(x);
+        synchronized (writeLock) {
+            synchronized(readLock) {
+                if (!format.isEmpty())
+                    pw.format(locale, format, args);
+                try {
+                    char[] ca = readline(false);
+                    if (ca != null)
+                        line = new String(ca);
+                } catch (IOException x) {
+                    throw new IOError(x);
+                }
+            }
         }
         return line;
     }
@@ -111,24 +116,24 @@ public final class JdkConsoleImpl implements JdkConsole {
     // it should call this method to obtain a JdkConsoleImpl. This ensures only one Console
     // instance exists in the Java runtime.
     private static final LazyConstant<Optional<JdkConsoleImpl>> PASSWORD_CONSOLE = LazyConstant.of(
-        new Supplier<Optional<JdkConsoleImpl>>() {
-            @Override
-            public Optional<JdkConsoleImpl> get() {
-                if (System.console() != null) {
-                    throw new IllegalStateException("Can’t create a dedicated password " +
-                            "console since a real console already exists");
-                }
+            new Supplier<Optional<JdkConsoleImpl>>() {
+                @Override
+                public Optional<JdkConsoleImpl> get() {
+                    if (System.console() != null) {
+                        throw new IllegalStateException("Can’t create a dedicated password " +
+                                "console since a real console already exists");
+                    }
 
-                // If stdin is NOT redirected, return an Optional containing a JdkConsoleImpl
-                // instance, otherwise an empty Optional.
-                return SharedSecrets.getJavaIOAccess().isStdinTty() ?
-                        Optional.of(
-                                new JdkConsoleImpl(
-                                        Charset.forName(StaticProperty.stdinEncoding(), UTF_8.INSTANCE),
-                                        Charset.forName(StaticProperty.stdoutEncoding(), UTF_8.INSTANCE))) :
-                        Optional.empty();
+                    // If stdin is NOT redirected, return an Optional containing a JdkConsoleImpl
+                    // instance, otherwise an empty Optional.
+                    return SharedSecrets.getJavaIOAccess().isStdinTty() ?
+                            Optional.of(
+                                    new JdkConsoleImpl(
+                                            Charset.forName(StaticProperty.stdinEncoding(), UTF_8.INSTANCE),
+                                            Charset.forName(StaticProperty.stdoutEncoding(), UTF_8.INSTANCE))) :
+                            Optional.empty();
+                }
             }
-        }
     );
 
     public static Optional<JdkConsoleImpl> passwordConsole() {
@@ -144,51 +149,54 @@ public final class JdkConsoleImpl implements JdkConsole {
 
     private char[] readPassword0(boolean noNewLine, Locale locale, String format, Object ... args) {
         char[] passwd = null;
-
-        installShutdownHook();
-        try {
-            synchronized(restoreEchoLock) {
-                restoreEcho = echo(false);
-            }
-        } catch (IOException x) {
-            throw new IOError(x);
-        }
-        IOError ioe = null;
-        try {
-            if (!format.isEmpty())
-                pw.format(locale, format, args);
-            passwd = readline(true);
-        } catch (IOException x) {
-            ioe = new IOError(x);
-        } finally {
-            try {
-                synchronized(restoreEchoLock) {
-                    if (restoreEcho) {
-                        restoreEcho = echo(true);
-                    }
-                }
-            } catch (IOException x) {
-                if (ioe == null)
-                    ioe = new IOError(x);
-                else
-                    ioe.addSuppressed(x);
-            }
-            if (ioe != null) {
-                if (passwd != null) {
-                    Arrays.fill(passwd, ' ');
-                }
+        synchronized (writeLock) {
+            synchronized(readLock) {
+                installShutdownHook();
                 try {
-                    if (reader instanceof LineReader lr) {
-                        lr.zeroOut();
+                    synchronized(restoreEchoLock) {
+                        restoreEcho = echo(false);
                     }
-                } catch (IOException _) {
-                    // ignore
+                } catch (IOException x) {
+                    throw new IOError(x);
                 }
-                throw ioe;
+                IOError ioe = null;
+                try {
+                    if (!format.isEmpty())
+                        pw.format(locale, format, args);
+                    passwd = readline(true);
+                } catch (IOException x) {
+                    ioe = new IOError(x);
+                } finally {
+                    try {
+                        synchronized(restoreEchoLock) {
+                            if (restoreEcho) {
+                                restoreEcho = echo(true);
+                            }
+                        }
+                    } catch (IOException x) {
+                        if (ioe == null)
+                            ioe = new IOError(x);
+                        else
+                            ioe.addSuppressed(x);
+                    }
+                    if (ioe != null) {
+                        if (passwd != null) {
+                            Arrays.fill(passwd, ' ');
+                        }
+                        try {
+                            if (reader instanceof LineReader lr) {
+                                lr.zeroOut();
+                            }
+                        } catch (IOException _) {
+                            // ignore
+                        }
+                        throw ioe;
+                    }
+                }
+                if (!noNewLine) {
+                    pw.println();
+                }
             }
-        }
-        if (!noNewLine) {
-            pw.println();
         }
         return passwd;
     }
@@ -235,11 +243,14 @@ public final class JdkConsoleImpl implements JdkConsole {
         return outCharset;
     }
 
+    private final Charset inCharset;
     private final Charset outCharset;
     private final Object readLock;
+    private final Object writeLock;
     // Must not block while holding this. It is used in the shutdown hook.
     private final Object restoreEchoLock;
     private final Reader reader;
+    private final Writer out;
     private final PrintWriter pw;
     private final Formatter formatter;
     private char[] rcb;
@@ -406,11 +417,12 @@ public final class JdkConsoleImpl implements JdkConsole {
     public JdkConsoleImpl(Charset inCharset, Charset outCharset) {
         Objects.requireNonNull(inCharset);
         Objects.requireNonNull(outCharset);
+        this.inCharset = inCharset;
         this.outCharset = outCharset;
         readLock = new Object();
-        var writeLock = new Object();
+        writeLock = new Object();
         restoreEchoLock = new Object();
-        var out = StreamEncoder.forOutputStreamWriter(
+        out = StreamEncoder.forOutputStreamWriter(
                 new FileOutputStream(FileDescriptor.out),
                 writeLock,
                 outCharset);

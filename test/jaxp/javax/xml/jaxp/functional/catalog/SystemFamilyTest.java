@@ -23,23 +23,21 @@
 
 package catalog;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import static catalog.CatalogTestUtils.catalogResolver;
+import static catalog.ResolutionChecker.checkNoMatch;
+import static catalog.ResolutionChecker.checkSysIdResolution;
 
 import javax.xml.catalog.CatalogException;
 import javax.xml.catalog.CatalogResolver;
 
-import static catalog.CatalogTestUtils.catalogResolver;
-import static catalog.ResolutionChecker.checkNoMatch;
-import static catalog.ResolutionChecker.checkSysIdResolution;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 /*
  * @test
  * @bug 8077931
  * @library /javax/xml/jaxp/libs
- * @run junit/othervm catalog.SystemFamilyTest
+ * @run testng/othervm catalog.SystemFamilyTest
  * @summary Get matched URIs from system, rewriteSystem, systemSuffix and
  *          delegateSystem entries. It tests the resolution priorities among
  *          the system family entries. The test rule is based on OASIS
@@ -47,13 +45,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 public class SystemFamilyTest {
 
-    @ParameterizedTest
-    @MethodSource("dataOnMatch")
+    @Test(dataProvider = "systemId-matchedUri")
     public void testMatch(String systemId, String matchedUri) {
         checkSysIdResolution(createResolver(), systemId, matchedUri);
     }
 
-    public static Object[][] dataOnMatch() {
+    @DataProvider(name = "systemId-matchedUri")
+    public Object[][] dataOnMatch() {
         return new Object[][] {
                 // The matched URI of the specified system id is defined in a
                 // system entry.
@@ -74,12 +72,12 @@ public class SystemFamilyTest {
     /*
      * If no match is found, a CatalogException should be thrown.
      */
-    @Test
+    @Test(expectedExceptions = CatalogException.class)
     public void testNoMatch() {
-        assertThrows(CatalogException.class, () -> checkNoMatch(createResolver()));
+        checkNoMatch(createResolver());
     }
 
-    private static CatalogResolver createResolver() {
+    private CatalogResolver createResolver() {
         return catalogResolver("systemFamily.xml");
     }
 }

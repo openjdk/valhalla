@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,15 +59,16 @@
  */
 package test.java.time.temporal;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.time.temporal.JulianFields;
 
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test.
  */
+@Test
 public class TestJulianFields {
 
     //-----------------------------------------------------------------------
@@ -75,9 +76,9 @@ public class TestJulianFields {
     //-----------------------------------------------------------------------
     @Test
     public void test_toString() {
-        assertEquals("JulianDay", JulianFields.JULIAN_DAY.toString());
-        assertEquals("ModifiedJulianDay", JulianFields.MODIFIED_JULIAN_DAY.toString());
-        assertEquals("RataDie", JulianFields.RATA_DIE.toString());
+        assertEquals(JulianFields.JULIAN_DAY.toString(), "JulianDay");
+        assertEquals(JulianFields.MODIFIED_JULIAN_DAY.toString(), "ModifiedJulianDay");
+        assertEquals(JulianFields.RATA_DIE.toString(), "RataDie");
     }
 
 }

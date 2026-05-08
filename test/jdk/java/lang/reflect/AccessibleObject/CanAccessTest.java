@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,11 @@
  * questions.
  */
 
-/*
+/**
  * @test
  * @build CanAccessTest
  * @modules java.base/jdk.internal.misc:+open
- * @run junit/othervm CanAccessTest
+ * @run testng/othervm CanAccessTest
  * @summary Test AccessibleObject::canAccess method
  */
 
@@ -34,29 +34,31 @@ import java.lang.reflect.Method;
 import java.security.SecureClassLoader;
 
 import jdk.internal.misc.Unsafe;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
+@Test
 public class CanAccessTest {
     private static Unsafe INSTANCE = Unsafe.getUnsafe();
 
     /**
      * null object parameter for Constructor
      */
-    @Test
     public void testConstructor() throws Exception {
         Constructor<?> ctor = Unsafe.class.getDeclaredConstructor();
         assertFalse(ctor.canAccess(null));
         assertTrue(ctor.trySetAccessible());
 
-        // non-null object parameter
-        assertThrows(IllegalArgumentException.class, () -> ctor.canAccess(INSTANCE));
+        try {
+            // non-null object parameter
+            ctor.canAccess(INSTANCE);
+            assertTrue(false);
+        } catch (IllegalArgumentException expected) {}
     }
 
     /**
      * Test protected constructors
      */
-    @Test
     public void testProtectedConstructor() throws Exception {
         TestLoader.testProtectedConstructorNonOpenedPackage();
 
@@ -67,20 +69,21 @@ public class CanAccessTest {
     /**
      * null object parameter  for static members
      */
-    @Test
     public void testStaticMember() throws Exception {
         Method m = Unsafe.class.getDeclaredMethod("throwIllegalAccessError");
         assertFalse(m.canAccess(null));
         assertTrue(m.trySetAccessible());
 
-        // non-null object parameter
-        assertThrows(IllegalArgumentException.class, () -> m.canAccess(INSTANCE));
+        try {
+            // non-null object parameter
+            m.canAccess(INSTANCE);
+            assertTrue(false);
+        } catch (IllegalArgumentException expected) { }
     }
 
     /**
      * Test protected static
      */
-    @Test
     public void testProtectedStatic() throws Exception {
         Method m = TestLoader.testProtectedStatic();
         assertFalse(m.canAccess(null));
@@ -90,24 +93,28 @@ public class CanAccessTest {
      * the specified object must be an instance of the declaring class
      * for instance members
      */
-    @Test
     public void testInstanceMethod() throws Exception {
         Method m = Unsafe.class.getDeclaredMethod("allocateMemory0", long.class);
         assertFalse(m.canAccess(INSTANCE));
 
-        assertThrows(IllegalArgumentException.class, () -> m.canAccess(null));
+        try {
+            m.canAccess(null);
+            assertTrue(false);
+        } catch (IllegalArgumentException expected) { }
     }
 
     /**
      * the specified object must be an instance of the declaring class
      * for instance members
      */
-    @Test
     public void testInvalidInstanceObject() throws Exception {
         Class<?> clazz = Class.forName("sun.security.x509.X500Name");
         Method m = clazz.getDeclaredMethod("size");
 
-        assertThrows(IllegalArgumentException.class, () -> m.canAccess(INSTANCE));
+        try {
+            m.canAccess(INSTANCE);
+            assertTrue(false);
+        } catch (IllegalArgumentException expected) { }
     }
 
 

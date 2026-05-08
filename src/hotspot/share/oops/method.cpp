@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,7 +123,6 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags, Symbol* name) {
     clear_native_function();
     set_signature_handler(nullptr);
   }
-
   NOT_PRODUCT(set_compiled_invocation_count(0);)
   // Name is very useful for debugging.
   NOT_PRODUCT(_name = name;)
@@ -169,19 +168,8 @@ address Method::get_c2i_entry() {
 }
 
 address Method::get_c2i_inline_entry() {
-  if (is_abstract()) {
-    return SharedRuntime::get_handle_wrong_method_abstract_stub();
-  }
   assert(adapter() != nullptr, "must have");
   return adapter()->get_c2i_inline_entry();
-}
-
-address Method::get_c2i_inline_ro_entry() {
-  if (is_abstract()) {
-    return SharedRuntime::get_handle_wrong_method_abstract_stub();
-  }
-  assert(adapter() != nullptr, "must have");
-  return adapter()->get_c2i_inline_ro_entry();
 }
 
 address Method::get_c2i_unverified_entry() {
@@ -206,30 +194,24 @@ address Method::get_c2i_no_clinit_check_entry() {
   return adapter()->get_c2i_no_clinit_check_entry();
 }
 
-char* Method::name_and_sig_as_C_string(bool use_double_colon) const {
-  return name_and_sig_as_C_string(constants()->pool_holder(), name(), signature(), use_double_colon);
+char* Method::name_and_sig_as_C_string() const {
+  return name_and_sig_as_C_string(constants()->pool_holder(), name(), signature());
 }
 
 char* Method::name_and_sig_as_C_string(char* buf, int size) const {
   return name_and_sig_as_C_string(constants()->pool_holder(), name(), signature(), buf, size);
 }
 
-char* Method::name_and_sig_as_C_string(Klass* klass, Symbol* method_name, Symbol* signature, bool use_double_colon) {
+char* Method::name_and_sig_as_C_string(Klass* klass, Symbol* method_name, Symbol* signature) {
   const char* klass_name = klass->external_name();
   int klass_name_len  = (int)strlen(klass_name);
   int method_name_len = method_name->utf8_length();
-  int separator_len   = use_double_colon ? 2 : 1;
-  int len             = klass_name_len + separator_len + method_name_len + signature->utf8_length();
+  int len             = klass_name_len + 1 + method_name_len + signature->utf8_length();
   char* dest          = NEW_RESOURCE_ARRAY(char, len + 1);
   strcpy(dest, klass_name);
-  if (use_double_colon) {
-    dest[klass_name_len + 0] = ':';
-    dest[klass_name_len + 1] = ':';
-  } else {
-    dest[klass_name_len] = '.';
-  }
-  strcpy(&dest[klass_name_len + separator_len], method_name->as_C_string());
-  strcpy(&dest[klass_name_len + separator_len + method_name_len], signature->as_C_string());
+  dest[klass_name_len] = '.';
+  strcpy(&dest[klass_name_len + 1], method_name->as_C_string());
+  strcpy(&dest[klass_name_len + 1 + method_name_len], signature->as_C_string());
   dest[len] = 0;
   return dest;
 }
@@ -927,9 +909,9 @@ bool Method::is_getter() const {
     default:
       return false;
   }
-  if (InlineTypeReturnedAsFields && returns_inline_type() != nullptr) {
+  if (has_scalarized_return()) {
     // Don't treat this as (trivial) getter method because the
-    // inline type could be returned in a scalarized form.
+    // inline type should be returned in a scalarized form.
     return false;
   }
   return true;
@@ -1305,6 +1287,7 @@ void Method::remove_unshareable_flags() {
   set_is_not_c2_osr_compilable(false);
   set_on_stack_flag(false);
   set_has_scalarized_args(false);
+  set_has_scalarized_return(false);
 }
 #endif
 
@@ -1341,6 +1324,9 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
   }
+  if (InlineTypeReturnedAsFields && returns_inline_type() && !has_scalarized_return()) {
+    set_has_scalarized_return();
+  }
 
   // Setup compiler entrypoint.  This is made eagerly, so we do not need
   // special handling of vtables.  An alternative is to make adapters more
@@ -1350,14 +1336,20 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   // called from the vtable.  We need adapters on such methods that get loaded
   // later.  Ditto for mega-morphic itable calls.  If this proves to be a
   // problem we'll make these lazily later.
-  // With the scalarized calling convention, create adapters for abstract
-  // methods as well because the adapter is used to propagate the signature.
-  if (_adapter == nullptr && (!h_method->is_abstract() || InlineTypePassFieldsAsArgs)) {
-    make_adapters(h_method, CHECK);
+  if (is_abstract()) {
+    address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
+    h_method->_from_compiled_entry = wrong_method_abstract;
+    h_method->_from_compiled_inline_entry = wrong_method_abstract;
+    h_method->_from_compiled_inline_ro_entry = wrong_method_abstract;
+  } else if (_adapter == nullptr) {
+    (void) make_adapters(h_method, CHECK);
+#ifndef ZERO
+    assert(adapter()->is_linked(), "Adapter must have been linked");
+#endif
+    h_method->_from_compiled_entry = adapter()->get_c2i_entry();
+    h_method->_from_compiled_inline_entry = adapter()->get_c2i_inline_entry();
+    h_method->_from_compiled_inline_ro_entry = adapter()->get_c2i_inline_ro_entry();
   }
-  h_method->_from_compiled_entry = h_method->get_c2i_entry();
-  h_method->_from_compiled_inline_entry = h_method->get_c2i_inline_entry();
-  h_method->_from_compiled_inline_ro_entry = h_method->get_c2i_inline_ro_entry();
 
   // ONLY USE the h_method now as make_adapter may have blocked
 
@@ -1376,8 +1368,8 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   }
 }
 
-void Method::make_adapters(const methodHandle& mh, TRAPS) {
-  assert(!mh->is_abstract() || InlineTypePassFieldsAsArgs, "abstract methods do not have adapters");
+address Method::make_adapters(const methodHandle& mh, TRAPS) {
+  assert(!mh->is_abstract(), "abstract methods do not have adapters");
   PerfTraceTime timer(ClassLoader::perf_method_adapters_time());
 
   // Adapters for compiled code are made eagerly here.  They are fairly
@@ -1391,16 +1383,14 @@ void Method::make_adapters(const methodHandle& mh, TRAPS) {
       // Java exception object.
       vm_exit_during_initialization("Out of space in CodeCache for adapters");
     } else {
-      THROW_MSG(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
+      THROW_MSG_NULL(vmSymbols::java_lang_OutOfMemoryError(), "Out of space in CodeCache for adapters");
     }
   }
 
-  assert(!mh->has_scalarized_args() || (adapter->get_sig_cc() != nullptr && adapter->get_sig_cc_ro() != nullptr), "should be initialized");
+  assert(!mh->has_scalarized_args() || adapter->get_sig_cc() != nullptr, "sigcc should not be null here");
 
   mh->set_adapter_entry(adapter);
-#ifndef ZERO
-  assert(adapter->is_linked(), "Adapter must have been linked");
-#endif
+  return adapter->get_c2i_entry();
 }
 
 // The verified_code_entry() must be called when a invoke is resolved
@@ -1978,15 +1968,15 @@ void Method::print_name(outputStream* st) const {
 #endif // !PRODUCT || INCLUDE_JVMTI
 
 
-void Method::print_codes_on(outputStream* st, int flags, bool buffered) const {
-  print_codes_on(0, code_size(), st, flags, buffered);
+void Method::print_codes_on(outputStream* st, int flags) const {
+  print_codes_on(0, code_size(), st, flags);
 }
 
-void Method::print_codes_on(int from, int to, outputStream* st, int flags, bool buffered) const {
+void Method::print_codes_on(int from, int to, outputStream* st, int flags) const {
   Thread *thread = Thread::current();
   ResourceMark rm(thread);
   methodHandle mh (thread, (Method*)this);
-  BytecodeTracer::print_method_codes(mh, from, to, st, flags, buffered);
+  BytecodeTracer::print_method_codes(mh, from, to, st, flags);
 }
 
 CompressedLineNumberReadStream::CompressedLineNumberReadStream(u_char* buffer) : CompressedReadStream(buffer) {
@@ -2297,35 +2287,6 @@ bool Method::is_scalarized_arg(int idx) const {
   return depth != 0;
 }
 
-bool Method::is_scalarized_buffer_arg(int idx) const {
-  if (!has_scalarized_args()) {
-    return false;
-  }
-  // Search through signature and check if argument is wrapped in T_METADATA/T_VOID
-  int depth = 0;
-  const GrowableArray<SigEntry>* sig = adapter()->get_sig_cc();
-  for (int i = 0; i < sig->length(); i++) {
-    BasicType bt = sig->at(i)._bt;
-    if (bt == T_METADATA) {
-      depth++;
-      continue;
-    }
-    if (bt == T_VOID && (sig->at(i-1)._bt != T_LONG && sig->at(i-1)._bt != T_DOUBLE)) {
-      depth--;
-      continue;
-    }
-    if (idx == 0) {
-      if (sig->at(i)._vt_oop) {
-        assert(depth == 1, "only for root value");
-        return true;
-      }
-      break; // Argument found
-    }
-    idx--; // Advance to next argument
-  }
-  return false;
-}
-
 // Printing
 
 #ifndef PRODUCT
@@ -2338,7 +2299,7 @@ void Method::print_on(outputStream* st) const {
   st->print   (" - method holder:     "); method_holder()->print_value_on(st); st->cr();
   st->print   (" - constants:         " PTR_FORMAT " ", p2i(constants()));
   constants()->print_value_on(st); st->cr();
-  st->print   (" - access:            0x%x  ", access_flags().as_method_flags()); print_access_flags(st); st->cr();
+  st->print   (" - access:            0x%x  ", access_flags().as_method_flags()); access_flags().print_on(st); st->cr();
   st->print   (" - flags:             0x%x  ", _flags.as_int()); _flags.print_on(st); st->cr();
   st->print   (" - name:              ");    name()->print_value_on(st); st->cr();
   st->print   (" - signature:         ");    signature()->print_value_on(st); st->cr();
@@ -2418,8 +2379,8 @@ void Method::print_on(outputStream* st) const {
   }
 }
 
-void Method::print_linkage_flags(outputStream* st) const {
-  print_access_flags(st);
+void Method::print_linkage_flags(outputStream* st) {
+  access_flags().print_on(st);
   if (is_default_method()) {
     st->print("default ");
   }
@@ -2429,32 +2390,12 @@ void Method::print_linkage_flags(outputStream* st) const {
 }
 #endif //PRODUCT
 
-void Method::print_access_flags(outputStream* st) const {
-  AccessFlags flags = access_flags();
-  if (flags.is_public      ()) st->print("public ");
-  if (flags.is_private     ()) st->print("private ");
-  if (flags.is_protected   ()) st->print("protected ");
-  if (flags.is_static      ()) st->print("static ");
-  if (flags.is_final       ()) st->print("final ");
-  if (flags.is_synchronized()) st->print("synchronized ");
-  if (flags.is_bridge      ()) st->print("bridge ");
-  if (flags.is_varargs     ()) st->print("varargs ");
-  if (flags.is_native      ()) st->print("native ");
-  if (flags.is_abstract    ()) st->print("abstract ");
-  if (flags.is_strictfp    ()) st->print("strict ");
-  if (flags.is_synthetic   ()) st->print("synthetic ");
-  if (Arguments::is_valhalla_enabled()) {
-    if (flags.is_identity_class()) st->print("identity ");
-    if (!flags.is_identity_class()) st->print("value "  );
-  }
-}
-
 void Method::print_value_on(outputStream* st) const {
   assert(is_method(), "must be method");
   st->print("%s", internal_name());
   print_address_on(st);
   st->print(" ");
-  if (WizardMode) print_access_flags(st);
+  if (WizardMode) access_flags().print_on(st);
   name()->print_value_on(st);
   st->print(" ");
   signature()->print_value_on(st);
