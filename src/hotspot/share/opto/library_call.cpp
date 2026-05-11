@@ -4767,6 +4767,17 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
                 init_val = init_val->as_InlineType()->buffer(this);
               }
             }
+#ifdef ASSERT
+            init_val = null_check(init_val);
+            Node* wrong_type_ctl = gen_subtype_check(init_val, makecon(TypeKlassPtr::make(array_klass->element_klass())));
+            {
+              PreserveJVMState pjvms(this);
+              set_control(wrong_type_ctl);
+              halt(control(), frameptr(), "incompatible type for initVal in newArray");
+              stop_and_kill_map();
+            }
+#endif
+            init_val = _gvn.transform(new CheckCastPPNode(control(), init_val, TypeOopPtr::make_from_klass(array_klass->element_klass())));
             // TODO 8350865 Should we add a check of the init_val type (maybe in debug only + halt)?
             // If we insert a checkcast here, we can be sure that init_val is an InlineTypeNode, so
             // when we folded a field load from an allocation (e.g. during escape analysis), we can
