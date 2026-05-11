@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -37,8 +37,6 @@ import java.util.StringJoiner;
 import jdk.internal.util.ByteArray;
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
-
-import static java.io.ObjectInputStream.TRACE;
 
 import static jdk.internal.util.ModifiedUtf.putChar;
 import static jdk.internal.util.ModifiedUtf.utfLen;

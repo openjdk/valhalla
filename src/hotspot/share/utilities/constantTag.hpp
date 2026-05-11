@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@ enum {
   JVM_CONSTANT_DynamicInError           = 106,  // Error tag due to resolution error
   JVM_CONSTANT_InternalMax              = 106,  // Last implementation tag
 };
+
 
 class constantTag {
  private:

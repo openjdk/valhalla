@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * Copyright (c) 2020, 2022, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -92,12 +92,8 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     // This assumes that all prototype bits fitr in an int32_t
     mv(tmp1, checked_cast<int32_t>(markWord::prototype().value()));
     sd(tmp1, Address(obj, oopDesc::mark_offset_in_bytes()));
-    if (UseCompressedClassPointers) { // Take care not to kill klass
-      encode_klass_not_null(tmp1, klass, tmp2);
-      sw(tmp1, Address(obj, oopDesc::klass_offset_in_bytes()));
-    } else {
-      sd(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
-    }
+    encode_klass_not_null(tmp1, klass, tmp2);
+    sw(tmp1, Address(obj, oopDesc::klass_offset_in_bytes()));
   }
 
   if (len->is_valid()) {
@@ -108,7 +104,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
       // Clear gap/first 4 bytes following the length field.
       sw(zr, Address(obj, base_offset));
     }
-  } else if (UseCompressedClassPointers && !UseCompactObjectHeaders) {
+  } else if (!UseCompactObjectHeaders) {
     store_klass_gap(obj, zr);
   }
 }
@@ -247,7 +243,10 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register tmp1
   verify_oop(obj);
 }
 
-void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes) {
+void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes,
+                                    int sp_offset_for_orig_pc,
+                                    bool needs_stack_repair, bool has_scalarized_args,
+                                    Label* verified_inline_entry_label) {
   assert(bang_size_in_bytes >= framesize, "stack bang size incorrect");
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before creating a frame.
@@ -258,11 +257,6 @@ void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this, nullptr /* slow_path */, nullptr /* continuation */, nullptr /* guard */);
 }
-
-void C1_MacroAssembler::remove_frame(int framesize) {
-  MacroAssembler::remove_frame(framesize);
-}
-
 
 void C1_MacroAssembler::verified_entry(bool breakAtEntry) {
   // If we have to make this method not-entrant we'll overwrite its
@@ -377,3 +371,8 @@ void C1_MacroAssembler::c1_float_cmp_branch(int cmpFlag, FloatRegister op1, Floa
          "invalid c1 float conditional branch index");
   (this->*c1_float_cond_branch[cmpFlag])(op1, op2, label, is_far, is_unordered);
 }
+
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
+  Unimplemented();
+}
+

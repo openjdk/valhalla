@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2324,7 +2324,8 @@ void TemplateTable::resolve_cache_and_index_for_method(int byte_no,
   __ cmpl(temp, code);  // have we resolved this bytecode?
 
   // Class initialization barrier for static methods
-  if (VM_Version::supports_fast_class_init_checks() && bytecode() == Bytecodes::_invokestatic) {
+  if (bytecode() == Bytecodes::_invokestatic) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     const Register method = temp;
     const Register klass  = temp;
 
@@ -2372,8 +2373,8 @@ void TemplateTable::resolve_cache_and_index_for_field(int byte_no,
   __ cmpl(temp, code);  // have we resolved this bytecode?
 
   // Class initialization barrier for static fields
-  if (VM_Version::supports_fast_class_init_checks() &&
-      (bytecode() == Bytecodes::_getstatic || bytecode() == Bytecodes::_putstatic)) {
+  if (bytecode() == Bytecodes::_getstatic || bytecode() == Bytecodes::_putstatic) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     const Register field_holder = temp;
 
     __ jcc(Assembler::notEqual, L_clinit_barrier_slow);
@@ -2637,7 +2638,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   const Register off   = rbx;
   const Register tos_state   = rax;
   const Register flags = rdx;
-  const Register bc    = c_rarg3; // uses same reg as obj, so don't mix them
+  const Register bc    = c_rarg3;
 
   resolve_cache_and_index_for_field(byte_no, cache, index);
   jvmti_post_field_access(cache, index, is_static, false);
@@ -2695,7 +2696,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ push(atos);
       __ jmp(Done);
     } else {
-      Label is_flat, rewrite_inline;
+      Label is_flat;
       __ test_field_is_flat(flags, rscratch1, is_flat);
       pop_and_check_object(obj);
       __ load_heap_oop(rax, field);
@@ -2707,10 +2708,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ bind(is_flat);
       // field is flat (null-free or nullable with a null-marker)
       pop_and_check_object(rax);
-      __ read_flat_field(rcx, rdx, rbx, rax);
+      __ read_flat_field(rcx, rax);
       __ verify_oop(rax);
       __ push(atos);
-      __ bind(rewrite_inline);
       if (rc == may_rewrite) {
         patch_bytecode(Bytecodes::_fast_vgetfield, bc, rbx);
       }
@@ -3306,7 +3306,7 @@ void TemplateTable::fast_accessfield(TosState state) {
   // access field
   switch (bytecode()) {
   case Bytecodes::_fast_vgetfield:
-    __ read_flat_field(rcx, rdx, rbx, rax);
+    __ read_flat_field(rcx, rax);
     __ verify_oop(rax);
     break;
   case Bytecodes::_fast_agetfield:
@@ -3468,7 +3468,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ load_klass(rax, recv, rscratch1);
 
   // profile this call
-  __ profile_virtual_call(rax, rlocals, rdx);
+  __ profile_virtual_call(rax, rlocals);
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
 
@@ -3609,7 +3609,7 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   // profile this call
   __ restore_bcp(); // rbcp was destroyed by receiver type check
-  __ profile_virtual_call(rdx, rbcp, rlocals);
+  __ profile_virtual_call(rdx, rbcp);
 
   // Get declaring interface class from method, and itable index
   __ load_method_holder(rax, rbx);
@@ -3733,7 +3733,9 @@ void TemplateTable::_new() {
   transition(vtos, atos);
   __ get_unsigned_2_byte_index_at_bcp(rdx, 1);
   Label slow_case;
+  Label slow_case_no_pop;
   Label done;
+  Label initialize_header;
 
   __ get_cpool_and_tags(rcx, rax);
 
@@ -3742,21 +3744,107 @@ void TemplateTable::_new() {
   // how Constant Pool is updated (see ConstantPool::klass_at_put)
   const int tags_offset = Array<u1>::base_offset_in_bytes();
   __ cmpb(Address(rax, rdx, Address::times_1, tags_offset), JVM_CONSTANT_Class);
-  __ jcc(Assembler::notEqual, slow_case);
+  __ jcc(Assembler::notEqual, slow_case_no_pop);
 
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
+  __ push(rcx);  // save the contexts of klass for initializing the header
 
   // make sure klass is initialized
   // init_state needs acquire, but x86 is TSO, and so we are already good.
   assert(VM_Version::supports_fast_class_init_checks(), "must support fast class initialization checks");
   __ clinit_barrier(rcx, nullptr /*L_fast_path*/, &slow_case);
 
-  __ allocate_instance(rcx, rax, rdx, rbx, true, slow_case);
-  __ jmp(done);
+  // get instance_size in InstanceKlass (scaled to a count of bytes)
+  __ movl(rdx, Address(rcx, Klass::layout_helper_offset()));
+  // test to see if it is malformed in some way
+  __ testl(rdx, Klass::_lh_instance_slow_path_bit);
+  __ jcc(Assembler::notZero, slow_case);
+
+  // Allocate the instance:
+  //  If TLAB is enabled:
+  //    Try to allocate in the TLAB.
+  //    If fails, go to the slow path.
+  //    Initialize the allocation.
+  //    Exit.
+  //
+  //  Go to slow path.
+
+  if (UseTLAB) {
+    __ tlab_allocate(rax, rdx, 0, rcx, rbx, slow_case);
+    if (ZeroTLAB) {
+      // the fields have been already cleared
+      __ jmp(initialize_header);
+    }
+
+    // The object is initialized before the header.  If the object size is
+    // zero, go directly to the header initialization.
+    if (UseCompactObjectHeaders) {
+      assert(is_aligned(oopDesc::base_offset_in_bytes(), BytesPerLong), "oop base offset must be 8-byte-aligned");
+      __ decrement(rdx, oopDesc::base_offset_in_bytes());
+    } else {
+      __ decrement(rdx, sizeof(oopDesc));
+    }
+    __ jcc(Assembler::zero, initialize_header);
+
+    // Initialize topmost object field, divide rdx by 8, check if odd and
+    // test if zero.
+    __ xorl(rcx, rcx);    // use zero reg to clear memory (shorter code)
+    __ shrl(rdx, LogBytesPerLong); // divide by 2*oopSize and set carry flag if odd
+
+    // rdx must have been multiple of 8
+#ifdef ASSERT
+    // make sure rdx was multiple of 8
+    Label L;
+    // Ignore partial flag stall after shrl() since it is debug VM
+    __ jcc(Assembler::carryClear, L);
+    __ stop("object size is not multiple of 2 - adjust this code");
+    __ bind(L);
+    // rdx must be > 0, no extra check needed here
+#endif
+
+    // initialize remaining object fields: rdx was a multiple of 8
+    { Label loop;
+    __ bind(loop);
+    int header_size_bytes = oopDesc::header_size() * HeapWordSize;
+    assert(is_aligned(header_size_bytes, BytesPerLong), "oop header size must be 8-byte-aligned");
+    __ movptr(Address(rax, rdx, Address::times_8, header_size_bytes - 1*oopSize), rcx);
+    __ decrement(rdx);
+    __ jcc(Assembler::notZero, loop);
+    }
+
+    // initialize object header only.
+    __ bind(initialize_header);
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
+      __ pop(rcx);   // get saved klass back in the register.
+      __ movptr(rbx, Address(rcx, Klass::prototype_header_offset()));
+      __ movptr(Address(rax, oopDesc::mark_offset_in_bytes()), rbx);
+    } else {
+      __ movptr(Address(rax, oopDesc::mark_offset_in_bytes()),
+                (intptr_t)markWord::prototype().value()); // header
+      __ pop(rcx);   // get saved klass back in the register.
+    }
+    if (!UseCompactObjectHeaders) {
+      __ xorl(rsi, rsi); // use zero reg to clear memory (shorter code)
+      __ store_klass_gap(rax, rsi);  // zero klass gap for compressed oops
+      __ store_klass(rax, rcx, rscratch1);  // klass
+    }
+
+    if (DTraceAllocProbes) {
+      // Trigger dtrace event for fastpath
+      __ push(atos);
+      __ call_VM_leaf(
+           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), rax);
+      __ pop(atos);
+    }
+
+    __ jmp(done);
+  }
 
   // slow case
   __ bind(slow_case);
+  __ pop(rcx);   // restore stack pointer to what it was when we came in.
+  __ bind(slow_case_no_pop);
 
   __ get_constant_pool(c_rarg1);
   __ get_unsigned_2_byte_index_at_bcp(c_rarg2, 1);
@@ -3899,6 +3987,7 @@ void TemplateTable::instanceof() {
   // rax = 0: obj == nullptr or  obj is not an instanceof the specified klass
   // rax = 1: obj != nullptr and obj is     an instanceof the specified klass
 }
+
 
 //----------------------------------------------------------------------------------------------------
 // Breakpoints

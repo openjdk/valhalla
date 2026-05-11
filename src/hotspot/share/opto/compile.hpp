@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,6 +82,7 @@ class PhaseIterGVN;
 class PhaseRegAlloc;
 class PhaseCCP;
 class PhaseOutput;
+class ReachabilityFenceNode;
 class RootNode;
 class relocInfo;
 class StartNode;
@@ -110,7 +111,8 @@ enum LoopOptsMode {
   LoopOptsMaxUnroll,
   LoopOptsShenandoahExpand,
   LoopOptsSkipSplitIf,
-  LoopOptsVerify
+  LoopOptsVerify,
+  PostLoopOptsExpandReachabilityFences
 };
 
 // The type of all node counts and indexes.
@@ -320,6 +322,7 @@ class Compile : public Phase {
   int                   _fixed_slots;           // count of frame slots not allocated by the register
                                                 // allocator i.e. locks, original deopt pc, etc.
   uintx                 _max_node_limit;        // Max unique node count during a single compilation.
+  uint             _node_count_inlining_cutoff; // Number of nodes in the graph above which inlining is denied
 
   bool                  _post_loop_opts_phase;  // Loop opts are finished.
   bool                  _merge_stores_phase;    // Phase for merging stores, after post loop opts phase.
@@ -346,6 +349,7 @@ class Compile : public Phase {
   bool                  _has_boxed_value;       // True if a boxed object is allocated
   bool                  _has_reserved_stack_access; // True if the method or an inlined method is annotated with ReservedStackAccess
   bool                  _has_circular_inline_type; // True if method loads an inline type with a circular, non-flat field
+  bool                  _needs_nm_slot;         // True if an extra stack slot is needed to hold the null marker at scalarized returns
   uint                  _max_vector_size;       // Maximum size of generated vectors
   bool                  _clear_upper_avx;       // Clear upper bits of ymm registers using vzeroupper
   uint                  _trap_hist[trapHistLength];  // Cumulative traps
@@ -360,6 +364,7 @@ class Compile : public Phase {
   bool                  _print_assembly;        // True if we should dump assembly code for this compilation
   bool                  _print_inlining;        // True if we should print inlining for this compilation
   bool                  _print_intrinsics;      // True if we should print intrinsics for this compilation
+  bool                  _print_phase_loop_opts; // True if we should print before and after loop opts phase
 #ifndef PRODUCT
   uint                  _phase_counter;         // Counter for the number of already printed phases
   uint                  _igv_idx;               // Counter for IGV node identifiers
@@ -392,6 +397,7 @@ class Compile : public Phase {
   // of Template Assertion Predicates themselves.
   GrowableArray<OpaqueTemplateAssertionPredicateNode*>  _template_assertion_predicate_opaques;
   GrowableArray<Node*>  _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
+  GrowableArray<ReachabilityFenceNode*> _reachability_fences; // List of reachability fences
   GrowableArray<Node*>  _for_post_loop_igvn;    // List of nodes for IGVN after loop opts are over
   GrowableArray<Node*>  _inline_type_nodes;     // List of InlineType nodes
   GrowableArray<Node*>  _flat_access_nodes;     // List of LoadFlat and StoreFlat nodes
@@ -664,6 +670,8 @@ public:
   void          set_print_intrinsics(bool z)     { _print_intrinsics = z; }
   uint              max_node_limit() const       { return (uint)_max_node_limit; }
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
+  uint           node_count_inlining_cutoff() const { return _node_count_inlining_cutoff; }
+  void       set_node_count_inlining_cutoff(uint n) { _node_count_inlining_cutoff = n; }
   bool              clinit_barrier_on_entry()       { return _clinit_barrier_on_entry; }
   void          set_clinit_barrier_on_entry(bool z) { _clinit_barrier_on_entry = z; }
   void          set_flat_accesses()              { _has_flat_accesses = true; }
@@ -674,7 +682,9 @@ public:
 
   // Support for scalarized inline type calling convention
   bool              has_scalarized_args() const  { return _method != nullptr && _method->has_scalarized_args(); }
-  bool              needs_stack_repair()  const  { return _method != nullptr && _method->get_Method()->c2_needs_stack_repair(); }
+  bool              needs_stack_repair()  const  { return _method != nullptr && _method->c2_needs_stack_repair(); }
+  bool              needs_nm_slot()       const  { return _needs_nm_slot; }
+  void          set_needs_nm_slot(bool v)        { _needs_nm_slot = v; }
 
   bool              has_monitors() const         { return _has_monitors; }
   void          set_has_monitors(bool v)         { _has_monitors = v; }
@@ -690,7 +700,7 @@ public:
   uint          next_igv_idx()                  { return _igv_idx++; }
   bool          trace_opto_output() const       { return _trace_opto_output; }
   void          print_phase(const char* phase_name);
-  void          print_ideal_ir(const char* phase_name);
+  void          print_ideal_ir(const char* compile_phase_name) const;
   bool          should_print_ideal() const      { return _directive->PrintIdealOption; }
   bool              parsed_irreducible_loop() const { return _parsed_irreducible_loop; }
   void          set_parsed_irreducible_loop(bool z) { _parsed_irreducible_loop = z; }
@@ -704,7 +714,7 @@ public:
   void begin_method();
   void end_method();
 
-  void print_method(CompilerPhaseType cpt, int level, Node* n = nullptr);
+  void print_method(CompilerPhaseType compile_phase, int level, Node* n = nullptr);
 
 #ifndef PRODUCT
   bool should_print_igv(int level);
@@ -737,10 +747,12 @@ public:
   int           template_assertion_predicate_count() const { return _template_assertion_predicate_opaques.length(); }
   int           expensive_count()         const { return _expensive_nodes.length(); }
   int           coarsened_count()         const { return _coarsened_locks.length(); }
-
   Node*         macro_node(int idx)       const { return _macro_nodes.at(idx); }
 
   Node*         expensive_node(int idx)   const { return _expensive_nodes.at(idx); }
+
+  ReachabilityFenceNode* reachability_fence(int idx) const { return _reachability_fences.at(idx); }
+  int                    reachability_fences_count() const { return _reachability_fences.length(); }
 
   ConnectionGraph* congraph()                   { return _congraph;}
   void set_congraph(ConnectionGraph* congraph)  { _congraph = congraph;}
@@ -761,6 +773,14 @@ public:
   void add_expensive_node(Node* n);
   void remove_expensive_node(Node* n) {
     _expensive_nodes.remove_if_existing(n);
+  }
+
+  void add_reachability_fence(ReachabilityFenceNode* rf) {
+    _reachability_fences.append(rf);
+  }
+
+  void remove_reachability_fence(ReachabilityFenceNode* n) {
+    _reachability_fences.remove_if_existing(n);
   }
 
   void add_parse_predicate(ParsePredicateNode* n) {
@@ -810,6 +830,9 @@ public:
   // Keep track of inline type nodes for later processing
   void add_inline_type(Node* n);
   void remove_inline_type(Node* n);
+
+  bool clear_argument_if_only_used_as_buffer_at_calls(Node* result_cast, PhaseIterGVN& igvn);
+
   void process_inline_types(PhaseIterGVN &igvn, bool remove = false);
 
   void add_flat_access(Node* n);
@@ -836,6 +859,7 @@ public:
   void remove_from_merge_stores_igvn(Node* n);
   void process_for_merge_stores_igvn(PhaseIterGVN& igvn);
 
+  void shuffle_late_inlines();
   void shuffle_macro_nodes();
   void sort_macro_nodes();
 
@@ -1031,6 +1055,7 @@ public:
            should_delay_boxing_inlining(call_method, jvms) ||
            should_delay_vector_inlining(call_method, jvms);
   }
+  bool should_delay_after_inlining_cutoff(ciMethod* callee, ciMethod* caller);
   bool should_delay_string_inlining(ciMethod* call_method, JVMState* jvms);
   bool should_delay_boxing_inlining(ciMethod* call_method, JVMState* jvms);
   bool should_delay_vector_inlining(ciMethod* call_method, JVMState* jvms);
@@ -1100,6 +1125,13 @@ public:
   // Record this CallGenerator for inlining at the end of parsing.
   void              add_late_inline(CallGenerator* cg)        {
     _late_inlines.insert_before(_late_inlines_pos, cg);
+    if (StressIncrementalInlining) {
+      assert(_late_inlines_pos < _late_inlines.length(), "unthinkable!");
+      if (_late_inlines.length() - _late_inlines_pos >= 2) {
+        int j = (C->random() % (_late_inlines.length() - _late_inlines_pos)) + _late_inlines_pos;
+        swap(_late_inlines.at(_late_inlines_pos), _late_inlines.at(j));
+      }
+    }
     _late_inlines_pos++;
   }
 
@@ -1137,7 +1169,7 @@ public:
       // and avoid thrashing when live node count is close to the limit.
       // Keep in mind that live_nodes() isn't accurate during inlining until
       // dead node elimination step happens (see Compile::inline_incrementally).
-      return live_nodes() > (uint)LiveNodeCountInliningCutoff * 11 / 10;
+      return live_nodes() > node_count_inlining_cutoff() * 11 / 10;
     }
   }
 
@@ -1332,6 +1364,9 @@ public:
 
   // Definitions of pd methods
   static void pd_compiler2_init();
+
+  // Materialize reachability fences from reachability edges on safepoints.
+  void expand_reachability_edges(Unique_Node_List& safepoints);
 
   // Static parse-time type checking logic for gen_subtype_check:
   enum SubTypeCheckResult { SSC_always_false, SSC_always_true, SSC_easy_test, SSC_full_test };

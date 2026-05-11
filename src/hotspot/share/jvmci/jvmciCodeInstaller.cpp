@@ -37,10 +37,12 @@
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
+#include "utilities/exceptions.hpp"
 
 // frequently used constants
 // Allocate them with new so they are never destroyed (otherwise, a
@@ -63,7 +65,8 @@ oop HotSpotCompiledCodeStream::get_oop(int id, JVMCI_TRAPS) const {
     JVMCI_ERROR_NULL("object pool is null%s", context());
   }
   if (!_object_pool.is_null() && 0 <= id && id < _object_pool->length()) {
-    return _object_pool->obj_at(id);
+    JavaThread* THREAD = JavaThread::current(); // For exception macros.
+    return _object_pool->obj_at(id, CHECK_NULL);
   }
   JVMCI_ERROR_NULL("unknown direct object id %d%s", id, context());
 }
@@ -818,9 +821,8 @@ JVMCI::CodeInstallResult CodeInstaller::install(JVMCICompiler* compiler,
       cb = nm;
       if (compile_state == nullptr) {
         // This compile didn't come through the CompileBroker so perform the printing here
-        DirectiveSet* directive = DirectivesStack::getMatchingDirective(method, compiler);
-        nm->maybe_print_nmethod(directive);
-        DirectivesStack::release(directive);
+        CompilerDirectiveMatcher matcher(method, compiler);
+        nm->maybe_print_nmethod(matcher.directive_set());
 
         // Since this compilation didn't pass through the broker it wasn't logged yet.
         if (PrintCompilation) {

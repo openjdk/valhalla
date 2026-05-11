@@ -120,7 +120,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -139,7 +139,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -161,7 +161,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -180,7 +180,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -202,7 +202,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -221,7 +221,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -243,7 +243,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -266,7 +266,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -289,7 +289,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -312,7 +312,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -335,7 +335,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -358,7 +358,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -381,7 +381,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -404,7 +404,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -427,7 +427,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -448,7 +448,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);
@@ -469,7 +469,7 @@ final class ArrayVarHandle extends VarHandle {
         ArrayVarHandle handle = (ArrayVarHandle) ob;
         Object[] array = (Object[]) handle.arrayType.cast(oarray);
         Class<?> arrayType = oarray.getClass();
-        if (ValueClass.isFlatArray(oarray)) {
+        if (ValueClass.isFlatArray(array)) {
             // delegate to flat access primitives
             VarHandles.checkAtomicFlatArray(array);
             int aoffset = (int) UNSAFE.arrayInstanceBaseOffset(array);

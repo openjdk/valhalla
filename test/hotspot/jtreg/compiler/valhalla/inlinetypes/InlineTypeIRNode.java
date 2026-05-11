@@ -24,7 +24,8 @@
 package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.IRNode;
-import static compiler.lib.ir_framework.IRNode.PREFIX;
+
+import static compiler.lib.ir_framework.IRNode.*;
 
 public class InlineTypeIRNode {
     private static final String POSTFIX = "#I_";
@@ -79,11 +80,16 @@ public class InlineTypeIRNode {
         IRNode.allocateArrayOfNodes(ALLOC_ARRAY_OF_MYVALUE_KLASS, InlineTypeRegexes.MYVALUE_KLASS);
     }
 
+    // TODO: Revisit with JDK-8380875
     public static final String LOAD_OF_ANY_KLASS = PREFIX + "LOAD_OF_ANY_KLASS" + POSTFIX;
     static {
-        IRNode.anyLoadOfNodes(LOAD_OF_ANY_KLASS, InlineTypeRegexes.ANY_KLASS);
+        String loadNode = "Load(B|UB|S|US|I|L|F|D|P|N)";
+        String valueClass = "@instptr:compiler/valhalla/inlinetypes/[\\w/]*";
+        String regex = START + loadNode + MID + valueClass + END;
+        IRNode.beforeMatching(LOAD_OF_ANY_KLASS, regex);
     }
 
+    // TODO: Revisit with JDK-8380875
     public static final String STORE_OF_ANY_KLASS = PREFIX + "STORE_OF_ANY_KLASS" + POSTFIX;
     static {
         IRNode.anyStoreOfNodes(STORE_OF_ANY_KLASS, InlineTypeRegexes.ANY_KLASS);

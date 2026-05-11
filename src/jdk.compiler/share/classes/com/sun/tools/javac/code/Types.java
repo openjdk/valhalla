@@ -1011,10 +1011,12 @@ public class Types {
 
        @Override
        public boolean test(Symbol sym) {
+           List<MethodSymbol> msyms;
            return sym.kind == MTH &&
                    (sym.flags() & (ABSTRACT | DEFAULT)) == ABSTRACT &&
                    !overridesObjectMethod(origin, sym) &&
-                   (interfaceCandidates(origin.type, (MethodSymbol)sym).head.flags() & DEFAULT) == 0;
+                   (msyms = interfaceCandidates(origin.type, (MethodSymbol)sym)).nonEmpty() &&
+                   (msyms.head.flags() & DEFAULT) == 0;
        }
     }
 
@@ -1454,7 +1456,7 @@ public class Types {
                     return visit(s, t);
 
                 return s.hasTag(ARRAY)
-                    && containsTypeEquivalent(t.elemtype, elemtype(s));
+                    && visit(t.elemtype, elemtype(s));
             }
 
             @Override
@@ -2884,13 +2886,17 @@ public class Types {
             hasSameArgs(t, erasure(s)) || hasSameArgs(erasure(t), s);
     }
 
-    public boolean overridesObjectMethod(TypeSymbol origin, Symbol msym) {
+    public Symbol overriddenObjectMethod(TypeSymbol origin, Symbol msym) {
         for (Symbol sym : syms.objectType.tsym.members().getSymbolsByName(msym.name)) {
             if (msym.overrides(sym, origin, Types.this, true)) {
-                return true;
+                return sym;
             }
         }
-        return false;
+        return null;
+    }
+
+    public boolean overridesObjectMethod(TypeSymbol origin, Symbol msym) {
+        return overriddenObjectMethod(origin, msym) != null;
     }
 
     /**

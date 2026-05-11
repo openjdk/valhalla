@@ -27,7 +27,6 @@
  * @enablePreview
  * @compile T8314226.java
  * @run main T8314226
- * @ignore Verifier error
  */
 
 public class T8314226 {

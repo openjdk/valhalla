@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ import java.lang.classfile.Label;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
 import java.util.Random;
 
 import jdk.test.lib.Asserts;
@@ -1664,7 +1665,7 @@ public class TestValueConstruction {
     }
 
     private static final MethodHandle MULTIPLE_OCCURRENCES_IN_JVMS = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
-            "multipleOccurrencesInJVMSReturnStack",
+            "multipleOccurrencesInJVMS",
             MethodType.methodType(MyValue1.class, int.class),
             CODE -> {
                 Label loopHead = CODE.newLabel();
@@ -1672,6 +1673,7 @@ public class TestValueConstruction {
                 CODE.
                         new_(MyValue1.class.describeConstable().get()).
                         dup().
+                        // Duplicate the larval oop across multiple local slots
                         astore(1).
                         astore(2).
                         iconst_0().
@@ -1692,6 +1694,71 @@ public class TestValueConstruction {
 
     public static MyValue1 testMultipleOccurrencesInJVMS(int x) throws Throwable {
         return (MyValue1) MULTIPLE_OCCURRENCES_IN_JVMS.invokeExact(x);
+    }
+
+    private static final MethodHandle OSR_LARVAL_LOCAL = InstructionHelper.buildMethodHandle(MethodHandles.lookup(),
+            "osrLarvalLocal",
+            MethodType.methodType(MyValue1.class, MyValue1.class, int.class),
+            CODE -> {
+                Label loopHead = CODE.newLabel();
+                Label loopExit = CODE.newLabel();
+                CODE.
+                        new_(MyValue1.class.describeConstable().get()).
+                        // Overwrite a parameter with the larval oop
+                        astore(0).
+                        iconst_0().
+                        istore(2).
+                        labelBinding(loopHead).
+                        iload(2).
+                        ldc(100).
+                        if_icmpge(loopExit).
+                        iinc(2, 1).
+                        goto_(loopHead).
+                        labelBinding(loopExit).
+                        aload(0).
+                        iload(1).
+                        invokespecial(MyValue1.class.describeConstable().get(), "<init>", MethodType.methodType(void.class, int.class).describeConstable().get()).
+                        aload(0).
+                        areturn();
+            });
+
+    public static MyValue1 testOsrLarvalLocal(int x) throws Throwable {
+        MyValue1 dummy = new MyValue1(x - 1);
+        return (MyValue1) OSR_LARVAL_LOCAL.invokeExact(dummy, x);
+    }
+
+    static final Constructor<MyValue1> MY_VALUE1_CONSTRUCTOR;
+    static {
+        try {
+            MY_VALUE1_CONSTRUCTOR = MyValue1.class.getConstructor(int.class);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static MyValue1 testReflectionCon(int x) throws Exception {
+        return MY_VALUE1_CONSTRUCTOR.newInstance(x);
+    }
+
+    public static MyValue1 testReflectionVar(Constructor<MyValue1> constructor, int x) throws Exception {
+        return constructor.newInstance(x);
+    }
+
+    static final MethodHandle MY_VALUE1_CONSTRUCTOR_HANDLE;
+    static {
+        try {
+            MY_VALUE1_CONSTRUCTOR_HANDLE = MethodHandles.lookup().unreflectConstructor(MY_VALUE1_CONSTRUCTOR);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static MyValue1 testMethodHandleCon(int x) throws Throwable {
+        return (MyValue1) MY_VALUE1_CONSTRUCTOR_HANDLE.invoke(x);
+    }
+
+    public static MyValue1 testMethodHandleVar(MethodHandle mh, int x) throws Throwable {
+        return (MyValue1) mh.invoke(x);
     }
 
     public static void main(String[] args) throws Throwable {
@@ -1822,6 +1889,11 @@ public class TestValueConstruction {
         check(testBackAndForthAbstract(x), new MyValue15(x), doCheck);
         check(testBackAndForthAbstract2(x), new MyValue16(x), doCheck);
         check(testMultipleOccurrencesInJVMS(x), new MyValue1(x), doCheck);
+        check(testOsrLarvalLocal(x), new MyValue1(x), doCheck);
+        check(testReflectionCon(x), new MyValue1(x), doCheck);
+        check(testReflectionVar(MY_VALUE1_CONSTRUCTOR, x), new MyValue1(x), doCheck);
+        check(testMethodHandleCon(x), new MyValue1(x), doCheck);
+        check(testMethodHandleVar(MY_VALUE1_CONSTRUCTOR_HANDLE, x), new MyValue1(x), doCheck);
     }
 
     private static void check(Object testResult, Object expectedResult, boolean check) {

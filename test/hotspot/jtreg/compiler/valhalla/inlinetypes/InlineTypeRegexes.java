@@ -28,8 +28,8 @@ public class InlineTypeRegexes {
     public static final String ANY_KLASS = "compiler/valhalla/inlinetypes/[\\w/]*";
     public static final String STORE_INLINE_TYPE_FIELDS = "store_inline_type_fields";
     public static final String JDK_INTERNAL_MISC_UNSAFE = "# Static  jdk.internal.misc.Unsafe::";
-    public static final String LOAD_UNKNOWN_INLINE = "C2 Runtime load_unknown_inline";
-    public static final String STORE_UNKNOWN_INLINE = "C2 Runtime store_unknown_inline";
+    public static final String LOAD_UNKNOWN_INLINE = "load_unknown_inline_blob \\(C2 runtime\\)";
+    public static final String STORE_UNKNOWN_INLINE = "store_unknown_inline_blob \\(C2 runtime\\)";
     public static final String INLINE_ARRAY_NULL_GUARD = "null_check' action='none'";
     public static final String JLONG_DISJOINT_ARRAYCOPY = "jlong_disjoint_arraycopy";
     public static final String CHECKCAST_ARRAYCOPY = "checkcast_arraycopy";

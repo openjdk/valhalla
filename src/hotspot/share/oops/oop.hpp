@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,26 +43,13 @@
 // (see oopHierarchy for complete oop class hierarchy)
 //
 // no virtual functions allowed
-//
-// oopDesc::_mark - the "oop mark word" encoding to be found separately in markWord.hpp
-//
-// oopDesc::_metadata - encodes the object's klass pointer, as a raw pointer in "_klass"
-//                      or compressed pointer in "_compressed_klass"
-//
-// The overall size of the _metadata field is dependent on "UseCompressedClassPointers",
-// hence the terms "narrow" (32 bits) vs "wide" (64 bits).
-//
-
 
 class oopDesc {
   friend class VMStructs;
   friend class JVMCIVMStructs;
  private:
   volatile markWord _mark;
-  union _metadata {
-    Klass*      _klass;
-    narrowKlass _compressed_klass;
-  } _metadata;
+  narrowKlass _compressed_klass;
 
   // There may be ordering constraints on the initialization of fields that
   // make use of the C++ copy/assign incorrect.
@@ -130,7 +117,7 @@ class oopDesc {
 
   // type test operations (inlined in oop.inline.hpp)
   inline bool is_instance()         const;
-  inline bool is_inline_type()      const;
+  inline bool is_inline()           const;
   inline bool is_instanceRef()      const;
   inline bool is_stackChunk()       const;
   inline bool is_array()            const;
@@ -138,8 +125,10 @@ class oopDesc {
   inline bool is_typeArray()        const;
   inline bool is_flatArray()        const;
   inline bool is_refArray()         const;
-  inline bool is_null_free_array()  const;
   inline bool is_refined_objArray() const;
+  inline bool is_array_with_oops()  const;
+
+  inline bool is_inline_type()      const;
 
   // type test operations that don't require inclusion of oop.inline.hpp.
   bool is_instance_noinline()         const;
@@ -150,7 +139,6 @@ class oopDesc {
   bool is_refArray_noinline()         const;
   bool is_typeArray_noinline()        const;
   bool is_flatArray_noinline()        const;
-  bool is_null_free_array_noinline()  const;
 
  protected:
   inline oop        as_oop() const { return const_cast<oopDesc*>(this); }
@@ -356,7 +344,7 @@ class oopDesc {
     } else
 #endif
     {
-      return (int)offset_of(oopDesc, _metadata._klass);
+      return (int)offset_of(oopDesc, _compressed_klass);
     }
   }
   static int klass_gap_offset_in_bytes() {

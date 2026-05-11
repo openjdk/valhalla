@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,25 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986 8355299
+ * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986 8355299 8378780
  * @summary A selection of generated tests that triggered bugs not covered by other tests.
  * @enablePreview
+ * @library /testlibrary /test/lib /
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xbatch
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
- * @run main/othervm -Xbatch -XX:-UseArrayFlattening
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:ForceNonTearable=*
  *                   compiler.valhalla.inlinetypes.TestGenerated
- * @run main/othervm -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:-UseArrayFlattening
+ *                   compiler.valhalla.inlinetypes.TestGenerated
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 
@@ -41,7 +50,8 @@ package compiler.valhalla.inlinetypes;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
+
+import jdk.test.whitebox.WhiteBox;
 
 @LooselyConsistentValue
 value class EmptyPrimitive {
@@ -95,8 +105,18 @@ value class MyValue6Generated {
 }
 
 public class TestGenerated {
+    private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+    private static final boolean SLOW_CONFIGURATION = (WHITE_BOX.getIntxVMFlag("TieredStopAtLevel").intValue() < 4);
+
     EmptyPrimitive f1 = new EmptyPrimitive();
     EmptyPrimitive f2 = new EmptyPrimitive();
+
+    public TestGenerated() {
+        f4 = new MyValue1Generated();
+        e = new MyValue4Generated();
+        test13_t = new MyValue5Generated();
+        super();
+    }
 
     void test1(EmptyPrimitive[] array) {
         for (int i = 0; i < 10; ++i) {
@@ -134,9 +154,8 @@ public class TestGenerated {
     }
 
     long f3;
-    @Strict
     @NullRestricted
-    MyValue1Generated f4 = new MyValue1Generated();
+    MyValue1Generated f4;
 
     void test6() {
         f3 = 123L;
@@ -207,9 +226,8 @@ public class TestGenerated {
     }
 
     MyValue4Generated[] d = (MyValue4Generated[])ValueClass.newNullRestrictedNonAtomicArray(MyValue4Generated.class, 1, new MyValue4Generated());
-    @Strict
     @NullRestricted
-    MyValue4Generated e = new MyValue4Generated();
+    MyValue4Generated e;
     byte f;
 
     byte test12() {
@@ -233,9 +251,8 @@ public class TestGenerated {
 
     int test13_iField;
     MyValue5Generated test13_c;
-    @Strict
     @NullRestricted
-    MyValue5Generated test13_t = new MyValue5Generated();
+    MyValue5Generated test13_t;
 
     void test13(MyValue5Generated[] array) {
         for (int i = 0; i < 10; ++i) {
@@ -332,7 +349,8 @@ public class TestGenerated {
         array5[0] = new MyValue5Generated();
         array4[0].intArray[0] = 42;
 
-        for (int i = 0; i < 50_000; ++i) {
+        int iterations = SLOW_CONFIGURATION ? 1_000 : 50_000;
+        for (int i = 0; i < iterations; ++i) {
             t.test1(array1);
             t.test2(array2);
             t.test3(array2);

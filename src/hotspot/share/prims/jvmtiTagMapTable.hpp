@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,7 +74,6 @@ public:
   }
 };
 
-
 // The oop is needed for lookup rather than creating a WeakHandle during
 // lookup because the HeapWalker may walk soon to be dead objects and
 // creating a WeakHandle for an otherwise dead object makes G1 unhappy.
@@ -86,7 +85,7 @@ public:
 // Value objects: keep just one tag for all equal value objects including heap allocated value objects.
 // We have to keep a strong reference to each unique value object with a non-zero tag.
 // During heap walking flattened value object tags stored in separate JvmtiFlatTagMapTable,
-// converted to standard strong entries in JvmtiTagMapTable outside of sefepoint.
+// converted to standard strong entries in JvmtiTagMapTable outside of safepoint.
 // All equal value objects should have the same tag.
 // Keep value objects alive (1 copy for each "value") until their tags are removed.
 
@@ -103,7 +102,6 @@ class JvmtiTagMapKey : public CHeapObj<mtServiceability> {
   JvmtiTagMapKey(const JvmtiHeapwalkObject* obj);
   // Copy ctor is called when we put entry to the hash table.
   JvmtiTagMapKey(const JvmtiTagMapKey& src);
-
   JvmtiTagMapKey& operator=(const JvmtiTagMapKey&) = delete;
 
   JvmtiHeapwalkObject heapwalk_object() const;

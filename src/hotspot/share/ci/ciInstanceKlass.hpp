@@ -59,6 +59,7 @@ private:
   bool                   _has_nonstatic_concrete_methods;
   bool                   _is_hidden;
   bool                   _is_record;
+  bool                   _trust_final_fields;
   bool                   _has_trusted_loader;
 
   ciFlags                _flags;
@@ -95,7 +96,7 @@ private:
   bool compute_injected_fields_helper();
   void compute_transitive_interfaces();
 
-  ciField* get_non_static_field_by_offset(int field_offset);
+  ciField* get_nonstatic_field_by_offset(int field_offset);
 
 protected:
   ciInstanceKlass(Klass* k);
@@ -220,6 +221,10 @@ public:
     return _is_record;
   }
 
+  bool trust_final_fields() const {
+    return _trust_final_fields;
+  }
+
   ciInstanceKlass* get_canonical_holder(int offset);
   ciField* get_field_by_offset(int field_offset, bool is_static);
   ciField* get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static);
@@ -268,7 +273,7 @@ public:
 
   bool has_class_initializer();
 
-  bool contains_field_offset(int offset);
+  bool contains_field_offset(int offset) const;
 
   // Get the instance of java.lang.Class corresponding to
   // this klass.  This instance is used for locking of

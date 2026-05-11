@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -95,10 +95,6 @@ static inline Address daddress(Register r, Register scratch,
 
 static inline Address aaddress(Register r) {
   return iaddress(r);
-}
-
-static inline Address at_rsp() {
-  return Address(esp, 0);
 }
 
 // At top of Java expression stack which may be different than esp().  It
@@ -2033,14 +2029,15 @@ void TemplateTable::if_acmp(Condition cc) {
   __ mov(is_inline_type_mask, markWord::inline_type_pattern);
 
   if (Arguments::is_valhalla_enabled()) {
+    // The substitutability test is only necessary if r1 and r0 are not the same...
     __ cmp(r1, r0);
     __ br(Assembler::EQ, (cc == equal) ? taken : not_taken);
 
-    // might be substitutable, test if either r0 or r1 is null
-    __ andr(r2, r0, r1);
-    __ cbz(r2, (cc == equal) ? not_taken : taken);
+    // ... neither are null...
+    __ cbz(r1, (cc == equal) ? not_taken : taken);
+    __ cbz(r0, (cc == equal) ? not_taken : taken);
 
-    // and both are values ?
+    // ...and both are values...
     __ ldr(r2, Address(r1, oopDesc::mark_offset_in_bytes()));
     __ andr(r2, r2, is_inline_type_mask);
     __ ldr(r4, Address(r0, oopDesc::mark_offset_in_bytes()));
@@ -2049,7 +2046,7 @@ void TemplateTable::if_acmp(Condition cc) {
     __ cmp(r2,  is_inline_type_mask);
     __ br(Assembler::NE, (cc == equal) ? not_taken : taken);
 
-    // same value klass ?
+    // ...with the same value klass
     __ load_metadata(r2, r1);
     __ load_metadata(r4, r0);
     __ cmp(r2, r4);
@@ -2395,7 +2392,8 @@ void TemplateTable::resolve_cache_and_index_for_method(int byte_no,
   __ subs(zr, temp, (int) code);  // have we resolved this bytecode?
 
   // Class initialization barrier for static methods
-  if (VM_Version::supports_fast_class_init_checks() && bytecode() == Bytecodes::_invokestatic) {
+  if (bytecode() == Bytecodes::_invokestatic) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     __ br(Assembler::NE, L_clinit_barrier_slow);
     __ ldr(temp, Address(Rcache, in_bytes(ResolvedMethodEntry::method_offset())));
     __ load_method_holder(temp, temp);
@@ -2445,8 +2443,8 @@ void TemplateTable::resolve_cache_and_index_for_field(int byte_no,
   __ subs(zr, temp, (int) code);  // have we resolved this bytecode?
 
   // Class initialization barrier for static fields
-  if (VM_Version::supports_fast_class_init_checks() &&
-      (bytecode() == Bytecodes::_getstatic || bytecode() == Bytecodes::_putstatic)) {
+  if (bytecode() == Bytecodes::_getstatic || bytecode() == Bytecodes::_putstatic) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     const Register field_holder = temp;
 
     __ br(Assembler::NE, L_clinit_barrier_slow);
@@ -2709,9 +2707,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 {
   const Register cache     = r2;
   const Register obj       = r4;
-  const Register klass     = r5;
-  const Register inline_klass = r7;
-  const Register field_index = r23;
   const Register index     = r3;
   const Register tos_state = r3;
   const Register off       = r19;
@@ -2720,10 +2715,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   resolve_cache_and_index_for_field(byte_no, cache, index);
   jvmti_post_field_access(cache, index, is_static, false);
-
-  // Valhalla extras
-  __ load_unsigned_short(field_index, Address(cache, in_bytes(ResolvedFieldEntry::field_index_offset())));
-  __ ldr(klass, Address(cache, ResolvedFieldEntry::field_holder_offset()));
 
   load_resolved_field_entry(obj, cache, tos_state, off, flags, is_static);
 
@@ -2807,7 +2798,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ bind(is_flat);
       // field is flat (null-free or nullable with a null-marker)
       __ mov(r0, obj);
-      __ read_flat_field(cache, field_index, off, inline_klass /* temp */, r0);
+      __ read_flat_field(cache, r0);
       __ verify_oop(r0);
       __ push(atos);
       if (rc == may_rewrite) {
@@ -3410,10 +3401,8 @@ void TemplateTable::fast_accessfield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_vgetfield:
     {
-      Register index = r4, tmp = r7;
       // field is flat
-      __ load_unsigned_short(index, Address(r2, in_bytes(ResolvedFieldEntry::field_index_offset())));
-      __ read_flat_field(r2, index, r1, tmp /* temp */, r0);
+      __ read_flat_field(r2, r0);
       __ verify_oop(r0);
     }
     break;
@@ -3574,7 +3563,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ load_klass(r0, recv);
 
   // profile this call
-  __ profile_virtual_call(r0, rlocals, r3);
+  __ profile_virtual_call(r0, rlocals);
 
   // get target Method & entry point
   __ lookup_virtual_method(r0, index, method);
@@ -3687,7 +3676,6 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ bind(notVFinal);
 
   // Get receiver klass into r3
-  __ restore_locals();
   __ load_klass(r3, r2);
 
   Label no_such_method;
@@ -3704,7 +3692,7 @@ void TemplateTable::invokeinterface(int byte_no) {
                              /*return_method=*/false);
 
   // profile this call
-  __ profile_virtual_call(r3, r13, r19);
+  __ profile_virtual_call(r3, r13);
 
   // Get declaring interface class from method, and itable index
 
@@ -3837,8 +3825,81 @@ void TemplateTable::_new() {
   assert(VM_Version::supports_fast_class_init_checks(), "Optimization requires support for fast class initialization checks");
   __ clinit_barrier(r4, rscratch1, nullptr /*L_fast_path*/, &slow_case);
 
-  __ allocate_instance(r4, r0, r3, r1, true, slow_case);
-  __ b(done);
+  // get instance_size in InstanceKlass (scaled to a count of bytes)
+  __ ldrw(r3,
+          Address(r4,
+                  Klass::layout_helper_offset()));
+  // test to see if it is malformed in some way
+  __ tbnz(r3, exact_log2(Klass::_lh_instance_slow_path_bit), slow_case);
+
+  // Allocate the instance:
+  //  If TLAB is enabled:
+  //    Try to allocate in the TLAB.
+  //    If fails, go to the slow path.
+  //    Initialize the allocation.
+  //    Exit.
+  //
+  //  Go to slow path.
+
+  if (UseTLAB) {
+    __ tlab_allocate(r0, r3, 0, noreg, r1, slow_case);
+
+    if (ZeroTLAB) {
+      // the fields have been already cleared
+      __ b(initialize_header);
+    }
+
+    // The object is initialized before the header.  If the object size is
+    // zero, go directly to the header initialization.
+    int header_size = oopDesc::header_size() * HeapWordSize;
+    assert(is_aligned(header_size, BytesPerLong), "oop header size must be 8-byte-aligned");
+    __ sub(r3, r3, header_size);
+    __ cbz(r3, initialize_header);
+
+  #ifdef ASSERT
+    // make sure instance_size was multiple of 8
+    Label L;
+    __ tst(r3, 7);
+    __ br(Assembler::EQ, L);
+    __ stop("object size is not multiple of 8 - adjust this code");
+    __ bind(L);
+    // must be > 0, no extra check needed here
+  #endif
+
+    // Initialize object fields
+    {
+      __ add(r2, r0, header_size);
+      Label loop;
+      __ bind(loop);
+      __ str(zr, Address(__ post(r2, BytesPerLong)));
+      __ sub(r3, r3, BytesPerLong);
+      __ cbnz(r3, loop);
+    }
+
+    // initialize object header only.
+    __ bind(initialize_header);
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
+      __ ldr(rscratch1, Address(r4, Klass::prototype_header_offset()));
+      __ str(rscratch1, Address(r0, oopDesc::mark_offset_in_bytes()));
+    } else {
+      __ mov(rscratch1, (intptr_t)markWord::prototype().value());
+      __ str(rscratch1, Address(r0, oopDesc::mark_offset_in_bytes()));
+    }
+    if (!UseCompactObjectHeaders) {
+      __ store_klass_gap(r0, zr);  // zero klass gap for compressed oops
+      __ store_klass(r0, r4);      // store klass last
+    }
+
+    if (DTraceAllocProbes) {
+      // Trigger dtrace event for fastpath
+      __ push(atos); // save the return value
+      __ call_VM_leaf(
+           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), r0);
+      __ pop(atos); // restore the return value
+
+    }
+    __ b(done);
+  }
 
   // slow case
   __ bind(slow_case);
@@ -3929,7 +3990,6 @@ void TemplateTable::checkcast()
   if (ProfileInterpreter) {
     __ profile_null_seen(r2);
   }
-
   __ bind(done);
 }
 

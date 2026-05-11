@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1039,14 +1039,8 @@ void Klass::verify_on(outputStream* st) {
 
   // This can be expensive, but it is worth checking that this klass is actually
   // in the CLD graph but not in production.
-#ifdef ASSERT
-  if (UseCompressedClassPointers) {
-    // Stricter checks for both correct alignment and placement
-    CompressedKlassPointers::check_encodable(this);
-  } else {
-    assert(Metaspace::contains((address)this), "Should be");
-  }
-#endif // ASSERT
+  // Stricter checks for both correct alignment and placement
+  DEBUG_ONLY(CompressedKlassPointers::check_encodable(this));
 
   guarantee(this->is_klass(),"should be klass");
 
@@ -1073,6 +1067,40 @@ void Klass::oop_verify_on(oop obj, outputStream* st) {
   guarantee(oopDesc::is_oop(obj),  "should be oop");
   guarantee(obj->klass()->is_klass(), "klass field is not a klass");
 }
+
+#ifdef ASSERT
+void Klass::validate_array_description(const ArrayDescription& ad) {
+  if (is_identity_class() || is_array_klass() || is_interface() ||
+      (is_instance_klass() && InstanceKlass::cast(this)->access_flags().is_abstract())) {
+    assert(ad._layout_kind == LayoutKind::REFERENCE, "Cannot support flattening");
+    assert(ad._kind == KlassKind::RefArrayKlassKind, "Must be a reference array");
+  } else {
+    assert(is_inline_klass(), "Must be");
+    InlineKlass* ik = InlineKlass::cast(this);
+    switch(ad._layout_kind) {
+      case LayoutKind::BUFFERED:
+        fatal("Invalid layout for an array");
+        break;
+      case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+        assert(ik->has_null_free_atomic_layout(), "Sanity check");
+        break;
+      case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+        assert(ik->has_null_free_non_atomic_layout(), "Sanity check");
+        break;
+      case LayoutKind::NULLABLE_ATOMIC_FLAT:
+        assert(ik->has_nullable_atomic_layout(), "Sanity check");
+        break;
+      case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+        assert(ik->has_nullable_non_atomic_layout(), "Sanity check)");
+        break;
+      case LayoutKind::REFERENCE:
+        break;
+      default:
+        ShouldNotReachHere();
+    }
+  }
+}
+#endif // ASSERT
 
 // Note: this function is called with an address that may or may not be a Klass.
 // The point is not to assert it is but to check if it could be.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 package runtime.valhalla.inlinetypes;
 
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 import jdk.test.lib.Asserts;
 
 /*
@@ -37,16 +36,12 @@ import jdk.test.lib.Asserts;
  */
 public class InlineTypeGetField {
 
-    @Strict
     @NullRestricted
     static Point staticPoint0;
-    @Strict
     @NullRestricted
     static Point staticPoint1;
-    @Strict
     @NullRestricted
     Point instancePoint0;
-    @Strict
     @NullRestricted
     Point instancePoint1;
 
@@ -58,6 +53,7 @@ public class InlineTypeGetField {
     InlineTypeGetField() {
         instancePoint0 = new Point(1890, 1918);
         instancePoint1 = new Point(91, 102);
+        super();
     }
 
     public static void main(String[] args) {

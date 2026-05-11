@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
+#include "cppstdlib/cstdlib.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "jimage.hpp"
@@ -81,7 +82,6 @@
 #include "utilities/utf8.hpp"
 
 #include <ctype.h>
-#include <stdlib.h>
 
 // Entry point in java.dll for path canonicalization
 
@@ -136,6 +136,7 @@ PerfCounter*    ClassLoader::_perf_ik_link_methods_count = nullptr;
 PerfCounter*    ClassLoader::_perf_method_adapters_count = nullptr;
 PerfCounter*    ClassLoader::_unsafe_defineClassCallCounter = nullptr;
 PerfCounter*    ClassLoader::_perf_secondary_hash_time = nullptr;
+PerfCounter*    ClassLoader::_perf_change_wx_time = nullptr;
 
 PerfCounter*    ClassLoader::_perf_resolve_indy_time = nullptr;
 PerfCounter*    ClassLoader::_perf_resolve_invokehandle_time = nullptr;
@@ -309,7 +310,7 @@ const char* ClassPathEntry::copy_path(const char* path) {
 }
 
 ClassPathDirEntry::~ClassPathDirEntry() {
-  FREE_C_HEAP_ARRAY(char, _dir);
+  FREE_C_HEAP_ARRAY(_dir);
 }
 
 ClassFileStream* ClassPathDirEntry::open_stream(JavaThread* current, const char* name) {
@@ -338,7 +339,7 @@ ClassFileStream* ClassPathDirEntry::open_stream(JavaThread* current, const char*
 #ifdef ASSERT
         // Freeing path is a no-op here as buffer prevents it from being reclaimed. But we keep it for
         // debug builds so that we guard against use-after-free bugs.
-        FREE_RESOURCE_ARRAY_IN_THREAD(current, char, path, path_len);
+        FREE_RESOURCE_ARRAY_IN_THREAD(current, path, path_len);
 #endif
         // We don't verify the length of the classfile stream fits in an int, but this is the
         // bootloader so we have control of this.
@@ -349,7 +350,7 @@ ClassFileStream* ClassPathDirEntry::open_stream(JavaThread* current, const char*
       }
     }
   }
-  FREE_RESOURCE_ARRAY_IN_THREAD(current, char, path, path_len);
+  FREE_RESOURCE_ARRAY_IN_THREAD(current, path, path_len);
   return nullptr;
 }
 
@@ -360,7 +361,7 @@ ClassPathZipEntry::ClassPathZipEntry(jzfile* zip, const char* zip_name) : ClassP
 
 ClassPathZipEntry::~ClassPathZipEntry() {
   ZipLibrary::close(_zip);
-  FREE_C_HEAP_ARRAY(char, _zip_name);
+  FREE_C_HEAP_ARRAY(_zip_name);
 }
 
 bool ClassPathZipEntry::has_entry(JavaThread* current, const char* name) {
@@ -771,6 +772,7 @@ ClassPathEntry* ClassLoader::create_class_path_entry(JavaThread* current,
     if (zip != nullptr && error_msg == nullptr) {
       new_entry = new ClassPathZipEntry(zip, path);
     } else {
+      log_info(class, path)("failed: %s, err: %s", path, error_msg);
       return nullptr;
     }
     log_info(class, path)("opened: %s", path);
@@ -981,7 +983,7 @@ oop ClassLoader::get_system_package(const char* name, TRAPS) {
   return nullptr;
 }
 
-objArrayOop ClassLoader::get_system_packages(TRAPS) {
+refArrayOop ClassLoader::get_system_packages(TRAPS) {
   ResourceMark rm(THREAD);
   // List of pointers to PackageEntrys that have loaded classes.
   PackageEntryTable* pe_table =
@@ -989,9 +991,10 @@ objArrayOop ClassLoader::get_system_packages(TRAPS) {
   GrowableArray<PackageEntry*>* loaded_class_pkgs = pe_table->get_system_packages();
 
   // Allocate objArray and fill with java.lang.String
-  objArrayOop r = oopFactory::new_objArray(vmClasses::String_klass(),
-                                           loaded_class_pkgs->length(), CHECK_NULL);
-  objArrayHandle result(THREAD, r);
+  refArrayOop r = oopFactory::new_refArray(vmClasses::String_klass(),
+                                           loaded_class_pkgs->length(),
+                                           CHECK_NULL);
+  refArrayHandle result(THREAD, r);
   for (int x = 0; x < loaded_class_pkgs->length(); x++) {
     PackageEntry* package_entry = loaded_class_pkgs->at(x);
     Handle str = java_lang_String::create_from_symbol(package_entry->name(), CHECK_NULL);
@@ -1457,6 +1460,7 @@ void ClassLoader::initialize(TRAPS) {
     NEWPERFBYTECOUNTER(_perf_sys_classfile_bytes_read, SUN_CLS, "sysClassBytes");
     NEWPERFEVENTCOUNTER(_unsafe_defineClassCallCounter, SUN_CLS, "unsafeDefineClassCalls");
     NEWPERFTICKCOUNTER(_perf_secondary_hash_time, SUN_CLS, "secondarySuperHashTime");
+    NEWPERFTICKCOUNTER(_perf_change_wx_time, SUN_CLS, "changeWXTime");
 
     if (log_is_enabled(Info, perf, class, link)) {
       NEWPERFTICKCOUNTER(_perf_ik_link_methods_time, SUN_CLS, "linkMethodsTime");
@@ -1520,7 +1524,7 @@ bool ClassLoader::is_module_observable(const char* module_name) {
     struct stat st;
     const char *path = get_exploded_module_path(module_name, true);
     bool res = os::stat(path, &st) == 0;
-    FREE_C_HEAP_ARRAY(char, path);
+    FREE_C_HEAP_ARRAY(path);
     return res;
   }
   // We don't expect preview mode (i.e. --enable-preview) to affect module visibility.

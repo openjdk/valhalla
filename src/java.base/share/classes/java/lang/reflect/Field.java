@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,12 +33,15 @@ import java.util.Set;
 import java.util.Objects;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.event.FinalFieldMutationEvent;
+import jdk.internal.javac.PreviewFeature;
 import jdk.internal.loader.ClassLoaders;
 import jdk.internal.misc.VM;
 import jdk.internal.module.ModuleBootstrap;
 import jdk.internal.module.Modules;
+import jdk.internal.reflect.AccessFlagSet;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.FieldAccessor;
+import jdk.internal.reflect.PreviewAccessFlags;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
@@ -248,7 +251,7 @@ class Field extends AccessibleObject implements Member {
      */
     @Override
     public Set<AccessFlag> accessFlags() {
-        return reflectionFactory.parseAccessFlags(getModifiers(), AccessFlag.Location.FIELD, getDeclaringClass());
+        return AccessFlagSet.ofValidated(PreviewAccessFlags.FIELD_PREVIEW_FLAGS, getModifiers());
     }
 
     /**
@@ -277,6 +280,20 @@ class Field extends AccessibleObject implements Member {
      */
     public boolean isSynthetic() {
         return Modifier.isSynthetic(getModifiers());
+    }
+
+    /**
+     * Returns {@code true} if this field is a strictly
+     * initialized field; returns {@code false} otherwise.
+     *
+     * @return true if and only if this field is a strictly
+     * initialized field as defined by the Java Virtual Machine Specification
+     * @jvms strict-fields-4.5 Field access and property flags
+     * @since Valhalla
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
+    public boolean isStrictInit() {
+        return accessFlags().contains(AccessFlag.STRICT_INIT);
     }
 
     /**
@@ -369,11 +386,24 @@ class Field extends AccessibleObject implements Member {
      * @jls 8.3.1 Field Modifiers
      */
     public String toString() {
-        int mod = getModifiers() & Modifier.fieldModifiers();
-        return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
+        return modifierPrefix()
             + getType().getTypeName() + " "
             + getDeclaringClass().getTypeName() + "."
-            + getName());
+            + getName();
+    }
+
+    private String modifierPrefix() {
+        StringBuilder sb = new StringBuilder();
+        Reflection.appendAccessControlModifiers(sb, modifiers);
+        if (Modifier.isStatic(modifiers))
+            sb.append("static ");
+        if (Modifier.isFinal(modifiers))
+            sb.append("final ");
+        if (Modifier.isTransient(modifiers))
+            sb.append("transient ");
+        if (Modifier.isVolatile(modifiers))
+            sb.append("volatile ");
+        return sb.toString();
     }
 
     @Override
@@ -402,12 +432,11 @@ class Field extends AccessibleObject implements Member {
      * @jls 8.3.1 Field Modifiers
      */
     public String toGenericString() {
-        int mod = getModifiers() & Modifier.fieldModifiers();
         Type fieldType = getGenericType();
-        return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
+        return modifierPrefix()
             + fieldType.getTypeName() + " "
             + getDeclaringClass().getTypeName() + "."
-            + getName());
+            + getName();
     }
 
     /**

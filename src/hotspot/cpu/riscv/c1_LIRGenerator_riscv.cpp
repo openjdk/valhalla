@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * Copyright (c) 2020, 2022, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -913,12 +913,14 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   CodeEmitInfo* info = state_for(x, x->state());
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
+               /* allow_inline */ false,
                FrameMap::r12_oop_opr,
                FrameMap::r15_oop_opr,
                FrameMap::r14_oop_opr,
                LIR_OprFact::illegalOpr,
                FrameMap::r13_metadata_opr,
                info);
+
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
 }
@@ -1073,13 +1075,11 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   }
   LIR_Opr reg = rlock_result(x);
   LIR_Opr tmp3 = LIR_OprFact::illegalOpr;
-  if (!x->klass()->is_loaded() || UseCompressedClassPointers) {
-    tmp3 = new_register(objectType);
-  }
+  tmp3 = new_register(objectType);
   __ checkcast(reg, obj.result(), x->klass(),
                new_register(objectType), new_register(objectType), tmp3,
                x->direct_compare(), info_for_exception, patching_info, stub,
-               x->profiled_method(), x->profiled_bci());
+               x->profiled_method(), x->profiled_bci(), /*is_null_free*/ false);
 }
 
 void LIRGenerator::do_InstanceOf(InstanceOf* x) {
@@ -1094,9 +1094,7 @@ void LIRGenerator::do_InstanceOf(InstanceOf* x) {
   }
   obj.load_item();
   LIR_Opr tmp3 = LIR_OprFact::illegalOpr;
-  if (!x->klass()->is_loaded() || UseCompressedClassPointers) {
-    tmp3 = new_register(objectType);
-  }
+  tmp3 = new_register(objectType);
   __ instanceof(reg, obj.result(), x->klass(),
                 new_register(objectType), new_register(objectType), tmp3,
                 x->direct_compare(), patching_info, x->profiled_method(), x->profiled_bci());
@@ -1173,4 +1171,5 @@ void LIRGenerator::volatile_field_store(LIR_Opr value, LIR_Address* address,
 void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
                                        CodeEmitInfo* info) {
   __ volatile_load_mem_reg(address, result, info);
+  __ membar_acquire();
 }

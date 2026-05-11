@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1001,8 +1001,7 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
          (byte == Bytecodes::_nop && !link_info.check_access()), "bad field access bytecode");
 
   bool is_static = (byte == Bytecodes::_getstatic || byte == Bytecodes::_putstatic);
-  bool is_put    = (byte == Bytecodes::_putfield  || byte == Bytecodes::_putstatic ||
-                    byte == Bytecodes::_nofast_putfield);
+  bool is_put    = (byte == Bytecodes::_putfield  || byte == Bytecodes::_putstatic || byte == Bytecodes::_nofast_putfield);
   // Check if there's a resolved klass containing the field
   Klass* resolved_klass = link_info.resolved_klass();
   Symbol* field = link_info.name();
@@ -1045,8 +1044,8 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
         ResourceMark rm(THREAD);
         stringStream ss;
         ss.print("Update to %s final field %s.%s attempted from a different class (%s) than the field's declaring class",
-                  is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
-                  current_klass->external_name());
+                 is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
+                 current_klass->external_name());
         THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), ss.as_string());
       }
 

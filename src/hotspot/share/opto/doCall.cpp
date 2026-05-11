@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@
 #include "opto/callGenerator.hpp"
 #include "opto/castnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/graphKit.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/parse.hpp"
@@ -48,6 +49,7 @@
 #include "prims/methodHandles.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ostream.hpp"
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
@@ -86,63 +88,6 @@ static void trace_type_profile(Compile* C, ciMethod* method, JVMState* jvms,
   if (lt.is_enabled()) {
     LogStream ls(lt);
     print_trace_type_profile(&ls, depth, prof_klass, site_count, receiver_count, true);
-  }
-}
-
-static bool arg_can_be_larval(ciMethod* callee, int arg_idx) {
-  if (callee->is_object_constructor() && arg_idx == 0) {
-    return true;
-  }
-
-  if (arg_idx != 1 || callee->intrinsic_id() == vmIntrinsicID::_none) {
-    return false;
-  }
-
-  switch (callee->intrinsic_id()) {
-    case vmIntrinsicID::_finishPrivateBuffer:
-    case vmIntrinsicID::_putBoolean:
-    case vmIntrinsicID::_putBooleanOpaque:
-    case vmIntrinsicID::_putBooleanRelease:
-    case vmIntrinsicID::_putBooleanVolatile:
-    case vmIntrinsicID::_putByte:
-    case vmIntrinsicID::_putByteOpaque:
-    case vmIntrinsicID::_putByteRelease:
-    case vmIntrinsicID::_putByteVolatile:
-    case vmIntrinsicID::_putChar:
-    case vmIntrinsicID::_putCharOpaque:
-    case vmIntrinsicID::_putCharRelease:
-    case vmIntrinsicID::_putCharUnaligned:
-    case vmIntrinsicID::_putCharVolatile:
-    case vmIntrinsicID::_putShort:
-    case vmIntrinsicID::_putShortOpaque:
-    case vmIntrinsicID::_putShortRelease:
-    case vmIntrinsicID::_putShortUnaligned:
-    case vmIntrinsicID::_putShortVolatile:
-    case vmIntrinsicID::_putInt:
-    case vmIntrinsicID::_putIntOpaque:
-    case vmIntrinsicID::_putIntRelease:
-    case vmIntrinsicID::_putIntUnaligned:
-    case vmIntrinsicID::_putIntVolatile:
-    case vmIntrinsicID::_putLong:
-    case vmIntrinsicID::_putLongOpaque:
-    case vmIntrinsicID::_putLongRelease:
-    case vmIntrinsicID::_putLongUnaligned:
-    case vmIntrinsicID::_putLongVolatile:
-    case vmIntrinsicID::_putFloat:
-    case vmIntrinsicID::_putFloatOpaque:
-    case vmIntrinsicID::_putFloatRelease:
-    case vmIntrinsicID::_putFloatVolatile:
-    case vmIntrinsicID::_putDouble:
-    case vmIntrinsicID::_putDoubleOpaque:
-    case vmIntrinsicID::_putDoubleRelease:
-    case vmIntrinsicID::_putDoubleVolatile:
-    case vmIntrinsicID::_putReference:
-    case vmIntrinsicID::_putReferenceOpaque:
-    case vmIntrinsicID::_putReferenceRelease:
-    case vmIntrinsicID::_putReferenceVolatile:
-      return true;
-    default:
-      return false;
   }
 }
 
@@ -206,21 +151,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   // methods.  If these methods are replaced with specialized code,
   // then we return it as the inlined version of the call.
   CallGenerator* cg_intrinsic = nullptr;
-  if (callee->intrinsic_id() == vmIntrinsics::_makePrivateBuffer || callee->intrinsic_id() == vmIntrinsics::_finishPrivateBuffer) {
-    // These methods must be inlined so that we don't have larval value objects crossing method
-    // boundaries
-    assert(!call_does_dispatch, "callee should not be virtual %s", callee->name()->as_utf8());
-    CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
-
-    if (cg == nullptr) {
-      // This is probably because the intrinsics is disabled from the command line
-      char reason[256];
-      jio_snprintf(reason, sizeof(reason), "cannot find an intrinsics for %s", callee->name()->as_utf8());
-      C->record_method_not_compilable(reason);
-      return nullptr;
-    }
-    return cg;
-  } else if (allow_inline && allow_intrinsics) {
+  if (allow_inline && allow_intrinsics) {
     CallGenerator* cg = find_intrinsic(callee, call_does_dispatch);
     if (cg != nullptr) {
       if (cg->is_predicated()) {
@@ -488,6 +419,22 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   }
 }
 
+// After Compile::over_inlining_cutoff, should we decline inlining the callee, or should we try
+// inlining again later
+bool Compile::should_delay_after_inlining_cutoff(ciMethod* callee, ciMethod* caller) {
+  if (!IncrementalInline) {
+    return false;
+  }
+
+  if (DelayAfterInliningCutoff) {
+    return true;
+  } else if (callee->force_inline() || caller->is_compiled_lambda_form()) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 // Return true for methods that shouldn't be inlined early so that
 // they are easier to analyze and optimize as intrinsics.
 bool Compile::should_delay_string_inlining(ciMethod* call_method, JVMState* jvms) {
@@ -624,6 +571,7 @@ void Parse::do_call() {
   // Bump max node limit for JSR292 users
   if (bc() == Bytecodes::_invokedynamic || orig_callee->is_method_handle_intrinsic()) {
     C->set_max_node_limit(3*MaxNodeLimit);
+    C->set_node_count_inlining_cutoff(LiveNodeCountInliningCutoff);
   }
 
   // uncommon-trap when callee is unloaded, uninitialized or will not link
@@ -703,9 +651,14 @@ void Parse::do_call() {
     Node* receiver_node = stack(sp() - nargs);
     Node* cls_node = makecon(TypeKlassPtr::make(receiver_constraint, Type::trust_interfaces));
     Node* bad_type_ctrl = nullptr;
-    Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl);
+    SafePointNode* new_cast_failure_map = nullptr;
+    Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl, &new_cast_failure_map);
     if (bad_type_ctrl != nullptr) {
       PreserveJVMState pjvms(this);
+      if (new_cast_failure_map != nullptr) {
+        // The current map on the success path could have been modified. Use the dedicated failure path map.
+        set_map(new_cast_failure_map);
+      }
       set_control(bad_type_ctrl);
       uncommon_trap(Deoptimization::Reason_class_check,
                     Deoptimization::Action_none);
@@ -714,15 +667,6 @@ void Parse::do_call() {
       return; // MUST uncommon-trap?
     }
     set_stack(sp() - nargs, casted_receiver);
-  }
-
-  // Scalarize value objects passed into this invocation if we know that they are not larval
-  for (int arg_idx = 0; arg_idx < nargs; arg_idx++) {
-    if (arg_can_be_larval(callee, arg_idx)) {
-      continue;
-    }
-
-    cast_to_non_larval(peek(nargs - 1 - arg_idx));
   }
 
   // Note:  It's OK to try to inline a virtual call.
@@ -888,17 +832,18 @@ void Parse::do_call() {
       record_profiled_return_for_speculation();
     }
 
-    if (!rtype->is_void() && cg->method()->intrinsic_id() != vmIntrinsicID::_makePrivateBuffer) {
+    if (!rtype->is_void()) {
       Node* retnode = peek();
       const Type* rettype = gvn().type(retnode);
-      if (rettype->is_inlinetypeptr() && !retnode->is_InlineType()) {
+      if (!cg->method()->return_value_is_larval() && !retnode->is_InlineType() && rettype->is_inlinetypeptr()) {
         retnode = InlineTypeNode::make_from_oop(this, retnode, rettype->inline_klass());
         dec_sp(1);
         push(retnode);
       }
     }
 
-    if (cg->method()->is_object_constructor() && receiver != nullptr && gvn().type(receiver)->is_inlinetypeptr()) {
+    if (cg->method()->receiver_maybe_larval() && receiver != nullptr &&
+        !receiver->is_InlineType() && gvn().type(receiver)->is_inlinetypeptr()) {
       InlineTypeNode* non_larval = InlineTypeNode::make_from_oop(this, receiver, gvn().type(receiver)->inline_klass());
       // Relinquish the oop input, we will delay the allocation to the point it is needed, see the
       // comments in InlineTypeNode::Ideal for more details
@@ -1017,8 +962,7 @@ void Parse::catch_call_exceptions(ciExceptionHandlerStream& handlers) {
     if (handler_bci < 0) {     // merge with corresponding rethrow node
       throw_to_exit(make_exception_state(ex_oop));
     } else {                      // Else jump to corresponding handle
-      push_ex_oop(ex_oop);        // Clear stack and push just the oop.
-      merge_exception(handler_bci);
+      push_and_merge_exception(handler_bci, ex_oop);
     }
   }
 
@@ -1116,13 +1060,10 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
     int handler_bci = handler->handler_bci();
 
     if (remaining == 1) {
-      push_ex_oop(ex_node);        // Push exception oop for handler
       if (PrintOpto && WizardMode) {
         tty->print_cr("  Catching every inline exception bci:%d -> handler_bci:%d", bci(), handler_bci);
       }
-      // If this is a backwards branch in the bytecodes, add safepoint
-      maybe_add_safepoint(handler_bci);
-      merge_exception(handler_bci); // jump to handler
+      push_and_merge_exception(handler_bci, ex_node); // jump to handler
       return;                   // No more handling to be done here!
     }
 
@@ -1147,15 +1088,13 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
       const TypeInstPtr* tinst = TypeOopPtr::make_from_klass_unique(klass)->cast_to_ptr_type(TypePtr::NotNull)->is_instptr();
       assert(klass->has_subklass() || tinst->klass_is_exact(), "lost exactness");
       Node* ex_oop = _gvn.transform(new CheckCastPPNode(control(), ex_node, tinst));
-      push_ex_oop(ex_oop);      // Push exception oop for handler
       if (PrintOpto && WizardMode) {
         tty->print("  Catching inline exception bci:%d -> handler_bci:%d -- ", bci(), handler_bci);
         klass->print_name();
         tty->cr();
       }
       // If this is a backwards branch in the bytecodes, add safepoint
-      maybe_add_safepoint(handler_bci);
-      merge_exception(handler_bci);
+      push_and_merge_exception(handler_bci, ex_oop);
     }
     set_control(not_subtype_ctrl);
 
@@ -1194,13 +1133,13 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
 
 #ifndef PRODUCT
 void Parse::count_compiled_calls(bool at_method_entry, bool is_inline) {
-  if( CountCompiledCalls ) {
-    if( at_method_entry ) {
+  if (CountCompiledCalls) {
+    if (at_method_entry) {
       // bump invocation counter if top method (for statistics)
       if (CountCompiledCalls && depth() == 1) {
         const TypePtr* addr_type = TypeMetadataPtr::make(method());
         Node* adr1 = makecon(addr_type);
-        Node* adr2 = basic_plus_adr(adr1, adr1, in_bytes(Method::compiled_invocation_counter_offset()));
+        Node* adr2 = off_heap_plus_addr(adr1, in_bytes(Method::compiled_invocation_counter_offset()));
         increment_counter(adr2);
       }
     } else if (is_inline) {

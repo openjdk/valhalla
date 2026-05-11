@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -158,31 +158,15 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void get_cache_index_at_bcp(Register index, int bcp_offset, size_t index_size = sizeof(u2));
   void get_method_counters(Register method, Register mcs, Label& skip);
 
-  // Kills t1 and t2, perserves klass, return allocation in new_obj
-  void allocate_instance(Register klass, Register new_obj,
-                         Register t1, Register t2,
-                         bool clear_fields, Label& alloc_failed);
-
   // Allocate instance in "obj" and read in the content of the inline field
   // NOTES:
   //   - input holder object via "obj", which must be r0,
   //     will return new instance via the same reg
-  //   - assumes holder_klass and valueKlass field klass have both been resolved
-  void read_flat_field(Register entry,
-                       Register field_index, Register field_offset,
-                       Register temp, Register obj);
+  void read_flat_field(Register entry, Register obj);
 
   void write_flat_field(Register entry, Register field_offset,
                         Register tmp1, Register tmp2,
                         Register obj);
-
-  // Allocate value buffer in "obj" and read in flat element at the given index
-  // NOTES:
-  //   - Return via "obj" must be r0
-  //   - kills all given regs
-  void read_flat_element(Register array, Register index,
-                         Register t1, Register t2,
-                         Register obj = r0);
 
   // load cpool->resolved_references(index);
   void load_resolved_reference_at_index(Register result, Register index, Register tmp = r5);
@@ -299,15 +283,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
                         Register test_value_out,
                         Label& not_equal_continue);
 
-  void record_klass_in_profile(Register receiver, Register mdp,
-                               Register reg2);
-  void record_klass_in_profile_helper(Register receiver, Register mdp,
-                                      Register reg2, int start_row,
-                                      Label& done);
-  void record_item_in_profile_helper(Register item, Register mdp,
-                                     Register reg2, int start_row, Label& done, int total_rows,
-                                     OffsetFunction item_offset_fn, OffsetFunction item_count_offset_fn);
-
   void update_mdp_by_offset(Register mdp_in, int offset_of_offset);
   void update_mdp_by_offset(Register mdp_in, Register reg, int offset_of_disp);
   void update_mdp_by_constant(Register mdp_in, int constant);
@@ -320,12 +295,10 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void profile_not_taken_branch(Register mdp, bool acmp = false);
   void profile_call(Register mdp);
   void profile_final_call(Register mdp);
-  void profile_virtual_call(Register receiver, Register mdp,
-                            Register scratch2,
-                            bool receiver_can_be_null = false);
+  void profile_virtual_call(Register receiver, Register mdp);
   void profile_ret(Register return_bci, Register mdp);
   void profile_null_seen(Register mdp);
-  void profile_typecheck(Register mdp, Register klass, Register scratch);
+  void profile_typecheck(Register mdp, Register klass);
   void profile_typecheck_failed(Register mdp);
   void profile_switch_default(Register mdp);
   void profile_switch_case(Register index_in_scratch, Register mdp,

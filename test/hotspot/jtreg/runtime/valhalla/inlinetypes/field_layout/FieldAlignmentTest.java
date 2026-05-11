@@ -95,7 +95,6 @@
 
  import jdk.internal.vm.annotation.LooselyConsistentValue;
  import jdk.internal.vm.annotation.NullRestricted;
- import jdk.internal.vm.annotation.Strict;
 
 
  import jdk.test.lib.Asserts;
@@ -152,11 +151,13 @@
         String sNameShort = sName.substring(sName.lastIndexOf('.') + 1);
         String className = "Test" + vNameShort + "With" + sNameShort;
         String sourceCode = "import jdk.internal.vm.annotation.NullRestricted;" +
-                            "import jdk.internal.vm.annotation.Strict;" +
                             "public class " + className + " extends " + sName + " { " +
-                            "    @Strict" +
                             "    @NullRestricted" +
-                            "    " + vName + " v1 = new " + vName + "();" +
+                            "    " + vName + " v1;" +
+                            "    public " + className + "() {" +
+                            "      v1 = new " + vName + "();" +
+                            "      super();" +
+                            "    }" +
                             "}";
         String java_version = System.getProperty("java.specification.version");
         byte[] byteCode = InMemoryJavaCompiler.compile(className, sourceCode,

@@ -210,7 +210,7 @@ class OptoRuntime : public AllStatic {
   // =================================
 
   // Allocate storage for a Java instance.
-  static void new_instance_C(Klass* instance_klass, bool is_larval, JavaThread* current);
+  static void new_instance_C(Klass* instance_klass, JavaThread* current);
 
   // Allocate storage for a objArray or typeArray
   static void new_array_C(Klass* array_klass, int len, oopDesc* init_val, JavaThread* current);

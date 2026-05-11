@@ -635,7 +635,7 @@ public class Infer {
             //in the functional interface descriptors)
             List<Type> descParameterTypes = types.findDescriptorType(formalInterface).getParameterTypes();
             if (descParameterTypes.size() != paramTypes.size()) {
-                checkContext.report(pos, diags.fragment(Fragments.IncompatibleArgTypesInLambda));
+                checkContext.report(pos, diags.fragment(Fragments.WrongNumberArgsInLambda(funcInterface.tsym)));
                 return types.createErrorType(funcInterface);
             }
             for (Type p : descParameterTypes) {
