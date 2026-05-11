@@ -32,6 +32,7 @@
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/upcallLinker.hpp"
 #include "runtime/arguments.hpp"
@@ -4829,8 +4830,8 @@ void StubGenerator::generate_initial_stubs() {
       generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs),
                                  "load_inline_type_fields_in_regs", false);
     StubRoutines::_store_inline_type_fields_to_buf =
-      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf),
-                                 "store_inline_type_fields_to_buf", true);
+      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_type_fields_buffer),
+                                 "store_inline_type_fields_to_buf", true, true);
   }
 
   StubRoutines::_call_stub_entry =
@@ -4884,7 +4885,7 @@ void StubGenerator::generate_initial_stubs() {
 // "0" is assigned for xmm0. Thus we need to ignore -Wnonnull.
 PRAGMA_DIAG_PUSH
 PRAGMA_NONNULL_IGNORED
-address StubGenerator::generate_return_value_stub(address destination, const char* name, bool has_res) {
+address StubGenerator::generate_return_value_stub(address destination, const char* name, bool has_res, bool pack_inline_type_result) {
   // We need to save all registers the calling convention may use so
   // the runtime calls read or update those registers. This needs to
   // be in sync with SharedRuntime::java_return_convention().
@@ -5002,7 +5003,22 @@ address StubGenerator::generate_return_value_stub(address destination, const cha
   __ jcc(Assembler::notEqual, pending);
 
   if (has_res) {
-    __ get_vm_result_oop(rax);
+    if (pack_inline_type_result) {
+      Label skip_pack;
+      Register klass = rscratch1;
+      Register tmp = rscratch2;
+      __ get_vm_result_metadata(klass);
+      __ get_vm_result_oop(rax);
+      __ testptr(klass, klass);
+      __ jcc(Assembler::zero, skip_pack);
+      __ movptr(tmp, Address(klass, InlineKlass::adr_members_offset()));
+      __ movptr(tmp, Address(tmp, InlineKlass::pack_handler_offset()));
+      __ call(tmp);
+      __ membar(Assembler::StoreStore);
+      __ bind(skip_pack);
+    } else {
+      __ get_vm_result_oop(rax);
+    }
   }
 
   __ ret(0);

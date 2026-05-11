@@ -4287,11 +4287,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
 }
 JRT_END
 
-// We've returned to an interpreted method, the interpreter needs a
-// reference to an inline type instance. Allocate it and initialize it
-// from field's values in registers.
-JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread* current, intptr_t res))
-{
+static void store_inline_type_fields_to_buf_slow(JavaThread* current, intptr_t res) {
   ResourceMark rm;
   RegisterMap reg_map(current,
                       RegisterMap::UpdateMap::include,
@@ -4329,6 +4325,49 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
     JavaThread* THREAD = current;
     oop vt = vk->realloc_result(reg_map, handles, CHECK);
     current->set_vm_result_oop(vt);
+  }
+  JRT_BLOCK_END;
+}
+
+// We've returned to an interpreted method, the interpreter needs a
+// reference to an inline type instance. Allocate it and initialize it
+// from field's values in registers.
+JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread* current, intptr_t res))
+{
+  store_inline_type_fields_to_buf_slow(current, res);
+}
+JRT_END
+
+JRT_BLOCK_ENTRY(void, SharedRuntime::allocate_inline_type_fields_buffer(JavaThread* current, intptr_t res))
+{
+  current->set_vm_result_metadata(nullptr);
+
+  if (!is_set_nth_bit(res, 0)) {
+    // We're not returning with inline type fields in registers (the
+    // calling convention didn't allow it for this inline klass).
+    assert(!Metaspace::contains((void*)res), "should be oop or pointer in buffer area");
+    current->set_vm_result_oop((oopDesc*)res);
+    return;
+  }
+
+  clear_nth_bit(res, 0);
+  InlineKlass* vk = (InlineKlass*)res;
+  assert(Metaspace::contains((void*)res), "should be klass");
+  assert(vk->can_be_returned_as_fields(), "must be able to return as fields");
+
+  if (vk->contains_oops()) {
+    // Oop fields in scalar return registers must be converted to handles before
+    // allocation can safepoint.
+    store_inline_type_fields_to_buf_slow(current, res | 1);
+    return;
+  }
+
+  JRT_BLOCK;
+  {
+    JavaThread* THREAD = current;
+    oop vt = vk->allocate_instance(CHECK);
+    current->set_vm_result_oop(vt);
+    current->set_vm_result_metadata(vk);
   }
   JRT_BLOCK_END;
 }

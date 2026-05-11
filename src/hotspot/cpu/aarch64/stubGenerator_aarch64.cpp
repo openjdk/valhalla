@@ -12585,7 +12585,7 @@ class StubGenerator: public StubCodeGenerator {
   // multiple returned values from the inline type instance being
   // returned to registers or to store returned values to a newly
   // allocated inline type instance.
-  address generate_return_value_stub(address destination, const char* name, bool has_res) {
+  address generate_return_value_stub(address destination, const char* name, bool has_res, bool pack_inline_type_result = false) {
     // We need to save all registers the calling convention may use so
     // the runtime calls read or update those registers. This needs to
     // be in sync with SharedRuntime::java_return_convention().
@@ -12685,20 +12685,34 @@ class StubGenerator: public StubCodeGenerator {
     __ ldpd(j_farg3, j_farg2, Address(__ post(sp, 2 * wordSize)));
     __ ldpd(j_farg1, j_farg0, Address(__ post(sp, 2 * wordSize)));
 
-    __ leave();
-
     // check for pending exceptions
     Label pending;
     __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     __ cbnz(rscratch1, pending);
 
     if (has_res) {
-      __ get_vm_result_oop(r0, rthread);
+      if (pack_inline_type_result) {
+        Label skip_pack;
+        Register klass = r13;
+        Register tmp = r14;
+        __ get_vm_result_metadata(klass, rthread);
+        __ get_vm_result_oop(r0, rthread);
+        __ cbz(klass, skip_pack);
+        __ ldr(tmp, Address(klass, InlineKlass::adr_members_offset()));
+        __ ldr(tmp, Address(tmp, InlineKlass::pack_handler_offset()));
+        __ blr(tmp);
+        __ membar(Assembler::StoreStore);
+        __ bind(skip_pack);
+      } else {
+        __ get_vm_result_oop(r0, rthread);
+      }
     }
 
+    __ leave();
     __ ret(lr);
 
     __ bind(pending);
+    __ leave();
     __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
     // -------------
@@ -12762,7 +12776,7 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_load_inline_type_fields_in_regs =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
       StubRoutines::_store_inline_type_fields_to_buf =
-         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), "store_inline_type_fields_to_buf", true);
+         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_type_fields_buffer), "store_inline_type_fields_to_buf", true, true);
     }
 
   }
