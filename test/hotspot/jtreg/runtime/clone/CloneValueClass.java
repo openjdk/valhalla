@@ -52,11 +52,15 @@ public class CloneValueClass {
     static class Holder implements Cloneable {
         Point point;
         MixedValue mixed;
+        Point[] pointArray;
+        MixedValue[] mixedArray;
         int primitive;
 
-        Holder(Point p, MixedValue m, int i) {
+        Holder(Point p, MixedValue m, Point[] pa, MixedValue[] ma, int i) {
             this.point = p;
             this.mixed = m;
+            this.pointArray = pa;
+            this.mixedArray = ma;
             this.primitive = i;
         }
 
@@ -69,6 +73,7 @@ public class CloneValueClass {
         testValueObjectCloneThrows();
         testCloneHolderWithValueFields();
         testCloneIndependence();
+        testArrayFieldShallowClone();
         testValueArrayClone();
         testNullValueFields();
     }
@@ -89,24 +94,30 @@ public class CloneValueClass {
         }
     }
 
-    // Clone an identity object holding custom value class fields
+    // Clone an identity object holding custom value class fields and arrays
     static void testCloneHolderWithValueFields() throws Exception {
-        Point p = new Point(10, 20);
-        MixedValue m = new MixedValue(42, "hello");
-        Holder orig = new Holder(p, m, 7);
+        Point[] pa = new Point[]{new Point(5, 6), new Point(7, 8)};
+        MixedValue[] ma = new MixedValue[]{new MixedValue(10, "a"), new MixedValue(20, "b")};
+        Holder orig = new Holder(new Point(1, 2), new MixedValue(42, "hello"), pa, ma, 7);
         Holder copy = orig.clone();
 
         if (orig.point.x != copy.point.x || orig.point.y != copy.point.y)
             throw new RuntimeException("Point field not cloned correctly");
         if (orig.mixed.id != copy.mixed.id || !orig.mixed.name.equals(copy.mixed.name))
             throw new RuntimeException("MixedValue field not cloned correctly");
+        if (copy.pointArray.length != 2 || copy.pointArray[0].x != 5)
+            throw new RuntimeException("Point array not cloned correctly");
+        if (copy.mixedArray.length != 2 || !copy.mixedArray[1].name.equals("b"))
+            throw new RuntimeException("MixedValue array not cloned correctly");
         if (orig.primitive != copy.primitive)
             throw new RuntimeException("Primitive field not cloned correctly");
     }
 
     // Modifying original value fields doesn't affect clone
     static void testCloneIndependence() throws Exception {
-        Holder orig = new Holder(new Point(1, 2), new MixedValue(3, "test"), 5);
+        Point[] pa = new Point[]{new Point(1, 1)};
+        MixedValue[] ma = new MixedValue[]{new MixedValue(1, "x")};
+        Holder orig = new Holder(new Point(1, 2), new MixedValue(3, "test"), pa, ma, 5);
         Holder copy = orig.clone();
 
         orig.point = new Point(99, 99);
@@ -121,7 +132,26 @@ public class CloneValueClass {
             throw new RuntimeException("Primitive clone not independent");
     }
 
-    // Clone arrays of custom value class elements
+    // Shallow clone shares array references
+    static void testArrayFieldShallowClone() throws Exception {
+        Point[] pa = new Point[]{new Point(1, 2), new Point(3, 4)};
+        MixedValue[] ma = new MixedValue[]{new MixedValue(10, "a")};
+        Holder orig = new Holder(new Point(0, 0), new MixedValue(0, ""), pa, ma, 0);
+        Holder copy = orig.clone();
+
+        // Shallow clone — array references are shared
+        if (orig.pointArray != copy.pointArray)
+            throw new RuntimeException("Shallow clone should share pointArray reference");
+        if (orig.mixedArray != copy.mixedArray)
+            throw new RuntimeException("Shallow clone should share mixedArray reference");
+
+        // Replacing array on original doesn't affect copy
+        orig.pointArray = new Point[]{new Point(99, 99)};
+        if (copy.pointArray.length != 2 || copy.pointArray[0].x != 1)
+            throw new RuntimeException("Array field replacement should not affect clone");
+    }
+
+    // Clone arrays of custom value class elements directly
     static void testValueArrayClone() {
         Point[] orig = new Point[]{new Point(1, 2), new Point(3, 4), new Point(5, 6)};
         Point[] copy = orig.clone();
@@ -137,12 +167,14 @@ public class CloneValueClass {
             throw new RuntimeException("Array clone not independent");
     }
 
-    // Clone holder with null value fields
+    // Clone holder with null value fields and null arrays
     static void testNullValueFields() throws Exception {
-        Holder orig = new Holder(null, null, 0);
+        Holder orig = new Holder(null, null, null, null, 0);
         Holder copy = orig.clone();
 
         if (copy.point != null) throw new RuntimeException("Point should be null");
         if (copy.mixed != null) throw new RuntimeException("MixedValue should be null");
+        if (copy.pointArray != null) throw new RuntimeException("pointArray should be null");
+        if (copy.mixedArray != null) throw new RuntimeException("mixedArray should be null");
     }
 }
