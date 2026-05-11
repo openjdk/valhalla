@@ -23,122 +23,72 @@
 /**
  * @test
  * @bug 8384109
- * @summary Test that NegativeArraySizeException reports the wrong size for value class arrays.
+ * @summary Test NegativeArraySizeException message for value class arrays (migrated and custom).
  * @library /test/lib
- * @compile NegativeArraySizeExceptionValueTest.java
+ * @enablePreview
  * @run main NegativeArraySizeExceptionValueTest
  */
 import java.lang.reflect.Array;
 import jdk.test.lib.Asserts;
 public class NegativeArraySizeExceptionValueTest {
-    private static void fail() throws Exception {
-        throw new RuntimeException("Array allocation with negative size expected to fail!");
+
+    static value class Point {
+        int x;
+        int y;
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
     }
+
+    @FunctionalInterface
+    interface AllocAction {
+        void run() throws Exception;
+    }
+
+    private static void assertNASE(int size, AllocAction action) throws Exception {
+        try {
+            action.run();
+            throw new RuntimeException("Array allocation with negative size expected to fail!");
+        } catch (NegativeArraySizeException e) {
+            Asserts.assertEQ(Integer.toString(size), e.getMessage());
+        }
+    }
+
     public static void main(String[] args) throws Exception {
-        int minusOne = -1;
-        Object r = null;
-        // Value class array allocation with negative size.
-        try {
-            r = new Integer[minusOne];
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-1", e.getMessage());
+        int[] sizes = { -1, Integer.MIN_VALUE };
+        Class<?>[] types = { Integer.class, Point.class };
+
+        for (int size : sizes) {
+            for (Class<?> type : types) {
+                // Direct allocation via reflection
+                assertNASE(size, () -> Array.newInstance(type, size));
+
+                // Multi-dimensional: inner wrong
+                assertNASE(size, () -> Array.newInstance(type, new int[] {3, size}));
+
+                // Multi-dimensional: outer wrong
+                assertNASE(size, () -> Array.newInstance(type, new int[] {size, 3}));
+
+                // Multi-dimensional: inner wrong, outer zero
+                assertNASE(size, () -> Array.newInstance(type, new int[] {0, size}));
+            }
         }
-        try {
-            r = new Integer[Integer.MIN_VALUE];
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-2147483648", e.getMessage());
+
+        // Direct new[] expressions — Integer
+        for (int size : sizes) {
+            assertNASE(size, () -> { Object r = new Integer[size]; });
+            assertNASE(size, () -> { Object r = new Integer[3][size]; });
+            assertNASE(size, () -> { Object r = new Integer[size][3]; });
+            assertNASE(size, () -> { Object r = new Integer[0][size]; });
         }
-        // Multidimensional value class array, inner array has wrong size.
-        try {
-            r = new Integer[3][minusOne];
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-1", e.getMessage());
+
+        // Direct new[] expressions — custom value class Point
+        for (int size : sizes) {
+            assertNASE(size, () -> { Object r = new Point[size]; });
+            assertNASE(size, () -> { Object r = new Point[3][size]; });
+            assertNASE(size, () -> { Object r = new Point[size][3]; });
+            assertNASE(size, () -> { Object r = new Point[0][size]; });
         }
-        try {
-            r = new Integer[3][Integer.MIN_VALUE];
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-2147483648", e.getMessage());
-        }
-        // Multidimensional value class array, outer array has wrong size.
-        try {
-            r = new Integer[minusOne][3];
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-1", e.getMessage());
-        }
-        try {
-            r = new Integer[Integer.MIN_VALUE][3];
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-2147483648", e.getMessage());
-        }
-        // Multidimensional value class array, inner array wrong size, outer size 0.
-        try {
-            r = new Integer[0][minusOne];
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-1", e.getMessage());
-        }
-        try {
-            r = new Integer[0][Integer.MIN_VALUE];
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-2147483648", e.getMessage());
-        }
-        // Reflection: Array.newInstance with value class type.
-        try {
-            Array.newInstance(Integer.class, minusOne);
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-1", e.getMessage());
-        }
-        try {
-            Array.newInstance(Integer.class, Integer.MIN_VALUE);
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-2147483648", e.getMessage());
-        }
-        // Reflection: multi-dimensional with value class type.
-        try {
-            Array.newInstance(Integer.class, new int[] {3, minusOne});
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-1", e.getMessage());
-        }
-        try {
-            Array.newInstance(Integer.class, new int[] {3, Integer.MIN_VALUE});
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-2147483648", e.getMessage());
-        }
-        try {
-            Array.newInstance(Integer.class, new int[] {0, minusOne});
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-1", e.getMessage());
-        }
-        try {
-            Array.newInstance(Integer.class, new int[] {0, Integer.MIN_VALUE});
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-2147483648", e.getMessage());
-        }
-        try {
-            Array.newInstance(Integer.class, new int[] {minusOne, 3});
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-1", e.getMessage());
-        }
-        try {
-            Array.newInstance(Integer.class, new int[] {Integer.MIN_VALUE, 3});
-            fail();
-        } catch (NegativeArraySizeException e) {
-            Asserts.assertEQ("-2147483648", e.getMessage());
-        }
-        Asserts.assertEQ(r, null, "Expected all tries to allocate negative array to fail.");
     }
 }
