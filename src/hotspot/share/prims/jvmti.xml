@@ -5891,7 +5891,7 @@ class C2 extends C1 implements I2 {
               When preview features are enabled, if the requested local is the
               "<code>this</code>" object, and "<code>this</code>" is a value
               object under construction, the value_ptr is set to a snapshot
-              of the"<code>this</code>" object that represents the value
+              of the "<code>this</code>" object that represents the value
               object's state at the point the snapshot is taken.
             </description>
         </param>
