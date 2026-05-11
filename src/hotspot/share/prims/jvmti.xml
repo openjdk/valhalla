@@ -5888,9 +5888,11 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
-              When preview features are enabled, the frame's method is a value class
-              constructor and the requested local is a "<code>this</code>" value object,
-              the value_ptr is set to a snapshot of the "<code>this</code>" object.
+              When preview features are enabled, if the requested local is the
+              "<code>this</code>" object, and "<code>this</code>" is a value
+              object under construction, the value_ptr is set to a snapshot
+              of the"<code>this</code>" object that represents the value
+              object's state at the point the snapshot is taken.
             </description>
         </param>
       </parameters>
@@ -5944,9 +5946,10 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
-              When preview features are enabled, the frame's method is a value class
-              constructor and the local instance is a value object,
-              the value_ptr is set to a snapshot of the "<code>this</code>" object.
+              When preview features are enabled, and the local instance is a value
+              object under construction, the value_ptr is set to a snapshot
+              of the"<code>this</code>" object that represents the value
+              object's state at the point the snapshot is taken.
             </description>
         </param>
       </parameters>
