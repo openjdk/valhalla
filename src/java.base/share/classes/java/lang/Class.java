@@ -52,6 +52,7 @@ import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.constant.Constable;
+import java.lang.classfile.ClassFile;
 import java.net.URL;
 import java.security.AllPermission;
 import java.security.Permissions;
@@ -228,10 +229,6 @@ public final class Class<T> implements java.io.Serializable,
                               AnnotatedElement,
                               TypeDescriptor.OfField<Class<?>>,
                               Constable {
-    private static final int ANNOTATION = 0x00002000;
-    private static final int ENUM       = 0x00004000;
-    private static final int SYNTHETIC  = 0x00001000;
-    private static final int IDENTITY   = 0x00000020;
 
     private static native void registerNatives();
     static {
@@ -644,7 +641,7 @@ public final class Class<T> implements java.io.Serializable,
         if (!PreviewFeatures.isEnabled()) {
             return false;
         } else {
-            int mask = IDENTITY | Modifier.INTERFACE;
+            int mask = ClassFile.ACC_IDENTITY | ClassFile.ACC_INTERFACE;
             return !primitive && (getModifiers() & mask) == 0;
         }
     }
@@ -904,7 +901,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     public boolean isAnnotation() {
-        return (getModifiers() & ANNOTATION) != 0;
+        return (getModifiers() & ClassFile.ACC_ANNOTATION) != 0;
     }
 
     /**
@@ -919,7 +916,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     public boolean isSynthetic() {
-        return (getModifiers() & SYNTHETIC) != 0;
+        return (getModifiers() & ClassFile.ACC_SYNTHETIC) != 0;
     }
 
     /**
@@ -3404,7 +3401,7 @@ public final class Class<T> implements java.io.Serializable,
         // An enum must both directly extend java.lang.Enum and have
         // the ENUM bit set; classes for specialized enum constants
         // don't do the former.
-        return (this.getModifiers() & ENUM) != 0 &&
+        return (this.getModifiers() & ClassFile.ACC_ENUM) != 0 &&
         this.getSuperclass() == java.lang.Enum.class;
     }
 
