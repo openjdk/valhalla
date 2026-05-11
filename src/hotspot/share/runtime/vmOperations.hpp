@@ -280,7 +280,7 @@ class VM_PrintClassLayout: public VM_Operation {
   char* _class_name;
  public:
   VM_PrintClassLayout(outputStream* st, char* class_name): _out(st), _class_name(class_name) {}
-  VMOp_Type type() const { return VMOp_PrintClassLayout; }
+  VMOp_Type type() const { return VMOp_ClassPrintLayout; }
   void doit();
 };
 

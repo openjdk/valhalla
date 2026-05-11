@@ -109,7 +109,7 @@
   template(GTestExecuteAtSafepoint)               \
   template(GTestStopSafepoint)                    \
   template(JFROldObject)                          \
-  template(PrintClassLayout)                      \
+  template(ClassPrintLayout)                      \
   template(RendezvousGCThreads)                   \
   template(JFRInitializeCPUTimeSampler)       \
   template(JFRTerminateCPUTimeSampler)        \
