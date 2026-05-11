@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Random;
 
 public class AddAll {
-    static final int N = 10;
+    static final int N = 100;
     public static void main(String[] args) {
         test(new ArrayList<Integer>());
         test(new LinkedList<Integer>());
