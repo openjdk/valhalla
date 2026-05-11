@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2024 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -463,7 +463,7 @@
 
   // Accessors
 
-  inline intptr_t* fp() const { return _fp; }
+  inline intptr_t* fp() const { assert_absolute(); return _fp; }
 
  private:
 
@@ -555,9 +555,15 @@
     metadata_words_at_top    = 0,
     frame_alignment          = 16,
     // size, in words, of maximum shift in frame position due to alignment
-    align_wiggle             =  1
+    align_wiggle             =  1,
+    // This is wrong and unimplemented
+    sender_sp_offset         =  0
   };
 
   static jint interpreter_frame_expression_stack_direction() { return -1; }
+
+  intptr_t* repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const;
+  static intptr_t* repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr);
+  bool was_augmented_on_entry(int& real_size) const;
 
 #endif // CPU_S390_FRAME_S390_HPP

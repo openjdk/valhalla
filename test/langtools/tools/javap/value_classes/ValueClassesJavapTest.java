@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,8 @@
  */
 
 /*
- * @test 8335770
+ * @test
+ * @bug 8335770 8375740
  * @summary improve javap code coverage for value classes
  * @enablePreview
  * @library /tools/lib
@@ -51,20 +52,34 @@ public class ValueClassesJavapTest extends TestRunner {
         void m(ValueClass param) {}
     }
 
-    private static final List<String> expectedOutput1 = List.of(
+    private static final List<String> expectedValueClassOutput = List.of(
             "Compiled from \"ValueClassesJavapTest.java\"",
             "final value class ValueClassesJavapTest$ValueClass {",
             "  ValueClassesJavapTest$ValueClass(ValueClassesJavapTest);",
             "}");
-    private static final List<String> expectedOutput2 = List.of(
+    private static final List<String> expectedAbstractValueClassOutput = List.of(
             "Compiled from \"ValueClassesJavapTest.java\"",
             "abstract value class ValueClassesJavapTest$AbstractValueClass {",
             "  ValueClassesJavapTest$AbstractValueClass(ValueClassesJavapTest);",
             "}");
-    private static final List<String> expectedOutput3 = List.of(
+    private static final List<String> expectedLoadableDescriptorOutput = List.of(
             "LoadableDescriptors:",
             "  LValueClassesJavapTest$ValueClass;"
     );
+    private static final List<String> expectedIdentityClassOutput = """
+            Compiled from "ValueClassesJavapTest.java"
+            class ValueClassesJavapTest$IdentityClass {
+              ValueClassesJavapTest$ValueClass val;
+              ValueClassesJavapTest$IdentityClass(ValueClassesJavapTest);
+            }
+            """.lines().toList();
+    private static final List<String> expectedIdentityClass2Output = """
+            Compiled from "ValueClassesJavapTest.java"
+            class ValueClassesJavapTest$IdentityClass2 {
+              ValueClassesJavapTest$IdentityClass2(ValueClassesJavapTest);
+              void m(ValueClassesJavapTest$ValueClass);
+            }
+            """.lines().toList();
 
     ValueClassesJavapTest() throws Exception {
         super(System.err);
@@ -88,7 +103,7 @@ public class ValueClassesJavapTest extends TestRunner {
                 .writeAll()
                 .getOutputLines(Task.OutputKind.DIRECT);
         System.out.println(output);
-        if (!output.equals(expectedOutput1)) {
+        if (!output.equals(expectedValueClassOutput)) {
             throw new AssertionError(String.format("unexpected output:\n %s", output));
         }
 
@@ -98,7 +113,17 @@ public class ValueClassesJavapTest extends TestRunner {
                 .writeAll()
                 .getOutputLines(Task.OutputKind.DIRECT);
         System.out.println(output);
-        if (!output.equals(expectedOutput2)) {
+        if (!output.equals(expectedAbstractValueClassOutput)) {
+            throw new AssertionError(String.format("unexpected output:\n %s", output));
+        }
+
+        output = new JavapTask(tb)
+                .options("-p", testClassesPath.resolve(this.getClass().getSimpleName() + "$IdentityClass.class").toString())
+                .run()
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+        System.out.println(output);
+        if (!output.equals(expectedIdentityClassOutput)) {
             throw new AssertionError(String.format("unexpected output:\n %s", output));
         }
 
@@ -108,7 +133,17 @@ public class ValueClassesJavapTest extends TestRunner {
                 .writeAll()
                 .getOutputLines(Task.OutputKind.DIRECT);
         System.out.println(output);
-        if (!output.containsAll(expectedOutput3)) {
+        if (!output.containsAll(expectedLoadableDescriptorOutput)) {
+            throw new AssertionError(String.format("unexpected output:\n %s", output));
+        }
+
+        output = new JavapTask(tb)
+                .options("-p", testClassesPath.resolve(this.getClass().getSimpleName() + "$IdentityClass2.class").toString())
+                .run()
+                .writeAll()
+                .getOutputLines(Task.OutputKind.DIRECT);
+        System.out.println(output);
+        if (!output.equals(expectedIdentityClass2Output)) {
             throw new AssertionError(String.format("unexpected output:\n %s", output));
         }
 
@@ -118,7 +153,7 @@ public class ValueClassesJavapTest extends TestRunner {
                 .writeAll()
                 .getOutputLines(Task.OutputKind.DIRECT);
         System.out.println(output);
-        if (!output.containsAll(expectedOutput3)) {
+        if (!output.containsAll(expectedLoadableDescriptorOutput)) {
             throw new AssertionError(String.format("unexpected output:\n %s", output));
         }
     }

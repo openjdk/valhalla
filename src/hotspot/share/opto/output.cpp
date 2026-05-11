@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -223,23 +223,12 @@ PhaseOutput::PhaseOutput()
     _code_offsets(),
     _node_bundling_limit(0),
     _node_bundling_base(nullptr),
-    _orig_pc_slot(0),
     _orig_pc_slot_offset_in_bytes(0),
     _buf_sizes(),
     _block(nullptr),
     _index(0) {
   C->set_output(this);
-  if (C->stub_name() == nullptr) {
-    int fixed_slots = C->fixed_slots();
-    if (C->needs_stack_repair()) {
-      fixed_slots -= 2;
-    }
-    // TODO 8284443 Only reserve extra slot if needed
-    if (InlineTypeReturnedAsFields) {
-      fixed_slots -= 2;
-    }
-    _orig_pc_slot = fixed_slots - (sizeof(address) / VMRegImpl::stack_slot_size);
-  }
+
 }
 
 PhaseOutput::~PhaseOutput() {
@@ -366,7 +355,7 @@ void PhaseOutput::Output() {
       offset += ((MachVEPNode*)broot->get_node(2))->size(C->regalloc());
       _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, offset);
     } else {
-      _code_offsets.set_value(CodeOffsets::Entry, -1); // will be patched later
+      _code_offsets.set_value(CodeOffsets::Entry, CodeOffsets::no_such_entry_point); // will be patched later
       _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, 0);
     }
   }
@@ -411,15 +400,6 @@ bool PhaseOutput::need_stack_bang(int frame_size_in_bytes) const {
           (C->has_java_calls() || frame_size_in_bytes > (int)(os::vm_page_size())>>3
            DEBUG_ONLY(|| true)));
 }
-
-bool PhaseOutput::need_register_stack_bang() const {
-  // Determine if we need to generate a register stack overflow check.
-  // This is only used on architectures which have split register
-  // and memory stacks.
-  // Bang if the method is not a stub function and has java calls
-  return (C->stub_function() == nullptr && C->has_java_calls());
-}
-
 
 // Compute the size of first NumberOfLoopInstrToAlign instructions at the top
 // of a loop. When aligning a loop we need to provide enough instructions
@@ -812,16 +792,14 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
         }
       }
       if (cik->is_array_klass() && !cik->is_type_array_klass()) {
-        jint props = ArrayKlass::ArrayProperties::DEFAULT;
-        if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
-          if (cik->as_array_klass()->is_elem_null_free()) {
-            props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-          }
-          if (!cik->as_array_klass()->is_elem_atomic()) {
-            props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
-          }
-        }
-        properties = new ConstantIntValue(props);
+        ciArrayKlass* ciak = cik->as_array_klass();
+        const bool is_element_inline = ciak->element_klass()->is_inlinetype();
+
+        const ArrayProperties props = ArrayProperties::Default()
+          .with_null_restricted(is_element_inline && ciak->is_elem_null_free())
+          .with_non_atomic(is_element_inline && !ciak->is_elem_atomic());
+
+        properties = new ConstantIntValue((jint)props.value());
       }
       sv = new ObjectValue(spobj->_idx,
                            new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, properties);
@@ -1165,16 +1143,14 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
           assert(!cik->is_inlinetype(), "Synchronization on value object?");
           ScopeValue* properties = nullptr;
           if (cik->is_array_klass() && !cik->is_type_array_klass()) {
-            jint props = ArrayKlass::ArrayProperties::DEFAULT;
-            if (cik->as_array_klass()->element_klass()->is_inlinetype()) {
-              if (cik->as_array_klass()->is_elem_null_free()) {
-                props |= ArrayKlass::ArrayProperties::NULL_RESTRICTED;
-              }
-              if (!cik->as_array_klass()->is_elem_atomic()) {
-                props |= ArrayKlass::ArrayProperties::NON_ATOMIC;
-              }
-            }
-            properties = new ConstantIntValue(props);
+            ciArrayKlass* ciak = cik->as_array_klass();
+            const bool is_element_inline = ciak->element_klass()->is_inlinetype();
+
+            const ArrayProperties props = ArrayProperties::Default()
+              .with_null_restricted(is_element_inline && ciak->is_elem_null_free())
+              .with_non_atomic(is_element_inline && !ciak->is_elem_atomic());
+
+            properties = new ConstantIntValue((jint)props.value());
           }
           ObjectValue* sv = new ObjectValue(spobj->_idx,
                                             new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), true, properties);
@@ -1393,7 +1369,16 @@ void PhaseOutput::estimate_buffer_size(int& const_req) {
 
   // Compute the byte offset where we can store the deopt pc.
   if (C->fixed_slots() != 0) {
-    _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(_orig_pc_slot));
+    // Skip other fixed slots
+    int current_slot = C->fixed_slots();
+    if (C->needs_stack_repair()) {
+      current_slot -= VMRegImpl::slots_per_word;
+    }
+    if (C->needs_nm_slot()) {
+      current_slot -= VMRegImpl::slots_per_word;
+    }
+    int orig_pc_slot = current_slot - VMRegImpl::slots_per_word;
+    _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(orig_pc_slot));
   }
 
   // Compute prolog code size
@@ -3022,29 +3007,30 @@ void Scheduling::ComputeRegisterAntidependencies(Block *b) {
 
     Node *m = b->get_node(i);
 
-    // Add precedence edge from following safepoint to use of derived pointer
-    if( last_safept_node != end_node &&
+    if (last_safept_node != end_node &&
         m != last_safept_node) {
+      bool need_safept_prec = false;
+      // Add precedence edge from following safepoint to use of derived pointer
       for (uint k = 1; k < m->req(); k++) {
         const Type *t = m->in(k)->bottom_type();
-        if( t->isa_oop_ptr() &&
-            t->is_ptr()->offset() != 0 ) {
-          last_safept_node->add_prec( m );
+        if (t->isa_oop_ptr() &&
+            t->is_ptr()->offset() != 0) {
+          need_safept_prec = true;
           break;
         }
       }
 
-      // Do not allow a CheckCastPP node whose input is a raw pointer to
-      // float past a safepoint.  This can occur when a buffered inline
-      // type is allocated in a loop and the CheckCastPP from that
-      // allocation is reused outside the loop.  If the use inside the
-      // loop is scalarized the CheckCastPP will no longer be connected
-      // to the loop safepoint.  See JDK-8264340.
-      if (m->is_Mach() && m->as_Mach()->ideal_Opcode() == Op_CheckCastPP) {
-        Node *def = m->in(1);
+      // A CheckCastPP whose input is still RawPtr must stay above the following safepoint.
+      // Otherwise post-regalloc block-local scheduling can leave a live raw oop at the safepoint.
+      if (!need_safept_prec && m->is_Mach() &&
+          m->as_Mach()->ideal_Opcode() == Op_CheckCastPP) {
+        Node* def = m->in(1);
         if (def != nullptr && def->bottom_type()->base() == Type::RawPtr) {
-          last_safept_node->add_prec(m);
+          need_safept_prec = true;
         }
+      }
+      if (need_safept_prec) {
+        last_safept_node->add_prec(m);
       }
     }
 
@@ -3328,13 +3314,13 @@ void PhaseOutput::install_code(ciMethod*         target,
       _code_offsets.set_value(CodeOffsets::OSR_Entry, _first_block_size);
     } else {
       _code_offsets.set_value(CodeOffsets::Verified_Entry, _first_block_size);
-      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry) == -1) {
+      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry) == CodeOffsets::no_such_entry_point) {
         _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, _first_block_size);
       }
-      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry_RO) == -1) {
+      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry_RO) == CodeOffsets::no_such_entry_point) {
         _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, _first_block_size);
       }
-      if (_code_offsets.value(CodeOffsets::Entry) == -1) {
+      if (_code_offsets.value(CodeOffsets::Entry) == CodeOffsets::no_such_entry_point) {
         _code_offsets.set_value(CodeOffsets::Entry, _first_block_size);
       }
       _code_offsets.set_value(CodeOffsets::OSR_Entry, 0);

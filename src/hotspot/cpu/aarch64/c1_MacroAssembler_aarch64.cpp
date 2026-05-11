@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -116,13 +116,9 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
 
   if (!UseCompactObjectHeaders) {
     // COH: Markword already contains class pointer. Nothing else to do.
-    // Otherwise: Fetch klass pointer following the markword
-    if (UseCompressedClassPointers) { // Take care not to kill klass
-      encode_klass_not_null(t1, klass);
-      strw(t1, Address(obj, oopDesc::klass_offset_in_bytes()));
-    } else {
-      str(klass, Address(obj, oopDesc::klass_offset_in_bytes()));
-    }
+    // Otherwise: Store encoded klass pointer following the markword
+    encode_klass_not_null(t1, klass); // Take care not to kill klass
+    strw(t1, Address(obj, oopDesc::klass_offset_in_bytes()));
   }
 
   if (len->is_valid()) {
@@ -133,7 +129,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
       // Clear gap/first 4 bytes following the length field.
       strw(zr, Address(obj, base_offset));
     }
-  } else if (UseCompressedClassPointers && !UseCompactObjectHeaders) {
+  } else if (!UseCompactObjectHeaders) {
     store_klass_gap(obj, zr);
   }
 }
@@ -265,7 +261,10 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
   }
 }
 
-void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_inline_entry_label) {
+void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes,
+                                    int sp_offset_for_orig_pc,
+                                    bool needs_stack_repair, bool has_scalarized_args,
+                                    Label* verified_inline_entry_label) {
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before creating a frame.
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
@@ -282,6 +281,7 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
     bind(*verified_inline_entry_label);
   }
 }
+
 
 void C1_MacroAssembler::verified_entry(bool breakAtEntry) {
   // If we have to make this method not-entrant we'll overwrite its
@@ -318,7 +318,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // C1 code is not hot enough to micro optimize the nmethod entry barrier with an out-of-line stub
   bs->nmethod_entry_barrier(this, nullptr /* slow_path */, nullptr /* continuation */, nullptr /* guard */);
 
-  // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   mov(r19, (intptr_t) ces->method());
   if (is_inline_ro_entry) {
     far_call(RuntimeAddress(Runtime1::entry_for(StubId::c1_buffer_inline_args_no_receiver_id)));

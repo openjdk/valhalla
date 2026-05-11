@@ -67,10 +67,10 @@ void ZIterator::oop_iterate(oop obj, OopClosureT* cl) {
 }
 
 template <typename OopClosureT>
-void ZIterator::oop_iterate_range(objArrayOop obj, OopClosureT* cl, int start, int end) {
+void ZIterator::oop_iterate_elements_range(objArrayOop obj, OopClosureT* cl, int start, int end) {
   assert(!is_invisible_object_array(obj), "not safe");
   assert(obj->is_refArray(), "Must be");
-  refArrayOop(obj)->oop_iterate_range(cl, start, end);
+  refArrayOop(obj)->oop_iterate_elements_range(cl, start, end);
 }
 
 template <typename Function>

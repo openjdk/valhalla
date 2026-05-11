@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ import jdk.test.lib.Asserts;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 
@@ -63,6 +62,7 @@ public class TestUnloadedInlineTypeField {
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
                    .addFlags("--enable-preview",
+                             "-XX:+UnlockDiagnosticVMOptions",
                              // Prevent IR Test Framework from loading classes
                              "-DIgnoreCompilerControls=true",
                              // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
@@ -89,12 +89,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue1Holder {
-        @Strict
         @NullRestricted
         MyValue1 v;
 
         public MyValue1Holder() {
             v = new MyValue1();
+            super();
         }
     }
 
@@ -141,12 +141,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue2Holder {
-        @Strict
         @NullRestricted
         MyValue2 v;
 
         public MyValue2Holder() {
             v = new MyValue2(rI);
+            super();
         }
     }
 
@@ -182,12 +182,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue4Holder {
-        @Strict
         @NullRestricted
         MyValue4 v;
 
         public MyValue4Holder() {
             v = new MyValue4(0);
+            super();
         }
     }
 
@@ -223,12 +223,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue5Holder {
-        @Strict
         @NullRestricted
         MyValue5 v;
 
         public MyValue5Holder() {
             v = new MyValue5(0);
+            super();
         }
 
         public Object make(int n) {
@@ -276,7 +276,6 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue6Holder {
-        @Strict
         @NullRestricted
         static MyValue6 v = new MyValue6();
     }
@@ -322,7 +321,6 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue7Holder {
-        @Strict
         @NullRestricted
         static MyValue7 v = new MyValue7(rI);
     }
@@ -357,12 +355,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue8Holder {
-        @Strict
         @NullRestricted
         MyValue8 v;
 
         public MyValue8Holder() {
             v = new MyValue8();
+            super();
         }
     }
 
@@ -401,12 +399,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue9Holder {
-        @Strict
         @NullRestricted
         MyValue9 v;
 
         public MyValue9Holder() {
             v = new MyValue9(rI);
+            super();
         }
     }
 
@@ -441,12 +439,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue11Holder {
-        @Strict
         @NullRestricted
         MyValue11 v;
 
         public MyValue11Holder() {
             v = new MyValue11(0);
+            super();
         }
     }
 
@@ -484,12 +482,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue12Holder {
-        @Strict
         @NullRestricted
         MyValue12 v;
 
         public MyValue12Holder() {
             v = new MyValue12(0);
+            super();
         }
     }
 
@@ -528,12 +526,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue13Holder {
-        @Strict
         @NullRestricted
         MyValue13 v;
 
         public MyValue13Holder() {
             v = new MyValue13();
+            super();
         }
     }
 
@@ -571,12 +569,12 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue15Holder {
-        @Strict
         @NullRestricted
         MyValue15 v;
 
         public MyValue15Holder() {
             v = new MyValue15();
+            super();
         }
     }
 
@@ -599,7 +597,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 16:
-    // aconst_init with type which is not a value class
+    // Value class with field which is not a value class
     static class MyValue16 {
         int foo;
 
@@ -630,7 +628,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 17:
-    // Same as test16 but with unloaded type at aconst_init
+    // Same as test16 but with unloaded type at init
     static class MyValue17 {
         int foo;
 
@@ -668,7 +666,6 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue18Holder {
-        @Strict
         @NullRestricted
         static MyValue18 v = new MyValue18(rI);
     }
@@ -705,7 +702,6 @@ public class TestUnloadedInlineTypeField {
     }
 
     static class MyValue19Holder {
-        @Strict
         @NullRestricted
         static MyValue19 v = new MyValue19(0);
     }
@@ -759,7 +755,6 @@ public class TestUnloadedInlineTypeField {
     @LooselyConsistentValue
     static value class Test21ClassA {
         static Test21ClassB b;
-        @Strict
         @NullRestricted
         static Test21ClassC c = new Test21ClassC();
     }
@@ -792,7 +787,6 @@ public class TestUnloadedInlineTypeField {
     @LooselyConsistentValue
     static value class Test22ClassA {
         int x = 0;
-        @Strict
         @NullRestricted
         static Test22ClassB b = new Test22ClassB();
     }
@@ -835,7 +829,6 @@ public class TestUnloadedInlineTypeField {
     @LooselyConsistentValue
     static value class Test23ClassA {
         int x = 0;
-        @Strict
         @NullRestricted
         static Test23ClassB b = new Test23ClassB();
     }
@@ -876,7 +869,6 @@ public class TestUnloadedInlineTypeField {
 
     @LooselyConsistentValue
     static value class Test24ClassA {
-        @Strict
         @NullRestricted
         Test24ClassB b = new Test24ClassB();
     }
@@ -918,7 +910,6 @@ public class TestUnloadedInlineTypeField {
 
     @LooselyConsistentValue
     static value class Test25ClassA {
-        @Strict
         @NullRestricted
         Test25ClassB b = new Test25ClassB();
     }
@@ -961,7 +952,6 @@ public class TestUnloadedInlineTypeField {
 
     @LooselyConsistentValue
     static value class Test26ClassA {
-        @Strict
         @NullRestricted
         Test26ClassB b = new Test26ClassB();
     }
@@ -1024,7 +1014,6 @@ public class TestUnloadedInlineTypeField {
 
     @LooselyConsistentValue
     static value class MyValue28 {
-        @Strict
         @NullRestricted
         static MyValue28 field1 = new MyValue28();
     }

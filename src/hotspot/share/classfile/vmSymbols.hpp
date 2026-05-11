@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,6 +123,7 @@ class SerializeClosure;
   template(jdk_internal_vm_vector_VectorMask,         "jdk/internal/vm/vector/VectorSupport$VectorMask")    \
   template(jdk_internal_vm_vector_VectorShuffle,      "jdk/internal/vm/vector/VectorSupport$VectorShuffle") \
   template(payload_name,                              "payload")                                            \
+  template(CTYPE_name,                                "CTYPE")                                              \
   template(ETYPE_name,                                "ETYPE")                                              \
   template(VLENGTH_name,                              "VLENGTH")                                            \
                                                                                                   \
@@ -271,10 +272,6 @@ class SerializeClosure;
                                                                                                   \
   /* Concurrency support */                                                                       \
   template(java_util_concurrent_locks_AbstractOwnableSynchronizer,           "java/util/concurrent/locks/AbstractOwnableSynchronizer") \
-  template(java_util_concurrent_atomic_AtomicIntegerFieldUpdater_Impl,       "java/util/concurrent/atomic/AtomicIntegerFieldUpdater$AtomicIntegerFieldUpdaterImpl") \
-  template(java_util_concurrent_atomic_AtomicLongFieldUpdater_CASUpdater,    "java/util/concurrent/atomic/AtomicLongFieldUpdater$CASUpdater") \
-  template(java_util_concurrent_atomic_AtomicLongFieldUpdater_LockedUpdater, "java/util/concurrent/atomic/AtomicLongFieldUpdater$LockedUpdater") \
-  template(java_util_concurrent_atomic_AtomicReferenceFieldUpdater_Impl,     "java/util/concurrent/atomic/AtomicReferenceFieldUpdater$AtomicReferenceFieldUpdaterImpl") \
   template(jdk_internal_vm_annotation_Contended_signature,                   "Ljdk/internal/vm/annotation/Contended;")    \
   template(jdk_internal_vm_annotation_ReservedStackAccess_signature,         "Ljdk/internal/vm/annotation/ReservedStackAccess;") \
   template(jdk_internal_vm_annotation_LooselyConsistentValue_signature,      "Ljdk/internal/vm/annotation/LooselyConsistentValue;") \
@@ -329,6 +326,7 @@ class SerializeClosure;
   template(jdk_internal_misc_Scoped_signature,               "Ljdk/internal/misc/ScopedMemoryAccess$Scoped;") \
   template(jdk_internal_vm_annotation_IntrinsicCandidate_signature, "Ljdk/internal/vm/annotation/IntrinsicCandidate;") \
   template(jdk_internal_vm_annotation_Stable_signature,      "Ljdk/internal/vm/annotation/Stable;") \
+  template(jdk_internal_vm_annotation_TrustFinalFields_signature, "Ljdk/internal/vm/annotation/TrustFinalFields;") \
                                                                                                   \
   template(jdk_internal_vm_annotation_ChangesCurrentThread_signature,  "Ljdk/internal/vm/annotation/ChangesCurrentThread;")  \
   template(jdk_internal_vm_annotation_JvmtiHideEvents_signature,       "Ljdk/internal/vm/annotation/JvmtiHideEvents;")  \
@@ -631,6 +629,7 @@ class SerializeClosure;
   template(void_class_array_signature,                "()[Ljava/lang/Class;")                                     \
   template(void_string_signature,                     "()Ljava/lang/String;")                                     \
   template(object_array_object_signature,             "([Ljava/lang/Object;)Ljava/lang/Object;")                  \
+  template(object_array_boolean_signature,            "([Ljava/lang/Object;)Z")                                   \
   template(object_object_array_object_signature,      "(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;")\
   template(thread_signature,                          "Ljava/lang/Thread;")                                       \
   template(thread_fieldholder_signature,              "Ljava/lang/Thread$FieldHolder;")                           \
@@ -736,6 +735,7 @@ class SerializeClosure;
   template(appendToClassPathForInstrumentation_name,   "appendToClassPathForInstrumentation")                     \
   do_alias(appendToClassPathForInstrumentation_signature, string_void_signature)                                  \
   template(serializePropertiesToByteArray_name,        "serializePropertiesToByteArray")                          \
+  template(serializeSecurityPropertiesToByteArray_name, "serializeSecurityPropertiesToByteArray")                 \
   template(serializeAgentPropertiesToByteArray_name,   "serializeAgentPropertiesToByteArray")                     \
   template(encodeThrowable_name,                       "encodeThrowable")                                         \
   template(encodeThrowable_signature,                  "(Ljava/lang/Throwable;JI)I")                              \
@@ -779,10 +779,7 @@ class SerializeClosure;
                                                                                                                   \
   template(java_lang_runtime_ValueObjectMethods,            "java/lang/runtime/ValueObjectMethods")               \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
-  template(isSubstitutableAlt_name,                         "isSubstitutableAlt")                                 \
   template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
-  template(valueObjectHashCodeAlt_name,                     "valueObjectHashCodeAlt")                             \
-  template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
   template(jdk_internal_value_ValueClass,                   "jdk/internal/value/ValueClass")                      \
                                                                                                                   \
   /* jcmd Thread.dump_to_file */                                                                                  \
@@ -793,8 +790,6 @@ class SerializeClosure;
   template(jdk_internal_vm_ThreadLock,             "jdk/internal/vm/ThreadSnapshot$ThreadLock")                   \
   template(jdk_internal_vm_ThreadLock_signature,   "Ljdk/internal/vm/ThreadSnapshot$ThreadLock;")                 \
   template(jdk_internal_vm_ThreadLock_array,       "[Ljdk/internal/vm/ThreadSnapshot$ThreadLock;")                \
-  template(java_lang_StackTraceElement_of_name,    "of")                                                          \
-  template(java_lang_StackTraceElement_of_signature, "([Ljava/lang/StackTraceElement;)[Ljava/lang/StackTraceElement;") \
                                                                                                                   \
   /* jcmd Thread.vthread_scheduler and Thread.vthread_pollers */                                                  \
   template(jdk_internal_vm_JcmdVThreadCommands,    "jdk/internal/vm/JcmdVThreadCommands")                         \

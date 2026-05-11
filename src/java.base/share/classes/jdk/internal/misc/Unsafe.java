@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package jdk.internal.misc;
 
-import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTRuntimeSetup;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
@@ -43,14 +42,55 @@ import static jdk.internal.misc.UnsafeConstants.*;
  * Although the class and all methods are public, use of this class is
  * limited because only trusted code can obtain instances of it.
  *
- * <em>Note:</em> It is the responsibility of the caller to make sure
- * arguments are checked before methods of this class are
- * called. While some rudimentary checks are performed on the input,
- * the checks are best effort and when performance is an overriding
- * priority, as when methods of this class are optimized by the
- * runtime compiler, some or all checks (if any) may be elided. Hence,
- * the caller must not rely on the checks and corresponding
- * exceptions!
+ * <h2><a id="undefined-behavior">Undefined Behavior</a></h2>
+ * For performance reasons, {@code Unsafe} is allowed to work outside the
+ * restrictions enforced by the JVM. As a result, it is the responsibility of
+ * the caller to ensure that an invocation of an {@code Unsafe} method is
+ * conformant, and failure to do so will result in undefined behavior. The
+ * runtime and the JIT compiler may assume that undefined behavior never
+ * happens, and operate accordingly. For example, the runtime assumes that each
+ * object has a header with a particular layout, and if the users use
+ * {@code Unsafe} to overwrite this header with invalid data, the behavior of
+ * the runtime becomes unpredictable. Another example is that the JIT compiler
+ * may assume that accesses on separate objects are unrelated, and schedule
+ * each of them without taking into consideration the others. If there is an
+ * {@code Unsafe} access that is out of bounds and points to object different
+ * from the declared base, the program may execute in a way that a variable
+ * seems to have multiple values at the same time. As a result, when a program
+ * exhibits undefined behavior, there is no restrictions on its behaviors. Such
+ * behaviors may include but not be limited to:
+ *
+ * <ul>
+ * <li>Working as expected.
+ * <li>Crashing the VM.
+ * <li>Corruption of the heap or JVM memory.
+ * <li>Nonsensical variable value. E.g. an {@code int} may appear to be
+ * simultaneously 0 and 1.
+ * <li>Impossible code execution. E.g. the branches of an {@code if} are
+ * both executed or both not executed.
+ * <li>Wiping out the hard drive.
+ * </ul>
+ *
+ * Undefined behavior, as described in this class, is analogous to the
+ * terminology with the same name in the C++ language.
+ * <p>
+ * Some methods (e.g. {@link #getInt}) exhibit undefined behavior if they
+ * are invoked at runtime with illegal arguments. This means that they will
+ * never exhibit undefined behavior if they are not actually reachable at
+ * runtime. On the other hands, other methods (e.g.
+ * {@link #allocateInstance(Class)}) exhibit undefined behavior if they are
+ * used incorrectly, even if the invocation may not be reachable at runtime.
+ * The analogous terminology in C++ is that such programs are ill-formed.
+ * <p>
+ * For methods exhibiting undefined behavior if they are invoked at runtime
+ * with illegal arguments, undefined behavior may time travel. That is, if a
+ * control path may eventually reach an invocation of an {@code Unsafe} method
+ * with illegal arguments, the symptoms of undefined behavior may be present
+ * even before the invocation of the {@code Unsafe} method. This is because the
+ * JIT compiler may have certain assumptions about the inputs of an
+ * {@code Unsafe} invocation, these assumptions may propagate backward to
+ * previous statements, leading to wrong executions if the assumptions are
+ * invalid.
  *
  * @author John R. Rose
  * @see #getUnsafe
@@ -186,7 +226,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
-
 
     /**
      * Returns true if the given field is flattened.
@@ -342,26 +381,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native <V> void putFlatValue(Object o, long offset, int layoutKind, Class<?> valueType, V v);
-
-    /**
-     * Returns an object instance with a private buffered value whose layout
-     * and contents is exactly the given value instance.  The return object
-     * is in the larval state that can be updated using the unsafe put operation.
-     *
-     * @param value a value instance
-     * @param <V> the type of the given value instance
-     */
-    @IntrinsicCandidate
-    public native <V> V makePrivateBuffer(V value);
-
-    /**
-     * Exits the larval state and returns a value instance.
-     *
-     * @param value a value instance
-     * @param <V> the type of the given value instance
-     */
-    @IntrinsicCandidate
-    public native <V> V finishPrivateBuffer(V value);
 
     /**
      * Returns the header size of the given value type.
@@ -1481,11 +1500,27 @@ public final class Unsafe {
         return arrayInstanceIndexScale0(array);
     }
 
-    public int[] getFieldMap(Class<? extends Object> c) {
-      if (c == null) {
-        throw new NullPointerException();
-      }
-      return getFieldMap0(c);
+    /**
+     * Returns the acmp map of this class, which must be a concrete value class.
+     * Intended to be used by substitutability test in ValueObjectMethods only.
+     * The format is subject to change.
+     */
+    public int[] getFieldMap(Class<?> c) {
+        if (c == null) {
+            throw new NullPointerException();
+        }
+        return getFieldMap0(c);
+    }
+
+    /**
+     * For a field of type {@code c}, returns true if and only if there is
+     * a possible flat layout that contains no oop.
+     * Required for numerical CAS safety.
+     */
+    public boolean isFlatPayloadBinary(Class<?> c) {
+        int[] map = getFieldMap(c);
+        int nbNonRef = map[0];
+        return nbNonRef * 2 + 1 == map.length;
     }
 
     /**
@@ -1602,6 +1637,11 @@ public final class Unsafe {
     /**
      * Allocates an instance but does not run any constructor.
      * Initializes the class if it has not yet been.
+     * <p>
+     * This method returns an uninitialized instance. In general, this is undefined behavior, this
+     * method is treated specially by the JVM to allow this behavior. The returned value must be
+     * passed into a constructor using {@link MethodHandle#linkToSpecial} before any other
+     * operation can be performed on it. Otherwise, the program is ill-formed.
      */
     @IntrinsicCandidate
     public native Object allocateInstance(Class<?> cls)
@@ -1711,15 +1751,8 @@ public final class Unsafe {
                                                 Class<?> valueType,
                                                 V expected,
                                                 V x) {
-        while (true) {
-            Object witness = getFlatValueVolatile(o, offset, layout, valueType);
-            if (witness != expected) {
-                return false;
-            }
-            if (compareAndSetFlatValueAsBytes(o, offset, layout, valueType, witness, x)) {
-                return true;
-            }
-        }
+        Object[] array = newSpecialArray(valueType, 2, layout);
+        return compareAndSetFlatValueAsBytes(array, o, offset, layout, valueType, expected, x);
     }
 
     @IntrinsicCandidate
@@ -1753,15 +1786,9 @@ public final class Unsafe {
                                                     Class<?> valueType,
                                                     V expected,
                                                     V x) {
-        while (true) {
-            Object witness = getFlatValueVolatile(o, offset, layout, valueType);
-            if (witness != expected) {
-                return witness;
-            }
-            if (compareAndSetFlatValueAsBytes(o, offset, layout, valueType, witness, x)) {
-                return witness;
-            }
-        }
+        Object[] array = newSpecialArray(valueType, 2, layout);
+        compareAndSetFlatValueAsBytes(array, o, offset, layout, valueType, expected, x);
+        return array[0];
     }
 
     @IntrinsicCandidate
@@ -2877,38 +2904,75 @@ public final class Unsafe {
     }
 
     @ForceInline
-    private boolean compareAndSetFlatValueAsBytes(Object o, long offset, int layout, Class<?> valueType, Object expected, Object x) {
-        // We turn the payload of an atomic value into a numeric value (of suitable type)
-        // by storing the value into an array element (of matching layout) and by reading
-        // back the array element as an integral value. After which we can implement the CAS
-        // as a plain numeric CAS. Note: this only works if the payload contains no oops
-        // (see VarHandles::isAtomicFlat).
-        Object[] expectedArray = newSpecialArray(valueType, 1, layout);
-        Object xArray = newSpecialArray(valueType, 1, layout);
-        long base = arrayInstanceBaseOffset(expectedArray);
-        int scale = arrayInstanceIndexScale(expectedArray);
-        putFlatValue(expectedArray, base, layout, valueType, expected);
-        putFlatValue(xArray, base, layout, valueType, x);
+    private boolean compareAndSetFlatValueAsBytes(Object[] array, Object o, long offset, int layout, Class<?> valueType, Object expected, Object x) {
+        // We can convert between a value object and a binary value (of suitable size) using array elements.
+        // This only works if the payload contains no oops (see VarHandles::isAtomicFlat).
+        // Thus, we can implement the CAS with a plain numeric CAS.
+
+        // array[0]: witness (put as binary, get as object), at base
+        // array[1]: x (put as object, get as binary), at base + scale
+        // When witness == expected, the witness binary may be different from the expected binary.
+        // This happens when compiler does not zero unused positions in the witness.
+        // So we must obtain the witness binary and use it as expected binary for the numeric CAS.
+        long base = arrayInstanceBaseOffset(array);
+        int scale = arrayInstanceIndexScale(array);
+        putFlatValue(array, base + scale, layout, valueType, x); // put x as object
         switch (scale) {
             case 1: {
-                byte expectedByte = getByte(expectedArray, base);
-                byte xByte = getByte(xArray, base);
-                return compareAndSetByte(o, offset, expectedByte, xByte);
+                do {
+                    byte witnessByte = getByteVolatile(o, offset);
+                    putByte(array, base, witnessByte); // put witness as binary
+                    Object witness = getFlatValue(array, base, layout, valueType); // get witness as object
+                    if (witness != expected) {
+                        return false;
+                    }
+                    byte xByte = getByte(array, base + scale); // get x as binary
+                    if (compareAndSetByte(o, offset, witnessByte, xByte)) {
+                        return true;
+                    }
+                } while (true);
             }
             case 2: {
-                short expectedShort = getShort(expectedArray, base);
-                short xShort = getShort(xArray, base);
-                return compareAndSetShort(o, offset, expectedShort, xShort);
+                do {
+                    short witnessShort = getShortVolatile(o, offset);
+                    putShort(array, base, witnessShort); // put witness as binary
+                    Object witness = getFlatValue(array, base, layout, valueType); // get witness as object
+                    if (witness != expected) {
+                        return false;
+                    }
+                    short xShort = getShort(array, base + scale); // get x as binary
+                    if (compareAndSetShort(o, offset, witnessShort, xShort)) {
+                        return true;
+                    }
+                } while (true);
             }
             case 4: {
-                int expectedInt = getInt(expectedArray, base);
-                int xInt = getInt(xArray, base);
-                return compareAndSetInt(o, offset, expectedInt, xInt);
+                do {
+                    int witnessInt = getIntVolatile(o, offset);
+                    putInt(array, base, witnessInt); // put witness as binary
+                    Object witness = getFlatValue(array, base, layout, valueType); // get witness as object
+                    if (witness != expected) {
+                        return false;
+                    }
+                    int xInt = getInt(array, base + scale); // get x as binary
+                    if (compareAndSetInt(o, offset, witnessInt, xInt)) {
+                        return true;
+                    }
+                } while (true);
             }
             case 8: {
-                long expectedLong = getLong(expectedArray, base);
-                long xLong = getLong(xArray, base);
-                return compareAndSetLong(o, offset, expectedLong, xLong);
+                do {
+                    long witnessLong = getLongVolatile(o, offset);
+                    putLong(array, base, witnessLong); // put witness as binary
+                    Object witness = getFlatValue(array, base, layout, valueType);
+                    if (witness != expected) {
+                        return false;
+                    }
+                    long xLong = getLong(array, base + scale); // get x as binary
+                    if (compareAndSetLong(o, offset, witnessLong, xLong)) {
+                        return true;
+                    }
+                } while (true);
             }
             default: {
                 throw new UnsupportedOperationException();

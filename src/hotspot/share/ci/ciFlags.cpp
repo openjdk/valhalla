@@ -46,6 +46,12 @@ void ciFlags::print_klass_flags(outputStream* st) {
   if (is_abstract()) {
     st->print(",abstract");
   }
+  if (is_identity()) {
+    st->print(",identity");
+  }
+  if (is_strict()) {
+    st->print(",strict");
+  }
 }
 
 // ------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
@@ -273,22 +274,20 @@ void Reflection::array_set(jvalue* value, arrayOop a, int index, BasicType value
   if (!a->is_within_bounds(index)) {
     THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
   }
-
-  if (a->is_objArray()) {
-    if (value_type == T_OBJECT) {
-      oop obj = cast_to_oop(value->l);
-      if (a->is_null_free_array() && obj == nullptr) {
-         THROW_MSG(vmSymbols::java_lang_NullPointerException(), "null-restricted array");
-      }
-
-      if (obj != nullptr) {
-        Klass* element_klass = ObjArrayKlass::cast(a->klass())->element_klass();
-        if (!obj->is_a(element_klass)) {
-          THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "array element type mismatch");
-        }
-      }
-      objArrayOop(a)->obj_at_put(index, obj);
+  if (value_type == T_OBJECT) {
+    assert(a->is_objArray(), "just checking");
+    oop obj = cast_to_oop(value->l);
+    if (a->is_null_free_array() && obj == nullptr) {
+      THROW_MSG(vmSymbols::java_lang_NullPointerException(), "null-restricted array");
     }
+
+    if (obj != nullptr) {
+      Klass* element_klass = ObjArrayKlass::cast(a->klass())->element_klass();
+      if (!obj->is_a(element_klass)) {
+        THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "array element type mismatch");
+      }
+    }
+    objArrayOop(a)->obj_at_put(index, obj);
   } else {
     assert(a->is_typeArray(), "just checking");
     BasicType array_type = TypeArrayKlass::cast(a->klass())->element_type();

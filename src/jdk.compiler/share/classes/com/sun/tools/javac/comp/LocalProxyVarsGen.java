@@ -76,10 +76,10 @@ import com.sun.tools.javac.util.Options;
  */
 public class LocalProxyVarsGen extends TreeTranslator {
 
-    protected static final Context.Key<LocalProxyVarsGen> valueInitializersKey = new Context.Key<>();
+    protected static final Context.Key<LocalProxyVarsGen> localProxyVarsGenKey = new Context.Key<>();
 
     public static LocalProxyVarsGen instance(Context context) {
-        LocalProxyVarsGen instance = context.get(valueInitializersKey);
+        LocalProxyVarsGen instance = context.get(localProxyVarsGenKey);
         if (instance == null)
             instance = new LocalProxyVarsGen(context);
         return instance;
@@ -100,7 +100,7 @@ public class LocalProxyVarsGen extends TreeTranslator {
 
     @SuppressWarnings("this-escape")
     protected LocalProxyVarsGen(Context context) {
-        context.put(valueInitializersKey, this);
+        context.put(localProxyVarsGenKey, this);
         make = TreeMaker.instance(context);
         types = Types.instance(context);
         names = Names.instance(context);

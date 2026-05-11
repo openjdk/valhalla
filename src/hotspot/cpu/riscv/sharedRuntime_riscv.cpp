@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * Copyright (c) 2020, 2023, Huawei Technologies Co., Ltd. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -213,7 +213,7 @@ void RegisterSaver::restore_live_registers(MacroAssembler* masm) {
 // Is vector's size (in bytes) bigger than a size saved by default?
 // riscv does not ovlerlay the floating-point registers on vector registers like aarch64.
 bool SharedRuntime::is_wide_vector(int size) {
-  return UseRVV;
+  return UseRVV && size > 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -343,9 +343,8 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 }
 
 static void gen_c2i_adapter(MacroAssembler *masm,
-                            int total_args_passed,
                             int comp_args_on_stack,
-                            const BasicType *sig_bt,
+                            const GrowableArray<SigEntry>* sig,
                             const VMRegPair *regs,
                             Label& skip_fixup) {
   // Before we get into the guts of the C2I adapter, see if we should be here
@@ -362,6 +361,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // Since all args are passed on the stack, total_args_passed *
   // Interpreter::stackElementSize is the space we need.
 
+  int total_args_passed = sig->length();
   int extraspace = total_args_passed * Interpreter::stackElementSize;
 
   __ mv(x19_sender_sp, sp);
@@ -375,8 +375,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   // Now write the args into the outgoing interpreter space
   for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      assert(i > 0 && (sig_bt[i - 1] == T_LONG || sig_bt[i - 1] == T_DOUBLE), "missing half");
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_VOID) {
+      assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
     }
 
@@ -416,7 +417,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
         // Two VMREgs|OptoRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
         // T_DOUBLE and T_LONG use two slots in the interpreter
-        if (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+        if (bt == T_LONG || bt == T_DOUBLE) {
           // ld_off == LSW, ld_off+wordSize == MSW
           // st_off == MSW, next_off == LSW
           __ sd(t0, Address(sp, next_off), /*temp register*/esp);
@@ -437,7 +438,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       } else {
         // Two VMREgs|OptoRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
         // T_DOUBLE and T_LONG use two slots in the interpreter
-        if ( sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+        if (bt == T_LONG || bt == T_DOUBLE) {
           // long/double in gpr
 #ifdef ASSERT
           // Overwrite the unused slot with known junk
@@ -472,9 +473,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 }
 
 void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
-                                    int total_args_passed,
                                     int comp_args_on_stack,
-                                    const BasicType *sig_bt,
+                                    const GrowableArray<SigEntry>* sig,
                                     const VMRegPair *regs) {
   // Note: x19_sender_sp contains the senderSP on entry. We must
   // preserve it since we may do a i2c -> c2i transition if we lose a
@@ -505,9 +505,11 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 #endif // INCLUDE_JVMCI
 
   // Now generate the shuffle code.
+  int total_args_passed = sig->length();
   for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      assert(i > 0 && (sig_bt[i - 1] == T_LONG || sig_bt[i - 1] == T_DOUBLE), "missing half");
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_VOID) {
+      assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
     }
 
@@ -544,7 +546,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         // are accessed as negative so LSW is at LOW address
 
         // ld_off is MSW so get LSW
-        const int offset = (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) ?
+        const int offset = (bt == T_LONG || bt == T_DOUBLE) ?
                            next_off : ld_off;
         __ ld(t0, Address(esp, offset));
         // st_off is LSW (i.e. reg.first())
@@ -560,7 +562,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         // So we must adjust where to pick up the data to match the
         // interpreter.
 
-        const int offset = (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) ?
+        const int offset = (bt == T_LONG || bt == T_DOUBLE) ?
                            next_off : ld_off;
 
         // this can be a misaligned move
@@ -597,14 +599,19 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
 // ---------------------------------------------------------------
 
-void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
-                                            int total_args_passed,
+void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                             int comp_args_on_stack,
-                                            const BasicType *sig_bt,
-                                            const VMRegPair *regs,
-                                            address entry_address[AdapterBlob::ENTRY_COUNT]) {
+                                            const GrowableArray<SigEntry>* sig,
+                                            const VMRegPair* regs,
+                                            const GrowableArray<SigEntry>* sig_cc,
+                                            const VMRegPair* regs_cc,
+                                            const GrowableArray<SigEntry>* sig_cc_ro,
+                                            const VMRegPair* regs_cc_ro,
+                                            address entry_address[AdapterBlob::ENTRY_COUNT],
+                                            AdapterBlob*& new_adapter,
+                                            bool allocate_code_blob) {
   entry_address[AdapterBlob::I2C] = __ pc();
-  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
+  gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
   entry_address[AdapterBlob::C2I_Unverified] = __ pc();
   Label skip_fixup;
@@ -637,27 +644,25 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
 
   // Class initialization barrier for static methods
   entry_address[AdapterBlob::C2I_No_Clinit_Check] = nullptr;
-  if (VM_Version::supports_fast_class_init_checks()) {
-    Label L_skip_barrier;
+  assert(VM_Version::supports_fast_class_init_checks(), "sanity");
+  Label L_skip_barrier;
 
-    { // Bypass the barrier for non-static methods
-      __ load_unsigned_short(t0, Address(xmethod, Method::access_flags_offset()));
-      __ test_bit(t1, t0, exact_log2(JVM_ACC_STATIC));
-      __ beqz(t1, L_skip_barrier); // non-static
-    }
+  // Bypass the barrier for non-static methods
+  __ load_unsigned_short(t0, Address(xmethod, Method::access_flags_offset()));
+  __ test_bit(t1, t0, exact_log2(JVM_ACC_STATIC));
+  __ beqz(t1, L_skip_barrier); // non-static
 
-    __ load_method_holder(t1, xmethod);
-    __ clinit_barrier(t1, t0, &L_skip_barrier);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
+  __ load_method_holder(t1, xmethod);
+  __ clinit_barrier(t1, t0, &L_skip_barrier);
+  __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
 
-    __ bind(L_skip_barrier);
-    entry_address[AdapterBlob::C2I_No_Clinit_Check] = __ pc();
-  }
+  __ bind(L_skip_barrier);
+  entry_address[AdapterBlob::C2I_No_Clinit_Check] = __ pc();
 
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->c2i_entry_barrier(masm);
 
-  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  gen_c2i_adapter(masm, comp_args_on_stack, sig, regs, skip_fixup);
   return;
 }
 
@@ -1443,7 +1448,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ nop();  // 4 bytes
   }
 
-  if (VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier()) {
+  if (method->needs_clinit_barrier()) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
     Label L_skip_barrier;
     __ mov_metadata(t1, method->method_holder()); // InstanceKlass*
     __ clinit_barrier(t1, t0, &L_skip_barrier);
@@ -2783,3 +2789,16 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
+
+const uint SharedRuntime::java_return_convention_max_int = Argument::n_int_register_parameters_j;
+const uint SharedRuntime::java_return_convention_max_float = Argument::n_float_register_parameters_j;
+
+int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *regs, int total_args_passed) {
+  Unimplemented();
+  return 0;
+}
+
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
+  Unimplemented();
+  return nullptr;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,7 @@ class VerificationType {
       TypeMask           = 0x00000007,
 
       // Topmost types encoding
-      Reference          = 0x0,        // _sym contains the name of an object
+      Reference          = 0x0,        // _sym contains the name
       Primitive          = 0x1,        // see below for primitive list
       Uninitialized      = 0x2,        // 0x00ffff00 contains bci
       TypeQuery          = 0x3,        // Meta-types used for category testing
@@ -114,7 +114,7 @@ class VerificationType {
       ReferenceQuery     = (ReferenceFlag     << 1 * BitsPerByte) | TypeQuery,
       Category1Query     = (Category1Flag     << 1 * BitsPerByte) | TypeQuery,
       Category2Query     = (Category2Flag     << 1 * BitsPerByte) | TypeQuery,
-      Category2_2ndQuery = (Category2_2ndFlag << 1 * BitsPerByte) | TypeQuery,
+      Category2_2ndQuery = (Category2_2ndFlag << 1 * BitsPerByte) | TypeQuery
     };
 
   VerificationType(uintptr_t raw_data) {
@@ -244,15 +244,14 @@ class VerificationType {
   }
 
   Symbol* name() const {
-    assert(!is_null() && is_reference(), "Must be a non-null reference");
+    assert(is_reference() && !is_null(), "Must be a non-null reference");
     return _u._sym;
   }
 
   bool equals(const VerificationType& t) const {
     return (_u._data == t._u._data ||
-            (((is_reference() && t.is_reference())) &&
-             !is_null() && !t.is_null() && name() == t.name()));
-
+      (is_reference() && t.is_reference() && !is_null() && !t.is_null() &&
+       name() == t.name()));
   }
 
   bool operator ==(const VerificationType& t) const {

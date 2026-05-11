@@ -407,12 +407,12 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags() & STRICT) != 0;
     }
 
-    public boolean isStrictInstance() {
-        return (flags() & STRICT) != 0 && (flags() & STATIC) == 0;
+    public boolean isSynthetic() {
+        return (flags() & SYNTHETIC) != 0;
     }
 
-    public boolean hasStrict() {
-        return (flags() & HAS_STRICT) != 0;
+    public boolean isStrictInstance() {
+        return (flags() & STRICT) != 0 && (flags() & STATIC) == 0;
     }
 
     public boolean isInterface() {

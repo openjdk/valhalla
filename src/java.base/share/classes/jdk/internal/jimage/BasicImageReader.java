@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Random;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -199,10 +198,9 @@ public class BasicImageReader implements AutoCloseable {
         }
 
         if (result.getMajorVersion() != ImageHeader.MAJOR_VERSION ||
-            result.getMinorVersion() != ImageHeader.MINOR_VERSION) {
-            throw new IOException("The image file \"" + name + "\" is not " +
-                "the correct version. Major: " + result.getMajorVersion() +
-                ". Minor: " + result.getMinorVersion());
+                result.getMinorVersion() != ImageHeader.MINOR_VERSION) {
+            throw new ImageVersionMismatchException(
+                    name, result.getMajorVersion(), result.getMinorVersion());
         }
 
         return result;
@@ -222,14 +220,6 @@ public class BasicImageReader implements AutoCloseable {
 
     private IntBuffer intBuffer(ByteBuffer buffer, int offset, int size) {
         return slice(buffer, offset, size).order(byteOrder).asIntBuffer();
-    }
-
-    public static void releaseByteBuffer(ByteBuffer buffer) {
-        Objects.requireNonNull(buffer);
-
-        if (!MAP_ALL) {
-            ImageBufferCache.releaseBuffer(buffer);
-        }
     }
 
     public String getName() {
@@ -416,13 +406,15 @@ public class BasicImageReader implements AutoCloseable {
         if (offset < 0 || Integer.MAX_VALUE <= offset) {
             throw new IndexOutOfBoundsException("Bad offset: " + offset);
         }
+        int checkedOffset = (int) offset;
 
         if (size < 0 || Integer.MAX_VALUE <= size) {
-            throw new IndexOutOfBoundsException("Bad size: " + size);
+            throw new IllegalArgumentException("Bad size: " + size);
         }
+        int checkedSize = (int) size;
 
         if (MAP_ALL) {
-            ByteBuffer buffer = slice(memoryMap, (int)offset, (int)size);
+            ByteBuffer buffer = slice(memoryMap, checkedOffset, checkedSize);
             buffer.order(ByteOrder.BIG_ENDIAN);
 
             return buffer;
@@ -430,21 +422,18 @@ public class BasicImageReader implements AutoCloseable {
             if (channel == null) {
                 throw new InternalError("Image file channel not open");
             }
-
-            ByteBuffer buffer = ImageBufferCache.getBuffer(size);
+            ByteBuffer buffer = ByteBuffer.allocate(checkedSize);
             int read;
             try {
-                read = channel.read(buffer, offset);
+                read = channel.read(buffer, checkedOffset);
                 buffer.rewind();
             } catch (IOException ex) {
-                ImageBufferCache.releaseBuffer(buffer);
                 throw new RuntimeException(ex);
             }
 
-            if (read != size) {
-                ImageBufferCache.releaseBuffer(buffer);
+            if (read != checkedSize) {
                 throw new RuntimeException("Short read: " + read +
-                                           " instead of " + size + " bytes");
+                        " instead of " + checkedSize + " bytes");
             }
 
             return buffer;
@@ -460,17 +449,12 @@ public class BasicImageReader implements AutoCloseable {
 
     public byte[] getResource(ImageLocation loc) {
         ByteBuffer buffer = getResourceBuffer(loc);
-
-        if (buffer != null) {
-            byte[] bytes = getBufferBytes(buffer);
-            ImageBufferCache.releaseBuffer(buffer);
-
-            return bytes;
-        }
-
-        return null;
+        return buffer != null ? getBufferBytes(buffer) : null;
     }
 
+    /**
+     * Returns the content of jimage location in a newly allocated byte buffer.
+     */
     public ByteBuffer getResourceBuffer(ImageLocation loc) {
         Objects.requireNonNull(loc);
         long offset = loc.getContentOffset() + indexSize;
@@ -491,10 +475,8 @@ public class BasicImageReader implements AutoCloseable {
             return readBuffer(offset, uncompressedSize);
         } else {
             ByteBuffer buffer = readBuffer(offset, compressedSize);
-
             if (buffer != null) {
                 byte[] bytesIn = getBufferBytes(buffer);
-                ImageBufferCache.releaseBuffer(buffer);
                 byte[] bytesOut;
 
                 try {
@@ -516,5 +498,15 @@ public class BasicImageReader implements AutoCloseable {
         byte[] bytes = getResource(loc);
 
         return new ByteArrayInputStream(bytes);
+    }
+
+    public static final class ImageVersionMismatchException extends IOException {
+        @Deprecated
+        private static final long serialVersionUID = 1L;
+        // If needed we could capture major/minor version for use by JImageTask.
+        ImageVersionMismatchException(String name, int majorVersion, int minorVersion) {
+            super("The image file \"" + name + "\" is not the correct version. " +
+                    "Major: " + majorVersion + ". Minor: " + minorVersion);
+        }
     }
 }

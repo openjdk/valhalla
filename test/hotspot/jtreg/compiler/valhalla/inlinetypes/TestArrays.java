@@ -29,7 +29,6 @@ import jdk.test.lib.Asserts;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -147,7 +146,7 @@ public class TestArrays {
     public static void main(String[] args) {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
         scenarios[2].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
-        scenarios[3].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening", "-XX:-UncommonNullCast");
+        scenarios[3].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:+UnlockDiagnosticVMOptions", "-XX:+UseArrayFlattening", "-XX:-UncommonNullCast");
         scenarios[4].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
         scenarios[5].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
 
@@ -410,7 +409,7 @@ public class TestArrays {
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 3; j++) {
                 for (int k = 0; k < 4; k++) {
-                    Asserts.assertEQ(arr[i][j][k].hash(), MyValue1.createWithFieldsDontInline(rI + i , rL + j + k).hash());
+                    Asserts.assertEQ(MyValue1.createWithFieldsDontInline(rI + i , rL + j + k), arr[i][j][k]);
                 }
             }
         }
@@ -609,7 +608,7 @@ public class TestArrays {
         }
         MyValue1[] result = test18(va);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(result[i].hash(), va[i].hash());
+            Asserts.assertEQ(va[i], result[i]);
         }
     }
 
@@ -631,7 +630,7 @@ public class TestArrays {
     public void test19_verifier() {
         MyValue1[] result = test19();
         for (int i = 0; i < test19_orig.length; ++i) {
-            Asserts.assertEQ(result[i].hash(), test19_orig[i].hash());
+            Asserts.assertEQ(test19_orig[i], result[i]);
         }
     }
 
@@ -651,7 +650,7 @@ public class TestArrays {
         }
         test20(src, dst);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -671,7 +670,7 @@ public class TestArrays {
         }
         test21(src, dst);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -693,7 +692,7 @@ public class TestArrays {
         }
         MyValue1[] dst = test22(src);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -715,7 +714,7 @@ public class TestArrays {
         }
         MyValue1[] dst = test23(src);
         for (int i = 5; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -736,11 +735,11 @@ public class TestArrays {
         }
         test24(src, dst1);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(dst1[i], src[i]);
         }
         test24(src, dst2);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), ((MyValue1)dst2[i]).hash());
+            Asserts.assertEQ(dst2[i], src[i]);
         }
     }
 
@@ -759,7 +758,7 @@ public class TestArrays {
         }
         test25(src, dst);
         for (int i = 0; i < 8; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -778,7 +777,7 @@ public class TestArrays {
         }
         test26(src, dst);
         for (int i = 0; i < 8; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i]);
         }
     }
 
@@ -797,7 +796,7 @@ public class TestArrays {
         }
         test27(src, dst);
         for (int i = 2; i < 8; ++i) {
-            Asserts.assertEQ(src[i-1].hash(), dst[i].hash());
+            Asserts.assertEQ(dst[i], src[i - 1]);
         }
     }
 
@@ -817,7 +816,7 @@ public class TestArrays {
     public void test28_verifier() {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2 result = test28();
-        Asserts.assertEQ(result.hash(), v.hash());
+        Asserts.assertEQ(v, result);
     }
 
     // non escaping allocations
@@ -841,7 +840,7 @@ public class TestArrays {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         MyValue2 v = test29(src);
-        Asserts.assertEQ(src[0].hash(), v.hash());
+        Asserts.assertEQ(src[0], v);
     }
 
     // non escaping allocation with uncommon trap that needs
@@ -862,7 +861,7 @@ public class TestArrays {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         MyValue2 v = test30(src, !info.isWarmUp());
-        Asserts.assertEQ(src[0].hash(), v.hash());
+        Asserts.assertEQ(src[0], v);
     }
 
 
@@ -909,7 +908,7 @@ public class TestArrays {
         }
         MyValue1[] result = (MyValue1[])test32(va);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+            Asserts.assertEQ(va[i], result[i]);
         }
     }
 
@@ -927,7 +926,7 @@ public class TestArrays {
         }
         Object[] result = test33(va);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+            Asserts.assertEQ(va[i], result[i]);
             // Check that array has correct properties (null-ok)
             result[i] = null;
         }
@@ -1782,9 +1781,9 @@ public class TestArrays {
         } catch (ArrayStoreException e) {
             // expected
         }
-        Asserts.assertEQ(arr[0].hash(), v0.hash());
-        Asserts.assertEQ(arr[1].hash(), v1.hash());
-        Asserts.assertEQ(arr[2].hash(), v1.hash());
+        Asserts.assertEQ(v0, arr[0]);
+        Asserts.assertEQ(v1, arr[1]);
+        Asserts.assertEQ(v1, arr[2]);
     }
 
     public static void test74Callee(MyValue1[] va) { }
@@ -2809,10 +2808,11 @@ public class TestArrays {
 
     // Arrays.copyOf with constant source and destination arrays
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
-    @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    // TODO 8251971 Re-enable
+    // @IR(applyIf = {"UseArrayFlattening", "true"},
+    //     counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
+    // @IR(applyIf = {"UseArrayFlattening", "false"},
+    //     failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test110() {
         return Arrays.copyOf(val_src, 8, Object[].class);
     }
@@ -2879,10 +2879,11 @@ public class TestArrays {
     // after the arraycopy intrinsic is emitted (with incremental inlining).
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
-    @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    // TODO 8251971 Re-enable
+    // @IR(applyIf = {"UseArrayFlattening", "true"},
+    //     counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
+    // @IR(applyIf = {"UseArrayFlattening", "false"},
+    //     failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test114() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_obj_class());
     }
@@ -2896,8 +2897,9 @@ public class TestArrays {
     // TODO 8251971: Should be optimized but we are bailing out because
     // at parse time it looks as if src could be flat and dst could be not flat
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    // TODO 8251971 Re-enable
+    // @IR(applyIf = {"UseArrayFlattening", "false"},
+    //    failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
     public Object[] test115() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_val_class());
     }
@@ -3195,9 +3197,10 @@ public class TestArrays {
 
     // Verify that copyOf with known source and unknown destination class is optimized
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {JLONG_ARRAYCOPY, "= 1"},
-        failOn = CHECKCAST_ARRAYCOPY)
+    // TODO 8251971 Re-enable
+    //@IR(applyIf = {"UseArrayFlattening", "true"},
+    //    counts = {JLONG_ARRAYCOPY, "= 1"},
+    //    failOn = CHECKCAST_ARRAYCOPY)
     public Object[] test128(Class klass) {
         return Arrays.copyOf(val_src, 8, klass);
     }
@@ -3238,7 +3241,6 @@ public class TestArrays {
         }
     }
 
-    @Strict
     @NullRestricted
     static final MyValueEmpty empty = new MyValueEmpty();
 
@@ -3261,7 +3263,6 @@ public class TestArrays {
 
     @LooselyConsistentValue
     static value class EmptyContainer {
-        @Strict
         @NullRestricted
         MyValueEmpty empty = new MyValueEmpty();
     }
@@ -3350,8 +3351,8 @@ public class TestArrays {
         array1[1] = MyValue1.createWithFieldsInline(rI, rL);
         synchronized (array1) {
             Object res = test135(array1, array1[1]);
-            Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
-            Asserts.assertEquals(array1[0].hash(), array1[1].hash());
+            Asserts.assertEquals(array1[1], res);
+            Asserts.assertEquals(array1[0], array1[1]);
         }
         NonValueClass[] array2 = new NonValueClass[2];
         array2[1] = new NonValueClass(rI);
@@ -3378,8 +3379,8 @@ public class TestArrays {
         MyValue1[] array1 = (MyValue1[])ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
         array1[1] = MyValue1.createWithFieldsInline(rI, rL);
         Object res = test136(array1, array1[1]);
-        Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
-        Asserts.assertEquals(array1[0].hash(), array1[1].hash());
+        Asserts.assertEquals(array1[1], res);
+        Asserts.assertEquals(array1[0], array1[1]);
         NonValueClass[] array2 = new NonValueClass[2];
         array2[1] = new NonValueClass(rI);
         res = test136(array2, array2[1]);
@@ -3788,7 +3789,6 @@ public class TestArrays {
     static value class MyValue152 {
         double d = rD;
 
-        @Strict
         @NullRestricted
         MyValue152Inline val = new MyValue152Inline(); // Not flat
     }
@@ -3810,7 +3810,6 @@ public class TestArrays {
 
     @LooselyConsistentValue
     static value class MyValue153 {
-        @Strict
         @NullRestricted
         MyValue152Inline val = new MyValue152Inline(); // Not flat
     }
@@ -3857,5 +3856,161 @@ public class TestArrays {
     @Run(test = "test155")
     public void test155_verifier() {
         test155((Test151Value[])ValueClass.newNullRestrictedNonAtomicArray(Test151Value.class, 1, Test151Value.DEFAULT));
+    }
+
+    @LooselyConsistentValue
+    static abstract value class BadCastA {}
+
+    @LooselyConsistentValue
+    static value class BadCastV1 extends BadCastA {
+        byte a;
+        byte b;
+        byte c;
+        byte d;
+
+        BadCastV1(int i) {
+            a = (byte)i;
+            b = (byte)(i + 1);
+            c = (byte)(i + 2);
+            d = (byte)(i + 3);
+        }
+
+        BadCastV1() {
+            this(1);
+        }
+    }
+
+    @LooselyConsistentValue
+    static value class BadCastV2 extends BadCastA {
+        byte a;
+        byte b;
+        byte c;
+        byte d;
+
+        BadCastV2(int i) {
+            a = (byte)i;
+            b = (byte)(i + 1);
+            c = (byte)(i + 2);
+            d = (byte)(i + 3);
+        }
+
+        BadCastV2() {
+            this(1);
+        }
+    }
+
+    static BadCastV1 badCastv1 = new BadCastV1(11);
+    static BadCastV1 badCastv11 =  new BadCastV1(21);
+    static BadCastV2 badCastv2 =  new BadCastV2(31);
+    static BadCastV2 badCastv22 =  new BadCastV2(41);
+    static int badCastLen = Math.abs(rI) % 10;
+
+    @Test
+    static void testBadCastAbstractArray1(BadCastA[] src, BadCastA[] dst) {
+        System.arraycopy(src, 0, dst, 0, badCastLen);
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray2(boolean flag, BadCastA[] dst) {
+        BadCastA[] aArr;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+        }
+        // aArr is flat and null-free. This wrongly skips a check to set "can_be_flat" in GraphKit::get_layout_helper()
+        // because it relies on the old the assumption that a nullable array is never flat.
+        System.arraycopy(aArr, 0, dst, 0, badCastLen);
+        return aArr;
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray3(boolean flag,  BadCastA[] src) {
+        BadCastA[] aArr;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+        }
+
+        System.arraycopy(src, 0, aArr, 0, badCastLen);
+        return aArr;
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray4(boolean flag) {
+        BadCastA[] aArr;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+        }
+
+        BadCastA[] aArr2;
+        if (flag) {
+            aArr2 = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv11);
+        } else {
+            aArr2 = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv22);
+        }
+
+        System.arraycopy(aArr, 0, aArr2, 0, badCastLen);
+        return aArr2;
+    }
+
+    @Run(test = {"testBadCastAbstractArray1",
+                 "testBadCastAbstractArray2",
+                 "testBadCastAbstractArray3",
+                 "testBadCastAbstractArray4"})
+    @Warmup(0)
+    static void testBadCastAbstractArray_verifier() {
+        boolean flag = true;
+
+        for (int i = 0; i < 10_000; i++) {
+            BadCastA[] arrV1 = resetBadCastV1();
+            BadCastA[] arrV11 = resetBadCastV11();
+            BadCastA[] arrV2 = resetBadCastV2();
+            BadCastA[] arrV22 = resetBadCastV22();
+            testBadCastAbstractArray1(arrV1, arrV11);
+            testBadCastAbstractArray1(arrV2, arrV22);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(arrV1[j], arrV11[j]);
+                Asserts.assertEQ(arrV2[j], arrV22[j]);
+            }
+
+            BadCastA[] dst = flag ? resetBadCastV11() : resetBadCastV22();
+            BadCastA[] src = testBadCastAbstractArray2(flag, dst);
+            dst = flag ? arrV1 : arrV2;
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            src = flag ? resetBadCastV1() : resetBadCastV2();
+            dst = testBadCastAbstractArray3(flag, src);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            dst = testBadCastAbstractArray4(flag);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+            flag = !flag;
+        }
+    }
+
+    static BadCastA[] resetBadCastV1() {
+        return (BadCastA[])ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+    }
+
+    static BadCastA[] resetBadCastV11() {
+        return (BadCastA[])ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv11);
+    }
+
+    static BadCastA[] resetBadCastV2() {
+        return (BadCastA[])ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+    }
+
+    static BadCastA[] resetBadCastV22() {
+        return (BadCastA[])ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv22);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import java.util.Arrays;
 
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
-import jdk.internal.vm.annotation.Strict;
 
 @LooselyConsistentValue
 @ForceCompileClassInitializer
@@ -44,17 +43,13 @@ public value class MyValue1 extends MyAbstract {
     short z;
     Integer o;
     int[] oa;
-    @Strict
     @NullRestricted
     MyValue2 v1;
-    @Strict
     @NullRestricted
     MyValue2 v2;
-    @Strict
     @NullRestricted
     static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypes.rI, InlineTypes.rD);
     MyValue2 v4;
-    @Strict
     @NullRestricted
     MyValue2 v5;
     int c;
@@ -186,8 +181,18 @@ public value class MyValue1 extends MyAbstract {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof MyValue1 v)) {
+            return false;
+        }
+
+        return this.x == v.x && this.y == v.y && this.z == v.z && this.o == v.o && Arrays.equals(this.oa, v.oa) &&
+                this.v1 == v.v1 && this.v2 == v.v2 && this.v4 == v.v4 && this.v5 == v.v5 && this.c == v.c;
+    }
+
+    @Override
     public String toString() {
-        return "MyValue1[s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + o + ", oa=" + Arrays.toString(oa) +
-                ", v1=" + v1 + ", v2=" + v2 + ", v4=" + v4 + ", c=" + c + "]";
+        return "MyValue1[x=" + x + ", y=" + y + ", z=" + z + ", o=" + o + ", oa=" + Arrays.toString(oa) +
+                ", v1=" + v1 + ", v2=" + v2 + ", v4=" + v4 + ", v5=" + v5 + ", c=" + c + "]";
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/compressedKlass.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/markWord.inline.hpp"
 #include "oops/objLayout.inline.hpp"
@@ -100,9 +101,9 @@ Klass* oopDesc::klass() const {
     case ObjLayout::Compact:
       return mark().klass();
     case ObjLayout::Compressed:
-      return CompressedKlassPointers::decode_not_null(_metadata._compressed_klass);
+      return CompressedKlassPointers::decode_not_null(_compressed_klass);
     default:
-      return _metadata._klass;
+      ShouldNotReachHere();
   }
 }
 
@@ -111,9 +112,9 @@ Klass* oopDesc::klass_or_null() const {
     case ObjLayout::Compact:
       return mark().klass_or_null();
     case ObjLayout::Compressed:
-      return CompressedKlassPointers::decode(_metadata._compressed_klass);
+      return CompressedKlassPointers::decode(_compressed_klass);
     default:
-      return _metadata._klass;
+      ShouldNotReachHere();
   }
 }
 
@@ -122,11 +123,11 @@ Klass* oopDesc::klass_or_null_acquire() const {
     case ObjLayout::Compact:
       return mark_acquire().klass();
     case ObjLayout::Compressed: {
-      narrowKlass narrow_klass = AtomicAccess::load_acquire(&_metadata._compressed_klass);
+      narrowKlass narrow_klass = AtomicAccess::load_acquire(&_compressed_klass);
       return CompressedKlassPointers::decode(narrow_klass);
     }
     default:
-      return AtomicAccess::load_acquire(&_metadata._klass);
+      ShouldNotReachHere();
   }
 }
 
@@ -135,9 +136,9 @@ Klass* oopDesc::klass_without_asserts() const {
     case ObjLayout::Compact:
       return mark().klass_without_asserts();
     case ObjLayout::Compressed:
-      return CompressedKlassPointers::decode_without_asserts(_metadata._compressed_klass);
+      return CompressedKlassPointers::decode_without_asserts(_compressed_klass);
     default:
-      return _metadata._klass;
+      ShouldNotReachHere();
   }
 }
 
@@ -146,7 +147,7 @@ narrowKlass oopDesc::narrow_klass() const {
     case ObjLayout::Compact:
       return mark().narrow_klass();
     case ObjLayout::Compressed:
-      return _metadata._compressed_klass;
+      return _compressed_klass;
     default:
       ShouldNotReachHere();
   }
@@ -155,23 +156,14 @@ narrowKlass oopDesc::narrow_klass() const {
 void oopDesc::set_klass(Klass* k) {
   assert(Universe::is_bootstrapping() || (k != nullptr && k->is_klass()), "incorrect Klass");
   assert(!UseCompactObjectHeaders, "don't set Klass* with compact headers");
-  if (UseCompressedClassPointers) {
-    _metadata._compressed_klass = CompressedKlassPointers::encode_not_null(k);
-  } else {
-    _metadata._klass = k;
-  }
+  _compressed_klass = CompressedKlassPointers::encode_not_null(k);
 }
 
 void oopDesc::release_set_klass(HeapWord* mem, Klass* k) {
   assert(Universe::is_bootstrapping() || (k != nullptr && k->is_klass()), "incorrect Klass");
   assert(!UseCompactObjectHeaders, "don't set Klass* with compact headers");
   char* raw_mem = ((char*)mem + klass_offset_in_bytes());
-  if (UseCompressedClassPointers) {
-    AtomicAccess::release_store((narrowKlass*)raw_mem,
-                          CompressedKlassPointers::encode_not_null(k));
-  } else {
-    AtomicAccess::release_store((Klass**)raw_mem, k);
-  }
+  AtomicAccess::release_store((narrowKlass*)raw_mem, CompressedKlassPointers::encode_not_null(k));
 }
 
 void oopDesc::set_klass_gap(HeapWord* mem, int v) {
@@ -236,29 +228,27 @@ size_t oopDesc::size_given_klass(Klass* klass)  {
   return s;
 }
 
-bool oopDesc::is_instance()    const { return klass()->is_instance_klass();             }
-bool oopDesc::is_instanceRef() const { return klass()->is_reference_instance_klass();   }
-bool oopDesc::is_stackChunk()  const { return klass()->is_stack_chunk_instance_klass(); }
-bool oopDesc::is_array()       const { return klass()->is_array_klass();                }
-bool oopDesc::is_objArray()    const { return klass()->is_objArray_klass();             }
-bool oopDesc::is_refArray()    const { return klass()->is_refArray_klass();             }
-bool oopDesc::is_typeArray()   const { return klass()->is_typeArray_klass();            }
-bool oopDesc::is_refined_objArray() const { return klass()->is_refined_objArray_klass(); }
+bool oopDesc::is_instance()         const { return klass()->is_instance_klass();             }
+bool oopDesc::is_inline()           const { return klass()->is_inline_klass();               }
+bool oopDesc::is_instanceRef()      const { return klass()->is_reference_instance_klass();   }
+bool oopDesc::is_stackChunk()       const { return klass()->is_stack_chunk_instance_klass(); }
+bool oopDesc::is_array()            const { return klass()->is_array_klass();                }
+bool oopDesc::is_objArray()         const { return klass()->is_objArray_klass();             }
+bool oopDesc::is_refArray()         const { return klass()->is_refArray_klass();             }
+bool oopDesc::is_typeArray()        const { return klass()->is_typeArray_klass();            }
+bool oopDesc::is_refined_objArray() const { return klass()->is_refined_objArray_klass();     }
+bool oopDesc::is_flatArray()        const { return klass()->is_flatArray_klass();            }
+
+bool oopDesc::is_array_with_oops() const {
+  if (!is_objArray()) {
+    return false;
+  }
+
+  assert(is_refined_objArray(), "Must be");
+  return is_refArray() || FlatArrayKlass::cast(klass())->contains_oops();
+}
 
 bool oopDesc::is_inline_type() const { return mark().is_inline_type(); }
-#ifdef _LP64
-bool oopDesc::is_flatArray() const {
-  markWord mrk = mark();
-  return (mrk.is_unlocked()) ? mrk.is_flat_array() : klass()->is_flatArray_klass();
-}
-bool oopDesc::is_null_free_array() const {
-  markWord mrk = mark();
-  return (mrk.is_unlocked()) ? mrk.is_null_free_array() : klass()->is_null_free_array_klass();
-}
-#else
-bool oopDesc::is_flatArray()       const { return klass()->is_flatArray_klass(); }
-bool oopDesc::is_null_free_array() const { return klass()->is_null_free_array_klass(); }
-#endif
 
 template<typename T>
 T*       oopDesc::field_addr(int offset)     const { return reinterpret_cast<T*>(cast_from_oop<intptr_t>(as_oop()) + offset); }

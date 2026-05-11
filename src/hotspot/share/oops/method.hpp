@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,7 +133,7 @@ class Method : public Metadata {
   void set_constMethod(ConstMethod* xconst)    { _constMethod = xconst; }
 
 
-  static address make_adapters(const methodHandle& mh, TRAPS);
+  static void make_adapters(const methodHandle& mh, TRAPS);
   address from_compiled_entry() const;
   address from_compiled_inline_ro_entry() const;
   address from_compiled_inline_entry() const;
@@ -175,11 +175,11 @@ class Method : public Metadata {
   // C string, for the purpose of providing more useful
   // fatal error handling. The string is allocated in resource
   // area if a buffer is not provided by the caller.
-  char* name_and_sig_as_C_string() const;
+  char* name_and_sig_as_C_string(bool use_double_colon = false) const;
   char* name_and_sig_as_C_string(char* buf, int size) const;
 
   // Static routine in the situations we don't have a Method*
-  static char* name_and_sig_as_C_string(Klass* klass, Symbol* method_name, Symbol* signature);
+  static char* name_and_sig_as_C_string(Klass* klass, Symbol* method_name, Symbol* signature, bool use_double_colon = false);
   static char* name_and_sig_as_C_string(Klass* klass, Symbol* method_name, Symbol* signature, char* buf, int size);
 
   // Get return type + klass name + "." + method name + ( parameters types )
@@ -401,6 +401,7 @@ public:
   address get_i2c_entry();
   address get_c2i_entry();
   address get_c2i_inline_entry();
+  address get_c2i_inline_ro_entry();
   address get_c2i_unverified_entry();
   address get_c2i_unverified_inline_entry();
   address get_c2i_no_clinit_check_entry();
@@ -479,9 +480,9 @@ public:
   bool    contains(address bcp) const { return constMethod()->contains(bcp); }
 
   // prints byte codes
-  void print_codes(int flags = 0) const { print_codes_on(tty, flags); }
-  void print_codes_on(outputStream* st, int flags = 0) const;
-  void print_codes_on(int from, int to, outputStream* st, int flags = 0) const;
+  void print_codes(int flags = 0, bool buffered = true) const { print_codes_on(tty, flags, buffered); }
+  void print_codes_on(outputStream* st, int flags = 0, bool buffered = true) const;
+  void print_codes_on(int from, int to, outputStream* st, int flags = 0, bool buffered = true) const;
 
   // method parameters
   bool has_method_parameters() const
@@ -781,6 +782,7 @@ public:
   void set_has_reserved_stack_access() { constMethod()->set_reserved_stack_access(); }
 
   bool is_scalarized_arg(int idx) const;
+  bool is_scalarized_buffer_arg(int idx) const;
 
   bool c1_needs_stack_repair() const { return constMethod()->c1_needs_stack_repair(); }
   void set_c1_needs_stack_repair() { constMethod()->set_c1_needs_stack_repair(); }
@@ -884,7 +886,8 @@ public:
   void print_on(outputStream* st) const;
 #endif
   void print_value_on(outputStream* st) const;
-  void print_linkage_flags(outputStream* st) PRODUCT_RETURN;
+  void print_access_flags(outputStream* st) const;
+  void print_linkage_flags(outputStream* st) const PRODUCT_RETURN;
 
   const char* internal_name() const { return "{method}"; }
 

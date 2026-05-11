@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,14 +96,10 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
   }
   if (!UseCompactObjectHeaders) {
     // COH: Markword already contains class pointer. Nothing else to do.
-    // Otherwise: Fetch klass pointer following the markword
-    if (UseCompressedClassPointers) { // Take care not to kill klass
-      movptr(t1, klass);
-      encode_klass_not_null(t1, rscratch1);
-      movl(Address(obj, oopDesc::klass_offset_in_bytes()), t1);
-    } else {
-      movptr(Address(obj, oopDesc::klass_offset_in_bytes()), klass);
-    }
+    // Otherwise: Store encoded klass pointer following the markword
+    movptr(t1, klass);
+    encode_klass_not_null(t1, rscratch1); // Take care not to kill klass
+    movl(Address(obj, oopDesc::klass_offset_in_bytes()), t1);
   }
 
   if (len->is_valid()) {
@@ -115,7 +111,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
       xorl(t1, t1);
       movl(Address(obj, base_offset), t1);
     }
-  } else if (UseCompressedClassPointers && !UseCompactObjectHeaders) {
+  } else if (!UseCompactObjectHeaders) {
     xorptr(t1, t1);
     store_klass_gap(obj, t1);
   }
@@ -235,6 +231,12 @@ void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, 
 
 void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool reset_orig_pc, bool needs_stack_repair) {
   push(rbp);
+#ifdef ASSERT
+  if (sp_inc > 0) {
+    movl(Address(rsp, 0), badRegWordVal);
+    movl(Address(rsp, VMRegImpl::stack_slot_size), badRegWordVal);
+  }
+#endif
   if (PreserveFramePointer) {
     mov(rbp, rsp);
   }
@@ -243,7 +245,7 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
   if (needs_stack_repair) {
     // Save stack increment (also account for fixed framesize and rbp)
     assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
-    int real_frame_size = sp_inc + frame_size_in_bytes + wordSize;
+    int real_frame_size = sp_inc + frame_size_in_bytes;
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
   }
   if (reset_orig_pc) {
@@ -252,7 +254,10 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
   }
 }
 
-void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_inline_entry_label) {
+void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes,
+                                    int sp_offset_for_orig_pc,
+                                    bool needs_stack_repair, bool has_scalarized_args,
+                                    Label* verified_inline_entry_label) {
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter(). This matches the
   // ordering of C2's stack overflow check / rsp decrement and allows
@@ -272,6 +277,7 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
     bind(*verified_inline_entry_label);
   }
 }
+
 
 void C1_MacroAssembler::verified_entry(bool breakAtEntry) {
   if (breakAtEntry) int3();
@@ -304,7 +310,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // C1 code is not hot enough to micro optimize the nmethod entry barrier with an out-of-line stub
   bs->nmethod_entry_barrier(this, nullptr /* slow_path */, nullptr /* continuation */);
 
-  // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   movptr(rbx, (intptr_t)(ces->method()));
   if (is_inline_ro_entry) {
     call(RuntimeAddress(Runtime1::entry_for(StubId::c1_buffer_inline_args_no_receiver_id)));

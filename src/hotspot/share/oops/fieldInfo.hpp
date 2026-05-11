@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 static constexpr u4 flag_mask(int pos) {
   return (u4)1 << pos;
 }
+
 
 // Helper class for access to the underlying Array<u1> used to
 // store the compressed stream of FieldInfo
@@ -325,14 +326,14 @@ class FieldStatus {
   enum FieldStatusBitPosition {
     _fs_access_watched,       // field access is watched by JVMTI
     _fs_modification_watched, // field modification is watched by JVMTI
-    _fs_strict_static_unset,  // JVM_ACC_STRICT static field has not yet been set
+    _fs_strict_static_unset,  // JVM_ACC_STRICT_INIT static field has not yet been set
     _fs_strict_static_unread, // SS field has not yet been read
     _initialized_final_update // (static) final field updated outside (class) initializer
   };
 
   // boilerplate:
   u1 _flags;
-  static constexpr u1 flag_mask(FieldStatusBitPosition pos) { return (u1)1 << (int)pos; }
+  static constexpr u1 flag_mask(FieldStatusBitPosition pos) { return checked_cast<u1>(1 << pos); }
   bool test_flag(FieldStatusBitPosition pos) { return (_flags & flag_mask(pos)) != 0; }
   // this performs an atomic update on a live status byte!
   void update_flag(FieldStatusBitPosition pos, bool z);

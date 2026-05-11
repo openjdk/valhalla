@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -616,7 +616,7 @@ public class PackagingPipelineTest {
                 "1.0",
                 "Acme",
                 "copyright",
-                Optional.empty(),
+                List.of(),
                 List.of(),
                 appImageLayout,
                 runtimeBuilder,
@@ -633,7 +633,12 @@ public class PackagingPipelineTest {
         Package create() {
             return new Package.Stub(
                     app,
-                    new PackageType() {},
+                    new PackageType() {
+                        @Override
+                        public String label() {
+                            throw new UnsupportedOperationException();
+                        }
+                    },
                     "the-package",
                     "My package",
                     "1.0",
@@ -663,7 +668,7 @@ public class PackagingPipelineTest {
     }
 
     private static BuildEnv dummyBuildEnv() {
-        return BuildEnv.create(Path.of("foo"), Optional.empty(), false, PackagingPipeline.class, RuntimeLayout.DEFAULT);
+        return BuildEnv.create(Path.of("foo"), Optional.empty(), PackagingPipeline.class, RuntimeLayout.DEFAULT);
     }
 
     private static PackagingPipeline.Builder buildPipeline() {

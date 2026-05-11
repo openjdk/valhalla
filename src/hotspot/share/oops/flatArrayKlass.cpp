@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/access.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/flatArrayKlass.hpp"
@@ -46,6 +47,8 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
@@ -55,14 +58,14 @@
 
 // Allocation...
 
-FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk) :
-                ObjArrayKlass(1, element_klass, name, Kind, props, markWord::flat_array_prototype(lk)) {
+FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperties props, LayoutKind lk)
+    : ObjArrayKlass(1, element_klass, name, Kind, props),
+      _layout_kind(lk) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
+  assert(lk != LayoutKind::NULLABLE_NON_ATOMIC_FLAT, "Layout not supported by arrays yet (needs frozen arrays)");
   assert(LayoutKindHelper::is_flat(lk), "Must be a flat layout");
 
-  set_element_klass(InlineKlass::cast(element_klass));
-  set_class_loader_data(element_klass->class_loader_data());
-  set_layout_kind(lk);
+  assert(_class_loader_data == element_klass->class_loader_data(), "Sanity check");
 
   set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass), lk));
   assert(is_array_klass(), "sanity");
@@ -83,26 +86,34 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
       assert(!layout_helper_is_null_free(layout_helper()), "Must be");
       assert(!prototype_header().is_null_free_array(), "Must be");
     break;
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      ShouldNotReachHere();
     default:
       ShouldNotReachHere();
     break;
   }
 #endif // ASSERT
 
-#ifndef PRODUCT
   if (PrintFlatArrayLayout) {
     print();
   }
-#endif
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
-  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Really ?!");
+  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Too-early construction of a flat array klass");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
+  assert(props.is_null_restricted() || !props.is_non_atomic(),
+         "Nullable non-atomic arrays are unsupported");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
-  assert(element_klass->must_be_atomic() || (!AlwaysAtomicAccesses), "Atomic by-default");
+  // If the array is non-atomic, then the element should be one of the following:
+  // a) naturally atomic, so atomicity relaxation has no impact; or
+  // b) explicitly marked as allowing non-atomicity.
+  assert(!props.is_non_atomic() ||
+         (element_klass->is_naturally_atomic(props.is_null_restricted()) ||
+         !element_klass->must_be_atomic()),
+         "Cannot conform to atomicity requirements");
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
@@ -112,7 +123,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties pr
     super_klass = element_klass->array_klass(CHECK_NULL);
   }
 
-  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
+  Symbol* name = create_element_klass_array_name(THREAD, element_klass);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(FlatArrayKlass::header_size());
   FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name, props, lk);
@@ -135,12 +146,12 @@ void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 // Oops allocation...
-objArrayOop FlatArrayKlass::allocate_instance(int length, ArrayProperties props, TRAPS) {
+flatArrayOop FlatArrayKlass::allocate_instance(int length, TRAPS) {
   assert(UseArrayFlattening, "Must be enabled");
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
   int size = flatArrayOopDesc::object_size(layout_helper(), length);
-  flatArrayOop array = (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);
-  return array;
+  oop array = Universe::heap()->array_allocate(this, size, length, true, CHECK_NULL);
+  return oop_cast<flatArrayOop>(array);
 }
 
 oop FlatArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
@@ -173,7 +184,7 @@ size_t FlatArrayKlass::oop_size(oop obj) const {
   // because size_given_klass() calls oop_size() on objects that might be
   // concurrently forwarded, which would overwrite the Klass*.
   // Also, why we need to pass this layout_helper() to flatArrayOop::object_size.
-  assert(UseCompactObjectHeaders || obj->is_flatArray(),"must be an flat array");
+  assert(UseCompactObjectHeaders || obj->is_flatArray(),"must be a flat array");
   flatArrayOop array = flatArrayOop(obj);
   return array->object_size(layout_helper());
 }
@@ -209,10 +220,10 @@ static bool needs_backwards_copy(arrayOop s, int src_pos,
 void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
                                 arrayOop d, int dst_pos, int length, TRAPS) {
 
-  assert(s->is_objArray() || s->is_flatArray(), "must be obj or flat array");
+  assert(s->is_refined_objArray(), "must be ref or flat array");
 
   // Check destination
-  if ((!d->is_flatArray()) && (!d->is_objArray())) {
+  if (!d->is_refined_objArray()) {
     THROW(vmSymbols::java_lang_ArrayStoreException());
   }
 
@@ -244,7 +255,6 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
     }
 
     flatArrayOop sa = flatArrayOop(s);
-    InlineKlass* s_elem_vklass = element_klass();
 
     // flatArray-to-flatArray
     if (dk->is_flatArray_klass()) {
@@ -256,76 +266,83 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
       FlatArrayKlass* fdk = FlatArrayKlass::cast(dk);
       InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       flatArrayOop da = flatArrayOop(d);
-      int src_incr = fsk->element_byte_size();
-      int dst_incr = fdk->element_byte_size();
+
+      // We have already checked that src_pos and dst_pos are valid indices.
+      FlatArrayPayload src_payload(sa, src_pos, fsk);
+      FlatArrayPayload dst_payload(da, dst_pos, fdk);
 
       if (fsk->layout_kind() == fdk->layout_kind()) {
-        assert(src_incr == dst_incr, "Must be");
+        // Because source and destination have the same layout, we do not have
+        // to worry about null checks and atomicity problems and can call the
+        // Access API directly.
+        int index_delta;
         if (needs_backwards_copy(sa, src_pos, da, dst_pos, length)) {
-          address dst = (address) da->value_at_addr(dst_pos + length - 1, fdk->layout_helper());
-          address src = (address) sa->value_at_addr(src_pos + length - 1, fsk->layout_helper());
-          for (int i = 0; i < length; i++) {
-            // because source and destination have the same layout, bypassing the InlineKlass copy methods
-            // and call AccessAPI directly
-            HeapAccess<>::value_copy(src, dst, vk, fsk->layout_kind());
-            dst -= dst_incr;
-            src -= src_incr;
-          }
+          index_delta = -1;
+          src_payload.advance_index(length - 1);
+          dst_payload.advance_index(length - 1);
         } else {
-          // source and destination share same layout, direct copy from array to array is possible
-          address dst = (address) da->value_at_addr(dst_pos, fdk->layout_helper());
-          address src = (address) sa->value_at_addr(src_pos, fsk->layout_helper());
-          for (int i = 0; i < length; i++) {
-            // because source and destination have the same layout, bypassing the InlineKlass copy methods
-            // and call AccessAPI directly
-            HeapAccess<>::value_copy(src, dst, vk, fsk->layout_kind());
-            dst += dst_incr;
-            src += src_incr;
-          }
+          index_delta = 1;
+        }
+
+        for (int i = 0; i < length; i++) {
+          HeapAccess<>::value_copy(src_payload, dst_payload);
+          src_payload.advance_index(index_delta);
+          dst_payload.advance_index(index_delta);
         }
       } else {
-        flatArrayHandle hd(THREAD, da);
-        flatArrayHandle hs(THREAD, sa);
-        // source and destination layouts mismatch, simpler solution is to copy through an intermediate buffer (heap instance)
-        bool need_null_check = LayoutKindHelper::is_nullable_flat(fsk->layout_kind()) && !LayoutKindHelper::is_nullable_flat(fdk->layout_kind());
-        oop buffer = vk->allocate_instance(CHECK);
-        address dst = (address) hd->value_at_addr(dst_pos, fdk->layout_helper());
-        address src = (address) hs->value_at_addr(src_pos, fsk->layout_helper());
+        // We need to allocate a buffer object to facilitate the copy between
+        // the different layouts. Keep the payload in a handle so we can reload
+        // the oops.
+        FlatArrayPayload::Handle src_payload_handle = src_payload.make_handle(THREAD);
+        FlatArrayPayload::Handle dst_payload_handle = dst_payload.make_handle(THREAD);
+
+        inlineOop buffer = vk->allocate_instance(CHECK);
+        BufferedValuePayload buf_payload(buffer);
+
+        // Reload the oops from the payload handles.
+        src_payload = src_payload_handle();
+        dst_payload = dst_payload_handle();
+
+        const bool dst_is_null_restricted = !LayoutKindHelper::is_nullable_flat(dst_payload.layout_kind());
+
+        // fsk->layout_kind() != fdk->layout_kind() implies that s != d, which
+        // means that the copy is disjoint and we do not need to worry about
+        // needs_backwards_copy.
         for (int i = 0; i < length; i++) {
-          if (need_null_check) {
-            if (vk->is_payload_marked_as_null(src)) {
+          // Copy via buffer
+          if (src_payload.is_payload_null() || !src_payload.copy_to(buf_payload)) {
+            // The source payload is null. Nothing to copy.
+            if (dst_is_null_restricted) {
+              // The destination does not support null.
               THROW(vmSymbols::java_lang_NullPointerException());
             }
+          } else {
+            dst_payload.copy_from(buf_payload);
           }
-          vk->copy_payload_to_addr(src, vk->payload_addr(buffer), fsk->layout_kind(), true);
-          if (vk->has_nullable_atomic_layout()) {
-            // Setting null marker to not zero for non-nullable source layouts
-            vk->mark_payload_as_non_null(vk->payload_addr(buffer));
-          }
-          vk->copy_payload_to_addr(vk->payload_addr(buffer), dst, fdk->layout_kind(), true);
-          dst += dst_incr;
-          src += src_incr;
+
+          // Advance to next element
+          src_payload.next_element();
+          dst_payload.next_element();
         }
       }
-    } else { // flatArray-to-objArray
-      assert(dk->is_refArray_klass(), "Expected objArray here");
+    } else {
+      // flatArray-to-refArray
+      assert(dk->is_refArray_klass(), "Expected refArray here");
+
       // Need to allocate each new src elem payload -> dst oop
-      objArrayHandle dh(THREAD, (objArrayOop)d);
+      refArrayHandle dh(THREAD, (refArrayOop)d);
       flatArrayHandle sh(THREAD, sa);
-      InlineKlass* vk = InlineKlass::cast(s_elem_klass);
       for (int i = 0; i < length; i++) {
         oop o = sh->obj_at(src_pos + i, CHECK);
         dh->obj_at_put(dst_pos + i, o);
       }
     }
   } else {
-    assert(s->is_objArray(), "Expected objArray");
-    objArrayOop sa = objArrayOop(s);
-    assert(d->is_flatArray(), "Expected flatArray");  // objArray-to-flatArray
-    InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
+    // refArray-to-flatArray
+    assert(s->is_refArray(), "Expected refArray");
+    assert(d->is_flatArray(), "Expected flatArray");
+    refArrayOop sa = refArrayOop(s);
     flatArrayOop da = flatArrayOop(d);
-    FlatArrayKlass* fdk = FlatArrayKlass::cast(da->klass());
-    InlineKlass* vk = InlineKlass::cast(d_elem_klass);
 
     for (int i = 0; i < length; i++) {
       da->obj_at_put( dst_pos + i, sa->obj_at(src_pos + i), CHECK);
@@ -333,43 +350,12 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
   }
 }
 
-ModuleEntry* FlatArrayKlass::module() const {
-  assert(element_klass() != nullptr, "FlatArrayKlass returned unexpected nullptr bottom_klass");
-  // The array is defined in the module of its bottom class
-  return element_klass()->module();
-}
-
-PackageEntry* FlatArrayKlass::package() const {
-  assert(element_klass() != nullptr, "FlatArrayKlass returned unexpected nullptr bottom_klass");
-  return element_klass()->package();
-}
-
 bool FlatArrayKlass::can_be_primary_super_slow() const {
     return true;
 }
 
-GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_slots,
-                                                                Array<InstanceKlass*>* transitive_interfaces) {
-  assert(transitive_interfaces == nullptr, "sanity");
-  // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
-  Array<Klass*>* elem_supers = element_klass()->secondary_supers();
-  int num_elem_supers = elem_supers == nullptr ? 0 : elem_supers->length();
-  int num_secondaries = num_extra_slots + 2 + num_elem_supers;
-  GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+2);
-
-  secondaries->push(vmClasses::Cloneable_klass());
-  secondaries->push(vmClasses::Serializable_klass());
-  for (int i = 0; i < num_elem_supers; i++) {
-    Klass* elem_super = (Klass*) elem_supers->at(i);
-    Klass* array_super = elem_super->array_klass_or_null();
-    assert(array_super != nullptr, "must already have been created");
-    secondaries->push(array_super);
-  }
-  return secondaries;
-}
-
 u2 FlatArrayKlass::compute_modifier_flags() const {
-  // The modifier for an flatArray is the same as its element
+  // The modifier for a flatArray is the same as its element
   // With the addition of ACC_IDENTITY
   u2 element_flags = element_klass()->compute_modifier_flags();
 
@@ -380,7 +366,6 @@ u2 FlatArrayKlass::compute_modifier_flags() const {
 }
 
 void FlatArrayKlass::print_on(outputStream* st) const {
-#ifndef PRODUCT
   assert(!is_refArray_klass(), "Unimplemented");
   ResourceMark rm;
 
@@ -394,14 +379,13 @@ void FlatArrayKlass::print_on(outputStream* st) const {
   st->print(" - layout kind: %s", LayoutKindHelper::layout_kind_as_string(layout_kind()));
   st->cr();
 
-  st->print(" - array properties: %s", ArrayKlass::array_properties_as_string(properties()));
+  st->print(" - array properties: %s", properties().as_string());
   st->cr();
 
   int elem_size = element_byte_size();
   st->print(" - element size %i ", elem_size);
   st->print("aligned layout size %i", 1 << layout_helper_log2_element_size(layout_helper()));
   st->cr();
-#endif //PRODUCT
 }
 
 void FlatArrayKlass::print_value_on(outputStream* st) const {
@@ -464,7 +448,7 @@ class VerifyElementClosure: public BasicOopIterateClosure {
 };
 
 void FlatArrayKlass::oop_verify_on(oop obj, outputStream* st) {
-  ArrayKlass::oop_verify_on(obj, st);
+  ObjArrayKlass::oop_verify_on(obj, st);
   guarantee(obj->is_flatArray(), "must be flatArray");
 
   if (contains_oops()) {

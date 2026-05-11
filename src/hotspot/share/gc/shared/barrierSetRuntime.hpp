@@ -27,18 +27,13 @@
 
 #include "memory/allocation.hpp"
 #include "oops/inlineKlass.hpp"
-#include "oops/oopsHierarchy.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "utilities/macros.hpp"
-
-class oopDesc;
-class JavaThread;
 
 class BarrierSetRuntime: public AllStatic {
 public:
   // Template interpreter...
-  static void value_copy(void* src, void* dst, InlineLayoutInfo* layout_info);
-  static void value_copy_is_dest_uninitialized(void* src, void* dst, InlineLayoutInfo* layout_info);
+  static void value_copy(address src, address dst, InlineLayoutInfo* layout_info);
+  static void value_copy_is_dest_uninitialized(address src, address dst, InlineLayoutInfo* layout_info);
 };
 
 #endif // SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP

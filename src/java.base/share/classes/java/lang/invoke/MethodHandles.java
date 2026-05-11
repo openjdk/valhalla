@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2663,8 +2663,6 @@ ProcessBuilder pb = (ProcessBuilder)
   MH_newProcessBuilder.invoke("x", "y", "z");
 assertEquals("[x, y, z]", pb.command().toString());
          * }
-         *
-         *
          * @param refc the class or interface from which the method is accessed
          * @param type the type of the method, with the receiver argument omitted, and a void return type
          * @return the desired method handle
@@ -2677,9 +2675,6 @@ assertEquals("[x, y, z]", pb.command().toString());
         public MethodHandle findConstructor(Class<?> refc, MethodType type) throws NoSuchMethodException, IllegalAccessException {
             if (refc.isArray()) {
                 throw new NoSuchMethodException("no constructor for array class: " + refc.getName());
-            }
-            if (type.returnType() != void.class) {
-                throw new NoSuchMethodException("Constructors must have void return type: " + refc.getName());
             }
             String name = ConstantDescs.INIT_NAME;
             MemberName ctor = resolveOrFail(REF_newInvokeSpecial, refc, name, type);
@@ -3853,6 +3848,7 @@ return mh1;
                                                    Lookup boundCaller) throws IllegalAccessException {
             checkMethod(refKind, refc, method);
             assert(!method.isMethodHandleInvoke());
+
             if (refKind == REF_invokeSpecial &&
                 refc != lookupClass() &&
                 !refc.isInterface() && !lookupClass().isInterface() &&
@@ -4830,7 +4826,9 @@ assert((int)twice.invokeExact(21) == 42);
      * Before the method handle is returned, the passed-in value is converted to the requested type.
      * If the requested type is primitive, widening primitive conversions are attempted,
      * else reference conversions are attempted.
-     * <p>The returned method handle is equivalent to {@code identity(type).bindTo(value)}.
+     * <p>The returned method handle is equivalent to {@code identity(type).bindTo(value)},
+     * for reference types.  For all types it is equivalent to
+     * {@code insertArguments(identity(type), 0, value)}.
      * @param type the return type of the desired method handle
      * @param value the value to return
      * @return a method handle of the given return type and no arguments, which always returns the given value

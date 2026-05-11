@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "cds/aotClassInitializer.hpp"
+#include "cds/aotLinkedClassBulkLoader.hpp"
 #include "cds/aotMetaspace.hpp"
 #include "cds/archiveUtils.hpp"
 #include "cds/cdsConfig.hpp"
@@ -70,6 +71,7 @@
 #include "oops/instanceOop.hpp"
 #include "oops/instanceStackChunkKlass.hpp"
 #include "oops/klass.inline.hpp"
+#include "oops/layoutKind.hpp"
 #include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
@@ -100,6 +102,7 @@
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/nativeStackPrinter.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/stringUtils.hpp"
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
@@ -157,7 +160,48 @@ void InlineLayoutInfo::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_klass);
 }
 
+void InlineLayoutInfo::print() const {
+  print_on(tty);
+}
+
+void InlineLayoutInfo::print_on(outputStream* st) const {
+  st->print_cr("_klass: " PTR_FORMAT, p2i(_klass));
+  if (_klass != nullptr) {
+    StreamIndentor si(st);
+    _klass->print_on(st);
+    st->cr();
+  }
+
+  st->print("_layout: ");
+  LayoutKindHelper::print_on(_kind, st);
+  st->cr();
+
+  st->print("_null_marker_offset: %d", _null_marker_offset);
+}
+
+// A value class is considered naturally atomic if its layout,
+// once all fields flattening have been applied, contains a single primitive
+// or oop field. Because primitive types and oops are already handled
+// atomically by the JVM, it means that there's no need to take
+// special precautions when reading or writing this value to guarantee
+// cross-fields invariants. Nullability has to be taken into consideration,
+// as the null-marker has to be considered as a pseudo-field which must
+// be kept consistent with the payload. The only kind of value class
+// that can be considered naturally atomic when nullable is the empty
+// value classes because the dummy field is re-used as a null-marker.
+bool InstanceKlass::is_naturally_atomic(bool null_free) const {
+  assert(!is_identity_class(), "Doesn't have sense for an identity class");
+  if (null_free) {
+    // No extra null-marker, just check the layout of the fields
+    return _misc_flags.is_naturally_atomic();
+  } else {
+    // Requires a null-marker, can't have any other fields
+    return InlineKlass::cast(this)->is_empty_inline_type();
+  }
+}
+
 bool InstanceKlass::_finalization_enabled = true;
+static int call_class_initializer_counter = 0;   // for debugging
 
 static inline bool is_class_loader(const Symbol* class_name,
                                    const ClassFileParser& parser) {
@@ -509,10 +553,8 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
     ik = new (loader_data, size, THREAD) InstanceKlass(parser);
   }
 
-  if (ik != nullptr && UseCompressedClassPointers) {
-    assert(CompressedKlassPointers::is_encodable(ik),
-           "Klass " PTR_FORMAT "needs a narrow Klass ID, but is not encodable", p2i(ik));
-  }
+  assert(ik == nullptr || CompressedKlassPointers::is_encodable(ik),
+         "Klass " PTR_FORMAT "needs a narrow Klass ID, but is not encodable", p2i(ik));
 
   // Check for pending exception before adding to the loader data and incrementing
   // class count.  Can get OOM here.
@@ -595,6 +637,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   _init_thread(nullptr),
   _inline_layout_info_array(nullptr),
   _loadable_descriptors(nullptr),
+  _acmp_maps_array(nullptr),
   _adr_inline_klass_members(nullptr)
 {
   set_vtable_length(parser.vtable_size());
@@ -602,8 +645,8 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, mark
   if (parser.is_hidden()) set_is_hidden();
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
-  if (parser.has_inline_fields()) {
-    set_has_inline_type_fields();
+  if (parser.has_inlined_fields()) {
+    set_has_inlined_fields();
   }
 
   assert(nullptr == _methods, "underlying memory not zeroed?");
@@ -770,6 +813,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   if (constants() != nullptr) {
     assert (!constants()->on_stack(), "shouldn't be called if anything is onstack");
     if (!constants()->in_aot_cache()) {
+      HeapShared::remove_scratch_resolved_references(constants());
       MetadataFactory::free_metadata(loader_data, constants());
     }
     // Delete any cached resolution errors for the constant pool
@@ -805,6 +849,11 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_array<jushort>(loader_data, loadable_descriptors());
   }
   set_loadable_descriptors(nullptr);
+
+  if (acmp_maps_array() != nullptr) {
+    MetadataFactory::free_array<int>(loader_data, acmp_maps_array());
+  }
+  set_acmp_maps_array(nullptr);
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != nullptr && !annotations()->in_aot_cache()) {
@@ -979,7 +1028,9 @@ void InstanceKlass::assert_no_clinit_will_run_for_aot_initialized_class() const 
 #endif
 
 #if INCLUDE_CDS
-void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
+// early_init -- we are moving this class into the fully_initialized state before the
+// JVM is able to execute any bytecodes. See AOTLinkedClassBulkLoader::is_initializing_classes_early().
+void InstanceKlass::initialize_with_aot_initialized_mirror(bool early_init, TRAPS) {
   assert(has_aot_initialized_mirror(), "must be");
   assert(CDSConfig::is_loading_heap(), "must be");
   assert(CDSConfig::is_using_aot_linked_classes(), "must be");
@@ -989,15 +1040,36 @@ void InstanceKlass::initialize_with_aot_initialized_mirror(TRAPS) {
     return;
   }
 
+  if (log_is_enabled(Info, aot, init)) {
+    ResourceMark rm;
+    log_info(aot, init)("%s (aot-inited%s)", external_name(), early_init ? ", early" : "");
+  }
+
   if (is_runtime_setup_required()) {
+    assert(!early_init, "must not call");
     // Need to take the slow path, which will call the runtimeSetup() function instead
     // of <clinit>
     initialize(CHECK);
     return;
   }
-  if (log_is_enabled(Info, aot, init)) {
-    ResourceMark rm;
-    log_info(aot, init)("%s (aot-inited)", external_name());
+
+  LogTarget(Info, class, init) lt;
+  if (lt.is_enabled()) {
+    ResourceMark rm(THREAD);
+    LogStream ls(lt);
+    ls.print("%d Initializing ", call_class_initializer_counter++);
+    name()->print_value_on(&ls);
+    ls.print_cr("(aot-inited) (" PTR_FORMAT ") by thread \"%s\"",
+                p2i(this), THREAD->name());
+  }
+
+  if (early_init) {
+    precond(AOTLinkedClassBulkLoader::is_initializing_classes_early());
+    precond(is_linked());
+    precond(init_thread() == nullptr);
+    set_init_state(fully_initialized);
+    fence_and_clear_init_lock();
+    return;
   }
 
   link_class(CHECK);
@@ -1023,8 +1095,8 @@ bool InstanceKlass::verify_code(TRAPS) {
 }
 
 static void load_classes_from_loadable_descriptors_attribute(InstanceKlass *ik, TRAPS) {
-  ResourceMark rm(THREAD);
-  if (ik->loadable_descriptors() != nullptr && PreloadClasses) {
+  if (ik->loadable_descriptors() != Universe::the_empty_short_array() && PreloadClasses) {
+    ResourceMark rm(THREAD);
     HandleMark hm(THREAD);
     for (int i = 0; i < ik->loadable_descriptors()->length(); i++) {
       Symbol* sig = ik->constants()->symbol_at(ik->loadable_descriptors()->at(i));
@@ -1238,6 +1310,12 @@ bool InstanceKlass::link_class_impl(TRAPS) {
       }
     }
   }
+
+  if (log_is_enabled(Info, class, link))  {
+    ResourceMark rm(THREAD);
+    log_info(class, link)("Linked class %s", external_name());
+  }
+
   return true;
 }
 
@@ -1463,7 +1541,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Pre-allocating an all-zero value to be used to reset nullable flat storages
   if (is_inline_klass()) {
       InlineKlass* vk = InlineKlass::cast(this);
-      if (vk->has_nullable_atomic_layout()) {
+      if (vk->supports_nullable_layouts()) {
         oop val = vk->allocate_instance(THREAD);
         if (HAS_PENDING_EXCEPTION) {
             Handle e(THREAD, PENDING_EXCEPTION);
@@ -1512,6 +1590,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
       THROW_OOP(e());
     }
   }
+
 
   // Step 8
   {
@@ -1957,8 +2036,6 @@ ArrayKlass* InstanceKlass::array_klass_or_null() {
   return array_klass_or_null(1);
 }
 
-static int call_class_initializer_counter = 0;   // for debugging
-
 Method* InstanceKlass::class_initializer() const {
   Method* clinit = find_method(
       vmSymbols::class_initializer_name(), vmSymbols::void_method_signature());
@@ -2183,6 +2260,45 @@ bool InstanceKlass::find_field_from_offset(int offset, bool is_static, fieldDesc
   return false;
 }
 
+bool InstanceKlass::find_local_flat_field_containing_offset(int offset, fieldDescriptor* fd) const {
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+    if (!fs.is_flat()) {
+      continue;
+    }
+
+    if (fs.offset() > offset) {
+      continue;
+    }
+
+    const int offset_in_flat_field = offset - fs.offset();
+    const InlineLayoutInfo layout_info = inline_layout_info(fs.index());
+    const int field_size = layout_info.klass()->layout_size_in_bytes(layout_info.kind());
+
+    assert(LayoutKindHelper::is_flat(layout_info.kind()), "Must be flat");
+
+    if (offset_in_flat_field < field_size) {
+      fd->reinitialize(const_cast<InstanceKlass*>(this), fs.to_FieldInfo());
+      assert(!fd->is_static(), "Static fields are not flattened");
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool InstanceKlass::find_flat_field_containing_offset(int offset, fieldDescriptor* fd) const {
+  const InstanceKlass* klass = this;
+  while (klass != nullptr) {
+    if (klass->find_local_flat_field_containing_offset(offset, fd)) {
+      return true;
+    }
+
+    klass = klass->super();
+  }
+
+  return false;
+}
 
 void InstanceKlass::methods_do(void f(Method* method)) {
   // Methods aren't stable until they are loaded.  This can be read outside
@@ -2202,7 +2318,7 @@ void InstanceKlass::methods_do(void f(Method* method)) {
 
 
 void InstanceKlass::do_local_static_fields(FieldClosure* cl) {
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       fieldDescriptor& fd = fs.field_descriptor();
       cl->do_field(&fd);
@@ -2212,7 +2328,7 @@ void InstanceKlass::do_local_static_fields(FieldClosure* cl) {
 
 
 void InstanceKlass::do_local_static_fields(void f(fieldDescriptor*, Handle, TRAPS), Handle mirror, TRAPS) {
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       fieldDescriptor& fd = fs.field_descriptor();
       f(&fd, mirror, CHECK);
@@ -2780,7 +2896,7 @@ void InstanceKlass::update_methods_jmethod_cache() {
         new_cache[i] = cache[i];
       }
       _methods_jmethod_ids = new_cache;
-      FREE_C_HEAP_ARRAY(jmethodID, cache);
+      FREE_C_HEAP_ARRAY(cache);
     }
   }
 }
@@ -2959,8 +3075,13 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_nest_members);
   it->push(&_permitted_subclasses);
   it->push(&_loadable_descriptors);
+  it->push(&_acmp_maps_array, MetaspaceClosure::_writable);
   it->push(&_record_components);
   it->push(&_inline_layout_info_array, MetaspaceClosure::_writable);
+
+  if (CDSConfig::is_dumping_full_module_graph() && !defined_by_other_loaders()) {
+    it->push(&_package_entry);
+  }
 }
 
 #if INCLUDE_CDS
@@ -3059,24 +3180,9 @@ void InstanceKlass::remove_java_mirror() {
 
 void InstanceKlass::init_shared_package_entry() {
   assert(CDSConfig::is_dumping_archive(), "must be");
-#if !INCLUDE_CDS_JAVA_HEAP
-  _package_entry = nullptr;
-#else
-  if (CDSConfig::is_dumping_full_module_graph()) {
-    if (defined_by_other_loaders()) {
-      _package_entry = nullptr;
-    } else {
-      _package_entry = PackageEntry::get_archived_entry(_package_entry);
-    }
-  } else if (CDSConfig::is_dumping_dynamic_archive() &&
-             CDSConfig::is_using_full_module_graph() &&
-             AOTMetaspace::in_aot_cache(_package_entry)) {
-    // _package_entry is an archived package in the base archive. Leave it as is.
-  } else {
+  if (!CDSConfig::is_dumping_full_module_graph() || defined_by_other_loaders()) {
     _package_entry = nullptr;
   }
-  ArchivePtrMarker::mark_pointer((address**)&_package_entry);
-#endif
 }
 
 void InstanceKlass::compute_has_loops_flag_for_methods() {
@@ -3131,6 +3237,18 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
 
   // restore constant pool resolved references
   constants()->restore_unshareable_info(CHECK);
+
+  // Restore acmp_maps java array from the version stored in metadata.
+  // if it cannot be found in the archive
+  if (Arguments::is_valhalla_enabled() && has_acmp_maps_offset() && java_mirror()->obj_field(_acmp_maps_offset) == nullptr) {
+    int acmp_maps_size = _acmp_maps_array->length();
+    typeArrayOop map = oopFactory::new_intArray(acmp_maps_size, CHECK);
+    typeArrayHandle map_h(THREAD, map);
+    for (int i = 0; i < acmp_maps_size; i++) {
+      map_h->int_at_put(i, _acmp_maps_array->at(i));
+    }
+    java_mirror()->obj_field_put(_acmp_maps_offset, map_h());
+  }
 
   if (array_klasses() != nullptr) {
     // To get a consistent list of classes we need MultiArray_lock to ensure
@@ -3277,7 +3395,7 @@ void InstanceKlass::release_C_heap_structures(bool release_sub_metadata) {
   }
 #endif
 
-  FREE_C_HEAP_ARRAY(char, _source_debug_extension);
+  FREE_C_HEAP_ARRAY(_source_debug_extension);
 
   if (release_sub_metadata) {
     constants()->release_C_heap_structures();
@@ -3714,6 +3832,10 @@ u2 InstanceKlass::compute_modifier_flags() const {
       break;
     }
   }
+  if (!Arguments::is_valhalla_enabled()) {
+    // Remember to strip ACC_SUPER bit without Valhalla
+    access &= (~JVM_ACC_SUPER);
+  }
   return access;
 }
 
@@ -3998,29 +4120,26 @@ static void print_vtable(vtableEntry* start, int len, outputStream* st) {
   return print_vtable(nullptr, reinterpret_cast<intptr_t*>(start), len, st);
 }
 
-template<typename T>
- static void print_array_on(outputStream* st, Array<T>* array) {
-   if (array == nullptr) { st->print_cr("nullptr"); return; }
-   array->print_value_on(st); st->cr();
-   if (Verbose || WizardMode) {
-     for (int i = 0; i < array->length(); i++) {
-       st->print("%d : ", i); array->at(i)->print_value_on(st); st->cr();
-     }
-   }
- }
-
-static void print_array_on(outputStream* st, Array<int>* array) {
-  if (array == nullptr) { st->print_cr("nullptr"); return; }
-  array->print_value_on(st); st->cr();
-  if (Verbose || WizardMode) {
-    for (int i = 0; i < array->length(); i++) {
-      st->print("%d : %d", i, array->at(i)); st->cr();
-    }
-  }
-}
-
 const char* InstanceKlass::init_state_name() const {
   return state_names[init_state()];
+}
+
+void InstanceKlass::print_class_flags(outputStream* st) const {
+  AccessFlags flags(compute_modifier_flags());
+  if (flags.is_public    ()) st->print("public ");
+  if (flags.is_private   ()) st->print("private ");
+  if (flags.is_protected ()) st->print("protected ");
+  if (flags.is_static    ()) st->print("static ");
+  if (flags.is_final     ()) st->print("final ");
+  if (flags.is_interface ()) st->print("interface ");
+  if (flags.is_abstract  ()) st->print("abstract ");
+  if (flags.is_annotation()) st->print("annotation ");
+  if (flags.is_enum      ()) st->print("enum ");
+  if (flags.is_synthetic ()) st->print("synthetic ");
+  if (Arguments::is_valhalla_enabled()) {
+    if (flags.is_identity_class()) st->print("identity ");
+    if (!flags.is_identity_class()) st->print("value "  );
+  }
 }
 
 void InstanceKlass::print_on(outputStream* st) const {
@@ -4029,7 +4148,7 @@ void InstanceKlass::print_on(outputStream* st) const {
 
   st->print(BULLET"instance size:     %d", size_helper());                        st->cr();
   st->print(BULLET"klass size:        %d", size());                               st->cr();
-  st->print(BULLET"access:            "); access_flags().print_on(st);            st->cr();
+  st->print(BULLET"access:            "); print_class_flags(st);                  st->cr();
   st->print(BULLET"flags:             "); _misc_flags.print_on(st);               st->cr();
   st->print(BULLET"state:             "); st->print_cr("%s", init_state_name());
   st->print(BULLET"name:              "); name()->print_value_on(st);             st->cr();
@@ -4057,19 +4176,28 @@ void InstanceKlass::print_on(outputStream* st) const {
   }
 
   st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
-  st->print(BULLET"methods:           "); print_array_on(st, methods());
-  st->print(BULLET"method ordering:   "); print_array_on(st, method_ordering());
+  st->print(BULLET"methods:           ");
+  print_array_on(st, methods(), [](outputStream* ost, Method* method) {
+    method->print_value_on(ost);
+  });
+  st->print(BULLET"method ordering:   ");
+  print_array_on(st, method_ordering(), [](outputStream* ost, int i) {
+    ost->print("%d", i);
+  });
   if (default_methods() != nullptr) {
-    st->print(BULLET"default_methods:   "); print_array_on(st, default_methods());
+    st->print(BULLET"default_methods:   ");
+    print_array_on(st, default_methods(), [](outputStream* ost, Method* method) {
+      method->print_value_on(ost);
+    });
   }
   print_on_maybe_null(st, BULLET"default vtable indices:   ", default_vtable_indices());
   st->print(BULLET"local interfaces:  "); local_interfaces()->print_value_on(st);      st->cr();
   st->print(BULLET"trans. interfaces: "); transitive_interfaces()->print_value_on(st); st->cr();
 
-  st->print(BULLET"secondary supers: "); secondary_supers()->print_value_on(st); st->cr();
+  st->print(BULLET"secondary supers:  "); secondary_supers()->print_value_on(st); st->cr();
 
   st->print(BULLET"hash_slot:         %d", hash_slot()); st->cr();
-  st->print(BULLET"secondary bitmap: " UINTX_FORMAT_X_0, _secondary_supers_bitmap); st->cr();
+  st->print(BULLET"secondary bitmap:  " UINTX_FORMAT_X_0, _secondary_supers_bitmap); st->cr();
 
   if (secondary_supers() != nullptr) {
     if (Verbose) {
@@ -4090,7 +4218,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   }
   st->print(BULLET"constants:         "); constants()->print_value_on(st);         st->cr();
 
-  print_on_maybe_null(st, BULLET"class loader data:  ", class_loader_data());
+  print_on_maybe_null(st, BULLET"class loader data: ", class_loader_data());
   print_on_maybe_null(st, BULLET"source file:       ", source_file_name());
   if (source_debug_extension() != nullptr) {
     st->print(BULLET"source debug extension:       ");
@@ -4117,7 +4245,7 @@ void InstanceKlass::print_on(outputStream* st) const {
 
   print_on_maybe_null(st, BULLET"generic signature: ", generic_signature());
   st->print(BULLET"inner classes:     "); inner_classes()->print_value_on(st);     st->cr();
-  st->print(BULLET"nest members:     "); nest_members()->print_value_on(st);     st->cr();
+  st->print(BULLET"nest members:      "); nest_members()->print_value_on(st);     st->cr();
   print_on_maybe_null(st, BULLET"record components:     ", record_components());
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
   st->print(BULLET"loadable descriptors:     "); loadable_descriptors()->print_value_on(st); st->cr();
@@ -4132,14 +4260,14 @@ void InstanceKlass::print_on(outputStream* st) const {
   if (vtable_length() > 0 && (Verbose || WizardMode))  print_vtable(start_of_vtable(), vtable_length(), st);
   st->print(BULLET"itable length      %d (start addr: " PTR_FORMAT ")", itable_length(), p2i(start_of_itable())); st->cr();
   if (itable_length() > 0 && (Verbose || WizardMode))  print_vtable(nullptr, start_of_itable(), itable_length(), st);
-  st->print_cr(BULLET"---- static fields (%d words):", static_field_size());
 
-  FieldPrinter print_static_field(st);
-  ((InstanceKlass*)this)->do_local_static_fields(&print_static_field);
-  st->print_cr(BULLET"---- non-static fields (%d words):", nonstatic_field_size());
-  FieldPrinter print_nonstatic_field(st);
   InstanceKlass* ik = const_cast<InstanceKlass*>(this);
-  ik->print_nonstatic_fields(&print_nonstatic_field);
+  // There is no oop so static and nonstatic printing can use the same printer.
+  FieldPrinter field_printer(st);
+    st->print_cr(BULLET"---- static fields (%d words):", static_field_size());
+  ik->do_local_static_fields(&field_printer);
+  st->print_cr(BULLET"---- non-static fields (%d words):", nonstatic_field_size());
+  ik->print_nonstatic_fields(&field_printer);
 
   st->print(BULLET"non-static oop maps (%d entries): ", nonstatic_oop_map_count());
   OopMapBlock* map     = start_of_nonstatic_oop_maps();
@@ -4158,20 +4286,21 @@ void InstanceKlass::print_on(outputStream* st) const {
 
 void InstanceKlass::print_value_on(outputStream* st) const {
   assert(is_klass(), "must be klass");
-  if (Verbose || WizardMode)  access_flags().print_on(st);
+  if (Verbose || WizardMode)  print_class_flags(st);
   name()->print_value_on(st);
 }
 
 void FieldPrinter::do_field(fieldDescriptor* fd) {
   for (int i = 0; i < _indent; i++) _st->print("  ");
   _st->print(BULLET);
-   if (_obj == nullptr) {
-     fd->print_on(_st, _base_offset);
-     _st->cr();
-   } else {
-     fd->print_on_for(_st, _obj, _indent, _base_offset);
-     if (!fd->field_flags().is_flat()) _st->cr();
-   }
+  // Handles the cases of static fields or instance fields but no oop is given.
+  if (_obj == nullptr) {
+    fd->print_on(_st, _base_offset);
+    _st->cr();
+  } else {
+    fd->print_on_for(_st, _obj, _indent, _base_offset);
+    if (!fd->field_flags().is_flat()) _st->cr();
+  }
 }
 
 

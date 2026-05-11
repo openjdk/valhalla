@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package java.util;
 
 import jdk.internal.javac.PreviewFeature;
-import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 
@@ -60,14 +59,8 @@ public final class Objects {
      * @param b an object to be compared with {@code a} for equality
      * @see Object#equals(Object)
      */
-    @ForceInline
     public static boolean equals(Object a, Object b) {
-        if (PreviewFeatures.isEnabled()) {
-            // With --enable-preview avoid acmp
-            return (a == null) ? b == null : a.equals(b);
-        } else {
-            return (a == b) || (a != null && a.equals(b));
-        }
+        return (a == b) || (a != null && a.equals(b));
     }
 
    /**
@@ -186,13 +179,18 @@ public final class Objects {
     }
 
    /**
-    * {@return {@code true} if the object is a non-null reference
-    * to an {@linkplain Class#isIdentity() identity object}, otherwise {@code false}}
+    * {@return {@code true} if the input is a non-null reference
+    * to an object with identity, and {@code false} otherwise}
+    *
+    * <p>If the object is an instance of a concrete {@linkplain Class#isValue()
+    * value class}, it does not have identity and the result will be
+    * {@code false}. All other objects, including arrays, are identity objects
+    * and the result will be {@code true}.
     *
     * @apiNote
     * If the parameter is {@code null}, there is no object
-    * and hence no class to check for identity; the return is {@code false}.
-    * To test for a {@linkplain Class#isValue() value object} use:
+    * and hence no identity; the result is {@code false}.
+    * To test for a value object use:
     * {@snippet type="java" :
     *     if (obj != null && !Objects.hasIdentity(obj)) {
     *         // obj is a non-null value object
@@ -201,23 +199,10 @@ public final class Objects {
     * @param obj an object or {@code null}
     * @since Valhalla
     */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
 //    @IntrinsicCandidate
     public static boolean hasIdentity(Object obj) {
-        return (obj == null) ? false : obj.getClass().isIdentity();
-    }
-
-   /**
-    * {@return {@code true} if the object is a non-null reference
-    * to a {@linkplain Class#isValue() value object}, otherwise {@code false}}
-    *
-    * @param obj an object or {@code null}
-    * @since Valhalla
-    */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
-//    @IntrinsicCandidate
-    public static boolean isValueObject(Object obj) {
-        return (obj == null) ? false : obj.getClass().isValue();
+        return (obj == null) ? false : !obj.getClass().isValue();
     }
 
     /**
