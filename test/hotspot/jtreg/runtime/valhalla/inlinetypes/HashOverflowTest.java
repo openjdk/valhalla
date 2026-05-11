@@ -28,6 +28,7 @@
  *          buffered, meaning that the identity hash code computed will be
  *          saved in the markWord.
  * @enablePreview
+ * @requires vm.flagless
  * @compile HashOverflowTest.java
  * @run main/othervm -Xint -Xss256K
  *                   runtime.valhalla.inlinetypes.HashOverflowTest
