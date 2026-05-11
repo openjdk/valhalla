@@ -327,19 +327,19 @@ class methodHandle;
    do_name(     newArray_name,                                    "newArray")                                           \
    do_signature(newArray_signature,                               "(Ljava/lang/Class;I)Ljava/lang/Object;")             \
   do_intrinsic(_newNullRestrictedAtomicArray, jdk_internal_value_ValueClass, newNullRestrictedAtomicArray_name, newArray_signature3, F_SN) \
-   do_name(     newNullRestrictedAtomicArray_name,                "newNullRestrictedAtomicArray")                       \
+   do_name(     newNullRestrictedAtomicArray_name,                "newNullRestrictedAtomicArray0")                      \
   do_intrinsic(_newNullRestrictedNonAtomicArray, jdk_internal_value_ValueClass, newNullRestrictedNonAtomicArray_name, newArray_signature3, F_SN) \
-   do_name(     newNullRestrictedNonAtomicArray_name,             "newNullRestrictedNonAtomicArray")                    \
+   do_name(     newNullRestrictedNonAtomicArray_name,             "newNullRestrictedNonAtomicArray0")                   \
   do_intrinsic(_newNullableAtomicArray, jdk_internal_value_ValueClass, newNullableAtomicArray_name, newArray_signature2, F_SN) \
-   do_name(     newNullableAtomicArray_name,                      "newNullableAtomicArray")                             \
+   do_name(     newNullableAtomicArray_name,                      "newNullableAtomicArray0")                            \
    do_signature(newArray_signature2,                              "(Ljava/lang/Class;I)[Ljava/lang/Object;")            \
    do_signature(newArray_signature3,                              "(Ljava/lang/Class;ILjava/lang/Object;)[Ljava/lang/Object;") \
   do_intrinsic(_isFlatArray, jdk_internal_value_ValueClass, isFlatArray_name, object_array_boolean_signature, F_SN)     \
-   do_name(     isFlatArray_name,                                 "isFlatArray")                                        \
+   do_name(     isFlatArray_name,                                 "isFlatArray0")                                       \
   do_intrinsic(_isNullRestrictedArray, jdk_internal_value_ValueClass, isNullRestrictedArray_name, object_array_boolean_signature, F_SN) \
-   do_name(     isNullRestrictedArray_name,                       "isNullRestrictedArray")                              \
+   do_name(     isNullRestrictedArray_name,                       "isNullRestrictedArray0")                             \
   do_intrinsic(_isAtomicArray, jdk_internal_value_ValueClass, isAtomicArray_name, object_array_boolean_signature, F_SN) \
-   do_name(     isAtomicArray_name,                               "isAtomicArray")                                      \
+   do_name(     isAtomicArray_name,                               "isAtomicArray0")                                     \
                                                                                                                         \
   do_intrinsic(_onSpinWait,               java_lang_Thread,       onSpinWait_name, onSpinWait_signature,         F_S)   \
    do_name(     onSpinWait_name,                                  "onSpinWait")                                         \
