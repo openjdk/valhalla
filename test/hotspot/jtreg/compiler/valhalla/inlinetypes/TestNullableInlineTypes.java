@@ -55,6 +55,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -68,6 +69,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -81,6 +83,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -94,6 +97,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -107,6 +111,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -120,6 +125,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -133,6 +139,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @summary Test correct handling of nullable value classes.
  * @library /test/lib /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -282,9 +289,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    // TODO 8284443 When passing vt to test5_inline and incrementally inlining, we lose the oop
-    @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
-        failOn = {ALLOC_OF_MYVALUE_KLASS})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public MyValue1 test5(MyValue1 vt) {
         Object o = vt;
         vt = (MyValue1)o;
@@ -620,9 +625,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    // TODO 8284443 When passing testValue1 to the constructor in scalarized form and incrementally inlining, we lose the oop
-    @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
-        failOn = {ALLOC_OF_MYVALUE_KLASS})
+    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS})
     public Test17Value test17(boolean b) {
         Test17Value vt1 = new Test17Value(null);
         Test17Value vt2 = new Test17Value(testValue1);

@@ -340,8 +340,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     // can insert a memory barrier later on to keep the writes from floating
     // out of the constructor.
     if (field->is_final() || field->is_stable()) {
-      if (field->is_final()) {
-        set_wrote_final(true);
+      if (field->is_final() && !field->is_strict()) {
+        set_wrote_non_strict_final(true);
       }
       if (field->is_stable()) {
         set_wrote_stable(true);

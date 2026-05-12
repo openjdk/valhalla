@@ -193,7 +193,7 @@ KlassInfoTable::~KlassInfoTable() {
     for (int index = 0; index < _num_buckets; index++) {
       _buckets[index].empty();
     }
-    FREE_C_HEAP_ARRAY(KlassInfoBucket, _buckets);
+    FREE_C_HEAP_ARRAY(_buckets);
     _buckets = nullptr;
   }
 }
@@ -559,10 +559,7 @@ static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
 }
 
 static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, bool is_inline_type, bool is_flat ) {
-  const char* flat_field_msg = "";
-  if (is_flat) {
-    flat_field_msg = is_flat ? "flat" : "not flat";
-  }
+  const char* flat_field_msg = is_flat ? "flat" : "";
   st->print_cr("  @ %d %*s \"%s\" %s %s %s",
       offset, level * 3, "",
       fd.name()->as_C_string(),

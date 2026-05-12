@@ -951,7 +951,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       // We get an array of objects from the runtime call
       __ get_vm_result_oop(rscratch2); // Use rscratch2 (r11) as temporary because rscratch1 (r10) is trashed by movptr()
-      __ get_vm_result_metadata(rbx); // TODO: required to keep the callee Method live?
     }
   }
 

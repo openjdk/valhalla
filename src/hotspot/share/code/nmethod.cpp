@@ -3492,11 +3492,11 @@ void nmethod::print_on_impl(outputStream* st) const {
                                              p2i(oops_begin()),
                                              p2i(oops_end()),
                                              oops_size());
-  if (mutable_data_size() > 0) st->print_cr(" mutable data [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
+  if (mutable_data_size () > 0) st->print_cr(" mutable data   [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
                                              p2i(mutable_data_begin()),
                                              p2i(mutable_data_end()),
                                              mutable_data_size());
-  if (relocation_size() > 0)   st->print_cr(" relocation     [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
+  if (relocation_size   () > 0) st->print_cr(" relocation     [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
                                              p2i(relocation_begin()),
                                              p2i(relocation_end()),
                                              relocation_size());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,12 +145,14 @@ public class ObjectReferenceImpl extends ValueImpl
         }
     }
 
+    /* No longer needed, but kept for future reference
     boolean isValueObject() {
         if (referenceType() instanceof ClassTypeImpl classType) {
             return classType.isValueClass();
         }
         return false;
     }
+    */
 
     public boolean equals(Object obj) {
         if (obj instanceof ObjectReferenceImpl other) {
@@ -160,27 +162,12 @@ public class ObjectReferenceImpl extends ValueImpl
             if (ref() == other.ref()) {
                 return true;
             }
-            // We can get equal value objects with different IDs.
-            if (isValueObject()) {
-                try {
-                    return JDWP.ObjectReference.IsSameObject.process(vm, this, other).isSameObject;
-                } catch (JDWPException exc) {
-                    throw exc.toJDIException();
-                }
-            }
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        if (isValueObject()) {
-            try {
-                return JDWP.ObjectReference.ObjectHashCode.process(vm, this).hashCode;
-            } catch (JDWPException exc) {
-                throw exc.toJDIException();
-            }
-        }
         return Long.hashCode(ref());
     }
 

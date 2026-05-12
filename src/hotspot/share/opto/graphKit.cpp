@@ -114,7 +114,7 @@ GraphKit::GraphKit(const SafePointNode* sft, PhaseIterGVN& igvn)
     current->set_map(cloned_map);
   }
   set_jvms(cloned_jvms);
-  set_all_memory(reset_memory());
+  set_all_memory(cloned_map->memory());
 }
 
 //---------------------------clean_stack---------------------------------------
@@ -1046,8 +1046,6 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
 
   // Loop over the map input edges associated with jvms, add them
   // to the call node, & reset all offsets to match call node array.
-
-  JVMState* callee_jvms = nullptr;
   for (JVMState* in_jvms = youngest_jvms; in_jvms != nullptr; ) {
     uint debug_end   = debug_ptr;
     uint debug_start = debug_ptr - in_jvms->debug_size();
@@ -1126,7 +1124,6 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
     assert(out_jvms->debug_size() == in_jvms->debug_size(), "size must match");
 
     // Update the two tail pointers in parallel.
-    callee_jvms = out_jvms;
     out_jvms = out_jvms->caller();
     in_jvms  = in_jvms->caller();
   }
@@ -1383,7 +1380,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
       return top();
     }
     if (assert_null) {
-      // TODO 8284443 Scalarize here (this currently leads to compilation bailouts)
+      // TODO 8350865 Scalarize here (this leads to failures with TestLWorld::test45)
       // vtptr = InlineTypeNode::make_null(_gvn, vtptr->type()->inline_klass());
       // replace_in_map(value, vtptr);
       // return vtptr;
@@ -1574,19 +1571,22 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
+  const Type* t = _gvn.type(obj);
+  const Type* t_not_null = t->join_speculative(TypePtr::NOTNULL);
+  if (t == t_not_null) {
+    return obj;
+  }
+
   if (obj->is_InlineType()) {
-    Node* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->as_InlineType()->set_null_marker(_gvn);
-    vt = _gvn.transform(vt);
+    InlineTypeNode* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
+    vt->set_null_marker(_gvn);
+    vt->set_type(t_not_null);
+    vt = _gvn.transform(vt)->as_InlineType();
     if (do_replace_in_map) {
       replace_in_map(obj, vt);
     }
     return vt;
   }
-  const Type *t = _gvn.type(obj);
-  const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
-  // Object is already not-null?
-  if( t == t_not_null ) return obj;
 
   Node* cast = new CastPPNode(control(), obj,t_not_null);
   cast = _gvn.transform( cast );
@@ -1675,11 +1675,19 @@ Node* GraphKit::reset_memory() {
 
 //------------------------------set_all_memory---------------------------------
 void GraphKit::set_all_memory(Node* newmem) {
-  Node* mergemem = MergeMemNode::make(newmem);
-  gvn().set_type_bottom(mergemem);
-  if (_gvn.is_IterGVN() != nullptr) {
-    record_for_igvn(mergemem);
+  // The 2 cases are semantically equivalent
+  MergeMemNode* mergemem;
+  if (_gvn.is_IterGVN()) {
+    // During IGVN, create a more predictable pattern so it is easier to verify that the GraphKit
+    // does not modify memory
+    mergemem = MergeMemNode::make(C->top());
+    mergemem->set_base_memory(newmem);
+  } else {
+    // During parsing, be a little more aggressive so that GVN can fold accesses more easily
+    mergemem = MergeMemNode::make(newmem);
   }
+  _gvn.set_type_bottom(mergemem);
+  record_for_igvn(mergemem);
   map()->set_memory(mergemem);
 }
 
@@ -2030,7 +2038,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
     uint arg_idx = i - TypeFunc::Parms;
     Node* arg = argument(arg_idx);
     const Type* t = domain->field_at(i);
-    // TODO 8284443 A static call to a mismatched method should still be scalarized
     if (t->is_inlinetypeptr() && !call->method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
@@ -2126,6 +2133,10 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
     ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, false);
+    // If we run out of registers to store the null marker, we need to reserve an extra
+    // slot to store it on the stack. Unfortunately, we only know if stack slot is needed
+    // when matching the call (see Matcher::return_values_mask), so we are conservative here.
+    C->set_needs_nm_slot(true);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
     ciType* t = call->method()->return_type();
@@ -2140,7 +2151,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       // Change return type of call to scalarized return
       const TypeFunc* tf = call->_tf;
       const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+      const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain, true);
       call->_tf = new_tf;
       _gvn.set_type(call, call->Value(&_gvn));
       _gvn.set_type(ret, ret->Value(&_gvn));
@@ -2179,7 +2190,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
         } ideal.end_if();
       } else {
         for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
-          Node* proj =_gvn.transform(new ProjNode(call, i));
+          // Will be rewired later in replace_call().
+          _gvn.transform(new ProjNode(call, i));
         }
         ideal.set(res, ret);
       }
@@ -3764,13 +3776,6 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node** failure_contro
   bool speculative_not_null = false;
   bool never_see_null = ((failure_control == nullptr)  // regular case only
                          && seems_never_null(obj, data, speculative_not_null));
-
-  if (obj->is_InlineType()) {
-    // Re-execute if buffering during triggers deoptimization
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    obj = obj->as_InlineType()->buffer(this, safe_for_replace);
-  }
 
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();

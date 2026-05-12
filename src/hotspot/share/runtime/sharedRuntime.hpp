@@ -948,6 +948,7 @@ class AdapterHandlerLibrary: public AllStatic {
 //     Method::_from_compiled_inline_ro_entry     - sig_cc_ro
 //     Method::_from_compiled_inline_entry        - sig
 class CompiledEntrySignature : public StackObj {
+private:
   Method* _method;
   int  _num_inline_args;
   bool _has_inline_recv;
@@ -966,6 +967,7 @@ class CompiledEntrySignature : public StackObj {
   bool _c2_needs_stack_repair;
 
   GrowableArray<Method*>* _supers;
+  GrowableArray<Method*>* get_supers();
 
 public:
   Method* method()                     const { return _method; }
@@ -994,8 +996,6 @@ public:
   bool c1_needs_stack_repair()         const { return _c1_needs_stack_repair; }
   bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
   CodeOffsets::Entries c1_inline_ro_entry_type() const;
-
-  GrowableArray<Method*>* get_supers();
 
   CompiledEntrySignature(Method* method = nullptr);
   void compute_calling_conventions(bool init = true);

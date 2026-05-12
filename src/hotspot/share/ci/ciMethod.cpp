@@ -1616,8 +1616,7 @@ bool ciMethod::is_scalarized_buffer_arg(int idx) const {
 }
 
 bool ciMethod::has_scalarized_args() const {
-  VM_ENTRY_MARK;
-  return get_Method()->has_scalarized_args();
+  GUARDED_VM_ENTRY(return get_Method()->has_scalarized_args();)
 }
 
 const GrowableArray<SigEntry>* ciMethod::get_sig_cc() const {
@@ -1631,6 +1630,14 @@ const GrowableArray<SigEntry>* ciMethod::get_sig_cc() const {
 bool ciMethod::mismatch() const {
   VM_ENTRY_MARK;
   return get_Method()->mismatch();
+}
+
+bool ciMethod::c1_needs_stack_repair() const {
+  GUARDED_VM_ENTRY(return get_Method()->c1_needs_stack_repair();)
+}
+
+bool ciMethod::c2_needs_stack_repair() const {
+  GUARDED_VM_ENTRY(return get_Method()->c2_needs_stack_repair();)
 }
 
 // ciMethod::is_old

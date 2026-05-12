@@ -126,9 +126,8 @@ public class Reflection {
     public void testArrays(Class<?> arrayClass, Object[] array, boolean nullRestricted, Object element) {
         Class<?> componentType = arrayClass.getComponentType();
         assertTrue(arrayClass.isArray());
-        // TODO: check Array.getComponentType(array) instead
-        assertTrue(array.getClass() == arrayClass || nullRestricted);
-        assertTrue(array.getClass().getComponentType() == componentType || nullRestricted);
+        assertSame(arrayClass, array.getClass());
+        assertSame(componentType, array.getClass().getComponentType());
 
         for (int i = 0; i < array.length; i++) {
             Object o = Array.get(array, i);

@@ -452,7 +452,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   _method = parse_method;
   _expected_uses = expected_uses;
   _depth = 1 + (caller->has_method() ? caller->depth() : 0);
-  _wrote_final = false;
+  _wrote_non_strict_final = false;
   _wrote_volatile = false;
   _wrote_stable = false;
   _wrote_fields = false;
@@ -558,15 +558,13 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     _entry_bci = C->entry_bci();
     _flow = method()->get_osr_flow_analysis(osr_bci());
   } else {
-    _tf = TypeFunc::make(method());
+    _tf = TypeFunc::make(method(), false);
     _entry_bci = InvocationEntryBci;
     _flow = method()->get_flow_analysis();
   }
 
   if (_flow->failing()) {
-    // TODO Adding a trap due to an unloaded return type in ciTypeFlow::StateVector::do_invoke
-    // can lead to this. Re-enable once 8284443 is fixed.
-    //assert(false, "type flow analysis failed during parsing");
+    assert(false, "type flow analysis failed during parsing");
     C->record_method_not_compilable(_flow->failure_reason());
 #ifndef PRODUCT
       if (PrintOpto && (Verbose || WizardMode)) {
@@ -912,6 +910,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       // Use immutable memory for inline type loads and restore it below
       kit.set_all_memory(C->immutable_memory());
       parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
+      assert(map == kit.map(), "broken if map changes");
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {
@@ -1107,7 +1106,7 @@ void Parse::do_exits() {
   // exceptional returns, since they cannot publish normally.
   //
   if ((method()->is_object_constructor() || method()->is_class_initializer()) &&
-       (wrote_final() || wrote_stable() ||
+       (wrote_non_strict_final() || wrote_stable() ||
          (AlwaysSafeConstructors && wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
     Node* recorded_alloc = alloc_with_final_or_stable();
@@ -1229,8 +1228,7 @@ SafePointNode* Parse::create_entry_map() {
   // If this is an inlined method, we may have to do a receiver null check.
   if (_caller->has_method() && is_normal_parse() && !method()->is_static()) {
     GraphKit kit(_caller);
-    Node* receiver = kit.argument(0);
-    Node* null_free = kit.null_check_receiver_before_call(method());
+    kit.null_check_receiver_before_call(method());
     _caller = kit.transfer_exceptions_into_jvms();
 
     if (kit.stopped()) {
@@ -1427,7 +1425,7 @@ void Parse::do_method_entry() {
         Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
         replace_in_map(parm, vt);
       }
-    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && depth() == 1 && method()->has_vararg() && t->isa_aryptr()) {
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && depth() == 1 && method()->is_varargs() && t->isa_aryptr()) {
       // Speculate on varargs Object array being the default array refined type. The assumption is
       // that a vararg method test(Object... o) is often called as test(o1, o2, o3). javac will
       // translate the call so that the caller will create a new default array of Object, put o1,
@@ -2488,7 +2486,6 @@ void Parse::return_current(Node* value) {
   if (value != nullptr) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
-    const TypeInstPtr* tr = return_type->isa_instptr();
     if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
         return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized

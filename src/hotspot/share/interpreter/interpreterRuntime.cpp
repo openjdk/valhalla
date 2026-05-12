@@ -37,6 +37,7 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "interpreter/oopMapCache.hpp"
 #include "interpreter/templateTable.hpp"
 #include "jvm_io.h"
 #include "logging/log.hpp"
@@ -237,7 +238,7 @@ JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, o
 
   FlatFieldPayload payload(instanceOop(obj), entry);
   if (payload.is_payload_null()) {
-    // If the payload is null return before entring the JRT_BLOCK.
+    // If the payload is null return before entering the JRT_BLOCK.
     current->set_vm_result_oop(nullptr);
     return;
   }
@@ -326,16 +327,8 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* current, oo
   methodHandle method(current, Universe::is_substitutable_method());
   method->method_holder()->initialize(CHECK_false); // Ensure class ValueObjectMethods is initialized
   JavaCalls::call(&result, method, &args, THREAD);
-  if (HAS_PENDING_EXCEPTION) {
-    // Something really bad happened because isSubstitutable() should not throw exceptions
-    // If it is an error, just let it propagate
-    // If it is an exception, wrap it into an InternalError
-    if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
-      Handle e(THREAD, PENDING_EXCEPTION);
-      CLEAR_PENDING_EXCEPTION;
-      THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);
-    }
-  }
+  Exceptions::wrap_exception_in_internal_error("Internal error in substitutability test", CHECK_false);
+
   return result.get_jboolean();
 JRT_END
 
@@ -1612,7 +1605,9 @@ JRT_LEAF(intptr_t, InterpreterRuntime::trace_bytecode(JavaThread* current, intpt
   LastFrameAccessor last_frame(current);
   assert(last_frame.is_interpreted_frame(), "must be an interpreted frame");
   methodHandle mh(current, last_frame.method());
-  BytecodeTracer::trace_interpreter(mh, last_frame.bcp(), tos, tos2, tty);
+  stringStream st;
+  BytecodeTracer::trace_interpreter(mh, last_frame.get_frame().real_fp(), last_frame.bcp(), tos, tos2, &st);
+  tty->print("%s", st.freeze());
   return preserve_this_value;
 JRT_END
 #endif // !PRODUCT
@@ -1622,5 +1617,18 @@ bool InterpreterRuntime::is_preemptable_call(address entry_point) {
   return entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter) ||
          entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache) ||
          entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::_new);
+}
+
+void InterpreterRuntime::generate_oop_map_alot() {
+  JavaThread* current = JavaThread::current();
+  LastFrameAccessor last_frame(current);
+  if (last_frame.is_interpreted_frame()) {
+    ResourceMark rm(current);
+    InterpreterOopMap mask;
+    methodHandle mh(current, last_frame.method());
+    int bci = last_frame.bci();
+    log_info(generateoopmap)("Generating oopmap for method %s at bci %d", mh->name_and_sig_as_C_string(), bci);
+    OopMapCache::compute_one_oop_map(mh, bci, &mask);
+  }
 }
 #endif // ASSERT

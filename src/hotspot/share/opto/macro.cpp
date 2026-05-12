@@ -323,7 +323,12 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
   if (ac->is_clonebasic()) {
     assert(ac->in(ArrayCopyNode::Src) != ac->in(ArrayCopyNode::Dest), "clone source equals destination");
     adr = _igvn.transform(AddPNode::make_with_base(base, _igvn.MakeConX(offset)));
-    adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
+    adr_type = _igvn.type(base)->is_ptr();
+    if (adr_type->isa_aryptr()) {
+      adr_type = adr_type->is_aryptr()->add_field_offset_and_offset(offset);
+    } else {
+      adr_type = adr_type->add_offset(offset);
+    }
   } else {
     if (!ac->modifies(offset, offset, &_igvn, true)) {
       // If the arraycopy does not copy to this offset, we cannot generate a rematerialization load for it.
@@ -2791,7 +2796,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   }
   const TypeFunc* tf = call->_tf;
   const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
-  const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+  const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain, true);
   call->_tf = new_tf;
   // Make sure the change of type is applied before projections are processed by igvn
   _igvn.set_type(call, call->Value(&_igvn));
