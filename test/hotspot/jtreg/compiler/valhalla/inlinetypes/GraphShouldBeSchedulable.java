@@ -36,11 +36,11 @@ import jdk.test.lib.Asserts;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
- * @run main/othervm/timeout -XX:+UnlockDiagnosticVMOptions
- *                           -XX:+UnlockExperimentalVMOptions -Xbatch
- *                           -XX:-UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
- *                           -XX:+IgnoreUnrecognizedVMOptions -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
- *                           ${test.main.class}
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -Xbatch
+ *                   -XX:-UseNullableAtomicValueFlattening -XX:-UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
+ *                   ${test.main.class}
  */
 
 public class GraphShouldBeSchedulable {
