@@ -613,7 +613,6 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     Klass* klass = klasses->at(i);
     if (!klass->is_instance_klass()) continue;  // Skip
     InstanceKlass* ik = InstanceKlass::cast(klass);
-    int tab = 1;
     ResourceMark rm;
     st->print_cr("Class %s [@%s]:", klass->external_name(),
                  klass->class_loader_data()->loader_name());
