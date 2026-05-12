@@ -616,7 +616,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     int tab = 1;
     ResourceMark rm;
     st->print_cr("Class %s [@%s]:", klass->external_name(),
-        klass->class_loader_data()->loader_name());
+                 klass->class_loader_data()->loader_name());
     GrowableArray<FieldDesc>* fields = new (mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
     for (AllFieldStream fd(ik); !fd.done(); fd.next()) {
       if (!fd.access_flags().is_static()) {
