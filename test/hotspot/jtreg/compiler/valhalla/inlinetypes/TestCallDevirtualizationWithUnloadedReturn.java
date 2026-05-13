@@ -27,8 +27,7 @@
  * @summary Test post-parse call devirtualization with an unloaded return type.
  * @enablePreview
  * @run main ${test.main.class}
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -Xcomp -XX:-TieredCompilation
+ * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,${test.main.class}::*
  *                   ${test.main.class}
  */
