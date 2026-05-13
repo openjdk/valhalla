@@ -230,7 +230,9 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
   assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
 
   if (!recursive || !field->is_flat() || value->is_top()) {
-    assert(offset == field->offset_in_bytes(), "offset mismatch");
+    // If the graph is dying (value is top), a load may still ask for a nested
+    // field inside a flattened field before the dead load itself is folded away.
+    assert((offset == field->offset_in_bytes()) || (value->is_top() && field->is_flat()), "offset mismatch");
     return value;
   }
 
