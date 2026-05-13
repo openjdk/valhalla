@@ -484,6 +484,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
   return (jarray) JNIHandles::make_local(THREAD, array);
 JVM_END
 
+#ifdef ASSERT
 static void verify_array_arguments(jclass elmClass, jint len) {
   assert(len >= 0, "Negative array length");
   assert(elmClass != nullptr, "Null element class");
@@ -491,6 +492,7 @@ static void verify_array_arguments(jclass elmClass, jint len) {
   Klass* klass = java_lang_Class::as_Klass(mirror);
   assert(klass->is_inline_klass(), "Element class must be an inline class");
 }
+#endif // ASSERT
 
 JVM_ENTRY(jarray, JVM_NewNullRestrictedNonAtomicArray(JNIEnv *env, jclass elmClass, jint len, jobject initVal))
   DEBUG_ONLY(verify_array_arguments(elmClass, len));
