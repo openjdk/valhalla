@@ -2333,6 +2333,7 @@ public class TestNullableArrays {
         return result;
     }
 
+    @Warmup(value = 10000)
     @Run(test = "test84")
     public void test84_verifier() {
         MyValue1[] res = test84(testValue1, testValue1);
