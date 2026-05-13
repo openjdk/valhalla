@@ -4778,7 +4778,7 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
                 stop_and_kill_map();
               }
 #endif
-              init_val = _gvn.transform(new CheckCastPPNode(control(), init_val, TypeOopPtr::make_from_klass(array_klass->element_klass())));
+              init_val = _gvn.transform(new CheckCastPPNode(control(), init_val, TypeOopPtr::make_from_klass(array_klass->element_klass()), ConstraintCastNode::DependencyType::NonFloatingNarrowing));
             }
           }
           Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false, init_val);
