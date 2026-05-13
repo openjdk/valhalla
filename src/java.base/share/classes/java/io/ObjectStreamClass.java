@@ -375,25 +375,17 @@ public final class ObjectStreamClass implements Serializable {
                 if (isRecord) {
                     canonicalCtr = canonicalRecordCtr(cl);
                     deserializationCtrs = new DeserializationConstructorsCache();
-                } else if (externalizable) {
-                    if (cl.isValue()) {
-                        serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
-                                "Externalizable not valid for value class");
-                    } else {
-                        cons = getExternalizableConstructor(cl);
-                    }
                 } else if (isValueOrStrictInit) {
-                    if (Modifier.isAbstract(cl.getModifiers())) {
-                        serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
-                                                                        "value class is abstract");
-                    } else {
-                        // Value classes should have constructor(s) annotated with {@link DeserializeConstructor}
+                    if (!Modifier.isAbstract(cl.getModifiers())) {
+                        // Serializable value classes should have constructor(s) annotated with {@link DeserializeConstructor}
                         deserializeConstructor = getDeserializingValueCons(cl, fields);
-                        if (deserializeConstructor == null) {
-                            serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
-                                                                            "no constructor or factory found for migrated value class");
-                        }
                     }
+                    if (deserializeConstructor == null) {
+                        serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
+                                                                        "cannot serialize value class");
+                    }
+                } else if (externalizable) {
+                    cons = getExternalizableConstructor(cl);
                 } else {
                     cons = getSerializableConstructor(cl);
                     writeObjectMethod = getPrivateMethod(cl, "writeObject",
