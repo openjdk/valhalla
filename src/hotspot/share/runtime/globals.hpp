@@ -147,6 +147,11 @@ const int ObjectAlignmentInBytes = 8;
 
 #endif // _LP64
 
+// Default value for PrintAssemblyOptions, set via --with-print-assembly-options.
+#ifndef DEFAULT_PRINT_ASSEMBLY_OPTIONS
+#define DEFAULT_PRINT_ASSEMBLY_OPTIONS nullptr
+#endif
+
 #define RUNTIME_FLAGS(develop,                                              \
                       develop_pd,                                           \
                       product,                                              \
@@ -611,7 +616,8 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, PrintAssembly, false, DIAGNOSTIC,                           \
           "Print assembly code (using external disassembler.so)")           \
                                                                             \
-  product(ccstr, PrintAssemblyOptions, nullptr, DIAGNOSTIC,                 \
+  product(ccstr, PrintAssemblyOptions, DEFAULT_PRINT_ASSEMBLY_OPTIONS,      \
+          DIAGNOSTIC,                                                       \
           "Print options string passed to disassembler.so")                 \
                                                                             \
   develop(bool, PrintNMethodStatistics, false,                              \
@@ -832,6 +838,9 @@ const int ObjectAlignmentInBytes = 8;
           "Max number of embedded object references in a value container "  \
           "before no flattening attempts are made, <0 indicates no limit")  \
                                                                             \
+  product(uint, FlatteningBudget, 1024, EXPERIMENTAL,                       \
+          "Maximum size (in bytes) dedicated to flat fields in an instance")\
+          range(0, 1024 * 1024)                                             \
   develop(ccstrlist, PrintInlineKlassFields, "",                            \
           "Print fields collected by InlineKlass::collect_fields")          \
                                                                             \
@@ -1883,9 +1892,6 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, WhiteBoxAPI, false, DIAGNOSTIC,                             \
           "Enable internal testing APIs")                                   \
                                                                             \
-  product(bool, AlwaysAtomicAccesses, false, EXPERIMENTAL,                  \
-          "Accesses to all variables should always be atomic")              \
-                                                                            \
   product(bool, UseUnalignedAccesses, false, DIAGNOSTIC,                    \
           "Use unaligned memory accesses in Unsafe")                        \
                                                                             \
@@ -1991,7 +1997,7 @@ const int ObjectAlignmentInBytes = 8;
           "Use a table to record inflated monitors rather than the first "  \
           "word of the object.")                                            \
                                                                             \
-  product(int, FastLockingSpins, 13, DIAGNOSTIC,                            \
+  product(int, FastLockingSpins, 8, DIAGNOSTIC,                             \
           "Specifies the number of times fast locking will attempt to "     \
           "CAS the markWord before inflating. Between each CAS it will "    \
           "spin for exponentially more time, resulting in a total number "  \
