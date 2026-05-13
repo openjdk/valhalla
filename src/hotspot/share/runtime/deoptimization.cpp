@@ -1153,6 +1153,7 @@ protected:
       _cache = nullptr;
     } else {
       refArrayOop cache = CacheType::cache(ik);
+      assert(!cache->is_flatArray(), "box caches must be reference arrays");
       assert(cache->length() > 0, "Empty cache");
       _low = BoxType::value(cache->obj_at(0));
       _high = checked_cast<PrimitiveType>(_low + cache->length() - 1);
@@ -1217,8 +1218,11 @@ protected:
       _true_cache = nullptr;
       _false_cache = nullptr;
     } else {
-      _true_cache = JNIHandles::make_global(Handle(thread, java_lang_Boolean::get_TRUE(ik)));
-      _false_cache = JNIHandles::make_global(Handle(thread, java_lang_Boolean::get_FALSE(ik)));
+      oop true_cache = java_lang_Boolean::get_TRUE(ik);
+      oop false_cache = java_lang_Boolean::get_FALSE(ik);
+      assert(true_cache != nullptr && false_cache != nullptr, "Boolean cache fields must be initialized");
+      _true_cache = JNIHandles::make_global(Handle(thread, true_cache));
+      _false_cache = JNIHandles::make_global(Handle(thread, false_cache));
     }
   }
   ~BooleanBoxCache() {

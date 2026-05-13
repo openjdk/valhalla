@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -254,9 +254,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
             int size = -(-128) + 127 + 1;
 
             // Load and use the archived cache if it exists
-            if (!PreviewFeatures.isEnabled()) {
-                CDS.initializeFromArchive(ShortCache.class);
-            }
+            CDS.initializeFromArchive(ShortCache.class);
             if (archivedCache == null) {
                 Short[] c = newCacheArray(size);
                 short value = -128;
@@ -270,6 +268,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
         }
 
         private static Short[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
             if (PreviewFeatures.isEnabled()) {
                 return (Short[]) ValueClass.newReferenceArray(Short.class, size);
             }
@@ -305,7 +304,6 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
     public static Short valueOf(short s) {
         final int offset = 128;
         int sAsInt = s;
@@ -385,6 +383,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
+    @DeserializeConstructor
     public Short(short value) {
         this.value = value;
     }

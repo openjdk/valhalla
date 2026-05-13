@@ -934,23 +934,19 @@ public final class Integer extends Number
             }
             high = h;
 
-            Integer[] precomputed = null;
-            if (!PreviewFeatures.isEnabled()) {
-                if (cache != null) {
-                    // IntegerCache has been AOT-initialized.
-                    precomputed = cache;
-                } else {
-                    // Legacy CDS archive support (to be deprecated):
-                    // Load IntegerCache.archivedCache from archive, if possible
-                    CDS.initializeFromArchive(IntegerCache.class);
-                    precomputed = archivedCache;
-                }
+            Integer[] precomputed;
+            if (cache != null) {
+                // IntegerCache has been AOT-initialized.
+                precomputed = cache;
+            } else {
+                // Legacy CDS archive support (to be deprecated):
+                // Load IntegerCache.archivedCache from archive, if possible
+                CDS.initializeFromArchive(IntegerCache.class);
+                precomputed = archivedCache;
             }
 
             cache = loadOrInitializeCache(precomputed);
-            if (!PreviewFeatures.isEnabled()) {
-                archivedCache = cache; // Legacy CDS archive support (to be deprecated)
-            }
+            archivedCache = cache; // Legacy CDS archive support (to be deprecated)
             // range [-128, 127] must be interned (JLS7 5.1.7)
             assert IntegerCache.high >= 127;
         }
@@ -983,6 +979,7 @@ public final class Integer extends Number
         }
 
         private static Integer[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
             if (PreviewFeatures.isEnabled()) {
                 return (Integer[]) ValueClass.newReferenceArray(Integer.class, size);
             }
@@ -1020,7 +1017,6 @@ public final class Integer extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
     public static Integer valueOf(int i) {
         if (i >= IntegerCache.low && i <= IntegerCache.high)
             return IntegerCache.cache[i + (-IntegerCache.low)];
@@ -1047,6 +1043,7 @@ public final class Integer extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
+    @DeserializeConstructor
     public Integer(int value) {
         this.value = value;
     }

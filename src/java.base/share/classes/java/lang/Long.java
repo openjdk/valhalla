@@ -937,9 +937,7 @@ public final class Long extends Number
             int size = -(-128) + 127 + 1;
 
             // Load and use the archived cache if it exists
-            if (!PreviewFeatures.isEnabled()) {
-                CDS.initializeFromArchive(LongCache.class);
-            }
+            CDS.initializeFromArchive(LongCache.class);
             if (archivedCache == null) {
                 Long[] c = newCacheArray(size);
                 long value = -128;
@@ -953,6 +951,7 @@ public final class Long extends Number
         }
 
         private static Long[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
             if (PreviewFeatures.isEnabled()) {
                 return (Long[]) ValueClass.newReferenceArray(Long.class, size);
             }
@@ -988,7 +987,6 @@ public final class Long extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
     public static Long valueOf(long l) {
         if (l >= -128 && l <= 127) { // will cache
             final int offset = 128;
@@ -1107,6 +1105,7 @@ public final class Long extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
+    @DeserializeConstructor
     public Long(long value) {
         this.value = value;
     }
