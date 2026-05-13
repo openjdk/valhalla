@@ -51,7 +51,7 @@ public class TestNestedLoopUnswitchingWithManyFlatArrayChecks {
 
     static Object field1;
     static Object field2;
-    
+
     static void test1(MyValue1[] array1, MyValue1[] array2) {
 	int stop;
 	for (stop = 0; stop < 2; stop++) {
@@ -70,7 +70,7 @@ public class TestNestedLoopUnswitchingWithManyFlatArrayChecks {
 	    field2 = array2[0];
 	}
     }
-    
+
     static void test2(MyValue1[] array1, MyValue1[] array2) {
 	int stop;
 	for (stop = 0; stop < 2; stop++) {
