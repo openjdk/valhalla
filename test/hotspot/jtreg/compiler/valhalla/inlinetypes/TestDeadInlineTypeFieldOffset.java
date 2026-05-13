@@ -30,6 +30,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @test
  * @summary Test loads from a dead InlineTypeNode with top field values.
  * @requires vm.compiler2.enabled
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
  * @run main ${test.main.class}
