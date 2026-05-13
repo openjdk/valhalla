@@ -838,6 +838,9 @@ const int ObjectAlignmentInBytes = 8;
           "Max number of embedded object references in a value container "  \
           "before no flattening attempts are made, <0 indicates no limit")  \
                                                                             \
+  product(uint, FlatteningBudget, 1024, EXPERIMENTAL,                       \
+          "Maximum size (in bytes) dedicated to flat fields in an instance")\
+          range(0, 1024 * 1024)                                             \
   develop(ccstrlist, PrintInlineKlassFields, "",                            \
           "Print fields collected by InlineKlass::collect_fields")          \
                                                                             \
@@ -1994,7 +1997,7 @@ const int ObjectAlignmentInBytes = 8;
           "Use a table to record inflated monitors rather than the first "  \
           "word of the object.")                                            \
                                                                             \
-  product(int, FastLockingSpins, 13, DIAGNOSTIC,                            \
+  product(int, FastLockingSpins, 8, DIAGNOSTIC,                             \
           "Specifies the number of times fast locking will attempt to "     \
           "CAS the markWord before inflating. Between each CAS it will "    \
           "spin for exponentially more time, resulting in a total number "  \
