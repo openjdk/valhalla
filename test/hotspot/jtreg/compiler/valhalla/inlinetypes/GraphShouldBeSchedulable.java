@@ -29,9 +29,9 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
- * @summary We hit "graph should be schedulable" in LCM because of wrongly added precedence edges because some fields aren't found to be strict final.
- *          This happens because the type of the object we load from is lost during can_see_stored_value because the initial value of null-free newArray
- *          is not behind a checkcast.
+ * @summary We need to make sure to have a CheckCastPP under the initial value in ValueClass.newNull.*AtomicArray. If missing,
+ *          a load of the initial value of the array may find an object with an imprecise type (initVal1 in this case, that is
+ *          an Object), potentially leading to wrong alias indices.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @enablePreview
@@ -57,6 +57,7 @@ public class GraphShouldBeSchedulable {
     }
 
     static final TwoBytes CANARY1 = new TwoBytes((byte)42, (byte)42);
+    // We hide the type of the initial value so that C2 can only tell is a load of type Object.
     static Object initVal1 = CANARY1;
 
     public static void main(String[] args) {
@@ -64,8 +65,11 @@ public class GraphShouldBeSchedulable {
             TwoBytes val1 = new TwoBytes((byte)i, (byte)(i + 1));
             TwoBytes[] nullFreeAtomicArray1 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 3, TwoBytes.DEFAULT);
             nullFreeAtomicArray1[1] = val1;
+            // Here, initVal1 is a load of type Object. Now, with a CheckCastPP under.
             TwoBytes[] nullFreeAtomicArray2 = (TwoBytes[])ValueClass.newNullRestrictedAtomicArray(TwoBytes.class, 3, initVal1);
             Asserts.assertEquals(ValueClass.isFlatArray(nullFreeAtomicArray2), false);
+            // Here, the access is simplified into the initial value: we need to make sure we find the CheckCastPP otherwise
+            // the fields b1 and b2 are not recognized as strict final fields, and wrong precedence edges are added during GCM.
             Asserts.assertEquals(nullFreeAtomicArray2[1], CANARY1);
         }
     }
