@@ -40,12 +40,14 @@
 #include "opto/locknode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/matcher.hpp"
+#include "opto/memnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/parse.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/regmask.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
+#include "opto/type.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -844,7 +846,7 @@ uint CallNode::match_edge(uint idx) const {
 // Determine whether the call could modify the field of the specified
 // instance at the specified offset.
 //
-bool CallNode::may_modify(const TypeOopPtr* t_oop, PhaseValues* phase) {
+bool CallNode::may_modify(const TypeOopPtr* t_oop, PhaseValues* phase) const {
   assert((t_oop != nullptr), "sanity");
   if (is_call_to_arraycopystub() && strcmp(_name, "unsafe_arraycopy") != 0) {
     const TypeTuple* args = _tf->domain_sig();
@@ -915,7 +917,7 @@ bool CallNode::may_modify(const TypeOopPtr* t_oop, PhaseValues* phase) {
 }
 
 // Does this call have a direct reference to n other than debug information?
-bool CallNode::has_non_debug_use(Node* n) {
+bool CallNode::has_non_debug_use(const Node* n) {
   const TypeTuple* d = tf()->domain_cc();
   for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
     if (in(i) == n) {
@@ -925,7 +927,7 @@ bool CallNode::has_non_debug_use(Node* n) {
   return false;
 }
 
-bool CallNode::has_debug_use(Node* n) {
+bool CallNode::has_debug_use(const Node* n) const {
   if (jvms() != nullptr) {
     for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
       if (in(i) == n) {
@@ -967,7 +969,7 @@ Node *CallNode::result_cast() {
 }
 
 
-CallProjections* CallNode::extract_projections(bool separate_io_proj, bool do_asserts) const {
+CallProjections* CallNode::extract_projections(bool separate_io_proj, bool do_asserts, bool allow_handlers) const {
   uint max_res = TypeFunc::Parms-1;
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     ProjNode *pn = fast_out(i)->as_Proj();
@@ -993,14 +995,13 @@ CallProjections* CallNode::extract_projections(bool separate_io_proj, bool do_as
         projs->fallthrough_proj = pn;
         const Node* cn = pn->unique_ctrl_out_or_null();
         if (cn != nullptr && cn->is_Catch()) {
-          ProjNode *cpn = nullptr;
           for (DUIterator_Fast kmax, k = cn->fast_outs(kmax); k < kmax; k++) {
-            cpn = cn->fast_out(k)->as_Proj();
-            assert(cpn->is_CatchProj(), "must be a CatchProjNode");
-            if (cpn->_con == CatchProjNode::fall_through_index)
+            CatchProjNode* cpn = cn->fast_out(k)->as_CatchProj();
+            assert(allow_handlers || !cpn->is_handler_proj(), "not allowed");
+            if (cpn->_con == CatchProjNode::fall_through_index) {
+              assert(cpn->handler_bci() == CatchProjNode::no_handler_bci, "");
               projs->fallthrough_catchproj = cpn;
-            else {
-              assert(cpn->_con == CatchProjNode::catch_all_index, "must be correct index.");
+            } else if (!cpn->is_handler_proj()) {
               projs->catchall_catchproj = cpn;
             }
           }
@@ -1008,15 +1009,20 @@ CallProjections* CallNode::extract_projections(bool separate_io_proj, bool do_as
         break;
       }
     case TypeFunc::I_O:
-      if (pn->_is_io_use)
+      if (pn->_is_io_use) {
         projs->catchall_ioproj = pn;
-      else
+      } else {
         projs->fallthrough_ioproj = pn;
+      }
       for (DUIterator j = pn->outs(); pn->has_out(j); j++) {
         Node* e = pn->out(j);
-        if (e->Opcode() == Op_CreateEx && e->in(0)->is_CatchProj() && e->outcnt() > 0) {
-          assert(projs->exobj == nullptr, "only one");
-          projs->exobj = e;
+        if (e->Opcode() == Op_CreateEx && e->outcnt() > 0) {
+          CatchProjNode* ecpn = e->in(0)->isa_CatchProj();
+          assert(allow_handlers || ecpn == nullptr || !ecpn->is_handler_proj(), "not allowed");
+          if (ecpn != nullptr && ecpn->_con != CatchProjNode::fall_through_index && !ecpn->is_handler_proj()) {
+            assert(projs->exobj == nullptr, "only one");
+            projs->exobj = e;
+          }
         }
       }
       break;
@@ -1188,58 +1194,14 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
   }
 
-  // Try to replace the runtime call to the substitutability test emitted by acmp if (at least) one operand is a known type
-  if (can_reshape && !control()->is_top() && method() != nullptr && method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
-      (method()->name() == ciSymbols::isSubstitutable_name())) {
-    Node* left = in(TypeFunc::Parms);
-    Node* right = in(TypeFunc::Parms + 1);
-    if (!left->is_top() && !right->is_top() && (left->is_InlineType() || right->is_InlineType())) {
-      if (!left->is_InlineType()) {
-        swap(left, right);
-      }
-      InlineTypeNode* vt = left->as_InlineType();
-
-      // Check if the field layout can be optimized
-      if (vt->can_emit_substitutability_check(right)) {
-        PhaseIterGVN* igvn = phase->is_IterGVN();
-
-        Node* ctrl = control();
-        RegionNode* region = new RegionNode(1);
-        Node* phi = new PhiNode(region, TypeInt::POS);
-
-        Node* base = right;
-        Node* ptr = right;
-        if (!base->is_InlineType()) {
-          // Parse time checks guarantee that both operands are non-null and have the same type
-          base = igvn->register_new_node_with_optimizer(new CheckCastPPNode(ctrl, base, vt->bottom_type()));
-          ptr = base;
-        }
-        // Emit IR for field-wise comparison
-        vt->check_substitutability(igvn, region, phi, &ctrl, in(TypeFunc::Memory), base, ptr);
-
-        // Equals
-        region->add_req(ctrl);
-        phi->add_req(igvn->intcon(1));
-
-        ctrl = igvn->register_new_node_with_optimizer(region);
-        Node* res = igvn->register_new_node_with_optimizer(phi);
-
-        // Kill exception projections and return a tuple that will replace the call
-        CallProjections* projs = extract_projections(false /*separate_io_proj*/);
-        if (projs->fallthrough_catchproj != nullptr) {
-          igvn->replace_node(projs->fallthrough_catchproj, ctrl);
-        }
-        if (projs->catchall_memproj != nullptr) {
-          igvn->replace_node(projs->catchall_memproj, igvn->C->top());
-        }
-        if (projs->catchall_ioproj != nullptr) {
-          igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
-        }
-        if (projs->catchall_catchproj != nullptr) {
-          igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
-        }
-        return TupleNode::make(tf()->range_cc(), ctrl, i_o(), memory(), frameptr(), returnadr(), res);
-      }
+  // Try to replace the runtime call to the substitutability test emitted by acmp if we can reason
+  // about the operands
+  if (can_reshape && !control()->is_top() && method() != nullptr &&
+      method()->holder() == phase->C->env()->ValueObjectMethods_klass() &&
+      method()->name() == ciSymbols::isSubstitutable_name()) {
+    Node* res = replace_is_substitutable(phase->is_IterGVN());
+    if (res != nullptr) {
+      return res;
     }
   }
 
@@ -1435,6 +1397,52 @@ bool CallStaticJavaNode::remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node
   return true;
 }
 
+// Try to replace a runtime call to the substitutability test by either a simple pointer comparison
+// if either operand is not a value object, or comparing their fields if either operand is an
+// object of a known value type
+Node* CallStaticJavaNode::replace_is_substitutable(PhaseIterGVN* igvn) {
+  Node* left = in(TypeFunc::Parms);
+  Node* right = in(TypeFunc::Parms + 1);
+  if (!InlineTypeNode::can_emit_substitutability_check(left, right)) {
+    return nullptr;
+  }
+
+  // Delay IGVN during macro expansion
+  assert(!igvn->delay_transform(), "must not delay during Ideal");
+  igvn->set_delay_transform(true);
+  GraphKit kit(this, *igvn);
+
+  Node* replace = InlineTypeNode::emit_substitutability_check(&kit, left, right);
+  igvn->set_delay_transform(false);
+  assert(replace != nullptr, "must succeed");
+
+  if (UseAcmpFastPath) {
+    // Sabotage the fast acmp path
+    IfNode* fast_path_if = Parse::acmp_fast_path_if_from_substitutable_call(igvn, this);
+    if (fast_path_if != nullptr) {
+      fast_path_if->set_req(1, igvn->intcon(1));
+      igvn->_worklist.push(fast_path_if);
+    }
+  }
+
+  // Kill exception projections and return a tuple that will replace the call
+  CallProjections* projs = extract_projections(false /*separate_io_proj*/);
+  if (projs->fallthrough_catchproj != nullptr) {
+    igvn->replace_node(projs->fallthrough_catchproj, kit.control());
+  }
+  if (projs->catchall_memproj != nullptr) {
+    igvn->replace_node(projs->catchall_memproj, igvn->C->top());
+  }
+  if (projs->catchall_ioproj != nullptr) {
+    igvn->replace_node(projs->catchall_ioproj, igvn->C->top());
+  }
+  if (projs->catchall_catchproj != nullptr) {
+    igvn->replace_node(projs->catchall_catchproj, igvn->C->top());
+  }
+  Node* new_mem = kit.reset_memory();
+  assert(in(TypeFunc::Memory) == new_mem, "must not modify memory");
+  return TupleNode::make(tf()->range_cc(), igvn->C->top(), kit.i_o(), new_mem, kit.frameptr(), kit.returnadr(), replace);
+}
 
 #ifndef PRODUCT
 void CallStaticJavaNode::dump_spec(outputStream *st) const {
@@ -1870,6 +1878,33 @@ void SafePointNode::disconnect_from_root(PhaseIterGVN *igvn) {
   if (nb != -1) {
     igvn->delete_precedence_of(igvn->C->root(), nb);
   }
+}
+
+void SafePointNode::remove_non_debug_edges(NodeEdgeTempStorage& non_debug_edges) {
+  assert(non_debug_edges._state == NodeEdgeTempStorage::state_initial, "not processed");
+  assert(non_debug_edges.is_empty(), "edges not processed");
+
+  while (req() > jvms()->endoff()) {
+    uint last = req() - 1;
+    non_debug_edges.push(in(last));
+    del_req(last);
+  }
+
+  assert(jvms()->endoff() == req(), "no extra edges past debug info allowed");
+  DEBUG_ONLY(non_debug_edges._state = NodeEdgeTempStorage::state_populated);
+}
+
+void SafePointNode::restore_non_debug_edges(NodeEdgeTempStorage& non_debug_edges) {
+  assert(non_debug_edges._state == NodeEdgeTempStorage::state_populated, "not populated");
+  assert(jvms()->endoff() == req(), "no extra edges past debug info allowed");
+
+  while (!non_debug_edges.is_empty()) {
+    Node* non_debug_edge = non_debug_edges.pop();
+    add_req(non_debug_edge);
+  }
+
+  assert(non_debug_edges.is_empty(), "edges not processed");
+  DEBUG_ONLY(non_debug_edges._state = NodeEdgeTempStorage::state_processed);
 }
 
 //==============  SafePointScalarObjectNode  ==============
@@ -2685,7 +2720,7 @@ void AbstractLockNode::log_lock_optimization(Compile *C, const char * tag, Node*
   }
 }
 
-bool CallNode::may_modify_arraycopy_helper(const TypeOopPtr* dest_t, const TypeOopPtr* t_oop, PhaseValues* phase) {
+bool CallNode::may_modify_arraycopy_helper(const TypeOopPtr* dest_t, const TypeOopPtr* t_oop, PhaseValues* phase) const {
   if (dest_t->is_known_instance() && t_oop->is_known_instance()) {
     return dest_t->instance_id() == t_oop->instance_id();
   }

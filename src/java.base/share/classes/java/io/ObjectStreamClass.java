@@ -376,11 +376,11 @@ public final class ObjectStreamClass implements Serializable {
                     canonicalCtr = canonicalRecordCtr(cl);
                     deserializationCtrs = new DeserializationConstructorsCache();
                 } else if (externalizable) {
-                    if (cl.isIdentity()) {
-                        cons = getExternalizableConstructor(cl);
-                    } else {
+                    if (cl.isValue()) {
                         serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
                                 "Externalizable not valid for value class");
+                    } else {
+                        cons = getExternalizableConstructor(cl);
                     }
                 } else if (isValueOrStrictInit) {
                     if (Modifier.isAbstract(cl.getModifiers())) {

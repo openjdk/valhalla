@@ -39,6 +39,7 @@
 #include "opto/callGenerator.hpp"
 #include "opto/castnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/graphKit.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/parse.hpp"
@@ -418,6 +419,22 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   }
 }
 
+// After Compile::over_inlining_cutoff, should we decline inlining the callee, or should we try
+// inlining again later
+bool Compile::should_delay_after_inlining_cutoff(ciMethod* callee, ciMethod* caller) {
+  if (!IncrementalInline) {
+    return false;
+  }
+
+  if (DelayAfterInliningCutoff) {
+    return true;
+  } else if (callee->force_inline() || caller->is_compiled_lambda_form()) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 // Return true for methods that shouldn't be inlined early so that
 // they are easier to analyze and optimize as intrinsics.
 bool Compile::should_delay_string_inlining(ciMethod* call_method, JVMState* jvms) {
@@ -554,6 +571,7 @@ void Parse::do_call() {
   // Bump max node limit for JSR292 users
   if (bc() == Bytecodes::_invokedynamic || orig_callee->is_method_handle_intrinsic()) {
     C->set_max_node_limit(3*MaxNodeLimit);
+    C->set_node_count_inlining_cutoff(LiveNodeCountInliningCutoff);
   }
 
   // uncommon-trap when callee is unloaded, uninitialized or will not link
@@ -944,8 +962,7 @@ void Parse::catch_call_exceptions(ciExceptionHandlerStream& handlers) {
     if (handler_bci < 0) {     // merge with corresponding rethrow node
       throw_to_exit(make_exception_state(ex_oop));
     } else {                      // Else jump to corresponding handle
-      push_ex_oop(ex_oop);        // Clear stack and push just the oop.
-      merge_exception(handler_bci);
+      push_and_merge_exception(handler_bci, ex_oop);
     }
   }
 
@@ -1043,13 +1060,10 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
     int handler_bci = handler->handler_bci();
 
     if (remaining == 1) {
-      push_ex_oop(ex_node);        // Push exception oop for handler
       if (PrintOpto && WizardMode) {
         tty->print_cr("  Catching every inline exception bci:%d -> handler_bci:%d", bci(), handler_bci);
       }
-      // If this is a backwards branch in the bytecodes, add safepoint
-      maybe_add_safepoint(handler_bci);
-      merge_exception(handler_bci); // jump to handler
+      push_and_merge_exception(handler_bci, ex_node); // jump to handler
       return;                   // No more handling to be done here!
     }
 
@@ -1074,15 +1088,13 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
       const TypeInstPtr* tinst = TypeOopPtr::make_from_klass_unique(klass)->cast_to_ptr_type(TypePtr::NotNull)->is_instptr();
       assert(klass->has_subklass() || tinst->klass_is_exact(), "lost exactness");
       Node* ex_oop = _gvn.transform(new CheckCastPPNode(control(), ex_node, tinst));
-      push_ex_oop(ex_oop);      // Push exception oop for handler
       if (PrintOpto && WizardMode) {
         tty->print("  Catching inline exception bci:%d -> handler_bci:%d -- ", bci(), handler_bci);
         klass->print_name();
         tty->cr();
       }
       // If this is a backwards branch in the bytecodes, add safepoint
-      maybe_add_safepoint(handler_bci);
-      merge_exception(handler_bci);
+      push_and_merge_exception(handler_bci, ex_oop);
     }
     set_control(not_subtype_ctrl);
 
@@ -1121,13 +1133,13 @@ void Parse::catch_inline_exceptions(SafePointNode* ex_map) {
 
 #ifndef PRODUCT
 void Parse::count_compiled_calls(bool at_method_entry, bool is_inline) {
-  if( CountCompiledCalls ) {
-    if( at_method_entry ) {
+  if (CountCompiledCalls) {
+    if (at_method_entry) {
       // bump invocation counter if top method (for statistics)
       if (CountCompiledCalls && depth() == 1) {
         const TypePtr* addr_type = TypeMetadataPtr::make(method());
         Node* adr1 = makecon(addr_type);
-        Node* adr2 = basic_plus_adr(adr1, adr1, in_bytes(Method::compiled_invocation_counter_offset()));
+        Node* adr2 = off_heap_plus_addr(adr1, in_bytes(Method::compiled_invocation_counter_offset()));
         increment_counter(adr2);
       }
     } else if (is_inline) {

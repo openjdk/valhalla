@@ -28,7 +28,6 @@
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 #include "oops/array.hpp"
-#include "oops/oop.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
@@ -118,12 +117,6 @@ protected:
       GrowableArrayBase(capacity, initial_len), _data(data) {}
 
   ~GrowableArrayView() {}
-
-protected:
-  // Used by AOTGrowableArray for MetaspaceClosure support.
-  E** data_addr() {
-    return &_data;
-  }
 
 public:
   bool operator==(const GrowableArrayView& rhs) const {
@@ -305,6 +298,11 @@ public:
       tty->print(INTPTR_FORMAT " ", *(intptr_t*)&(_data[i]));
     }
     tty->print("}\n");
+  }
+
+  // MetaspaceClosure support
+  E** data_addr() {
+    return &_data;
   }
 };
 
@@ -830,6 +828,8 @@ public:
       this->clear_and_deallocate();
     }
   }
+
+  void assert_on_C_heap() { assert(on_C_heap(), "must be on C heap"); }
 };
 
 // Leaner GrowableArray for CHeap backed data arrays, with compile-time decided MemTag.

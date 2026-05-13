@@ -1449,4 +1449,5 @@ void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
   } else {
     __ load(address, result, info);
   }
+  __ membar_acquire();
 }

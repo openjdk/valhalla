@@ -1071,7 +1071,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     jmp(skip);
     bind(not_null);
 
-    // Check if we are returning an non-null inline type and load its fields into registers
+    // Check if we are returning a non-null inline type and load its fields into registers
     test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
 #ifndef _LP64
@@ -1085,19 +1085,6 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     testptr(rdi, rdi);
     jcc(Assembler::zero, skip);
     call(rdi);
-#endif
-#ifdef ASSERT
-    // TODO 8284443 Enable
-    if (StressCallingConvention && false) {
-      Label skip_stress;
-      movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
-      movl(rscratch1, Address(rscratch1, Method::flags_offset()));
-      testl(rcx, MethodFlags::has_scalarized_return_flag());
-      jcc(Assembler::zero, skip_stress);
-      load_klass(rax, rax, rscratch1);
-      orptr(rax, 1);
-      bind(skip_stress);
-    }
 #endif
     // call above kills the value in rbx. Reload it.
     movptr(rbx, Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
@@ -1138,18 +1125,6 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
   testptr(mcs, mcs);
   jcc(Assembler::zero, skip); // No MethodCounters allocated, OutOfMemory
   bind(has_counters);
-}
-
-void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_obj,
-                                                  Register t1, Register t2,
-                                                  bool clear_fields, Label& alloc_failed) {
-  MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  if (DTraceAllocProbes) {
-    // Trigger dtrace event for fastpath
-    push(atos);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
-    pop(atos);
-  }
 }
 
 void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {

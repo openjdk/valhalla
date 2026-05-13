@@ -33,6 +33,7 @@
 #include "oops/compressedOops.hpp"
 #include "oops/compressedKlass.hpp"
 #include "runtime/vm_version.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "runtime/signature.hpp"
@@ -505,29 +506,20 @@ private:
   void mov_immediate64(Register dst, uint64_t imm64);
   void mov_immediate32(Register dst, uint32_t imm32);
 
-  int push(unsigned int bitset, Register stack);
-  int pop(unsigned int bitset, Register stack);
-
-  int push_fp(unsigned int bitset, Register stack, FpPushPopMode mode);
-  int pop_fp(unsigned int bitset, Register stack, FpPushPopMode mode);
-
-  int push_p(unsigned int bitset, Register stack);
-  int pop_p(unsigned int bitset, Register stack);
-
   void mov(Register dst, Address a);
 
 public:
 
-  void push(RegSet regs, Register stack) { if (regs.bits()) push(regs.bits(), stack); }
-  void pop(RegSet regs, Register stack) { if (regs.bits()) pop(regs.bits(), stack); }
+  int push(RegSet regset, Register stack);
+  int pop(RegSet regset, Register stack);
 
-  void push_fp(FloatRegSet regs, Register stack, FpPushPopMode mode = PushPopFull) { if (regs.bits()) push_fp(regs.bits(), stack, mode); }
-  void pop_fp(FloatRegSet regs, Register stack, FpPushPopMode mode = PushPopFull) { if (regs.bits()) pop_fp(regs.bits(), stack, mode); }
+  int push_fp(FloatRegSet regset, Register stack, FpPushPopMode mode = PushPopFull);
+  int pop_fp(FloatRegSet regset, Register stack, FpPushPopMode mode = PushPopFull);
 
   static RegSet call_clobbered_gp_registers();
 
-  void push_p(PRegSet regs, Register stack) { if (regs.bits()) push_p(regs.bits(), stack); }
-  void pop_p(PRegSet regs, Register stack) { if (regs.bits()) pop_p(regs.bits(), stack); }
+  int push_p(PRegSet regset, Register stack);
+  int pop_p(PRegSet regset, Register stack);
 
   // Push and pop everything that might be clobbered by a native
   // runtime call except rscratch1 and rscratch2.  (They are always
@@ -756,6 +748,9 @@ public:
   // Support for sign-extension (hi:lo = extend_sign(lo))
   void extend_sign(Register hi, Register lo);
 
+  // Clean up a subword typed value to the representation in compliance with JVMS §2.3
+  void narrow_subword_type(Register reg, BasicType bt);
+
   // Load and store values by size and signed-ness
   void load_sized_value(Register dst, Address src, size_t size_in_bytes, bool is_signed);
   void store_sized_value(Address dst, Register src, size_t size_in_bytes);
@@ -927,10 +922,6 @@ public:
   // thread in the default location (rthread)
   void reset_last_Java_frame(bool clear_fp);
 
-  // Stores
-  void store_check(Register obj);                // store check for obj - register is destroyed afterwards
-  void store_check(Register obj, Address dst);   // same as above, dst is exact store location (reg. is destroyed)
-
   void resolve_jobject(Register value, Register tmp1, Register tmp2);
   void resolve_global_jobject(Register value, Register tmp1, Register tmp2);
 
@@ -1032,14 +1023,6 @@ public:
   void java_round_float(Register dst, FloatRegister src, FloatRegister ftmp);
 
   // allocation
-
-  // Object / value buffer allocation...
-  // Allocate instance of klass, assumes klass initialized by caller
-  // new_obj prefers to be rax
-  // Kills t1 and t2, perserves klass, return allocation in new_obj (rsi on LP64)
-  void allocate_instance(Register klass, Register new_obj,
-                         Register t1, Register t2,
-                         bool clear_fields, Label& alloc_failed);
 
   void tlab_allocate(
     Register obj,                      // result: pointer to object after successful allocation
@@ -1515,17 +1498,6 @@ public:
   // Inline type specific methods
   #include "asm/macroAssembler_common.hpp"
 
-  int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
-  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
-  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
-                            VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
-                            RegState reg_state[]);
-  bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                          VMRegPair* from, int from_count, int& from_index, VMReg to,
-                          RegState reg_state[], Register val_array);
-  int extend_stack_for_inline_args(int args_on_stack);
-  void remove_frame(int initial_framesize, bool needs_stack_repair);
-  VMReg spill_reg_for(VMReg reg);
   void save_stack_increment(int sp_inc, int frame_size);
 
   void tableswitch(Register index, jint lowbound, jint highbound,
@@ -1707,6 +1679,10 @@ public:
   void cc20_set_qr_registers(FloatRegister (&vectorSet)[4],
           const FloatRegister (&stateVectors)[16], int idx1, int idx2,
           int idx3, int idx4);
+
+  // Rotate using ORR (for identity) or USHR + SLI.
+  void neon_vector_rotate(FloatRegister dst, SIMD_Arrangement T,
+                          FloatRegister src, int shift_amount);
 
   // Place an ISB after code may have been modified due to a safepoint.
   void safepoint_isb();

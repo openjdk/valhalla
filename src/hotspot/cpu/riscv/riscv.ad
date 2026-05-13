@@ -1446,13 +1446,6 @@ void MachPrologNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc *ra_) const {
   }
 }
 
-uint MachPrologNode::size(PhaseRegAlloc* ra_) const
-{
-  assert_cond(ra_ != nullptr);
-  return MachNode::size(ra_); // too many variables; just compute it
-                              // the hard way
-}
-
 int MachPrologNode::reloc() const
 {
   return 0;
@@ -1510,12 +1503,6 @@ void MachEpilogNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc *ra_) const {
     __ relocate(relocInfo::poll_return_type);
     __ safepoint_poll(*code_stub, true /* at_return */, true /* in_nmethod */);
   }
-}
-
-uint MachEpilogNode::size(PhaseRegAlloc *ra_) const {
-  assert_cond(ra_ != nullptr);
-  // Variable size. Determine dynamically.
-  return MachNode::size(ra_);
 }
 
 int MachEpilogNode::reloc() const {
@@ -1580,7 +1567,7 @@ uint MachSpillCopyNode::implementation(C2_MacroAssembler *masm, PhaseRegAlloc *r
 
   assert(src_lo != OptoReg::Bad && dst_lo != OptoReg::Bad, "must move at least 1 register");
 
-  if (src_hi != OptoReg::Bad && !bottom_type()->isa_vectmask()) {
+  if (src_hi != OptoReg::Bad && !bottom_type()->isa_pvectmask()) {
     assert((src_lo & 1) == 0 && src_lo + 1 == src_hi &&
            (dst_lo & 1) == 0 && dst_lo + 1 == dst_hi,
            "expected aligned-adjacent pairs");
@@ -1616,7 +1603,7 @@ uint MachSpillCopyNode::implementation(C2_MacroAssembler *masm, PhaseRegAlloc *r
       } else {
         ShouldNotReachHere();
       }
-    } else if (bottom_type()->isa_vectmask() && masm) {
+    } else if (bottom_type()->isa_pvectmask() && masm) {
       int vmask_size_in_bytes = Matcher::scalable_predicate_reg_slots() * 32 / 8;
       if (src_lo_rc == rc_stack && dst_lo_rc == rc_stack) {
         // stack to stack
@@ -1718,7 +1705,7 @@ uint MachSpillCopyNode::implementation(C2_MacroAssembler *masm, PhaseRegAlloc *r
     } else {
       st->print("%s", Matcher::regName[dst_lo]);
     }
-    if (bottom_type()->isa_vect() && !bottom_type()->isa_vectmask()) {
+    if (bottom_type()->isa_vect() && !bottom_type()->isa_pvectmask()) {
       int vsize = 0;
       if (ideal_reg() == Op_VecA) {
         vsize = Matcher::scalable_vector_reg_size(T_BYTE) * 8;
@@ -1797,6 +1784,18 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const {
 //=============================================================================
 
 #ifndef PRODUCT
+void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
+{
+  Unimplemented();
+}
+#endif
+
+void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
+{
+  Unimplemented();
+}
+
+#ifndef PRODUCT
 void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 {
   assert_cond(st != nullptr);
@@ -1816,12 +1815,6 @@ void MachUEPNode::emit(C2_MacroAssembler* masm, PhaseRegAlloc* ra_) const
 
   // ic_check() aligns to CodeEntryAlignment >= InteriorEntryAlignment(min 16) > NativeInstruction::instruction_size(4).
   assert(((__ offset()) % CodeEntryAlignment) == 0, "Misaligned verified entry point");
-}
-
-uint MachUEPNode::size(PhaseRegAlloc* ra_) const
-{
-  assert_cond(ra_ != nullptr);
-  return MachNode::size(ra_);
 }
 
 // REQUIRED EMIT CODE

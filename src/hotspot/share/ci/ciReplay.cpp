@@ -603,7 +603,7 @@ class CompileReplay : public StackObj {
         _nesting.check(); // Check if a reallocation in the resource arena is safe
         int new_length = _buffer_length * 2;
         // Next call will throw error in case of OOM.
-        _buffer = REALLOC_RESOURCE_ARRAY(char, _buffer, _buffer_length, new_length);
+        _buffer = REALLOC_RESOURCE_ARRAY(_buffer, _buffer_length, new_length);
         _buffer_length = new_length;
       }
       if (c == '\n') {
@@ -982,7 +982,6 @@ class CompileReplay : public StackObj {
           }
           break;
         }
-
         case JVM_CONSTANT_Long:
         case JVM_CONSTANT_Double:
           parsed_two_word = i + 1;

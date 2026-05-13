@@ -594,6 +594,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_Reference_get0:           return inline_reference_get0();
   case vmIntrinsics::_Reference_refersTo0:      return inline_reference_refersTo0(false);
+  case vmIntrinsics::_Reference_reachabilityFence: return inline_reference_reachabilityFence();
   case vmIntrinsics::_PhantomReference_refersTo0: return inline_reference_refersTo0(true);
   case vmIntrinsics::_Reference_clear0:         return inline_reference_clear0(false);
   case vmIntrinsics::_PhantomReference_clear0:  return inline_reference_clear0(true);
@@ -2744,6 +2745,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     if (layout == LayoutKind::REFERENCE) {
       if (!base_type->is_aryptr()->is_not_flat()) {
         const TypeAryPtr* array_type = base_type->is_aryptr()->cast_to_not_flat();
+        // TODO 8350865 This should be a CheckCastPP, can we add a test?
         Node* new_base = _gvn.transform(new CastPPNode(control(), base, array_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
         replace_in_map(base, new_base);
         base = new_base;
@@ -2760,6 +2762,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
         ptr = basic_plus_adr(base, ConvL2X(offset));
         const TypeAryPtr* ptr_type = _gvn.type(ptr)->is_aryptr();
         if (ptr_type->field_offset().get() != 0) {
+          // TODO 8350865 This should be a CheckCastPP, can we add a test?
           ptr = _gvn.transform(new CastPPNode(control(), ptr, ptr_type->with_field_offset(0), ConstraintCastNode::DependencyType::NonFloatingNarrowing));
         }
       } else {
@@ -2778,7 +2781,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     const Type* value_type = _gvn.type(value);
     if (!value_type->is_inlinetypeptr()) {
       value_type = Type::get_const_type(value_klass)->filter_speculative(value_type);
-      Node* new_value = _gvn.transform(new CastPPNode(control(), value, value_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
+      Node* new_value = _gvn.transform(new CheckCastPPNode(control(), value, value_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
       new_value = InlineTypeNode::make_from_oop(this, new_value, value_klass);
       replace_in_map(value, new_value);
       value = new_value;
@@ -4726,7 +4729,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
   if (obj != nullptr && is_array_ctrl != nullptr && is_array_ctrl != top()) {
     // Keep track of the fact that 'obj' is an array to prevent
     // array specific accesses from floating above the guard.
-    *obj = _gvn.transform(new CastPPNode(is_array_ctrl, *obj, TypeAryPtr::BOTTOM));
+    *obj = _gvn.transform(new CheckCastPPNode(is_array_ctrl, *obj, TypeAryPtr::BOTTOM));
   }
   return ctrl;
 }
@@ -5018,6 +5021,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // write barrier. Conservatively, go to slow path.
     // TODO 8251971: Optimize for the case when flat src/dst are later found
     // to not contain oops (i.e., move this check to the macro expansion phase).
+    // TODO 8382226: Revisit for flat abstract value class arrays
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
     const TypeKlassPtr* tklass = _gvn.type(klass_node)->is_klassptr();
@@ -5056,43 +5060,10 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     generate_negative_guard(length, bailout, &length);
 
     // Handle inline type arrays
-    bool can_validate = !too_many_traps(Deoptimization::Reason_class_check);
-    if (!stopped()) {
-      // TODO 8251971
-      if (!orig_t->is_null_free()) {
-        // Not statically known to be null free, add a check
-        generate_fair_guard(null_free_array_test(original), bailout);
-      }
-      orig_t = _gvn.type(original)->isa_aryptr();
-      if (orig_t != nullptr && orig_t->is_flat()) {
-        // Src is flat, check that dest is flat as well
-        if (exclude_flat) {
-          // Dest can't be flat, bail out
-          bailout->add_req(control());
-          set_control(top());
-        } else {
-          generate_fair_guard(flat_array_test(refined_klass_node, /* flat = */ false), bailout);
-        }
-        // TODO 8350865 This is not correct anymore. Write tests and fix logic similar to arraycopy.
-      } else if (UseArrayFlattening && (orig_t == nullptr || !orig_t->is_not_flat()) &&
-                 // If dest is flat, src must be flat as well (guaranteed by src <: dest check if validated).
-                 ((!tklass->is_flat() && tklass->can_be_inline_array()) || !can_validate)) {
-        // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
-        // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
-        generate_fair_guard(flat_array_test(load_object_klass(original)), bailout);
-        if (orig_t != nullptr) {
-          orig_t = orig_t->cast_to_not_flat();
-          original = _gvn.transform(new CheckCastPPNode(control(), original, orig_t));
-        }
-      }
-      if (!can_validate) {
-        // No validation. The subtype check emitted at macro expansion time will not go to the slow
-        // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
-        // TODO 8251971: Optimize for the case when src/dest are later found to be both flat/null-free.
-        generate_fair_guard(flat_array_test(refined_klass_node), bailout);
-        generate_fair_guard(null_free_array_test(original), bailout);
-      }
-    }
+    // TODO 8251971 This is too strong
+    generate_fair_guard(flat_array_test(load_object_klass(original)), bailout);
+    generate_fair_guard(flat_array_test(refined_klass_node), bailout);
+    generate_fair_guard(null_free_array_test(original), bailout);
 
     // Bail out if start is larger than the original length
     Node* orig_tail = _gvn.transform(new SubINode(orig_length, start));
@@ -5139,7 +5110,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       bool validated = false;
       // Reason_class_check rather than Reason_intrinsic because we
       // want to intrinsify even if this traps.
-      if (can_validate) {
+      if (!too_many_traps(Deoptimization::Reason_class_check)) {
         Node* not_subtype_ctrl = gen_subtype_check(original, klass_node);
 
         if (not_subtype_ctrl != top()) {
@@ -6644,7 +6615,7 @@ bool LibraryCallKit::inline_arraycopy() {
       slow_region->add_req(not_subtype_ctrl);
     }
 
-    // TODO 8350865 Improve this. What about atomicity? Make sure this is always folded for type arrays.
+    // TODO 8251971 Improve this. What about atomicity? Make sure this is always folded for type arrays.
     // If destination is null-restricted, source must be null-restricted as well: src_null_restricted || !dst_null_restricted
     Node* src_klass = load_object_klass(src);
     Node* adr_prop_src = basic_plus_adr(top(), src_klass, in_bytes(ArrayKlass::properties_offset()));
@@ -6667,7 +6638,7 @@ bool LibraryCallKit::inline_arraycopy() {
     Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::ne));
     generate_fair_guard(tst, slow_region);
 
-    // TODO 8350865 This is too strong
+    // TODO 8251971 This is too strong
     generate_fair_guard(flat_array_test(src), slow_region);
     generate_fair_guard(flat_array_test(dest), slow_region);
 
@@ -7636,7 +7607,8 @@ bool LibraryCallKit::inline_reference_get0() {
 
   DecoratorSet decorators = IN_HEAP | ON_WEAK_OOP_REF;
   Node* result = load_field_from_object(reference_obj, "referent", "Ljava/lang/Object;",
-                                        decorators, /*is_static*/ false, nullptr);
+                                        decorators, /*is_static*/ false,
+                                        env()->Reference_klass());
   if (result == nullptr) return false;
 
   // Add memory barrier to prevent commoning reads from this field
@@ -7659,7 +7631,8 @@ bool LibraryCallKit::inline_reference_refersTo0(bool is_phantom) {
   DecoratorSet decorators = IN_HEAP | AS_NO_KEEPALIVE;
   decorators |= (is_phantom ? ON_PHANTOM_OOP_REF : ON_WEAK_OOP_REF);
   Node* referent = load_field_from_object(reference_obj, "referent", "Ljava/lang/Object;",
-                                          decorators, /*is_static*/ false, nullptr);
+                                          decorators, /*is_static*/ false,
+                                          env()->Reference_klass());
   if (referent == nullptr) return false;
 
   // Add memory barrier to prevent commoning reads from this field
@@ -7730,6 +7703,14 @@ bool LibraryCallKit::inline_reference_clear0(bool is_phantom) {
   return true;
 }
 
+//-----------------------inline_reference_reachabilityFence-----------------
+// bool java.lang.ref.Reference.reachabilityFence();
+bool LibraryCallKit::inline_reference_reachabilityFence() {
+  Node* referent = argument(0);
+  insert_reachability_fence(referent);
+  return true;
+}
+
 Node* LibraryCallKit::load_field_from_object(Node* fromObj, const char* fieldName, const char* fieldTypeString,
                                              DecoratorSet decorators, bool is_static,
                                              ciInstanceKlass* fromKls) {
@@ -7738,8 +7719,6 @@ Node* LibraryCallKit::load_field_from_object(Node* fromObj, const char* fieldNam
     assert(tinst != nullptr, "obj is null");
     assert(tinst->is_loaded(), "obj is not loaded");
     fromKls = tinst->instance_klass();
-  } else {
-    assert(is_static, "only for static field access");
   }
   ciField* field = fromKls->get_field_by_name(ciSymbol::make(fieldName),
                                               ciSymbol::make(fieldTypeString),

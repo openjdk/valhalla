@@ -144,7 +144,6 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* _big_primitive_fields;
   GrowableArray<LayoutRawBlock*>* _oop_fields;
   int _contended_group;
-  int _oop_count;
   static const int INITIAL_LIST_SIZE = 16;
 
  public:
@@ -156,7 +155,6 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* big_primitive_fields() const { return _big_primitive_fields; }
   GrowableArray<LayoutRawBlock*>* oop_fields() const { return _oop_fields; }
   int contended_group() const { return _contended_group; }
-  int oop_count() const { return _oop_count; }
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
@@ -300,6 +298,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int _nullable_non_atomic_layout_size_in_bytes;
   int _fields_size_sum;
   int _declared_nonstatic_fields_count;
+  int _flattening_budget;
   bool _has_non_naturally_atomic_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;

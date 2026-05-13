@@ -224,26 +224,18 @@ private:
                           InlineLayoutInfo* inline_layout_info);
 
   inline void assert_post_construction_invariants(instanceOop container,
-                                                  ResolvedFieldEntry* resolved_field_entry,
-                                                  InstanceKlass* klass) const NOT_DEBUG_RETURN;
+                                                  ResolvedFieldEntry* resolved_field_entry) const NOT_DEBUG_RETURN;
   inline void assert_post_construction_invariants(instanceOop container,
-                                                  fieldDescriptor* field_descriptor,
-                                                  InstanceKlass* klass) const NOT_DEBUG_RETURN;
+                                                  fieldDescriptor* field_descriptor) const NOT_DEBUG_RETURN;
 
 public:
   FlatFieldPayload() = default;
 
   inline FlatFieldPayload(instanceOop container,
                           fieldDescriptor* field_descriptor);
-  inline FlatFieldPayload(instanceOop container,
-                          fieldDescriptor* field_descriptor,
-                          InstanceKlass* klass);
 
   inline FlatFieldPayload(instanceOop container,
                           ResolvedFieldEntry* resolved_field_entry);
-  inline FlatFieldPayload(instanceOop container,
-                          ResolvedFieldEntry* resolved_field_entry,
-                          InstanceKlass* klass);
 
   inline instanceOop container() const;
 

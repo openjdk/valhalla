@@ -183,6 +183,11 @@ void SharedRuntime::generate_stubs() {
                           CAST_FROM_FN_PTR(address, SafepointSynchronize::handle_polling_page_exception));
 
   generate_deopt_blob();
+
+#if INCLUDE_CDS
+  // disallow any further generation of runtime stubs
+  AOTCodeCache::set_shared_stubs_complete();
+#endif // INCLUDE_CDS
 }
 
 void SharedRuntime::init_adapter_library() {
@@ -2899,8 +2904,8 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     int arg_num = 0;
     if (!_method->is_static()) {
       // We shouldn't scalarize 'this' in a value class constructor
-      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() && !_method->is_object_constructor() &&
-          (init || _method->is_scalarized_arg(arg_num))) {
+      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() &&
+          !_method->is_object_constructor() && (init || _method->is_scalarized_arg(arg_num))) {
         _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
         _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true)); // buffer argument
         has_scalarized = true;
@@ -2915,7 +2920,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
       BasicType bt = ss.type();
-      if (bt == T_OBJECT) {
+      if (InlineTypePassFieldsAsArgs && bt == T_OBJECT) {
         InlineKlass* vk = ss.as_inline_klass(holder);
         if (vk != nullptr && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
           // Check for a calling convention mismatch with super method(s)
@@ -3013,7 +3018,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
 
     // Upper bound on stack arguments to avoid hitting the argument limit and
     // bailing out of compilation ("unsupported incoming calling sequence").
-    // TODO we need a reasonable limit (flag?) here
+    // TODO 8281260 We need a reasonable limit (flag?) here
     if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 75) {
       return; // Success
     }
@@ -3622,7 +3627,7 @@ AdapterHandlerEntry::~AdapterHandlerEntry() {
     delete _sig_cc_ro;
   }
 #ifdef ASSERT
-  FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
+  FREE_C_HEAP_ARRAY(_saved_code);
 #endif
   FreeHeap(this);
 }
@@ -3741,11 +3746,10 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
           }
         }
 
-        DirectiveSet* directive = DirectivesStack::getMatchingDirective(method, CompileBroker::compiler(CompLevel_simple));
-        if (directive->PrintAssemblyOption) {
+        CompilerDirectiveMatcher matcher(method, CompileBroker::compiler(CompLevel_simple));
+        if (matcher.directive_set()->PrintAssemblyOption) {
           nm->print_code();
         }
-        DirectivesStack::release(directive);
       }
     }
   } // Unlock AdapterHandlerLibrary_lock
@@ -3923,7 +3927,7 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *current) )
 JRT_END
 
 JRT_LEAF(void, SharedRuntime::OSR_migration_end( intptr_t* buf) )
-  FREE_C_HEAP_ARRAY(intptr_t, buf);
+  FREE_C_HEAP_ARRAY(buf);
 JRT_END
 
 const char* AdapterHandlerLibrary::name(AdapterHandlerEntry* handler) {
@@ -4186,7 +4190,6 @@ JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* current, Method
   methodHandle callee(current, callee_method);
   oop array = SharedRuntime::allocate_inline_types_impl(current, callee, allocate_receiver, false, CHECK);
   current->set_vm_result_oop(array);
-  current->set_vm_result_metadata(callee()); // TODO: required to keep callee live?
 JRT_END
 
 // We're returning from an interpreted method: load each field into a

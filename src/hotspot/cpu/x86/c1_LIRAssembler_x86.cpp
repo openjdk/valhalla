@@ -45,6 +45,7 @@
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/threadIdentifier.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "vmreg_x86.inline.hpp"
 
@@ -73,6 +74,17 @@ static jlong *double_signmask_pool = double_quadword(&fp_signmask_pool[2*2],    
 static jlong *float_signflip_pool  = double_quadword(&fp_signmask_pool[3*2], (jlong)UCONST64(0x8000000080000000), (jlong)UCONST64(0x8000000080000000));
 static jlong *double_signflip_pool = double_quadword(&fp_signmask_pool[4*2], (jlong)UCONST64(0x8000000000000000), (jlong)UCONST64(0x8000000000000000));
 
+#if INCLUDE_CDS
+// publish external addresses defined in this file
+void LIR_Assembler::init_AOTAddressTable(GrowableArray<address>& external_addresses) {
+#define ADD(addr) external_addresses.append((address)(addr));
+  ADD(float_signmask_pool);
+  ADD(double_signmask_pool);
+  ADD(float_signflip_pool);
+  ADD(double_signflip_pool);
+#undef ADD
+}
+#endif // INCLUDE_CDS
 
 NEEDS_CLEANUP // remove this definitions ?
 const Register SYNC_header = rax;   // synchronization header
@@ -464,7 +476,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   #ifndef _LP64
      Unimplemented();
   #endif
-    // Check if we are returning an non-null inline type and load its fields into registers
+    // Check if we are returning a non-null inline type and load its fields into registers
     ciType* return_type = compilation()->method()->return_type();
     if (return_type->is_inlinetype()) {
       ciInlineKlass* vk = return_type->as_inline_klass();
@@ -487,7 +499,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
       __ jmp(skip);
       __ bind(not_null);
 
-      // Check if we are returning an non-null inline type and load its fields into registers
+      // Check if we are returning a non-null inline type and load its fields into registers
       __ test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
       // Load fields from a buffered value with an inline class specific handler
@@ -569,10 +581,23 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
     }
 
     case T_LONG: {
+#if INCLUDE_CDS
+      if (AOTCodeCache::is_on_for_dump()) {
+        address b = c->as_pointer();
+        if (b == (address)ThreadIdentifier::unsafe_offset()) {
+          __ lea(dest->as_register_lo(), ExternalAddress(b));
+          break;
+        }
+      }
+#endif
       assert(patch_code == lir_patch_none, "no patching handled here");
 #if INCLUDE_CDS
       if (AOTCodeCache::is_on_for_dump()) {
         address b = c->as_pointer();
+        if (b == (address)ThreadIdentifier::unsafe_offset()) {
+          __ lea(dest->as_register_lo(), ExternalAddress(b));
+          break;
+        }
         if (AOTRuntimeConstants::contains(b)) {
           __ load_aotrc_address(dest->as_register_lo(), b);
           break;
@@ -1541,16 +1566,6 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
   // declared type is Object[], abstract[], interface[] or VT.ref[]).
   // If this array is a flat array, take the slow path.
   __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
-  if (!op->value()->is_illegal()) {
-    // TODO 8350865 This is also used for profiling code, right? And in that case we don't care about null but just want to know if the array is flat or not.
-    // The array is not a flat array, but it might be null-free. If we are storing
-    // a null into a null-free array, take the slow path (which will throw NPE).
-    Label skip;
-    __ cmpptr(op->value()->as_register(), NULL_WORD);
-    __ jcc(Assembler::notEqual, skip);
-    __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
-    __ bind(skip);
-  }
 }
 
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
@@ -1579,14 +1594,15 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
 
   // (1) Null check -- if one of the operands is null, the other must not be null (because
   //     the two references are not equal), so they are not substitutable,
-  //     FIXME: do null check only if the operand is nullable
-  __ testptr(left, right);
+  __ testptr(left, left);
+  __ jcc(Assembler::zero, L_oops_not_equal);
+  __ testptr(right, right);
   __ jcc(Assembler::zero, L_oops_not_equal);
 
   ciKlass* left_klass = op->left_klass();
   ciKlass* right_klass = op->right_klass();
 
-  // (2) Inline type check -- if either of the operands is not a inline type,
+  // (2) Inline type check -- if either of the operands is not an inline type,
   //     they are not substitutable. We do this only if we are not sure that the
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
@@ -1606,8 +1622,12 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   } else {
     Register tmp1 = op->tmp1()->as_register();
     Register tmp2 = op->tmp2()->as_register();
-    __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
-    __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
+    if (left == right) { // same operand, so clearly the same klasses, let's save the check
+      __ jmp (*op->stub()->entry());  //  -> do slow check
+    } else {
+      __ cmp_klasses_from_objects(left, right, tmp1, tmp2);
+      __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
+    }
     // fall through to L_oops_not_equal
   }
 
@@ -2480,7 +2500,6 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
   }
   if (is_dest) {
     __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
-    // TODO 8350865 Flat no longer implies null-free, so we need to check for flat dest. Can we do better here?
     __ test_flat_array_oop(obj, tmp, *slow_path->entry());
   } else {
     __ test_flat_array_oop(obj, tmp, *slow_path->entry());
