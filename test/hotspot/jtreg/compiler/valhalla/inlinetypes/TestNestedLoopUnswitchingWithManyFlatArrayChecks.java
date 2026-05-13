@@ -37,64 +37,64 @@ import jdk.internal.value.ValueClass;
 
 public class TestNestedLoopUnswitchingWithManyFlatArrayChecks {
     public static void main(String[] args) {
-	MyValue1[] objectArray = (MyValue1[])ValueClass.newReferenceArray(MyValue1.class, 1);
-	MyValue1[] valueArray = new MyValue1[1];
-	for (int i = 0; i < 20_000; i++) {
-	    inlined1(objectArray, objectArray, 10);
-	    test1(objectArray, objectArray);
-	    test1(valueArray, valueArray);
-	    inlined2(objectArray, objectArray, 10);
-	    test2(objectArray, objectArray);
-	    test2(valueArray, valueArray);
-	}
+        MyValue1[] objectArray = (MyValue1[])ValueClass.newReferenceArray(MyValue1.class, 1);
+        MyValue1[] valueArray = new MyValue1[1];
+        for (int i = 0; i < 20_000; i++) {
+            inlined1(objectArray, objectArray, 10);
+            test1(objectArray, objectArray);
+            test1(valueArray, valueArray);
+            inlined2(objectArray, objectArray, 10);
+            test2(objectArray, objectArray);
+            test2(valueArray, valueArray);
+        }
     }
 
     static Object field1;
     static Object field2;
 
     static void test1(MyValue1[] array1, MyValue1[] array2) {
-	int stop;
-	for (stop = 0; stop < 2; stop++) {
-	}
-	field1 = null;
-	field2 = null;
+        int stop;
+        for (stop = 0; stop < 2; stop++) {
+        }
+        field1 = null;
+        field2 = null;
 
-	for (int j = 0; j < 10; j++) {
-	    inlined1(array1, array2, stop);
-	}
+        for (int j = 0; j < 10; j++) {
+            inlined1(array1, array2, stop);
+        }
     }
 
     static void inlined1(Object[] array1, Object[] array2, int stop) {
-	for (int i = 0; i < stop; i++) {
-	    field1 = array1[0];
-	    field2 = array2[0];
-	}
+        for (int i = 0; i < stop; i++) {
+            field1 = array1[0];
+            field2 = array2[0];
+        }
     }
 
     static void test2(MyValue1[] array1, MyValue1[] array2) {
-	int stop;
-	for (stop = 0; stop < 2; stop++) {
-	}
-	field1 = null;
-	field2 = null;
+        int stop;
+        for (stop = 0; stop < 2; stop++) {
+        }
+        field1 = null;
+        field2 = null;
 
-	for (int j = 0; j < 10; j++) {
-	    inlined2(array1, array2, stop);
-	    inlined2(array1, array2, stop);
-	}
+        for (int j = 0; j < 10; j++) {
+            inlined2(array1, array2, stop);
+            inlined2(array1, array2, stop);
+        }
     }
 
     static void inlined2(Object[] array1, Object[] array2, int stop) {
-	for (int i = 0; i < stop; i++) {
-	    field1 = array1[0];
-	    field2 = array2[0];
-	}
+        for (int i = 0; i < stop; i++) {
+            field1 = array1[0];
+            field2 = array2[0];
+        }
     }
 
     static value class MyValue1 {
-	byte byteField;
+        byte byteField;
         MyValue1(byte byteField) {
             this.byteField = byteField;
- 	}
+        }
      }
 }
