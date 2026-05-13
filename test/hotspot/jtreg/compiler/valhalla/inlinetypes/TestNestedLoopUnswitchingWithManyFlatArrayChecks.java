@@ -43,9 +43,9 @@ public class TestNestedLoopUnswitchingWithManyFlatArrayChecks {
 	    inlined1(objectArray, objectArray, 10);
 	    test1(objectArray, objectArray);
 	    test1(valueArray, valueArray);
-	    // inlined2(objectArray, 10);
-	    // test2(objectArray);
-	    // test2(valueArray);
+	    inlined2(objectArray, objectArray, 10);
+	    test2(objectArray, objectArray);
+	    test2(valueArray, valueArray);
 	}
     }
 
@@ -71,20 +71,23 @@ public class TestNestedLoopUnswitchingWithManyFlatArrayChecks {
 	}
     }
     
-    static void test2(MyValue1[] array1) {
+    static void test2(MyValue1[] array1, MyValue1[] array2) {
 	int stop;
 	for (stop = 0; stop < 2; stop++) {
 	}
 	field1 = null;
+	field2 = null;
 
 	for (int j = 0; j < 10; j++) {
-	    inlined2(array1, stop);
+	    inlined2(array1, array2, stop);
+	    inlined2(array1, array2, stop);
 	}
     }
 
-    static void inlined2(Object[] array1, int stop) {
+    static void inlined2(Object[] array1, Object[] array2, int stop) {
 	for (int i = 0; i < stop; i++) {
 	    field1 = array1[0];
+	    field2 = array2[0];
 	}
     }
 
@@ -92,6 +95,6 @@ public class TestNestedLoopUnswitchingWithManyFlatArrayChecks {
 	byte byteField;
         MyValue1(byte byteField) {
             this.byteField = byteField;
-	}
-    }
+ 	}
+     }
 }
