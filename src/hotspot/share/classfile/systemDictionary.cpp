@@ -1107,8 +1107,10 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
 }
 
 // Tries to pre-load classes referred to in non-static instance fields if they are found in the
-// loadable descriptors attribute. If loading fails, we can fail silently.
-void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
+// loadable descriptors attribute. If loading fails, we can fail silently unless the shared class
+// has archived null-restricted field metadata that must be checked against the resolved class.
+bool SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig,
+                                                             int field_index, bool validate_field_klass, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
   if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(sig)) {
     log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
@@ -1117,7 +1119,14 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
     InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
                                                                                  class_loader, false, THREAD);
     if (HAS_PENDING_EXCEPTION) {
+      if (validate_field_klass) {
+        log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                                 "(cause: field type in LoadableDescriptors attribute) failed : %s",
+                                 name->as_C_string(), ik->name()->as_C_string(),
+                                 PENDING_EXCEPTION->klass()->name()->as_C_string());
+      }
       CLEAR_PENDING_EXCEPTION;
+      return !validate_field_klass;
     }
 
     InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
@@ -1127,13 +1136,14 @@ void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
                                "(cause: field type in LoadableDescriptors attribute) failed : "
                                "app substituted a different version",
                                name->as_C_string(), ik->name()->as_C_string());
-      return;
+      return !validate_field_klass;
     } else if (real_k != nullptr) {
       log_info(class, preload)("Preloading of class %s during loading of shared class %s "
                                "(cause: field type in LoadableDescriptors attribute) succeeded",
                                 name->as_C_string(), ik->name()->as_C_string());
     }
   }
+  return true;
 }
 
 
@@ -1168,8 +1178,15 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
       int field_index = fs.index();
 
       if (Signature::has_envelope(sig)) {
-        // Pending exceptions are cleared so we can fail silently
-        try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
+        // Pending exceptions are cleared so preload failures can fail silently unless archived
+        // null-restricted field metadata must be checked against the resolved class.
+        bool validate_field_klass = fs.is_null_free_inline_type();
+        bool check = try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index,
+                                                           validate_field_klass, CHECK_NULL);
+        if (!check) {
+          ik->set_shared_loading_failed();
+          return nullptr;
+        }
       }
     }
   }
