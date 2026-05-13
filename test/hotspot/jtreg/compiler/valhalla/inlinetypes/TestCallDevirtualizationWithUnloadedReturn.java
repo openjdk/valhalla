@@ -23,13 +23,14 @@
 
 /**
  * @test
+ * @bug 8384283
  * @summary Test post-parse call devirtualization with an unloaded return type.
  * @enablePreview
- * @run main compiler.valhalla.inlinetypes.TestCallDevirtualizationWithUnloadedReturn
+ * @run main ${test.main.class}
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -Xcomp -XX:-TieredCompilation
- *                   -XX:CompileCommand=compileonly,*TestCallDevirtualizationWithUnloadedReturn::*
- *                   compiler.valhalla.inlinetypes.TestCallDevirtualizationWithUnloadedReturn
+ *                   -XX:CompileCommand=compileonly,${test.main.class}::*
+ *                   ${test.main.class}
  */
 
 package compiler.valhalla.inlinetypes;
