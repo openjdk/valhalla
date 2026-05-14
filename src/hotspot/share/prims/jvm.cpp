@@ -545,14 +545,18 @@ JVM_END
 JVM_ENTRY(jboolean, JVM_IsFlatArray(JNIEnv *env, jarray array))
   oop o = JNIHandles::resolve_non_null(array);
   Klass* klass = o->klass();
+
   assert(klass->is_objArray_klass(), "Expects an object array");
+
   return klass->is_flatArray_klass();
 JVM_END
 
 JVM_ENTRY(jboolean, JVM_IsNullRestrictedArray(JNIEnv *env, jarray array))
   oop o = JNIHandles::resolve_non_null(array);
   Klass* klass = o->klass();
+
   assert(klass->is_objArray_klass(), "Expects an object array");
+
   return klass->is_null_free_array_klass();
 JVM_END
 
