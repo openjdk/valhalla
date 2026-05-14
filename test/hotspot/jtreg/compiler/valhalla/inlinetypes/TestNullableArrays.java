@@ -2348,6 +2348,31 @@ public class TestNullableArrays {
     }
 
     @Test
+    @IR(applyIf = {"UseArrayFlattening", "true"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
+        counts = {STORE_OF_ANY_KLASS, "= 38"})
+    public static Object[] test84a(MyValue1 vt1, MyValue1 vt2) {
+        Object[] result = ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        result[0] = vt1;
+        result[1] = vt2;
+        return result;
+    }
+
+    @Warmup(value = 10000)
+    @Run(test = "test84a")
+    public void test84a_verifier() {
+        Object[] res = test84a(testValue1, testValue1);
+        Asserts.assertEquals(testValue1, res[0]);
+        Asserts.assertEquals(testValue1, res[1]);
+        try {
+            test84a(testValue1, null);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException npe) {
+            // Expected
+        }
+    }
+
+    @Test
     public static long test85(MyValue1[] va, MyValue1 val) {
         va[0] = val;
         return va[1].hash();

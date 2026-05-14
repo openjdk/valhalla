@@ -1638,6 +1638,7 @@ public class TestArrays {
         return va;
     }
 
+    @Warmup(value=10000)
     @Run(test = "test66")
     public void test66_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);

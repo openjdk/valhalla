@@ -563,7 +563,9 @@ JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jarray array))
   //   - the array is flat and its component type is naturally atomic
   oop o = JNIHandles::resolve_non_null(array);
   Klass* klass = o->klass();
+
   assert(klass->is_objArray_klass(), "Expects an object array");
+
   if (klass->is_refArray_klass()) {
     return true;
   }
