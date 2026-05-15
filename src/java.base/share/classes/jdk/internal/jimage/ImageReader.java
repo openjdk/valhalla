@@ -323,7 +323,7 @@ public final class ImageReader implements AutoCloseable {
                 ImageLocation pkgDir = getLocation(offsets.get(i));
                 int flags = pkgDir.getFlags();
                 // A package subdirectory is "preview only" if all the modules
-                // it references have that package marked as preview only.
+                // it links have that package marked as preview only.
                 // Skipping these entries avoids empty package subdirectories.
                 if (previewMode || !ImageLocation.isPreviewOnly(flags)) {
                     pkgDirs.add(ensureCached(newDirectory(pkgDir.getFullName())));
@@ -332,7 +332,7 @@ public final class ImageReader implements AutoCloseable {
                     // Only do this in preview mode for the small set of packages with
                     // preview versions (the number of preview entries should be small).
                     List<String> moduleNames = new ArrayList<>();
-                    ModuleReference.readNameOffsets(getOffsetBuffer(pkgDir), /*normal*/ false, /*preview*/ true)
+                    ModuleLink.readNameOffsets(getOffsetBuffer(pkgDir), /*normal*/ false, /*preview*/ true)
                             .forEachRemaining(n -> moduleNames.add(getString(n)));
                     previewPackagesToModules.put(pkgDir.getBase().replace('.', '/'), moduleNames);
                 }
@@ -680,7 +680,7 @@ public final class ImageReader implements AutoCloseable {
             // entries, but it's not worth "right-sizing" the array for that.
             IntBuffer offsets = getOffsetBuffer(loc);
             List<Node> children = new ArrayList<>(offsets.capacity() / 2);
-            ModuleReference.readNameOffsets(offsets, /*normal*/ true, previewMode)
+            ModuleLink.readNameOffsets(offsets, /*normal*/ true, previewMode)
                     .forEachRemaining(n -> {
                         String modName = getString(n);
                         Node link = newLinkNode(dir.getName() + "/" + modName, MODULES_PREFIX + "/" + modName);
