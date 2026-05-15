@@ -212,7 +212,7 @@ public final class ImageResourcesTree {
                 List<ModuleLink> pkgModules = modLinks.stream()
                         .collect(Collectors.groupingBy(ModuleLink::name))
                         .values().stream()
-                        .map(refs -> refs.stream().reduce(ModuleLink::merge).orElseThrow())
+                        .map(links -> links.stream().reduce(ModuleLink::merge).orElseThrow())
                         .sorted()
                         .toList();
                 PackageNode pkgNode = new PackageNode(pkgName, pkgModules, packagesRoot);
@@ -253,21 +253,21 @@ public final class ImageResourcesTree {
             String resourceName = pkgPath.substring(pathEnd + 1);
             // Intermediate packages are marked "empty" (no resources). This might
             // later be merged with a non-empty link for the same package.
-            ModuleLink emptyRef = ModuleLink.forEmptyPackage(modName, isPreviewPath);
+            ModuleLink emptyLink = ModuleLink.forEmptyPackage(modName, isPreviewPath);
 
             // Work down through empty packages to final resource.
             for (int i = pkgEndIndex(fullPkgName, 0); i != -1; i = pkgEndIndex(fullPkgName, i)) {
                 // Due to invariants already checked, pkgName is non-empty.
                 String pkgName = fullPkgName.substring(0, i);
-                packageToModules.computeIfAbsent(pkgName, p -> new HashSet<>()).add(emptyRef);
+                packageToModules.computeIfAbsent(pkgName, p -> new HashSet<>()).add(emptyLink);
                 String childNodeName = pkgName.substring(pkgName.lastIndexOf('.') + 1);
                 parentNode = getDirectoryNode(childNodeName, parentNode);
             }
             // Reached non-empty (leaf) package (could still be a duplicate).
             Node resourceNode = parentNode.getChildren(resourceName);
             if (resourceNode == null) {
-                ModuleLink resourceRef = ModuleLink.forPackage(modName, isPreviewPath);
-                packageToModules.computeIfAbsent(fullPkgName, p -> new HashSet<>()).add(resourceRef);
+                ModuleLink resourceLink = ModuleLink.forPackage(modName, isPreviewPath);
+                packageToModules.computeIfAbsent(fullPkgName, p -> new HashSet<>()).add(resourceLink);
                 // Init adds new node to parent (don't add resources to directAccess).
                 new ResourceNode(resourceName, parentNode);
             } else if (!(resourceNode instanceof ResourceNode)) {
@@ -339,10 +339,10 @@ public final class ImageResourcesTree {
 
         private int addLocations(Node current) {
             if (current instanceof PackageNode) {
-                List<ModuleLink> refs = ((PackageNode) current).getModuleLinks();
+                List<ModuleLink> links = ((PackageNode) current).getModuleLinks();
                 // "/packages/<pkg name>" entries have 8-byte entries (flags+offset).
-                int size = refs.size() * 8;
-                writer.addLocation(current.getPath(), offset, 0, size, ImageLocation.getPackageFlags(refs));
+                int size = links.size() * 8;
+                writer.addLocation(current.getPath(), offset, 0, size, ImageLocation.getPackageFlags(links));
                 offset += size;
             } else {
                 int[] ret = new int[current.children.size()];
@@ -382,10 +382,10 @@ public final class ImageResourcesTree {
         private int computeContent(Node current, Map<String, ImageLocationWriter> outLocations) {
             if (current instanceof PackageNode) {
                 // "/packages/<pkg name>" entries have 8-byte entries (flags+offset).
-                List<ModuleLink> refs = ((PackageNode) current).getModuleLinks();
-                ByteBuffer byteBuffer = ByteBuffer.allocate(8 * refs.size());
+                List<ModuleLink> links = ((PackageNode) current).getModuleLinks();
+                ByteBuffer byteBuffer = ByteBuffer.allocate(8 * links.size());
                 byteBuffer.order(writer.getByteOrder());
-                ModuleLink.write(refs, byteBuffer.asIntBuffer(), writer::addString);
+                ModuleLink.write(links, byteBuffer.asIntBuffer(), writer::addString);
                 content.add(byteBuffer.array());
                 current.setLocation(outLocations.get(current.getPath()));
             } else {

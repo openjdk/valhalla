@@ -62,7 +62,7 @@ public final class ModuleLink implements Comparable<ModuleLink> {
     private static final int FLAGS_PKG_HAS_RESOURCES = 0x4;
 
     /**
-     * Links are ordered with preview versions first which permits early
+     * Links are ordered with preview versions first, which permits early
      * exit when processing preview entries (it's reversed because the default
      * order for a boolean is {@code false < true}).
      */
@@ -284,9 +284,9 @@ public final class ModuleLink implements Comparable<ModuleLink> {
         if (links.stream().filter(ModuleLink::hasResources).count() > 1) {
             throw new IllegalArgumentException("At most one module link can have resources: " + links);
         }
-        for (ModuleLink modRef : links) {
-            buffer.put(modRef.flags);
-            buffer.put(nameEncoder.apply(modRef.name));
+        for (ModuleLink link : links) {
+            buffer.put(link.flags);
+            buffer.put(nameEncoder.apply(link.name));
         }
     }
 }
