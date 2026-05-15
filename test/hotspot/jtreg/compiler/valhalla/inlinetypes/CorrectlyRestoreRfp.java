@@ -49,7 +49,7 @@ import java.util.concurrent.CountDownLatch;
 public class CorrectlyRestoreRfp {
     static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     static final int COMP_LEVEL_SIMPLE = 1; // C1
-    static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
+    static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2
 
     static value class SmallValue {
         int x1;
