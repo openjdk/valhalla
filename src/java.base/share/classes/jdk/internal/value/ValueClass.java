@@ -81,13 +81,13 @@ public final class ValueClass {
     private static void validateArrayArguments(Class<?> componentType,
                                                int length) {
         if (componentType == null) {
-          throw new NullPointerException("Component type is null");
+            throw new NullPointerException("Component type is null");
         }
         if (!isConcreteValueClass(componentType)) {
-          throw new IllegalArgumentException("Component type is not a concrete value class");
+            throw new IllegalArgumentException("Component type is not a concrete value class");
         }
         if (length < 0) {
-          throw new IllegalArgumentException("Array length is negative");
+            throw new IllegalArgumentException("Array length is negative");
         }
     }
 

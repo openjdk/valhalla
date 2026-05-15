@@ -286,20 +286,20 @@ public class TestArrayFactories {
             if (m.getName().startsWith("test_")) {
                 try {
                     System.out.println("Running " + m.getName());
-                  m.invoke(null);
+                    m.invoke(null);
                 } catch (Throwable t) {
-                  t.printStackTrace();
-                  failures.add(m.getName());
+                    t.printStackTrace();
+                    failures.add(m.getName());
                 }
             }
         }
         if (!failures.isEmpty()) {
-          System.out.print("Failed tests: ");
-          for (String s: failures) {
-            System.out.print(s + " ");
-          }
-          System.out.println("");
-          throw new RuntimeException("Some tests failed");
+            System.out.print("Failed tests: ");
+            for (String s: failures) {
+                System.out.print(s + " ");
+            }
+            System.out.println("");
+            throw new RuntimeException("Some tests failed");
         }
     }
 }

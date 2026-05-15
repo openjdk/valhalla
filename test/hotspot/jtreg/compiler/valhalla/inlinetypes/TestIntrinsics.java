@@ -1776,8 +1776,8 @@ public class TestIntrinsics {
 
     // Test correctness of the ValueClass::isFlatArray intrinsic
     @Test
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray"})
-    @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray0"})
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray",
+                  STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray0"})
     public boolean test81(Object[] array) {
         return ValueClass.isFlatArray(array);
     }
