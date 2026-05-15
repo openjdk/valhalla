@@ -2722,6 +2722,7 @@ jint Arguments::finalize_vm_init_args() {
     return JNI_ERR;
   }
 
+  // Called after ClassLoader::lookup_vm_options() but before class loading begins.
   ClassLoader::set_preview_mode(is_valhalla_enabled());
 
   if (!check_vm_args_consistency()) {
