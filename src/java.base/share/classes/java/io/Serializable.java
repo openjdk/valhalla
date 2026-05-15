@@ -35,15 +35,15 @@ package java.io;
  * {@extLink secure_coding_guidelines_javase Secure Coding Guidelines for Java SE}.
  * {@extLink serialization_filter_guide Serialization Filtering} describes best
  * practices for defensive use of serial filters.
- * </strong></p>
+ * </strong>
  *
- * Classes that do not implement this
+ * <p>Classes that do not implement this
  * interface will not have any of their state serialized or
  * deserialized.  All subtypes of a serializable class are themselves
  * serializable.  The serialization interface has no methods or fields
- * and serves only to identify the semantics of being serializable. <p>
+ * and serves only to identify the semantics of being serializable.
  *
- * It is possible for subtypes of non-serializable classes to be serialized
+ * <p>It is possible for subtypes of non-serializable classes to be serialized
  * and deserialized. During serialization, no data will be written for the
  * fields of non-serializable superclasses. During deserialization, the fields of non-serializable
  * superclasses will be initialized using the no-arg constructor of the first (bottommost)
@@ -55,14 +55,14 @@ package java.io;
  * the <a href="{@docRoot}/../specs/serialization/input.html#the-objectinputstream-class">
  * <cite>Java Object Serialization Specification,</cite></a> section 3.1, for
  * a detailed specification of the deserialization process, including handling of
- * serializable and non-serializable classes. <p>
+ * serializable and non-serializable classes.
  *
- * When traversing a graph, an object may be encountered that does not
+ * <p>When traversing a graph, an object may be encountered that does not
  * support the Serializable interface. In this case the
  * NotSerializableException will be thrown and will identify the class
- * of the non-serializable object. <p>
+ * of the non-serializable object.
  *
- * Classes that require special handling during the serialization and
+ * <p>Classes that require special handling during the serialization and
  * deserialization process must implement special methods with these exact
  * signatures:
  *
@@ -114,32 +114,32 @@ package java.io;
  *
  * <PRE>
  * ANY-ACCESS-MODIFIER Object writeReplace() throws ObjectStreamException;
- * </PRE><p>
+ * </PRE>
  *
- * This writeReplace method is invoked by serialization if the method
+ * <p>This writeReplace method is invoked by serialization if the method
  * exists and it would be accessible from a method defined within the
  * class of the object being serialized. Thus, the method can have private,
  * protected and package-private access. Subclass access to this method
- * follows java accessibility rules. <p>
+ * follows java accessibility rules.
  *
- * Classes that need to designate a replacement when an instance of it
+ * <p>Classes that need to designate a replacement when an instance of it
  * is read from the stream should implement this special method with the
  * exact signature.
  *
  * <PRE>
  * ANY-ACCESS-MODIFIER Object readResolve() throws ObjectStreamException;
- * </PRE><p>
+ * </PRE>
  *
- * This readResolve method follows the same invocation rules and
- * accessibility rules as writeReplace.<p>
+ * <p>This readResolve method follows the same invocation rules and
+ * accessibility rules as writeReplace.
  *
- * Enum types are all serializable and receive treatment defined by
+ * <p>Enum types are all serializable and receive treatment defined by
  * the <a href="{@docRoot}/../specs/serialization/index.html"><cite>
  * Java Object Serialization Specification</cite></a> during
  * serialization and deserialization. Any declarations of the special
- * handling methods discussed above are ignored for enum types.<p>
+ * handling methods discussed above are ignored for enum types.
  *
- * Record classes can implement {@code Serializable} and receive treatment defined
+ * <p>Record classes can implement {@code Serializable} and receive treatment defined
  * by the <a href="{@docRoot}/../specs/serialization/serial-arch.html#serialization-of-records">
  * <cite>Java Object Serialization Specification,</cite> Section 1.13,
  * "Serialization of Records"</a>. Any declarations of the special
@@ -157,7 +157,7 @@ package java.io;
  *      </div>
  * </div>
  *
- * The serialization runtime associates with each serializable class a version
+ * <p>The serialization runtime associates with each serializable class a version
  * number, called a serialVersionUID, which is used during deserialization to
  * verify that the sender and receiver of a serialized object have loaded
  * classes for that object that are compatible with respect to serialization.
@@ -172,7 +172,7 @@ package java.io;
  * ANY-ACCESS-MODIFIER static final long serialVersionUID = 42L;
  * </PRE>
  *
- * If a serializable class does not explicitly declare a serialVersionUID, then
+ * <p>If a serializable class does not explicitly declare a serialVersionUID, then
  * the serialization runtime will calculate a default serialVersionUID value
  * for that class based on various aspects of the class, as described in the
  * <a href="{@docRoot}/../specs/serialization/index.html"><cite>Java Object Serialization
