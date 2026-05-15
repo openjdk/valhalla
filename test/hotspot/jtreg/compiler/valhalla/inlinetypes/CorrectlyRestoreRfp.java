@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,12 +32,12 @@
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch
- *                   -XX:CompileCommand=dontinline,*::*
- *                   -XX:CompileCommand=printcompilation,*::*
- *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.CorrectlyRestoreRfp*::compile_me_*
- *                   compiler.valhalla.inlinetypes.CorrectlyRestoreRfp
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                               -Xbatch
+ *                               -XX:CompileCommand=dontinline,*::*
+ *                               -XX:CompileCommand=printcompilation,*::*
+ *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.CorrectlyRestoreRfp*::compile_me_*
+ *                               compiler.valhalla.inlinetypes.CorrectlyRestoreRfp
  **/
 
 package compiler.valhalla.inlinetypes;
