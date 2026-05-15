@@ -35,8 +35,8 @@
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               -Xbatch
  *                               -XX:CompileCommand=dontinline,*::*
- *                               -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.CorrectlyRestoreRfp*::compile_me_*
- *                               compiler.valhalla.inlinetypes.CorrectlyRestoreRfp
+ *                               -XX:CompileCommand=compileonly,${test.main.class}*::compile_me_*
+ *                               ${test.main.class}
  **/
 
 package compiler.valhalla.inlinetypes;
