@@ -1794,7 +1794,7 @@ public class TestIntrinsics {
     // Verify that ValueClass::isFlatArray checks with statically known classes are folded
     @Test
     @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray",
-                  LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray0"})
+                  STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isFlatArray0"})
     public boolean test82() {
         boolean check1 = ValueClass.isFlatArray(TEST_ARRAY1);
         if (!TEST_ARRAY1_IS_FLAT) {
@@ -1894,7 +1894,7 @@ public class TestIntrinsics {
     // Verify that ValueClass::isNullRestrictedArray checks with statically known classes are folded
     @Test
     @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isNullRestrictedArray",
-                  LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isNullRestrictedArray0"})
+                  STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isNullRestrictedArray0"})
     public boolean test86() {
         boolean check1 = ValueClass.isNullRestrictedArray(TEST_ARRAY1);
         if (!TEST_ARRAY1_IS_NULL_RESTRICTED) {
@@ -1943,7 +1943,7 @@ public class TestIntrinsics {
     @Test
     // TODO 8350865 Implemented intrinsic
     // @IR(failOn = {LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isAtomicArray",
-    //               LOAD_KLASS, STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isAtomicArray0"})
+    //               STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isAtomicArray0"})
     public boolean test88() {
         boolean check1 = ValueClass.isAtomicArray(TEST_ARRAY1);
         if (!TEST_ARRAY1_IS_ATOMIC) {
