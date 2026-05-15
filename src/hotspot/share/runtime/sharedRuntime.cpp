@@ -4324,7 +4324,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
                       RegisterMap::ProcessFrames::include,
                       RegisterMap::WalkContinuation::skip);
   frame stubFrame = current->last_frame();
-  frame callerFrame = stubFrame.sender(&reg_map);
+  stubFrame.sender(&reg_map);
 
   assert(vk == InlineKlass::returned_inline_klass(reg_map), "broken calling convention");
 
