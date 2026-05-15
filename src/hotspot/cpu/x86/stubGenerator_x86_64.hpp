@@ -636,7 +636,7 @@ class StubGenerator: public StubCodeGenerator {
   address generate_upcall_stub_load_target();
 
   // interpreter or compiled code marshalling registers to/from inline type instance
-  address generate_return_value_stub(address destination, const char* name, bool has_res, bool pack_inline_type_result = false);
+  address generate_return_value_stub(address destination, const char* name, bool has_res);
 
   // Specialized stub implementations for UseSecondarySupersTable.
   void generate_lookup_secondary_supers_table_stub();

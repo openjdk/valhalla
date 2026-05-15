@@ -4830,8 +4830,8 @@ void StubGenerator::generate_initial_stubs() {
       generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs),
                                  "load_inline_type_fields_in_regs", false);
     StubRoutines::_store_inline_type_fields_to_buf =
-      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_type_fields_buffer),
-                                 "store_inline_type_fields_to_buf", true, true);
+      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf),
+                                 "store_inline_type_fields_to_buf", true);
   }
 
   StubRoutines::_call_stub_entry =
@@ -4885,7 +4885,7 @@ void StubGenerator::generate_initial_stubs() {
 // "0" is assigned for xmm0. Thus we need to ignore -Wnonnull.
 PRAGMA_DIAG_PUSH
 PRAGMA_NONNULL_IGNORED
-address StubGenerator::generate_return_value_stub(address destination, const char* name, bool has_res, bool pack_inline_type_result) {
+address StubGenerator::generate_return_value_stub(address destination, const char* name, bool has_res) {
   // We need to save all registers the calling convention may use so
   // the runtime calls read or update those registers. This needs to
   // be in sync with SharedRuntime::java_return_convention().
@@ -5003,22 +5003,18 @@ address StubGenerator::generate_return_value_stub(address destination, const cha
   __ jcc(Assembler::notEqual, pending);
 
   if (has_res) {
-    if (pack_inline_type_result) {
-      Label skip_pack;
-      Register klass = rscratch1;
-      Register tmp = rscratch2;
-      __ get_vm_result_metadata(klass);
-      __ get_vm_result_oop(rax);
-      __ testptr(klass, klass);
-      __ jcc(Assembler::zero, skip_pack);
-      __ movptr(tmp, Address(klass, InlineKlass::adr_members_offset()));
-      __ movptr(tmp, Address(tmp, InlineKlass::pack_handler_offset()));
-      __ call(tmp);
-      __ membar(Assembler::StoreStore);
-      __ bind(skip_pack);
-    } else {
-      __ get_vm_result_oop(rax);
-    }
+    // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+    // need to initialize the buffer and if so, call the inline class specific pack handler.
+    Label skip_pack;
+    __ get_vm_result_oop(rax);
+    __ get_vm_result_metadata(rscratch1);
+    __ testptr(rscratch1, rscratch1);
+    __ jcc(Assembler::zero, skip_pack);
+    __ movptr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
+    __ movptr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
+    __ call(rscratch1);
+    __ membar(Assembler::StoreStore);
+    __ bind(skip_pack);
   }
 
   __ ret(0);
