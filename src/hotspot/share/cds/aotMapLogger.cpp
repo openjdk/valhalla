@@ -549,12 +549,11 @@ void AOTMapLogger::log_as_hex(address base, address top, address requested_base,
 // Each AOT heap reader and writer has its own oop_iterator() API that retrieves all the data required to build
 // fake oops for logging.
 class AOTMapLogger::FakeOop {
+protected:
   OopDataIterator* _iter;
-  OopData _data;
 
-  address* buffered_field_addr(int field_offset) {
-    return (address*)(buffered_addr() + field_offset);
-  }
+private:
+  OopData _data;
 
 public:
   RequestedMetadataAddr metadata_field(int field_offset) {
@@ -563,6 +562,10 @@ public:
 
   address buffered_addr() {
     return _data._buffered_addr;
+  }
+
+  address* buffered_field_addr(int field_offset) {
+    return (address*)(buffered_addr() + field_offset);
   }
 
   // Return an "oop" pointer so we can use APIs that accept regular oops. This
@@ -631,6 +634,20 @@ public:
     return FakeOop(_iter, _iter->obj_at(addr));
   }
 
+  FakeOop read_inline_oop_at(address value_addr, Klass* k) {
+    OopData data = {
+      value_addr,                                         // _buffered_addr
+      requested_addr() + (value_addr - buffered_addr()),  // _requested_addr
+      target_location() + (value_addr - buffered_addr()), // _target_location
+      0,                                                  // _narrow_location
+      cast_to_oop(value_addr),                            // _raw_oop
+      k,                                                  // _klass
+      0,                                                  // _size
+      false                                               // _is_root_segment
+    };
+    return FakeOop(_iter, data);
+  }
+
   FakeOop obj_field(int field_offset) {
     if (UseCompressedOops) {
       return read_oop_at(raw_oop()->field_addr<narrowOop>(field_offset));
@@ -639,10 +656,10 @@ public:
     }
   }
 
-  void print_non_oop_field(outputStream* st, fieldDescriptor* fd) {
+  void print_non_oop_field(outputStream* st, fieldDescriptor* fd, int indent, int base_offset) {
     // fd->print_on_for() works for non-oop fields in fake oops
     precond(fd->field_type() != T_ARRAY && fd->field_type() != T_OBJECT);
-    fd->print_on_for(st, raw_oop());
+    fd->print_on_for(st, raw_oop(), indent, base_offset);
   }
 }; // AOTMapLogger::FakeOop
 
@@ -693,11 +710,18 @@ public:
   int length() {
     return raw_flatArrayOop()->length();
   }
-  void print_elements_on(outputStream* st) {
-    FlatArrayKlass::cast(real_klass())->oop_print_elements_on(raw_flatArrayOop(), st);
+
+  // Create a wrapper for an archivd flat array element
+  FakeOop element_at(int i) {
+    InlineKlass* elem_k = ((FlatArrayKlass*)real_klass())->element_klass();
+    address value_addr = (address)raw_flatArrayOop()->value_at_addr(i, real_klass()->layout_helper()) - elem_k->payload_offset();
+    return read_inline_oop_at(value_addr, elem_k);
   }
 
-}; // AOTMapLogger::FakeRefArray
+  int element_offset_at(int i) {
+    return (address)raw_flatArrayOop()->value_at_addr(i, real_klass()->layout_helper()) - cast_from_oop<address>(raw_flatArrayOop());
+  }
+}; // AOTMapLogger::FakeFlatArray
 
 class AOTMapLogger::FakeString : public AOTMapLogger::FakeOop {
 public:
@@ -835,23 +859,57 @@ void AOTMapLogger::FakeString::print_on(outputStream* st, int max_length) {
 class AOTMapLogger::ArchivedFieldPrinter : public FieldClosure {
   FakeOop _fake_oop;
   outputStream* _st;
+  int _indent;
+  int _base_offset;
 public:
-  ArchivedFieldPrinter(FakeOop fake_oop, outputStream* st) : _fake_oop(fake_oop), _st(st) {}
+  ArchivedFieldPrinter(FakeOop fake_oop, outputStream* st, int indent = 1, int base_offset = 0) :
+                       _fake_oop(fake_oop), _st(st), _indent(indent), _base_offset(base_offset) {}
 
   void do_field(fieldDescriptor* fd) {
+    for (int i = 0; i < _indent; i++) _st->print("  ");
     _st->print(" - ");
     BasicType ft = fd->field_type();
     switch (ft) {
     case T_ARRAY:
     case T_OBJECT:
       {
-        fd->print_on(_st); // print just the name and offset
-        FakeOop field_value = _fake_oop.obj_field(fd->offset());
-        print_oop_info_cr(_st, field_value);
+        if (fd->is_flat()) {
+          int index = fd->index();
+          InlineKlass* vk = fd->field_holder()->get_inline_type_field_klass(index);
+          _st->print("Flat inline type field '%s':", vk->name()->as_C_string());
+          if (!fd->is_null_free_inline_type()) {
+            assert(fd->has_null_marker(), "should have null marker");
+            InlineLayoutInfo* li = fd->field_holder()->inline_layout_info_adr(index);
+            int nm_offset = li->null_marker_offset();
+            if (_fake_oop.raw_oop()->byte_field_acquire(nm_offset) == 0) {
+              _st->print_cr(" null");
+              return;
+            }
+          }
+          _st->cr();
+          // Print fields of flat field (recursively)
+          int field_offset = fd->offset() - vk->payload_offset();
+          //FakeOop obj = _fake_oop.obj_field(field_offset);
+          address field_addr = (address)_fake_oop.buffered_field_addr(field_offset);
+          FakeOop obj = _fake_oop.read_inline_oop_at(field_addr, vk);
+          ArchivedFieldPrinter print_field(obj, _st, _indent + 1, _base_offset + field_offset);
+          vk->do_nonstatic_fields(&print_field);
+          if (fd->field_flags().has_null_marker()) {
+            for (int i = 0; i < _indent + 1; i++) _st->print("  ");
+            _st->print_cr(" - [null_marker] @%d %s",
+                      vk->null_marker_offset() - _base_offset + field_offset,
+                      obj.raw_oop()->bool_field(vk->null_marker_offset()) ? "Field marked as non-null" : "Field marked as null");
+          }
+          return; // Do not print underlying representation
+        } else {
+          fd->print_on(_st); // print just the name and offset
+          FakeOop field_value = _fake_oop.obj_field(fd->offset());
+          print_oop_info_cr(_st, field_value);
+        }
       }
       break;
     default:
-      _fake_oop.print_non_oop_field(_st, fd); // name, offset, value
+      _fake_oop.print_non_oop_field(_st, fd, _indent, _base_offset); // name, offset, value
       _st->cr();
     }
   }
@@ -990,9 +1048,17 @@ void AOTMapLogger::print_oop_details(FakeOop fake_oop, outputStream* st) {
   if (real_klass->is_typeArray_klass()) {
     fake_oop.as_type_array().print_elements_on(st);
   } else if (real_klass->is_flatArray_klass()) {
-    // Archiving FlatArrayOop with embedded oops is not supported.
-    // TODO: a restriction may be necessary, tracked by JDK-8383389
-    fake_oop.as_flat_array().print_elements_on(st);
+    FakeFlatArray fake_flat_array = fake_oop.as_flat_array();
+    InlineKlass* elem_k = ((FlatArrayKlass*)real_klass)->element_klass();
+
+    for (int i = 0; i < fake_flat_array.length(); i++) {
+      int off = fake_flat_array.element_offset_at(i);
+      st->print_cr(" - Index %3d offset %3d: ", i, off);
+
+      FakeOop elm = fake_flat_array.element_at(i);
+      ArchivedFieldPrinter print_field(elm, st);
+      elem_k->do_nonstatic_fields(&print_field);
+    }
   } else if (real_klass->is_refArray_klass()) {
     FakeRefArray fake_obj_array = fake_oop.as_ref_array();
     bool is_logging_root_segment = fake_oop.is_root_segment();
