@@ -31,7 +31,7 @@ package jdk.test.lib.valueclass;
  * allowing the same tests to exercise both modes.
  */
 @AsValueClass
-public class Tuple implements Comparable<Tuple> {
+public final class Tuple implements Comparable<Tuple> {
     public int x;
     public int y;
     public Tuple(int x, int y) { this.x = x; this.y = y; }
