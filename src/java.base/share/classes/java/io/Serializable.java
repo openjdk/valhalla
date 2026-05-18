@@ -36,14 +36,14 @@ package java.io;
  * {@extLink serialization_filter_guide Serialization Filtering} describes best
  * practices for defensive use of serial filters.
  * </strong>
- *
- * <p>Classes that do not implement this
+ * <p>
+ * Classes that do not implement this
  * interface will not have any of their state serialized or
  * deserialized.  All subtypes of a serializable class are themselves
  * serializable.  The serialization interface has no methods or fields
  * and serves only to identify the semantics of being serializable.
- *
- * <p>It is possible for subtypes of non-serializable classes to be serialized
+ * <p>
+ * It is possible for subtypes of non-serializable classes to be serialized
  * and deserialized. During serialization, no data will be written for the
  * fields of non-serializable superclasses. During deserialization, the fields of non-serializable
  * superclasses will be initialized using the no-arg constructor of the first (bottommost)
@@ -56,13 +56,13 @@ package java.io;
  * <cite>Java Object Serialization Specification,</cite></a> section 3.1, for
  * a detailed specification of the deserialization process, including handling of
  * serializable and non-serializable classes.
- *
- * <p>When traversing a graph, an object may be encountered that does not
+ * <p>
+ * When traversing a graph, an object may be encountered that does not
  * support the Serializable interface. In this case the
  * NotSerializableException will be thrown and will identify the class
  * of the non-serializable object.
- *
- * <p>Classes that require special handling during the serialization and
+ * <p>
+ * Classes that require special handling during the serialization and
  * deserialization process must implement special methods with these exact
  * signatures:
  *
@@ -75,7 +75,7 @@ package java.io;
  *     throws ObjectStreamException;
  * </PRE>
  *
- * <p>The writeObject method is responsible for writing the state of the
+ * The writeObject method is responsible for writing the state of the
  * object for its particular class so that the corresponding
  * readObject method can restore it.  The default mechanism for saving
  * the Object's fields can be invoked by calling
@@ -84,8 +84,8 @@ package java.io;
  * State is saved by writing the individual fields to the
  * ObjectOutputStream using the writeObject method or by using the
  * methods for primitive data types supported by DataOutput.
- *
- * <p>The readObject method is responsible for reading from the stream and
+ * <p>
+ * The readObject method is responsible for reading from the stream and
  * restoring the classes fields. It may call in.defaultReadObject to invoke
  * the default mechanism for restoring the object's non-static and
  * non-transient fields.  The defaultReadObject method uses information in
@@ -96,8 +96,8 @@ package java.io;
  * State is restored by reading data from the ObjectInputStream for
  * the individual fields and making assignments to the appropriate fields
  * of the object. Reading primitive data types is supported by DataInput.
- *
- * <p>The readObjectNoData method is responsible for initializing the state of
+ * <p>
+ * The readObjectNoData method is responsible for initializing the state of
  * the object for its particular class in the event that the serialization
  * stream does not list the given class as a superclass of the object being
  * deserialized.  This may occur in cases where the receiving party uses a
@@ -107,8 +107,8 @@ package java.io;
  * been tampered; hence, readObjectNoData is useful for initializing
  * deserialized objects properly despite a "hostile" or incomplete source
  * stream.
- *
- * <p>Serializable classes that need to designate an alternative object to be
+ * <p>
+ * Serializable classes that need to designate an alternative object to be
  * used when writing an object to the stream should implement this
  * special method with the exact signature:
  *
@@ -116,13 +116,13 @@ package java.io;
  * ANY-ACCESS-MODIFIER Object writeReplace() throws ObjectStreamException;
  * </PRE>
  *
- * <p>This writeReplace method is invoked by serialization if the method
+ * This writeReplace method is invoked by serialization if the method
  * exists and it would be accessible from a method defined within the
  * class of the object being serialized. Thus, the method can have private,
  * protected and package-private access. Subclass access to this method
  * follows java accessibility rules.
- *
- * <p>Classes that need to designate a replacement when an instance of it
+ * <p>
+ * Classes that need to designate a replacement when an instance of it
  * is read from the stream should implement this special method with the
  * exact signature.
  *
@@ -130,16 +130,16 @@ package java.io;
  * ANY-ACCESS-MODIFIER Object readResolve() throws ObjectStreamException;
  * </PRE>
  *
- * <p>This readResolve method follows the same invocation rules and
+ * This readResolve method follows the same invocation rules and
  * accessibility rules as writeReplace.
- *
- * <p>Enum types are all serializable and receive treatment defined by
+ * <p>
+ * Enum types are all serializable and receive treatment defined by
  * the <a href="{@docRoot}/../specs/serialization/index.html"><cite>
  * Java Object Serialization Specification</cite></a> during
  * serialization and deserialization. Any declarations of the special
  * handling methods discussed above are ignored for enum types.
- *
- * <p>Record classes can implement {@code Serializable} and receive treatment defined
+ * <p>
+ * Record classes can implement {@code Serializable} and receive treatment defined
  * by the <a href="{@docRoot}/../specs/serialization/serial-arch.html#serialization-of-records">
  * <cite>Java Object Serialization Specification,</cite> Section 1.13,
  * "Serialization of Records"</a>. Any declarations of the special
@@ -157,7 +157,7 @@ package java.io;
  *      </div>
  * </div>
  *
- * <p>The serialization runtime associates with each serializable class a version
+ * The serialization runtime associates with each serializable class a version
  * number, called a serialVersionUID, which is used during deserialization to
  * verify that the sender and receiver of a serialized object have loaded
  * classes for that object that are compatible with respect to serialization.
@@ -172,7 +172,7 @@ package java.io;
  * ANY-ACCESS-MODIFIER static final long serialVersionUID = 42L;
  * </PRE>
  *
- * <p>If a serializable class does not explicitly declare a serialVersionUID, then
+ * If a serializable class does not explicitly declare a serialVersionUID, then
  * the serialization runtime will calculate a default serialVersionUID value
  * for that class based on various aspects of the class, as described in the
  * <a href="{@docRoot}/../specs/serialization/index.html"><cite>Java Object Serialization
