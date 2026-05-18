@@ -26,7 +26,9 @@
  * @summary Test serialization of value classes
  * @enablePreview
  * @modules java.base/jdk.internal java.base/jdk.internal.value
+ * @library /test/lib
  * @compile ValueSerializationTest.java
+ * @run driver jdk.test.lib.helpers.StrictProcessor ValueSerializationTest$NonSerializableStrictPoint
  * @run junit/othervm ValueSerializationTest
  */
 
@@ -53,13 +55,13 @@ import java.util.stream.Stream;
 import jdk.internal.MigratedValueClass;
 import jdk.internal.value.DeserializeConstructor;
 
+import jdk.test.lib.helpers.StrictInit;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ValueSerializationTest {
 
@@ -70,6 +72,7 @@ public class ValueSerializationTest {
         return Stream.of(
             Arguments.of( new NonSerializablePoint(10, 100), NSE),
             Arguments.of( new NonSerializablePointNoCons(10, 100), ICE),
+            Arguments.of( new NonSerializableStrictPoint(), ICE),
             // an array of Points
             Arguments.of( new NonSerializablePoint[] {new NonSerializablePoint(1, 5)}, NSE),
             Arguments.of( Arguments.of(new NonSerializablePoint(3, 7)), NSE),
@@ -100,6 +103,24 @@ public class ValueSerializationTest {
         }
         @Override public String toString() {
             return "[NonSerializablePoint x=" + x + " y=" + y + "]";
+        }
+    }
+
+    public static class NonSerializableStrictPoint implements Serializable {
+        static {
+            for (var f : NonSerializableStrictPoint.class.getDeclaredFields()) {
+                assertTrue(f.isStrictInit(), f.getName());
+            }
+        }
+
+        @StrictInit
+        public int x;
+        @StrictInit
+        public int y;
+        public NonSerializableStrictPoint() {
+            x = 3;
+            y = 5;
+            super();
         }
     }
 
