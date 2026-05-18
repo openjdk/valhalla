@@ -2873,6 +2873,10 @@ JNI_ENTRY(void*, jni_GetPrimitiveArrayCritical(JNIEnv *env, jarray array, jboole
   Handle a(thread, JNIHandles::resolve_non_null(array));
   assert(a->is_typeArray(), "just checking");
 
+  // We must defer JVM TI suspension while we have access to a Java object
+  // as it could surprise the debugger if we mutate it concurrently whilst
+  // logically suspended.
+  thread->enter_jni_deferred_suspension();
   // Pin object
   Universe::heap()->pin_object(thread, a());
 
@@ -2890,6 +2894,7 @@ JNI_ENTRY(void, jni_ReleasePrimitiveArrayCritical(JNIEnv *env, jarray array, voi
   HOTSPOT_JNI_RELEASEPRIMITIVEARRAYCRITICAL_ENTRY(env, array, carray, mode);
   // Unpin object
   Universe::heap()->unpin_object(thread, JNIHandles::resolve_non_null(array));
+  thread->exit_jni_deferred_suspension();
 HOTSPOT_JNI_RELEASEPRIMITIVEARRAYCRITICAL_RETURN();
 JNI_END
 
@@ -2897,6 +2902,13 @@ JNI_END
 JNI_ENTRY(const jchar*, jni_GetStringCritical(JNIEnv *env, jstring string, jboolean *isCopy))
   HOTSPOT_JNI_GETSTRINGCRITICAL_ENTRY(env, string, (uintptr_t *) isCopy);
   oop s = JNIHandles::resolve_non_null(string);
+
+  // We must defer JVM TI suspension while we have access to a Java object.
+  // Even if we are taking a private copy we must not be considered
+  // suspended as the debugger could be mutating the string we are about
+  // to copy.
+  thread->enter_jni_deferred_suspension();
+
   jchar* ret;
   if (!java_lang_String::is_latin1(s)) {
     typeArrayHandle s_value(thread, java_lang_String::value(s));
@@ -2917,6 +2929,10 @@ JNI_ENTRY(const jchar*, jni_GetStringCritical(JNIEnv *env, jstring string, jbool
         ret[i] = ((jchar) s_value->byte_at(i)) & 0xff;
       }
       ret[s_len] = 0;
+    } else {
+      // If we return null there should not be a paired release operation
+      // so we have to cancel suspension deferral here.
+      thread->exit_jni_deferred_suspension();
     }
     if (isCopy != nullptr) *isCopy = JNI_TRUE;
   }
@@ -2942,6 +2958,7 @@ JNI_ENTRY(void, jni_ReleaseStringCritical(JNIEnv *env, jstring str, const jchar 
     // Unpin value array
     Universe::heap()->unpin_object(thread, value);
   }
+  thread->exit_jni_deferred_suspension();
 HOTSPOT_JNI_RELEASESTRINGCRITICAL_RETURN();
 JNI_END
 
@@ -3191,14 +3208,14 @@ JNI_ENTRY(jboolean, jni_IsVirtualThread(JNIEnv* env, jobject obj))
   return ret;
 JNI_END
 
-JNI_ENTRY(jboolean, jni_IsValueObject(JNIEnv* env, jobject obj))
-  HOTSPOT_JNI_ISVALUEOBJECT_ENTRY(env, obj);
+JNI_ENTRY(jboolean, jni_HasIdentity(JNIEnv* env, jobject obj))
+  HOTSPOT_JNI_HASIDENTITY_ENTRY(env, obj);
   oop o = JNIHandles::resolve(obj);
-  if (o != nullptr && o->klass()->is_inline_klass()) {
-    HOTSPOT_JNI_ISVALUEOBJECT_RETURN(JNI_TRUE);
+  if (o != nullptr && !o->klass()->is_inline_klass()) {
+    HOTSPOT_JNI_HASIDENTITY_RETURN(JNI_TRUE);
     return JNI_TRUE;
   } else {
-    HOTSPOT_JNI_ISVALUEOBJECT_RETURN(JNI_FALSE);
+    HOTSPOT_JNI_HASIDENTITY_RETURN(JNI_FALSE);
     return JNI_FALSE;
   }
 JNI_END
@@ -3498,7 +3515,7 @@ struct JNINativeInterface_ jni_NativeInterface = {
 
     // Value classes
 
-    jni_IsValueObject
+    jni_HasIdentity
 };
 
 
