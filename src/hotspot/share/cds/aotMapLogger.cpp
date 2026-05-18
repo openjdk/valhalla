@@ -656,7 +656,7 @@ public:
     }
   }
 
-  void print_non_oop_field(outputStream* st, fieldDescriptor* fd, int indent, int base_offset) {
+  void print_non_oop_field(outputStream* st, fieldDescriptor* fd, int indent = 0, int base_offset = 0) {
     // fd->print_on_for() works for non-oop fields in fake oops
     precond(fd->field_type() != T_ARRAY && fd->field_type() != T_OBJECT);
     fd->print_on_for(st, raw_oop(), indent, base_offset);
@@ -862,7 +862,7 @@ class AOTMapLogger::ArchivedFieldPrinter : public FieldClosure {
   int _indent;
   int _base_offset;
 public:
-  ArchivedFieldPrinter(FakeOop fake_oop, outputStream* st, int indent = 1, int base_offset = 0) :
+  ArchivedFieldPrinter(FakeOop fake_oop, outputStream* st, int indent = 0, int base_offset = 0) :
                        _fake_oop(fake_oop), _st(st), _indent(indent), _base_offset(base_offset) {}
 
   void do_field(fieldDescriptor* fd) {
