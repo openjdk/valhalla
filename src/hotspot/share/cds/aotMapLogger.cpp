@@ -868,6 +868,13 @@ public:
   void do_field(fieldDescriptor* fd) {
     for (int i = 0; i < _indent; i++) _st->print("  ");
     _st->print(" - ");
+
+    if (_fake_oop.raw_oop() == nullptr) {
+      fd->print_on(_st, _base_offset);
+      _st->cr();
+      return;
+    }
+
     BasicType ft = fd->field_type();
     switch (ft) {
     case T_ARRAY:
@@ -1050,7 +1057,6 @@ void AOTMapLogger::print_oop_details(FakeOop fake_oop, outputStream* st) {
   } else if (real_klass->is_flatArray_klass()) {
     FakeFlatArray fake_flat_array = fake_oop.as_flat_array();
     InlineKlass* elem_k = ((FlatArrayKlass*)real_klass)->element_klass();
-
     for (int i = 0; i < fake_flat_array.length(); i++) {
       int off = fake_flat_array.element_offset_at(i);
       st->print_cr(" - Index %3d offset %3d: ", i, off);
