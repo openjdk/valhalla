@@ -2625,10 +2625,10 @@ void MachVEPNode::emit(C2_MacroAssembler* masm, PhaseRegAlloc* ra_) const
   }
   if (ra_->C->stub_function() == nullptr) {
     // Pad so that the next call to MachVEPNode::emit() starts out with the
-    // correct alignment.  This is needed by entry_barrier() to aling the
+    // correct alignment.  This is needed by entry_barrier() to align the
     // compare.  But unfortunately we need to align all 4 MachVEPNodes because
     // entry point offsets are computed using scratch_emit_size(), so starting
-    // alignment must match the alignment of scratch buffer, otherwise the sizes
+    // alignment must match the alignment of the scratch buffer, otherwise the sizes
     // will be off.
     __ align(4);
   }
