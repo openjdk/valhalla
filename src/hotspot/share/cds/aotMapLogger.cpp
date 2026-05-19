@@ -896,7 +896,6 @@ public:
           _st->cr();
           // Print fields of flat field (recursively)
           int field_offset = fd->offset() - vk->payload_offset();
-          //FakeOop obj = _fake_oop.obj_field(field_offset);
           address field_addr = (address)_fake_oop.buffered_field_addr(field_offset);
           FakeOop obj = _fake_oop.read_inline_oop_at(field_addr, vk);
           ArchivedFieldPrinter print_field(obj, _st, _indent + 1, _base_offset + field_offset);
