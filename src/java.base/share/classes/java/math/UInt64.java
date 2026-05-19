@@ -183,7 +183,7 @@ public final class UInt64 {
      * @param y the 2nd parameter
      * @return the result described above.
      */
-    static boolean lessThan(long x, long y) {
+    public static boolean lessThan(long x, long y) {
         /* +Long.MIN_VALUE translates directly to unsigned comparison. */
         return (x + Long.MIN_VALUE) < (y + Long.MIN_VALUE);
     }
