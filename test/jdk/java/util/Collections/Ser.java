@@ -43,7 +43,7 @@ import java.util.Set;
 public class Ser {
 
     @AsValueClass
-    static class SerV implements Serializable {
+    static final class SerV implements Serializable {
         int x;
         SerV(int x) { this.x = x; }
         public boolean equals(Object o) { return o instanceof SerV v && x == v.x; }
