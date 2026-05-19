@@ -27,7 +27,10 @@
  * @summary Hashtable was less robust to extension that it could have been
  *          because the equals and Hashcode methods used internals
  *          unnecessarily.  (java.security.Provider tickled this sensitivity.)
+ * @library /test/lib
  */
+
+import jdk.test.lib.valueclass.Tuple;
 
 import java.security.Provider;
 import java.util.Map;
@@ -36,7 +39,9 @@ public class EqualsCast {
     public static void main(String[] args) throws Exception {
         Map m1 = new MyProvider("foo", 69, "baz");
         Map m2 = new MyProvider("foo", 69, "baz");
-        m1.equals(m2);
+        if (!m1.equals(m2)) {
+            throw new RuntimeException("Provider maps are not equal");
+        }
     }
 }
 
@@ -48,6 +53,7 @@ class MyProvider extends Provider {
         super(name, version, info);
         this.name = name;
         put("Signature.sigalg", "sigimpl");
+        put(new Tuple(1, 1), new Tuple(2, 2));
     }
 
     public String getName() {

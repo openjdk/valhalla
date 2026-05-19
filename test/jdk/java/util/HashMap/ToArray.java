@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,27 +31,26 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.LongStream;
+import jdk.test.lib.valueclass.Tuple;
 
 /*
  * @test
  * @bug 8336669
  * @summary HashMap.toArray() behavior tests
  * @author tvaleev
+ * @library /test/lib
  */
 public class ToArray {
-    // An interned identity class holding an int (like non-Preview Integer)
-    record Int(int intValue) implements Comparable<Int> {
-        @Override
-        public int compareTo(Int o) {
-            return Integer.compare(intValue, o.intValue);
-        }
-    }
 
     public static void main(String[] args) {
         checkMap(false);
         checkMap(true);
         checkSet(false);
         checkSet(true);
+        checkTupleMap(false);
+        checkTupleMap(true);
+        checkTupleSet(false);
+        checkTupleSet(true);
     }
 
     private static <T extends Comparable<T>> void checkToArray(String message, T[] expected, Collection<T> collection,
@@ -160,5 +159,47 @@ public class ToArray {
         }
         checkToArray("Collisions", LongStream.range(0, 100).mapToObj(x -> x | (x << 32))
                 .toArray(Long[]::new), longSet, !ordered);
+    }
+
+    private static void checkTupleMap(boolean ordered) {
+        Map<Tuple, Tuple> map = ordered ? new LinkedHashMap<>() : new HashMap<>();
+        checkToArray("Empty-tuple-keys", new Tuple[0], map.keySet(), !ordered);
+        checkToArray("Empty-tuple-values", new Tuple[0], map.values(), !ordered);
+
+        List<Tuple> keys = new ArrayList<>();
+        List<Tuple> values = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            keys.add(new Tuple(i, i));
+            values.add(new Tuple(i * 2, i * 2));
+            map.put(new Tuple(i, i), new Tuple(i * 2, i * 2));
+            checkToArray(i + "-tuple-keys", keys.toArray(new Tuple[0]), map.keySet(), !ordered);
+            checkToArray(i + "-tuple-values", values.toArray(new Tuple[0]), map.values(), !ordered);
+        }
+        map.clear();
+        checkToArray("Empty-tuple-keys", new Tuple[0], map.keySet(), !ordered);
+        checkToArray("Empty-tuple-values", new Tuple[0], map.values(), !ordered);
+    }
+
+    private static void checkTupleSet(boolean ordered) {
+        Collection<Tuple> set = ordered ? new LinkedHashSet<>() : new HashSet<>();
+        checkToArray("Empty-tuple", new Tuple[0], set, !ordered);
+        set.add(new Tuple(1, 1));
+        checkToArray("One-tuple", new Tuple[]{new Tuple(1, 1)}, set, !ordered);
+        set.add(new Tuple(2, 2));
+        checkToArray("Two-tuple", new Tuple[]{new Tuple(1, 1), new Tuple(2, 2)}, set, !ordered);
+
+        Collection<Tuple> tupleSet = ordered ? new LinkedHashSet<>() : new HashSet<>();
+        for (int x = 0; x < 100; x++) {
+            tupleSet.add(new Tuple(x, x));
+        }
+        checkToArray("100-tuple", LongStream.range(0, 100).mapToObj(x -> new Tuple((int) x, (int) x))
+                .toArray(Tuple[]::new), tupleSet, !ordered);
+        tupleSet.clear();
+        checkToArray("After-clear-tuple", new Tuple[0], tupleSet, !ordered);
+        for (int x = 0; x < 100; x++) {
+            tupleSet.add(new Tuple(x, -31 * x));
+        }
+        checkToArray("Collisions-tuple", LongStream.range(0, 100).mapToObj(x -> new Tuple((int) x, -31 * (int) x))
+                .toArray(Tuple[]::new), tupleSet, !ordered);
     }
 }

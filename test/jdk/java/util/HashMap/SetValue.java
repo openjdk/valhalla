@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
  * @bug 4627516
  * @summary HashMap.Entry.setValue() returns new value (as opposed to old)
  * @author jbloch
+ * @library /test/lib
  */
 
+import jdk.test.lib.valueclass.Tuple;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,9 +39,25 @@ public class SetValue {
     static final String newValue = "new";
 
     public static void main(String[] args) throws Exception {
+        testStringValue();
+        testTupleValue();
+    }
+
+    private static void testStringValue() {
         Map m = new HashMap();
         m.put(key, oldValue);
         Map.Entry e = (Map.Entry) m.entrySet().iterator().next();
+        Object returnVal = e.setValue(newValue);
+        if (!returnVal.equals(oldValue))
+            throw new RuntimeException("Return value: " + returnVal);
+    }
+
+    private static void testTupleValue() {
+        Map<String, Tuple> m = new HashMap<>();
+        Tuple oldValue = new Tuple(1, 1);
+        Tuple newValue = new Tuple(2, 2);
+        m.put(key, oldValue);
+        Map.Entry<String, Tuple> e = m.entrySet().iterator().next();
         Object returnVal = e.setValue(newValue);
         if (!returnVal.equals(oldValue))
             throw new RuntimeException("Return value: " + returnVal);

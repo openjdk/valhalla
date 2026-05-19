@@ -30,13 +30,29 @@
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 public class EmptyMapIterator {
     public static void main(String[] args) throws Exception {
+        testStringKeys();
+        testIntegerKeys();
+    }
+
+    private static void testStringKeys() throws Exception {
         HashMap map = new HashMap();
         Iterator iter = map.entrySet().iterator();
         map.put("key", "value");
+        expectConcurrentModification(iter);
+    }
 
+    private static void testIntegerKeys() throws Exception {
+        HashMap<Integer,Integer> map = new HashMap<>();
+        Iterator<Map.Entry<Integer,Integer>> iter = map.entrySet().iterator();
+        map.put(Integer.valueOf(1), Integer.valueOf(2));
+        expectConcurrentModification(iter);
+    }
+
+    private static void expectConcurrentModification(Iterator<?> iter) throws Exception {
         try {
             iter.next();
             throw new Exception("No exception thrown");

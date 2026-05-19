@@ -25,7 +25,10 @@
  * @test
  * @bug 4163207
  * @summary AddAll was prepending instead of appending!
+ * @library /test/lib
  */
+
+import jdk.test.lib.valueclass.Tuple;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,8 +37,13 @@ import java.util.List;
 
 public class AddAll {
     public static void main(String[] args) throws Exception {
-        List head = Collections.nCopies(7, "deadly sin");
-        List tail = Collections.nCopies(4, "basic food group");
+        testAddAll(Collections.nCopies(7, "deadly sin"),
+                   Collections.nCopies(4, "basic food group"));
+        testAddAll(Collections.nCopies(7, new Tuple(7, 1)),
+                   Collections.nCopies(4, new Tuple(4, 2)));
+    }
+
+    private static void testAddAll(List head, List tail) {
         List l1 = new ArrayList(head);
         List l2 = new LinkedList(head);
         l1.addAll(tail);

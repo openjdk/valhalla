@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,11 @@
  * @test
  * @bug 8205399
  * @summary Check for AssertionError from HashMap TreeBin after Iterator.remove
+ * @library /test/lib
  * @run testng/othervm -esa TreeBinAssert
  */
 
+import jdk.test.lib.valueclass.AsValueClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.annotations.BeforeTest;
@@ -154,6 +156,7 @@ public class TreeBinAssert {
     /**
      * Class that will have specified hash code in a HashMap.
      */
+    @AsValueClass
     static class Key implements Comparable<Key> {
         final int hash;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
  * @bug 8046085
  * @summary Ensure that when trees are being used for collisions that null key
  * insertion still works.
+ * @library /test/lib
  */
 
+import jdk.test.lib.valueclass.AsValueClass;
 import java.util.*;
 import java.util.stream.IntStream;
 
@@ -45,6 +47,7 @@ public class PutNullKey {
     // A value 1.0 will ensure that a new threshold == capacity
     static final float LOAD_FACTOR = 1.0f;
 
+    @AsValueClass
     public static class CollidingHash implements Comparable<CollidingHash> {
 
         private final int value;
@@ -79,6 +82,10 @@ public class PutNullKey {
     }
 
     public static void main(String[] args) throws Exception {
+        testCollidingHash();
+    }
+
+    private static void testCollidingHash() {
         Map<Object,Object> m = new HashMap<>(INITIAL_CAPACITY, LOAD_FACTOR);
         IntStream.range(0, SIZE)
                 .mapToObj(CollidingHash::new)
