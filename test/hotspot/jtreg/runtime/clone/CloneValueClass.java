@@ -25,13 +25,15 @@
  * @test
  * @bug 8384108
  * @summary Verify clone behavior with custom value classes
+ * @library /test/lib
  * @modules java.base/java.lang:open
- * @enablePreview
  * @run main CloneValueClass
  */
+import jdk.test.lib.valueclass.AsValueClass;
 public class CloneValueClass {
 
-    static value class Point {
+    @AsValueClass
+    static class Point {
         int x;
         int y;
         Point(int x, int y) {
@@ -40,7 +42,8 @@ public class CloneValueClass {
         }
     }
 
-    static value class MixedValue {
+    @AsValueClass
+    static class MixedValue {
         int id;
         String name;
         MixedValue(int id, String name) {
