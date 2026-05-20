@@ -21,28 +21,31 @@
  * questions.
  */
 import jdk.internal.vm.annotation.Contended;
+import jdk.test.lib.valueclass.AsValueClass;
 
 /*
  * @test
  * @bug     8384107
  * @summary Test contended field layout and oop maps with flattened value types
  *
+ * @library /test/lib
  * @modules java.base/jdk.internal.vm.annotation
- * @enablePreview
  * @run main/othervm -XX:-RestrictContended -XX:ContendedPaddingWidth=128 -Xmx128m OopMapsCustomValue
  */
 public class OopMapsCustomValue {
     public static final int COUNT = 10000;
 
     // Small value type (32 bits) — guaranteed to be flattened
-    static value class Small {
+    @AsValueClass
+    static class Small {
         int x;
         Small(int x) { this.x = x; }
     }
 
     // Value type with reference + primitive — flattened with compressed oops,
     // not flattened with full size oops, creating distinct layout patterns
-    static value class Opt {
+    @AsValueClass
+    static class Opt {
         Object o;
         boolean b;
         Opt(Object o, boolean b) { this.o = o; this.b = b; }
