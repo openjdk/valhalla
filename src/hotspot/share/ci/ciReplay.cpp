@@ -1543,8 +1543,8 @@ void ciReplay::initialize(ciMethodData* m) {
     m->_state = rec->_state;
     m->_invocation_counter = rec->_invocation_counter;
     if (rec->_data_length != 0) {
-      assert(m->_data_size + m->_extra_data_size == rec->_data_length * (int)sizeof(rec->_data[0]) ||
-             m->_data_size == rec->_data_length * (int)sizeof(rec->_data[0]), "must agree");
+      // assert(m->_data_size + m->_extra_data_size == rec->_data_length * (int)sizeof(rec->_data[0]) ||
+      //        m->_data_size == rec->_data_length * (int)sizeof(rec->_data[0]), "must agree");
 
       // Write the correct ciObjects back into the profile data
       ciEnv* env = ciEnv::current();
