@@ -195,6 +195,7 @@ public class AOTMapReader {
     //  - final 'key' 'Ljava/lang/Object;' @16 0x00000007ffc68260 (0xfff8d04c) java.lang.String
     static Pattern oopFieldPattern2 = Pattern.compile(" - [^']* '([^']+)'.*@([0-9]+) 0x([0-9a-f]+) [(]0x([0-9a-f]+)[)] (.*)");
 
+    static Pattern flatFieldPattern = Pattern.compile(" - Flat inline type field '([^']+)':.*");
     // (injected module_entry)
     //  - injected 'module_entry' 'J' @16 0 (0x0000000000000000)
     static Pattern moduleEntryPattern = Pattern.compile("- injected 'module_entry' 'J' @[0-9]+[ ]+([0-9]+)");
@@ -243,7 +244,7 @@ public class AOTMapReader {
             }
             while (true) {
                 nextLine();
-                if (line == null || !line.startsWith(" - ")) {
+                if (line == null || !line.matches("^\s*-.*")) {
                     return heapObject;
                 }
                 if (!line.contains("marked metadata pointer")) {
@@ -251,6 +252,8 @@ public class AOTMapReader {
                         heapObject.addOopField(m.group(1), m.group(2), m.group(3), m.group(4));
                     } else if ((m = match(line, oopFieldPattern1)) != null) {
                         heapObject.addOopField(m.group(1), m.group(2), m.group(3), null);
+                    } else if((m = match(line, flatFieldPattern)) != null) {
+                        continue;
                     } else if ((m = match(line, moduleEntryPattern)) != null) {
                         String value = m.group(1);
                         if (!value.equals("0")) {
