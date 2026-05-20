@@ -27,10 +27,9 @@
  * @summary Basic tests for asLifoQueue
  * @author  Martin Buchholz
  * @library /test/lib
- * @run main AsLifoQueue
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -77,13 +76,13 @@ public class AsLifoQueue {
         THROWS(NullPointerException.class, () -> Collections.asLifoQueue(null));
 
         try {
-            Deque<Tuple> deq = new ArrayDeque<>();
-            Queue<Tuple> q = Collections.asLifoQueue(deq);
-            check(q.add(new Tuple(1, 1)));
-            check(q.add(new Tuple(2, 2)));
-            equal(q.peek(), new Tuple(2, 2));
-            equal(q.remove(), new Tuple(2, 2));
-            equal(q.poll(), new Tuple(1, 1));
+            Deque<VClass> deq = new ArrayDeque<>();
+            Queue<VClass> q = Collections.asLifoQueue(deq);
+            check(q.add(new VClass(1, new int[] { 1 })));
+            check(q.add(new VClass(2, new int[] { 2 })));
+            equal(q.peek(), new VClass(2, new int[] { 2 }));
+            equal(q.remove(), new VClass(2, new int[] { 2 }));
+            equal(q.poll(), new VClass(1, new int[] { 1 }));
             check(q.isEmpty());
         } catch (Throwable t) { unexpected(t); }
     }

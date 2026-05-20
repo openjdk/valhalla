@@ -26,10 +26,9 @@
  * @bug 4528331 5006032
  * @summary Test Collections.binarySearch() with a null comparator
  * @library /test/lib
- * @run main BinarySearchNullComparator
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -43,8 +42,8 @@ public class BinarySearchNullComparator {
         if (result != 2)
             throw new Exception("Result: " + result);
 
-        List<Tuple> values = Arrays.asList(new Tuple(1, 1), new Tuple(2, 2), new Tuple(3, 3));
-        int vresult = Collections.binarySearch(values, new Tuple(3, 3), null);
+        List<VClass> values = Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }), new VClass(3, new int[] { 3 }));
+        int vresult = Collections.binarySearch(values, new VClass(3, new int[] { 3 }), null);
         if (vresult != 2)
             throw new Exception("Value result: " + vresult);
     }

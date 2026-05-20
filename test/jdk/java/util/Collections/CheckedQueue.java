@@ -29,7 +29,7 @@
  * @run testng CheckedQueue
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Queue;
@@ -155,9 +155,9 @@ public class CheckedQueue {
 
     @Test
     public void testValueCheckedQueue() {
-        Queue<Tuple> q = Collections.checkedQueue(new ArrayDeque<>(), Tuple.class);
-        q.add(new Tuple(1, 1));
-        if (!q.peek().equals(new Tuple(1, 1)))
+        Queue<VClass> q = Collections.checkedQueue(new ArrayDeque<>(), VClass.class);
+        q.add(new VClass(1, new int[] { 1 }));
+        if (!q.peek().equals(new VClass(1, new int[] { 1 })))
             fail("value checkedQueue peek failed");
         try {
             ((Queue) q).add("not a Tuple");

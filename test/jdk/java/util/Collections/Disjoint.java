@@ -28,10 +28,9 @@
  * @author  Josh Bloch
  * @key randomness
  * @library /test/lib
- * @run main Disjoint
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -76,9 +75,9 @@ public class Disjoint {
             }
         }
 
-        List<Tuple> va = Arrays.asList(new Tuple(1, 1), new Tuple(2, 2));
-        List<Tuple> vb = Arrays.asList(new Tuple(3, 3), new Tuple(4, 4));
-        List<Tuple> vc = Arrays.asList(new Tuple(2, 2), new Tuple(5, 5));
+        List<VClass> va = Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }));
+        List<VClass> vb = Arrays.asList(new VClass(3, new int[] { 3 }), new VClass(4, new int[] { 4 }));
+        List<VClass> vc = Arrays.asList(new VClass(2, new int[] { 2 }), new VClass(5, new int[] { 5 }));
         if (!Collections.disjoint(va, vb)) throw new RuntimeException("value disjoint failed");
         if (Collections.disjoint(va, vc)) throw new RuntimeException("value non-disjoint failed");
     }

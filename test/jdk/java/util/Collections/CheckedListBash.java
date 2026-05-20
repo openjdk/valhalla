@@ -28,10 +28,9 @@
  * @author  Josh Bloch
  * @key randomness
  * @library /test/lib
- * @run main CheckedListBash
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -231,12 +230,12 @@ public class CheckedListBash {
     }
 
     static void testValueCheckedList() {
-        List<Tuple> list = Collections.checkedList(new ArrayList<>(), Tuple.class);
-        list.add(new Tuple(1, 1));
-        list.add(new Tuple(2, 2));
-        if (!list.contains(new Tuple(1, 1)) || list.indexOf(new Tuple(2, 2)) != 1)
+        List<VClass> list = Collections.checkedList(new ArrayList<>(), VClass.class);
+        list.add(new VClass(1, new int[] { 1 }));
+        list.add(new VClass(2, new int[] { 2 }));
+        if (!list.contains(new VClass(1, new int[] { 1 })) || list.indexOf(new VClass(2, new int[] { 2 })) != 1)
             fail("value checkedList lookup failed");
-        Tuple[] a = list.toArray(new Tuple[0]);
+        VClass[] a = list.toArray(new VClass[0]);
         if (!Arrays.asList(a).equals(list))
             fail("value checkedList toArray failed");
         try {

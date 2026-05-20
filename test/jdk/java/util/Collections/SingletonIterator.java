@@ -28,7 +28,7 @@
  * @run testng SingletonIterator
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -67,10 +67,10 @@ public class SingletonIterator {
 
     @Test
     public void testValueSingletonIterator() {
-        Iterator<Tuple> it = Collections.singleton(new Tuple(42, 42)).iterator();
+        Iterator<VClass> it = Collections.singleton(new VClass(42, new int[] { 42 })).iterator();
         AtomicInteger cnt = new AtomicInteger(0);
         it.forEachRemaining(v -> {
-            if (!v.equals(new Tuple(42, 42))) throw new RuntimeException("wrong value");
+            if (!v.equals(new VClass(42, new int[] { 42 }))) throw new RuntimeException("wrong value");
             cnt.incrementAndGet();
         });
         assertEquals(cnt.get(), 1);

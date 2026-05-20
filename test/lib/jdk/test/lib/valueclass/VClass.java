@@ -23,22 +23,24 @@
 
 package jdk.test.lib.valueclass;
 
+import java.util.Arrays;
+
 /**
  * A reusable value class helper for Collections tests.
- * Wraps two ints (x, y), supports equality, ordering, and hashing.
+ * Wraps an int and an int array (x, arr), supports equality, ordering, and hashing.
  * When compiled with -Xplugin:ValueClassPlugin --enable-preview this class
  * is treated as a value class; otherwise it is a plain identity class,
  * allowing the same tests to exercise both modes.
  */
 @AsValueClass
-public final class Tuple implements Comparable<Tuple> {
+public final class VClass implements Comparable<VClass> {
     public int x;
-    public int y;
-    public Tuple(int x, int y) { this.x = x; this.y = y; }
-    public int compareTo(Tuple other) {
+    public int[] arr;
+    public VClass(int x, int[] arr) { this.x = x; this.arr = arr; }
+    public int compareTo(VClass other) {
         int cmp = Integer.compare(x, other.x);
-        return cmp != 0 ? cmp : Integer.compare(y, other.y);
+        return cmp != 0 ? cmp : Arrays.compare(arr, other.arr);
     }
-    public boolean equals(Object o) { return o instanceof Tuple t && x == t.x && y == t.y; }
-    public int hashCode() { return 31 * x + y; }
+    public boolean equals(Object o) { return o instanceof VClass t && x == t.x && Arrays.equals(arr, t.arr); }
+    public int hashCode() { return 31 * x + Arrays.hashCode(arr); }
 }

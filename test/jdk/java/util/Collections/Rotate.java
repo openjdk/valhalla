@@ -27,10 +27,9 @@
  * @summary Basic test for new rotate algorithm
  * @key randomness
  * @library /test/lib
- * @run main Rotate
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -74,9 +73,9 @@ public class Rotate {
             }
         }
 
-        List<Tuple> vl = new ArrayList<>(Arrays.asList(new Tuple(1, 1), new Tuple(2, 2), new Tuple(3, 3), new Tuple(4, 4)));
+        List<VClass> vl = new ArrayList<>(Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }), new VClass(3, new int[] { 3 }), new VClass(4, new int[] { 4 })));
         Collections.rotate(vl, 1);
-        if (!vl.equals(Arrays.asList(new Tuple(4, 4), new Tuple(1, 1), new Tuple(2, 2), new Tuple(3, 3))))
+        if (!vl.equals(Arrays.asList(new VClass(4, new int[] { 4 }), new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }), new VClass(3, new int[] { 3 }))))
             throw new RuntimeException("value rotate failed");
     }
 }

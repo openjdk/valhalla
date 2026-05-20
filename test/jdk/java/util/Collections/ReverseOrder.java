@@ -27,10 +27,9 @@
  * @summary Reverse comparator was subtly broken
  * @author Josh Bloch
  * @library /test/lib
- * @run main ReverseOrder
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -84,9 +83,9 @@ public class ReverseOrder {
         if (!list2.equals(goldenList))
             throw new Exception(list.toString());
 
-        List<Tuple> vl = Arrays.asList(new Tuple(1, 1), new Tuple(3, 3), new Tuple(2, 2));
+        List<VClass> vl = Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(3, new int[] { 3 }), new VClass(2, new int[] { 2 }));
         Collections.sort(vl, Collections.reverseOrder());
-        if (!vl.equals(Arrays.asList(new Tuple(3, 3), new Tuple(2, 2), new Tuple(1, 1))))
+        if (!vl.equals(Arrays.asList(new VClass(3, new int[] { 3 }), new VClass(2, new int[] { 2 }), new VClass(1, new int[] { 1 }))))
             throw new RuntimeException("value reverseOrder failed");
     }
 }

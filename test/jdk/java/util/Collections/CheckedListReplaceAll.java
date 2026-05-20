@@ -27,10 +27,9 @@
  * @summary Ensure that replaceAll operator cannot add bad elements
  * @author  Mike Duigou
  * @library /test/lib
- * @run main CheckedListReplaceAll
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.*;
 import java.util.function.UnaryOperator;
 
@@ -62,12 +61,12 @@ public class CheckedListReplaceAll {
             System.out.println("Curses! Foiled again!");
         }
 
-        List<Tuple> vList = Collections.checkedList(new ArrayList<Tuple>(Arrays.asList(new Tuple(1, 1))), Tuple.class);
-        vList.replaceAll(v -> new Tuple(v.x + 1, v.x + 1));
-        if (!vList.get(0).equals(new Tuple(2, 2)))
+        List<VClass> vList = Collections.checkedList(new ArrayList<VClass>(Arrays.asList(new VClass(1, new int[] { 1 }))), VClass.class);
+        vList.replaceAll(v -> new VClass(v.x + 1, new int[] { v.x + 1 }));
+        if (!vList.get(0).equals(new VClass(2, new int[] { 2 })))
             throw new RuntimeException("value checkedList replaceAll failed");
 
-        List raw = Collections.checkedList(new ArrayList<Tuple>(Arrays.asList(new Tuple(1, 1))), Tuple.class);
+        List raw = Collections.checkedList(new ArrayList<VClass>(Arrays.asList(new VClass(1, new int[] { 1 }))), VClass.class);
         try {
             raw.replaceAll(e -> "not a Tuple");
             throw new RuntimeException("value checkedList replaceAll accepted wrong type");

@@ -28,10 +28,9 @@
  * @author  Josh Bloch
  * @key randomness
  * @library /test/lib
- * @run main AddAll
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,10 +50,10 @@ public class AddAll {
         test(new HashSet<Integer>());
         test(new LinkedHashSet<Integer>());
 
-        testTuple(new ArrayList<Tuple>());
-        testTuple(new LinkedList<Tuple>());
-        testTuple(new HashSet<Tuple>());
-        testTuple(new LinkedHashSet<Tuple>());
+        testTuple(new ArrayList<VClass>());
+        testTuple(new LinkedList<VClass>());
+        testTuple(new HashSet<VClass>());
+        testTuple(new LinkedHashSet<VClass>());
     }
 
     private static Random rnd = new Random();
@@ -84,7 +83,7 @@ public class AddAll {
         return result;
     }
 
-    static void testTuple(Collection<Tuple> c) {
+    static void testTuple(Collection<VClass> c) {
         int x = 0;
         for (int i = 0; i < N; i++) {
             int rangeLen = rnd.nextInt(10);
@@ -97,15 +96,15 @@ public class AddAll {
             if (!c.equals(Arrays.asList(rangeTuple(0, x))))
                 throw new RuntimeException(x + ": " + c);
         } else {
-            if (!c.equals(new HashSet<Tuple>(Arrays.asList(rangeTuple(0, x)))))
+            if (!c.equals(new HashSet<VClass>(Arrays.asList(rangeTuple(0, x)))))
                 throw new RuntimeException(x + ": " + c);
         }
     }
 
-    private static Tuple[] rangeTuple(int from, int to) {
-        Tuple[] result = new Tuple[to - from];
+    private static VClass[] rangeTuple(int from, int to) {
+        VClass[] result = new VClass[to - from];
         for (int i = from, j = 0; i < to; i++, j++)
-            result[j] = new Tuple(i, i);
+            result[j] = new VClass(i, new int[] { i });
         return result;
     }
 }

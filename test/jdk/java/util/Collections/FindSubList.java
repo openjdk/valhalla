@@ -26,10 +26,9 @@
  * @bug 4323074
  * @summary Basic test for Collections.indexOfSubList/lastIndexOfSubList
  * @library /test/lib
- * @run main FindSubList
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -108,8 +107,8 @@ public class FindSubList {
               throw new Exception(s.getClass()+" lastIndexOfSubList: big tgt");
         }
 
-        List<Tuple> vsource = Arrays.asList(new Tuple(1, 1), new Tuple(2, 2), new Tuple(3, 3), new Tuple(2, 2), new Tuple(3, 3));
-        List<Tuple> vtarget = Arrays.asList(new Tuple(2, 2), new Tuple(3, 3));
+        List<VClass> vsource = Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }), new VClass(3, new int[] { 3 }), new VClass(2, new int[] { 2 }), new VClass(3, new int[] { 3 }));
+        List<VClass> vtarget = Arrays.asList(new VClass(2, new int[] { 2 }), new VClass(3, new int[] { 3 }));
         if (Collections.indexOfSubList(vsource, vtarget) != 1)
             throw new Exception("value indexOfSubList failed");
         if (Collections.lastIndexOfSubList(vsource, vtarget) != 3)

@@ -31,7 +31,7 @@
  * @run testng CheckedMapBash
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -196,14 +196,14 @@ public class CheckedMapBash {
 
     @Test
     public static void testValueCheckedMap() {
-        Map<Tuple,Tuple> m = Collections.checkedMap(new HashMap<>(), Tuple.class, Tuple.class);
-        m.put(new Tuple(1, 1), new Tuple(10, 10));
-        if (!m.containsKey(new Tuple(1, 1)) || !m.containsValue(new Tuple(10, 10)))
+        Map<VClass,VClass> m = Collections.checkedMap(new HashMap<>(), VClass.class, VClass.class);
+        m.put(new VClass(1, new int[] { 1 }), new VClass(10, new int[] { 10 }));
+        if (!m.containsKey(new VClass(1, new int[] { 1 })) || !m.containsValue(new VClass(10, new int[] { 10 })))
             fail("value checkedMap lookup failed");
         if (!new HashMap<>(m).equals(m))
             fail("value checkedMap equals failed");
         try {
-            ((Map) m).put("not a Tuple", new Tuple(2, 2));
+            ((Map) m).put("not a Tuple", new VClass(2, new int[] { 2 }));
             fail("value checkedMap accepted wrong type");
         } catch (ClassCastException expected) { }
     }

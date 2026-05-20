@@ -26,10 +26,9 @@
  * @bug 6433170
  * @summary CheckedCollection.addAll should be all-or-nothing
  * @library /test/lib
- * @run main T6433170
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -61,8 +60,8 @@ public class T6433170 {
                  checkedCollection(new Vector(), String.class),
                  Object.class));
 
-        Collection<Tuple> vc = checkedCollection(new ArrayList<>(), Tuple.class);
-        List mixed = Arrays.asList(new Tuple(1, 1), new Tuple(2, 2), "not a Tuple");
+        Collection<VClass> vc = checkedCollection(new ArrayList<>(), VClass.class);
+        List mixed = Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }), "not a Tuple");
         THROWS(ClassCastException.class,
                new F(){void f(){ vc.addAll(mixed); }});
         checkEmpty(vc);
