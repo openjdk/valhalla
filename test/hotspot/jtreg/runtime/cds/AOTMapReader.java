@@ -273,7 +273,7 @@ public class AOTMapReader {
             // TODO: read all the array elements
             while (true) {
                 nextLine();
-                if (line == null || !line.startsWith(" - ")) {
+                if (line == null || !line.matches("^\s*-.*")) { // Check for "-" with leading spaces
                     return heapObject;
                 }
             }

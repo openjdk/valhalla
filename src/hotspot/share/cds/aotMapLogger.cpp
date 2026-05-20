@@ -549,10 +549,7 @@ void AOTMapLogger::log_as_hex(address base, address top, address requested_base,
 // Each AOT heap reader and writer has its own oop_iterator() API that retrieves all the data required to build
 // fake oops for logging.
 class AOTMapLogger::FakeOop {
-protected:
   OopDataIterator* _iter;
-
-private:
   OopData _data;
 
 public:
