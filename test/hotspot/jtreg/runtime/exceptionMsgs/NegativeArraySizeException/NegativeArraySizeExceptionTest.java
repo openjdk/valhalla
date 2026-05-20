@@ -38,10 +38,10 @@ import jdk.test.lib.valueclass.AsValueClass;
 public class NegativeArraySizeExceptionTest {
 
     @AsValueClass
-    static class Point {
-        int x;
-        int y;
-        Point(int x, int y) { this.x = x; this.y = y; }
+    static class VClass {
+        Integer x;
+        Integer y;
+        VClass(Integer x, Integer y) { this.x = x; this.y = y; }
     }
 
     @FunctionalInterface
@@ -326,7 +326,7 @@ public class NegativeArraySizeExceptionTest {
 
         // Tests for value class arrays (migrated Integer and custom Point).
         int[] negativeSizes = { minusOne, Integer.MIN_VALUE };
-        Class<?>[] valueTypes = { Integer.class, Point.class };
+        Class<?>[] valueTypes = { Integer.class, VClass.class };
         for (int size : negativeSizes) {
             for (Class<?> type : valueTypes) {
                 assertNASE(size, () -> Array.newInstance(type, size));
