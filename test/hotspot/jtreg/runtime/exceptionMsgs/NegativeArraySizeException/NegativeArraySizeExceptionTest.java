@@ -324,7 +324,7 @@ public class NegativeArraySizeExceptionTest {
         }
 
 
-        // Tests for value class arrays (migrated Integer and custom Point).
+        // Tests for value class arrays (migrated Integer and custom VClass).
         int[] negativeSizes = { minusOne, Integer.MIN_VALUE };
         Class<?>[] valueTypes = { Integer.class, VClass.class };
         for (int size : negativeSizes) {
