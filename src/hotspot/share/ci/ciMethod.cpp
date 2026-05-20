@@ -666,7 +666,7 @@ bool ciMethod::parameter_profiled_type(int i, ciKlass*& type, ProfilePtrKind& pt
 
 // MDO updates are racy. C2 can observe the array type before the profiling code has updated the
 // corresponding flat/null-free flags. If the array type is known, prefer the properties it provides.
-static void sanitize_array_access_profile(ciKlass* array_type, bool& flat_array, bool& null_free_array) {
+static void update_flags_from_type(ciKlass* array_type, bool& flat_array, bool& null_free_array) {
   if (array_type != nullptr) {
     flat_array |= array_type->is_flat_array_klass();
     null_free_array |= array_type->as_array_klass()->is_elem_null_free();
@@ -684,14 +684,14 @@ bool ciMethod::array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass
         element_ptr = array_access->element()->ptr_kind();
         flat_array = array_access->flat_array();
         null_free_array = array_access->null_free_array();
-        sanitize_array_access_profile(array_type, flat_array, null_free_array);
+        update_flags_from_type(array_type, flat_array, null_free_array);
         return true;
       } else if (data->is_ArrayStoreData()) {
         ciArrayStoreData* array_access = (ciArrayStoreData*) data->as_ArrayStoreData();
         array_type = array_access->array()->valid_type();
         flat_array = array_access->flat_array();
         null_free_array = array_access->null_free_array();
-        sanitize_array_access_profile(array_type, flat_array, null_free_array);
+        update_flags_from_type(array_type, flat_array, null_free_array);
         ciCallProfile call_profile = call_profile_at_bci(bci);
         if (call_profile.morphism() == 1) {
           element_type = call_profile.receiver(0);
