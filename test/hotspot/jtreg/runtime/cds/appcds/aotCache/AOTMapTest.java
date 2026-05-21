@@ -66,7 +66,6 @@ import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import jdk.internal.misc.PreviewFeatures;
 import jdk.test.lib.cds.CDSAppTester;
 import jdk.test.lib.helpers.ClassFileInstaller;
 import jdk.test.lib.Platform;
@@ -128,14 +127,14 @@ public class AOTMapTest {
             vmArgs.add("-Xmx128M");
             vmArgs.add("-Xlog:aot=debug");
 
-            if (PreviewFeatures.isEnabled()) {
+            if (isStaticWorkflow()) {
                 vmArgs.add("--enable-preview");
-                vmArgs.add("-Xbootclasspath/a:" + appJar);
-                vmArgs.add("-XX:ArchiveHeapTestClass=AOTMapTestApp");
                 vmArgs.add("--add-exports");
                 vmArgs.add("java.base/jdk.internal.value=ALL-UNNAMED");
                 vmArgs.add("--add-exports");
                 vmArgs.add("java.base/jdk.internal.misc=ALL-UNNAMED");
+                vmArgs.add("-Xbootclasspath/a:" + appJar);
+                vmArgs.add("-XX:ArchiveHeapTestClass=AOTMapTestApp");
             }
 
             // filesize=0 ensures that a large map file not broken up in multiple files.
