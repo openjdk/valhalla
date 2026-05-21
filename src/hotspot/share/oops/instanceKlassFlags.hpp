@@ -68,12 +68,14 @@ class InstanceKlassFlags {
      definition: empty inline fields must be flat otherwise the container won't
      be considered empty */
 
+public:
 #define IK_FLAGS_ENUM_NAME(name, value)    _misc_##name = value,
   enum {
     IK_FLAGS_DO(IK_FLAGS_ENUM_NAME)
   };
 #undef IK_FLAGS_ENUM_NAME
 
+private:
 #define IK_STATUS_DO(status)  \
     status(is_being_redefined                , 1 << 0) /* True if the klass is being redefined */ \
     status(has_resolved_methods              , 1 << 1) /* True if the klass has resolved MethodHandle methods */ \
@@ -143,6 +145,8 @@ class InstanceKlassFlags {
   void atomic_set_bits(u1 bits)   { AtomicAccess::fetch_then_or(&_status, bits); }
   void atomic_clear_bits(u1 bits) { AtomicAccess::fetch_then_and(&_status, (u1)(~bits)); }
   void print_on(outputStream* st) const;
+
+  static ByteSize flags_offset() { return byte_offset_of(InstanceKlassFlags, _flags); }
 };
 
 #endif // SHARE_OOPS_INSTANCEKLASSFLAGS_HPP
