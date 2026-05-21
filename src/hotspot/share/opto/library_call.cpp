@@ -3185,8 +3185,6 @@ bool LibraryCallKit::inline_getFieldMap() {
 
   Node* map_addr = basic_plus_adr(mirror, field_map_offset);
   const TypeAryPtr* val_type = TypeAryPtr::INTS->cast_to_ptr_type(TypePtr::NotNull)->with_offset(0);
-  // TODO 8350865 Remove this
-  val_type = val_type->cast_to_not_flat(true)->cast_to_not_null_free(true);
   Node* map = access_load_at(mirror, map_addr, TypeAryPtr::INTS, val_type, T_ARRAY, IN_HEAP | MO_UNORDERED);
 
   set_result(map);
