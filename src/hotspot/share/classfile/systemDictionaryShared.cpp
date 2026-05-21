@@ -312,12 +312,7 @@ class SystemDictionaryShared::ExclusionCheckCandidates
           Symbol* field_klass_name = Signature::strip_envelope(fs.signature());
           Klass* field_klass = SystemDictionary::find_instance_or_array_klass(current, field_klass_name, loader);
           if (field_klass != nullptr && field_klass->is_instance_klass()) {
-            log_info(aot)("Added inline type %s as a candidate", field_klass->external_name());
             add_candidate(InstanceKlass::cast(field_klass));
-          } else if (field_klass != nullptr) {
-            log_info(aot)("Did not add inline type %s as a candidate", field_klass->name()->as_C_string());
-          } else {
-            log_info(aot)("Did not load inline type %s as a candidate", fs.name()->as_C_string());
           }
         }
       }
