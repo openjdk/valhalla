@@ -5888,9 +5888,11 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
-              If the frame's method is a value object constructor and
-              the requested local is the "<code>this</code>" object, the
-              value_ptr is set to a snapshot of the "<code>this</code>" object.
+              When preview features are enabled, if the requested local is the
+              "<code>this</code>" object, and "<code>this</code>" is a value
+              object under construction, the value_ptr is set to a snapshot
+              of the "<code>this</code>" object that represents the value
+              object's state at the point the snapshot is taken.
             </description>
         </param>
       </parameters>
@@ -5944,8 +5946,10 @@ class C2 extends C1 implements I2 {
           <outptr><jobject/></outptr>
             <description>
               On return, points to the variable's value.
-              If the frame's method is a value object constructor, the 
-              value_ptr is set to a snapshot of the "<code>this</code>" object.
+              When preview features are enabled, and the local instance is a value
+              object under construction, the value_ptr is set to a snapshot
+              of the "<code>this</code>" object that represents the value
+              object's state at the point the snapshot is taken.
             </description>
         </param>
       </parameters>
@@ -13993,6 +13997,8 @@ myInit() {
       VM. These methods should send this event.
       Virtual machines which are incapable of bytecode instrumentation
       for some or all of their methods can send this event.
+      When preview features are enabled and the allocated object has no identity,
+      <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter.
 
       Note that the <internallink
       id="SampledObjectAlloc">SampledObjectAlloc</internallink>
@@ -14039,6 +14045,7 @@ myInit() {
         <jobject/>
           <description>
             JNI local reference to the object that was allocated.
+            Null when preview features are enabled and the allocated object has no identity.
           </description>
       </param>
       <param id="object_klass">
@@ -14085,6 +14092,9 @@ myInit() {
       In conjunction with weak references and the function
       <functionlink id="GetStackTrace"></functionlink>, a user can track which objects were allocated from which
       stack trace, and which are still live during the execution of the program.
+      When preview features are enabled and the allocated object has no identity,
+      <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter.
+      Note that weak references support identity objects only.
     </description>
     <origin>new</origin>
     <capabilities>
@@ -14109,6 +14119,7 @@ myInit() {
         <jobject/>
         <description>
           JNI local reference to the object that was allocated.
+          Null when preview features are enabled and the allocated object has no identity.
         </description>
       </param>
       <param id="object_klass">
@@ -14137,6 +14148,7 @@ myInit() {
       must not use <jvmti/> functions except those which
       specifically allow such use (see the raw monitor, memory management,
       and environment local storage functions).
+      When preview features are enabled, this event does not support value object allocations.
     </description>
     <origin>new</origin>
     <capabilities>

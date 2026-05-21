@@ -402,9 +402,7 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, RegisterSet reg
         break;
     }
 
-    // Second set_callee_saved is really a waste but we'll keep things as they were for now
     map->set_callee_saved(VMRegImpl::stack2reg(offset >> 2), live_regs[i].vmreg);
-    map->set_callee_saved(VMRegImpl::stack2reg((offset + half_reg_size) >> 2), live_regs[i].vmreg->next());
   }
   assert(first != noreg, "Should spill at least one int reg.");
   __ z_stmg(first, last, first_offset, Z_SP);
@@ -416,12 +414,6 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, RegisterSet reg
 
     map->set_callee_saved(VMRegImpl::stack2reg(offset>>2),
                    RegisterSaver_LiveVRegs[i].vmreg);
-    map->set_callee_saved(VMRegImpl::stack2reg((offset + half_reg_size ) >> 2),
-                   RegisterSaver_LiveVRegs[i].vmreg->next());
-    map->set_callee_saved(VMRegImpl::stack2reg((offset + (half_reg_size * 2)) >> 2),
-                   RegisterSaver_LiveVRegs[i].vmreg->next(2));
-    map->set_callee_saved(VMRegImpl::stack2reg((offset + (half_reg_size * 3)) >> 2),
-                   RegisterSaver_LiveVRegs[i].vmreg->next(3));
   }
 
   assert(offset == frame_size_in_bytes, "consistency check");
@@ -473,7 +465,6 @@ OopMap* RegisterSaver::generate_oop_map(MacroAssembler* masm, RegisterSet reg_se
   for (int i = 0; i < regstosave_num; i++) {
     if (live_regs[i].reg_type < RegisterSaver::excluded_reg) {
       map->set_callee_saved(VMRegImpl::stack2reg(offset>>2), live_regs[i].vmreg);
-      map->set_callee_saved(VMRegImpl::stack2reg((offset + half_reg_size)>>2), live_regs[i].vmreg->next());
     }
     offset += reg_size;
   }
@@ -580,10 +571,12 @@ void RegisterSaver::restore_live_registers(MacroAssembler* masm, RegisterSet reg
 
 
 // Pop the current frame and restore the registers that might be holding a result.
-void RegisterSaver::restore_result_registers(MacroAssembler* masm) {
+void RegisterSaver::restore_result_registers(MacroAssembler* masm, bool save_vectors) {
   const int regstosave_num       = sizeof(RegisterSaver_LiveRegs) /
                                    sizeof(RegisterSaver::LiveRegType);
-  const int register_save_offset = live_reg_frame_size(all_registers) - live_reg_save_size(all_registers);
+  const int vecregstosave_num    = save_vectors ?  calculate_vregstosave_num() : 0;
+  const int vreg_save_size   = vecregstosave_num * v_reg_size;
+  const int register_save_offset = live_reg_frame_size(all_registers, save_vectors) - (live_reg_save_size(all_registers) + vreg_save_size);
 
   // Restore all result registers (ints and floats).
   int offset = register_save_offset;
@@ -609,7 +602,7 @@ void RegisterSaver::restore_result_registers(MacroAssembler* masm) {
         ShouldNotReachHere();
     }
   }
-  assert(offset == live_reg_frame_size(all_registers), "consistency check");
+  assert(offset == live_reg_frame_size(all_registers, save_vectors) - (save_vectors ? vreg_save_size : 0) , "consistency check");
 }
 
 // ---------------------------------------------------------------------------
@@ -2092,9 +2085,8 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
 }
 
 static address gen_c2i_adapter(MacroAssembler  *masm,
-                               int total_args_passed,
                                int comp_args_on_stack,
-                               const BasicType *sig_bt,
+                               const GrowableArray<SigEntry>* sig,
                                const VMRegPair *regs,
                                Label &skip_fixup) {
   // Before we get into the guts of the C2I adapter, see if we should be here
@@ -2123,7 +2115,7 @@ static address gen_c2i_adapter(MacroAssembler  *masm,
   // Since all args are passed on the stack, total_args_passed*wordSize is the
   // space we need. We need ABI scratch area but we use the caller's since
   // it has already been allocated.
-
+  int       total_args_passed = sig->length();
   const int abi_scratch = frame::z_top_ijava_frame_abi_size;
   int       extraspace  = align_up(total_args_passed, 2)*wordSize + abi_scratch;
   Register  sender_SP   = Z_R10;
@@ -2144,6 +2136,8 @@ static address gen_c2i_adapter(MacroAssembler  *masm,
 
   // Now write the args into the outgoing interpreter space.
   for (int i = 0; i < total_args_passed; i++) {
+    BasicType bt = sig->at(i)._bt;
+
     VMReg r_1 = regs[i].first();
     VMReg r_2 = regs[i].second();
     if (!r_1->is_valid()) {
@@ -2160,7 +2154,7 @@ static address gen_c2i_adapter(MacroAssembler  *masm,
       } else {
         // longs are given 2 64-bit slots in the interpreter,
         // but the data is passed in only 1 slot.
-        if (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+        if (bt == T_LONG || bt == T_DOUBLE) {
 #ifdef ASSERT
           __ clear_mem(Address(Z_SP, st_off), sizeof(void *));
 #endif
@@ -2175,7 +2169,7 @@ static address gen_c2i_adapter(MacroAssembler  *masm,
         } else {
           // longs are given 2 64-bit slots in the interpreter, but the
           // data is passed in only 1 slot.
-          if (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+          if (bt == T_LONG || bt == T_DOUBLE) {
 #ifdef ASSERT
             __ clear_mem(Address(Z_SP, st_off), sizeof(void *));
 #endif
@@ -2240,12 +2234,12 @@ static address gen_c2i_adapter(MacroAssembler  *masm,
 //    Z_SP      r15 - SP prepared by call stub such that caller's outgoing args are near top
 //
 void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
-                                    int total_args_passed,
                                     int comp_args_on_stack,
-                                    const BasicType *sig_bt,
+                                    const GrowableArray<SigEntry>* sig,
                                     const VMRegPair *regs) {
   const Register value = Z_R12;
   const Register ld_ptr= Z_esp;
+  int total_args_passed = sig->length();
 
   int ld_offset = total_args_passed * wordSize;
 
@@ -2265,8 +2259,9 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // Now generate the shuffle code. Pick up all register args and move the
   // rest through register value=Z_R12.
   for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      assert(i > 0 && (sig_bt[i-1] == T_LONG || sig_bt[i-1] == T_DOUBLE), "missing half");
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_VOID) {
+      assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
     }
 
@@ -2298,7 +2293,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         } else {
           // In 64bit, longs are given 2 64-bit slots in the interpreter, but the
           // data is passed in only 1 slot.
-          if (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+          if (bt == T_LONG || bt == T_DOUBLE) {
             ld_offset -= wordSize;
           }
           __ z_mvc(Address(Z_SP, st_off), Address(ld_ptr, ld_offset), sizeof(void*));
@@ -2306,7 +2301,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       } else {
         if (!r_2->is_valid()) {
           // Not sure we need to do this but it shouldn't hurt.
-          if (is_reference_type(sig_bt[i]) || sig_bt[i] == T_ADDRESS) {
+          if (is_reference_type(bt) || bt == T_ADDRESS) {
             __ z_lg(r_1->as_Register(), ld_offset, ld_ptr);
           } else {
             __ z_l(r_1->as_Register(), ld_offset, ld_ptr);
@@ -2314,7 +2309,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         } else {
           // In 64bit, longs are given 2 64-bit slots in the interpreter, but the
           // data is passed in only 1 slot.
-          if (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+          if (bt == T_LONG || bt == T_DOUBLE) {
             ld_offset -= wordSize;
           }
           __ z_lg(r_1->as_Register(), ld_offset, ld_ptr);
@@ -2343,15 +2338,20 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   __ z_br(Z_R1_scratch);
 }
 
-void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
-                                            int total_args_passed,
+void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                             int comp_args_on_stack,
-                                            const BasicType *sig_bt,
-                                            const VMRegPair *regs,
-                                            address entry_address[AdapterBlob::ENTRY_COUNT]) {
+                                            const GrowableArray<SigEntry>* sig,
+                                            const VMRegPair* regs,
+                                            const GrowableArray<SigEntry>* sig_cc,
+                                            const VMRegPair* regs_cc,
+                                            const GrowableArray<SigEntry>* sig_cc_ro,
+                                            const VMRegPair* regs_cc_ro,
+                                            address entry_address[AdapterBlob::ENTRY_COUNT],
+                                            AdapterBlob*& new_adapter,
+                                            bool allocate_code_blob) {
   __ align(CodeEntryAlignment);
   entry_address[AdapterBlob::I2C] = __ pc();
-  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
+  gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
   Label skip_fixup;
   {
@@ -2396,7 +2396,7 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
   __ bind(L_skip_barrier);
   entry_address[AdapterBlob::C2I_No_Clinit_Check] = __ pc();
 
-  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  gen_c2i_adapter(masm, comp_args_on_stack, sig, regs, skip_fixup);
   return;
 }
 
@@ -2557,7 +2557,7 @@ void SharedRuntime::generate_deopt_blob() {
   // nmethod that was valid just before the nmethod was deoptimized.
   // save R14 into the deoptee frame.  the `fetch_unroll_info'
   // procedure called below will read it from there.
-  map = RegisterSaver::save_live_registers(masm, RegisterSaver::all_registers);
+  map = RegisterSaver::save_live_registers(masm, RegisterSaver::all_registers, Z_R14, /* save_vectors= */ SuperwordUseVX);
 
   // note the entry point.
   __ load_const_optimized(exec_mode_reg, Deoptimization::Unpack_deopt);
@@ -2573,7 +2573,7 @@ void SharedRuntime::generate_deopt_blob() {
   int reexecute_offset = __ offset() - start_off;
 
   // No need to update map as each call to save_live_registers will produce identical oopmap
-  (void) RegisterSaver::save_live_registers(masm, RegisterSaver::all_registers);
+  (void) RegisterSaver::save_live_registers(masm, RegisterSaver::all_registers, Z_R14, /* save_vectors= */ SuperwordUseVX);
 
   __ load_const_optimized(exec_mode_reg, Deoptimization::Unpack_reexecute);
   __ z_bru(exec_mode_initialized);
@@ -2611,7 +2611,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::exception_pc_offset()));
 
   // Save everything in sight.
-  (void) RegisterSaver::save_live_registers(masm, RegisterSaver::all_registers, Z_R1_scratch);
+  (void) RegisterSaver::save_live_registers(masm, RegisterSaver::all_registers, Z_R1_scratch, /* save_vectors= */ SuperwordUseVX);
 
   // Now it is safe to overwrite any register
 
@@ -2661,7 +2661,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ z_lgr(unroll_block_reg, Z_RET);
   // restore the return registers that have been saved
   // (among other registers) by save_live_registers(...).
-  RegisterSaver::restore_result_registers(masm);
+  RegisterSaver::restore_result_registers(masm, /* save_vectors= */ SuperwordUseVX);
 
   // reload the exec mode from the UnrollBlock (it might have changed)
   __ z_llgf(exec_mode_reg, Address(unroll_block_reg, Deoptimization::UnrollBlock::unpack_kind_offset()));
@@ -2737,7 +2737,7 @@ void SharedRuntime::generate_deopt_blob() {
   // Make sure all code is generated
   masm->flush();
 
-  _deopt_blob = DeoptimizationBlob::create(&buffer, oop_maps, 0, exception_offset, reexecute_offset, RegisterSaver::live_reg_frame_size(RegisterSaver::all_registers)/wordSize);
+  _deopt_blob = DeoptimizationBlob::create(&buffer, oop_maps, 0, exception_offset, reexecute_offset, RegisterSaver::live_reg_frame_size(RegisterSaver::all_registers, SuperwordUseVX)/wordSize);
   _deopt_blob->set_unpack_with_exception_in_tls_offset(exception_in_tls_offset);
 }
 
@@ -3407,3 +3407,16 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
+
+const uint SharedRuntime::java_return_convention_max_int = Argument::n_int_register_parameters_j;
+const uint SharedRuntime::java_return_convention_max_float = Argument::n_float_register_parameters_j;
+
+int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *regs, int total_args_passed) {
+  Unimplemented();
+  return 0;
+}
+
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
+  Unimplemented();
+  return nullptr;
+}

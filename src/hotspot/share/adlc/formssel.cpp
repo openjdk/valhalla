@@ -809,7 +809,7 @@ bool InstructForm::captures_bottom_type(FormDict &globals) const {
   if (is_vector()) return true;
   if (is_mach_constant()) return true;
 
-  return false;
+  return  false;
 }
 
 
