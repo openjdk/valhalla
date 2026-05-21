@@ -64,6 +64,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedKlass.inline.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -297,6 +298,30 @@ class SystemDictionaryShared::ExclusionCheckCandidates
         return true; // Keep iterating.
       });
     }
+
+    // Inline fields need to have their layouts preserved between dumptime and runtime.
+    // To ensure this, the types of the fields must be stored in the archive along with
+    // the field holder.
+    if (k->has_inlined_fields()) {
+      for (AllFieldStream fs(k); !fs.done(); fs.next()) {
+        if (fs.access_flags().is_static()) continue;
+
+        if (fs.is_flat() || fs.is_null_free_inline_type()) {
+          Thread* current = Thread::current();
+          Handle loader(current, k->class_loader());
+          Symbol* field_klass_name = Signature::strip_envelope(fs.signature());
+          Klass* field_klass = SystemDictionary::find_instance_or_array_klass(current, field_klass_name, loader);
+          if (field_klass != nullptr && field_klass->is_instance_klass()) {
+            log_info(aot)("Added inline type %s as a candidate", field_klass->external_name());
+            add_candidate(InstanceKlass::cast(field_klass));
+          } else if (field_klass != nullptr) {
+            log_info(aot)("Did not add inline type %s as a candidate", field_klass->name()->as_C_string());
+          } else {
+            log_info(aot)("Did not load inline type %s as a candidate", fs.name()->as_C_string());
+          }
+        }
+      }
+    }
   }
 
 public:
@@ -516,6 +541,24 @@ bool SystemDictionaryShared::check_dependencies_exclusion(InstanceKlass* k, Dump
     if (excluded) {
       // At least one verification constraint class has been excluded
       return true;
+    }
+  }
+
+  // If any of the null restricted or flat field types are excluded, the current
+  // klass must be excluded as well, otherwise there is no guarantee that the
+  // field layouts will be consistent at runtime.
+  if (k->has_inlined_fields()) {
+    for (AllFieldStream fs(k); !fs.done(); fs.next()) {
+      if (fs.is_null_free_inline_type() || fs.is_flat()) {
+        Thread* current = Thread::current();
+        Handle loader(current, k->class_loader());
+        Symbol* field_klass_name = Signature::strip_envelope(fs.signature());
+        Klass* field_klass = SystemDictionary::find_instance_or_array_klass(current, field_klass_name, loader);
+        assert(field_klass != nullptr, "must be loaded");
+        if (is_dependency_excluded(k, InstanceKlass::cast(field_klass), "inline field")) {
+          return true;
+        }
+      }
     }
   }
 
