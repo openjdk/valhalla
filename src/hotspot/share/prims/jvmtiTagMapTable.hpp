@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,22 +35,27 @@ class JvmtiEnv;
 
 // Describes an object which can be tagged during heap walk operation.
 // - generic heap object: _obj: oop, offset == 0, _inline_klass == nullptr;
-// - value heap object: _obj: oop, offset == 0, _inline_klass == _obj.klass();
 // - flat value object: _obj: holder object, offset == offset in the holder, _inline_klass == klass of the flattened object;
+// - value heap object: _obj: oop, offset == 0, _inline_klass == _obj.klass();
 class JvmtiHeapwalkObject {
   oop _obj;                   // for flattened value object this is holder object
   int _offset;                // == 0 for heap objects
   InlineKlass* _inline_klass; // for value object, nullptr otherwise
   LayoutKind _layout_kind;    // layout kind in holder object, used only for flat->heap conversion
 
-  static InlineKlass* inline_klass_or_null(oop obj) {
-    Klass* k = obj->klass();
-    return k->is_inline_klass() ? InlineKlass::cast(k) : nullptr;
-  }
 public:
   JvmtiHeapwalkObject(): _obj(nullptr), _offset(0), _inline_klass(nullptr), _layout_kind(LayoutKind::UNKNOWN) {}
-  JvmtiHeapwalkObject(oop obj): _obj(obj), _offset(0), _inline_klass(inline_klass_or_null(obj)), _layout_kind(LayoutKind::REFERENCE) {}
   JvmtiHeapwalkObject(oop obj, int offset, InlineKlass* ik, LayoutKind lk): _obj(obj), _offset(offset), _inline_klass(ik), _layout_kind(lk) {}
+  JvmtiHeapwalkObject(oop obj): _obj(obj), _offset(0) {
+    Klass* k = obj->klass();
+    if (k->is_inline_klass()) {
+    _inline_klass = InlineKlass::cast(k);
+    _layout_kind = LayoutKind::BUFFERED;
+    } else {
+    _inline_klass = nullptr;
+    _layout_kind = LayoutKind::REFERENCE;
+    }
+  }
 
   inline bool is_empty() const { return _obj == nullptr; }
   inline bool is_value() const { return _inline_klass != nullptr; }
