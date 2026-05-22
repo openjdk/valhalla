@@ -307,10 +307,7 @@ class SystemDictionaryShared::ExclusionCheckCandidates
         if (fs.access_flags().is_static()) continue;
 
         if (fs.is_flat() || fs.is_null_free_inline_type()) {
-          Thread* current = Thread::current();
-          Handle loader(current, k->class_loader());
-          Symbol* field_klass_name = Signature::strip_envelope(fs.signature());
-          Klass* field_klass = SystemDictionary::find_instance_or_array_klass(current, field_klass_name, loader);
+          InlineKlass* field_klass = k->get_inline_type_field_klass_or_null(fs.index());
           if (field_klass != nullptr && field_klass->is_instance_klass()) {
             add_candidate(InstanceKlass::cast(field_klass));
           }
@@ -544,11 +541,8 @@ bool SystemDictionaryShared::check_dependencies_exclusion(InstanceKlass* k, Dump
   // field layouts will be consistent at runtime.
   if (k->has_inlined_fields()) {
     for (AllFieldStream fs(k); !fs.done(); fs.next()) {
-      if (fs.is_null_free_inline_type() || fs.is_flat()) {
-        Thread* current = Thread::current();
-        Handle loader(current, k->class_loader());
-        Symbol* field_klass_name = Signature::strip_envelope(fs.signature());
-        Klass* field_klass = SystemDictionary::find_instance_or_array_klass(current, field_klass_name, loader);
+      if (fs.is_flat() || fs.is_null_free_inline_type()) {
+        InlineKlass* field_klass = k->get_inline_type_field_klass_or_null(fs.index());
         assert(field_klass != nullptr, "must be loaded");
         if (is_dependency_excluded(k, InstanceKlass::cast(field_klass), "inline field")) {
           return true;

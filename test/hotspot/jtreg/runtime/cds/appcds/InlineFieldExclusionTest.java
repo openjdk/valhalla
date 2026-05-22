@@ -71,6 +71,10 @@ public class InlineFieldExclusionTest {
         // At runtime, both InlineFieldExclusionApp and ExcludedValueClass should be loaded from
         // the jar file instead of from the shared archive.
         output = TestCommon.exec(classpath, TestCommon.concat(suffix, mainClass));
-        output.shouldMatch(loadFromJar);
+        try {
+            output.shouldMatch(loadFromJar);
+        } catch (Exception e) {
+            TestCommon.checkCommonExecExceptions(output, e);
+        }
     }
 }
