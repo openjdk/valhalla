@@ -29,7 +29,6 @@
  * @requires vm.cds
  * @library /test/lib
  * @enablePreview
- * @modules java.base/jdk.internal.vm.annotation
  * @compile test-classes/InlineFieldExclusionApp.java test-classes/excluded/ExcludedValueClass.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar app.jar InlineFieldExclusionApp
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar excluded.jar excluded/ExcludedValueClass
@@ -53,8 +52,6 @@ public class InlineFieldExclusionTest {
 
         String mainClass = "InlineFieldExclusionApp";
         String[] suffix = TestCommon.list("--enable-preview",
-                                          "--add-exports",
-                                          "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                                           "-Xlog:cds,aot,class+load");
 
         String skipMsg1 = "Skipping excluded/ExcludedValueClass: Signed JAR";
