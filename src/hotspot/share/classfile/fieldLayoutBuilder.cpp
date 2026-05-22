@@ -78,7 +78,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
 
   if (field_info.field_flags().is_null_free_inline_type()) {
     assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
-    if (vk->must_be_atomic() || AlwaysAtomicAccesses) {
+    if (vk->must_be_atomic()) {
       if (vk->is_naturally_atomic(true /* null-free */) && vk->has_null_free_non_atomic_layout()) return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
       return (vk->has_null_free_atomic_layout() && can_use_atomic_flat) ? LayoutKind::NULL_FREE_ATOMIC_FLAT : LayoutKind::REFERENCE;
     } else {
@@ -100,6 +100,21 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
     } else {
       return LayoutKind::REFERENCE;
     }
+  }
+}
+
+static LayoutKind adjust_with_budget(FieldInfo field_info, Array<InlineLayoutInfo>* inline_layout_info_array,
+                                     LayoutKind lk, int& budget) {
+  if (lk == LayoutKind::REFERENCE) return lk;
+  assert(LayoutKindHelper::is_flat((lk)), "Must be");
+  InlineLayoutInfo* inline_field_info = inline_layout_info_array->adr_at(field_info.index());
+  InlineKlass* vk = inline_field_info->klass();
+  int size = vk->layout_size_in_bytes(lk);
+  if (size > budget) {
+    return LayoutKind::REFERENCE;
+  } else {
+    budget -= size;
+    return lk;
   }
 }
 
@@ -786,6 +801,8 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData*
   _nullable_non_atomic_layout_size_in_bytes(-1),
   _fields_size_sum(0),
   _declared_nonstatic_fields_count(0),
+  _flattening_budget((int)FlatteningBudget),  // uint -> int convertion but FlatteningBudget value has
+                                              // been validated in VM flags parsing (range [0, 1024 * 1024]).
   _has_non_naturally_atomic_fields(false),
   _is_naturally_atomic(false),
   _must_be_atomic(must_be_atomic),
@@ -867,7 +884,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
     case T_ARRAY:
     {
       LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array, true);
-
+      lk = adjust_with_budget(fieldinfo, _inline_layout_info_array, lk, _flattening_budget);
       if (field_is_inlineable(fieldinfo, lk, _inline_layout_info_array)) {
         _has_inlineable_fields = true;
       }
@@ -954,7 +971,7 @@ void FieldLayoutBuilder::inline_class_field_sorting() {
     {
       bool use_atomic_flat = _must_be_atomic; // flatten atomic fields only if the container is itself atomic
       LayoutKind lk = field_layout_selection(fieldinfo, _inline_layout_info_array, use_atomic_flat);
-
+      lk = adjust_with_budget(fieldinfo, _inline_layout_info_array, lk, _flattening_budget);
       if (field_is_inlineable(fieldinfo, lk, _inline_layout_info_array)) {
         _has_inlineable_fields = true;
       }
@@ -1204,7 +1221,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
 
   if (!_is_abstract_value && vm_uses_flattening) { // Flat layouts are only for concrete value classes
     // Validation of the non atomic layout
-    if (UseNullFreeNonAtomicValueFlattening && !AlwaysAtomicAccesses && (!_must_be_atomic || _is_naturally_atomic)) {
+    if (UseNullFreeNonAtomicValueFlattening && (!_must_be_atomic || _is_naturally_atomic)) {
       _null_free_non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
       _null_free_non_atomic_layout_alignment = _payload_alignment;
     }

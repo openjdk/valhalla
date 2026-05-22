@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ class fieldDescriptor {
 
  public:
   fieldDescriptor() {}
-  fieldDescriptor(InstanceKlass* ik, int index) {
+  fieldDescriptor(const InstanceKlass* ik, int index) {
     reinitialize(ik, ik->field(index));
   }
   inline Symbol* name() const;
@@ -113,12 +113,13 @@ class fieldDescriptor {
   inline void set_has_initialized_final_update(const bool value);
 
   // Initialization
-  void reinitialize(InstanceKlass* ik, const FieldInfo& fieldinfo);
+  void reinitialize(const InstanceKlass* ik, const FieldInfo& fieldinfo);
 
   // Print
   void print() const;
   void print_on(outputStream* st, int base_offset = 0) const;
   void print_on_for(outputStream* st, oop obj, int indent = 0, int base_offset = 0);
+  void print_access_flags(outputStream* st) const;
 };
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_HPP

@@ -277,9 +277,9 @@ class InstructionVisitor: public StackObj {
     return (enabled) ? HASH5(name(), f1, f2, f3, f4) : 0; \
   }                                                   \
   virtual bool is_equal(Value v) const {              \
-    if (!(enabled)  ) return false;                   \
+    if (!(enabled)) return false;                     \
     class_name* _v = v->as_##class_name();            \
-    if (_v == nullptr  ) return false;                   \
+    if (_v == nullptr) return false;                  \
     if (f1 != _v->f1) return false;                   \
     if (f2 != _v->f2) return false;                   \
     if (f3 != _v->f3) return false;                   \
@@ -934,7 +934,8 @@ BASE(AccessIndexed, AccessArray)
   , _length(length)
   , _elt_type(elt_type)
   , _mismatched(mismatched)
-  , _profiled_method(nullptr), _profiled_bci(0)
+  , _profiled_method(nullptr)
+  , _profiled_bci(0)
   {
     set_flag(Instruction::NeedsRangeCheckFlag, true);
     ASSERT_VALUES
@@ -958,7 +959,6 @@ BASE(AccessIndexed, AccessArray)
   ciMethod* profiled_method() const                  { return _profiled_method;     }
   int       profiled_bci() const                     { return _profiled_bci;        }
 
-
   // generic
   virtual void input_values_do(ValueVisitor* f)   { AccessArray::input_values_do(f); f->visit(&_index); if (_length != nullptr) f->visit(&_length); }
 };
@@ -967,15 +967,15 @@ class DelayedLoadIndexed;
 
 LEAF(LoadIndexed, AccessIndexed)
  private:
-  NullCheck*  _explicit_null_check;              // For explicit null check elimination
-  NewInstance* _vt;
+  NullCheck*  _explicit_null_check;  // For explicit null check elimination
+  Value _buffer;                     // Buffer for load from flat arrays
   DelayedLoadIndexed* _delayed;
 
  public:
   // creation
   LoadIndexed(Value array, Value index, Value length, BasicType elt_type, ValueStack* state_before, bool mismatched = false)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _explicit_null_check(nullptr), _vt(nullptr), _delayed(nullptr) {}
+  , _explicit_null_check(nullptr), _buffer(nullptr), _delayed(nullptr) {}
 
   // accessors
   NullCheck* explicit_null_check() const         { return _explicit_null_check; }
@@ -987,14 +987,26 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  NewInstance* vt() const { return _vt; }
-  void set_vt(NewInstance* vt) { _vt = vt; }
+  Value buffer() const { return _buffer; }
+
+  void set_buffer(Value buffer) {
+    assert(buffer == nullptr || buffer->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must be a NewInstance");
+    _buffer = buffer;
+  }
 
   DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
 
+  virtual void input_values_do(ValueVisitor* f) {
+    AccessIndexed::input_values_do(f);
+    if (_buffer != nullptr) {
+      f->visit(&_buffer);
+      assert(_buffer->as_NewInstance() != nullptr, "LoadIndexed flat array buffer must stay a NewInstance");
+    }
+  }
+
   // generic;
-  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), vt())
+  HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), buffer())
 };
 
 class DelayedLoadIndexed : public CompilationResourceObj {
@@ -1170,7 +1182,7 @@ LEAF(IfOp, Op2)
   Condition cond() const                         { return (Condition)Op2::op(); }
   Value tval() const                             { return _tval; }
   Value fval() const                             { return _fval; }
-  bool substitutability_check() const             { return _substitutability_check; }
+  bool substitutability_check() const            { return _substitutability_check; }
   // generic
   virtual void input_values_do(ValueVisitor* f)   { Op2::input_values_do(f); f->visit(&_tval); f->visit(&_fval); }
 };
@@ -1488,7 +1500,7 @@ LEAF(CheckCast, TypeCheck)
  public:
   // creation
   CheckCast(ciKlass* klass, Value obj, ValueStack* state_before)
-  : TypeCheck(klass, obj, objectType, state_before) { }
+  : TypeCheck(klass, obj, objectType, state_before) {}
 
   void set_incompatible_class_change_check() {
     set_flag(ThrowIncompatibleClassChangeErrorFlag, true);
@@ -2061,7 +2073,7 @@ LEAF(If, BlockEnd)
   void set_profiled_method(ciMethod* method)      { _profiled_method = method; }
   void set_profiled_bci(int bci)                  { _profiled_bci = bci;       }
   void set_swapped(bool value)                    { _swapped = value;         }
-  bool substitutability_check() const              { return _substitutability_check; }
+  bool substitutability_check() const             { return _substitutability_check; }
   // generic
   virtual void input_values_do(ValueVisitor* f)   { BlockEnd::input_values_do(f); f->visit(&_x); f->visit(&_y); }
 };

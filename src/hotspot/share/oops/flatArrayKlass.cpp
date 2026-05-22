@@ -100,12 +100,20 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name, ArrayProperti
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, ArrayProperties props, LayoutKind lk, TRAPS) {
-  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Really ?!");
+  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()), "Too-early construction of a flat array klass");
   assert(UseArrayFlattening, "Flatten array required");
   assert(MultiArray_lock->holds_lock(THREAD), "must hold lock after bootstrapping");
+  assert(props.is_null_restricted() || !props.is_non_atomic(),
+         "Nullable non-atomic arrays are unsupported");
 
   InlineKlass* element_klass = InlineKlass::cast(eklass);
-  assert(element_klass->must_be_atomic() || (!AlwaysAtomicAccesses), "Atomic by-default");
+  // If the array is non-atomic, then the element should be one of the following:
+  // a) naturally atomic, so atomicity relaxation has no impact; or
+  // b) explicitly marked as allowing non-atomicity.
+  assert(!props.is_non_atomic() ||
+         (element_klass->is_naturally_atomic(props.is_null_restricted()) ||
+         !element_klass->must_be_atomic()),
+         "Cannot conform to atomicity requirements");
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = nullptr;
@@ -176,7 +184,7 @@ size_t FlatArrayKlass::oop_size(oop obj) const {
   // because size_given_klass() calls oop_size() on objects that might be
   // concurrently forwarded, which would overwrite the Klass*.
   // Also, why we need to pass this layout_helper() to flatArrayOop::object_size.
-  assert(UseCompactObjectHeaders || obj->is_flatArray(),"must be an flat array");
+  assert(UseCompactObjectHeaders || obj->is_flatArray(),"must be a flat array");
   flatArrayOop array = flatArrayOop(obj);
   return array->object_size(layout_helper());
 }
@@ -319,7 +327,7 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
       }
     } else {
       // flatArray-to-refArray
-      assert(dk->is_refArray_klass(), "Expected objArray here");
+      assert(dk->is_refArray_klass(), "Expected refArray here");
 
       // Need to allocate each new src elem payload -> dst oop
       refArrayHandle dh(THREAD, (refArrayOop)d);
@@ -347,7 +355,7 @@ bool FlatArrayKlass::can_be_primary_super_slow() const {
 }
 
 u2 FlatArrayKlass::compute_modifier_flags() const {
-  // The modifier for an flatArray is the same as its element
+  // The modifier for a flatArray is the same as its element
   // With the addition of ACC_IDENTITY
   u2 element_flags = element_klass()->compute_modifier_flags();
 

@@ -148,8 +148,6 @@ class InlineLayoutInfo : public MetaspaceObj {
 
  public:
   InlineLayoutInfo(): _klass(nullptr), _kind(LayoutKind::UNKNOWN), _null_marker_offset(-1)  {}
-  InlineLayoutInfo(InlineKlass* ik, LayoutKind kind, int size, int nm_offset):
-    _klass(ik), _kind(kind), _null_marker_offset(nm_offset) {}
 
   InlineKlass* klass() const { return _klass; }
   void set_klass(InlineKlass* k) { _klass = k; }
@@ -1297,6 +1295,7 @@ public:
   // Printing
   void print_on(outputStream* st) const override;
   void print_value_on(outputStream* st) const override;
+  void print_class_flags(outputStream* st) const;
 
   void oop_print_value_on(oop obj, outputStream* st) override;
 

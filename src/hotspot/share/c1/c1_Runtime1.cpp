@@ -447,10 +447,9 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* current, Klass* array_kla
   }
 JRT_END
 
-
+// TODO 8265122 This is currently dead code until the array factory methods are intrinsified
 JRT_ENTRY(void, Runtime1::new_null_free_array(JavaThread* current, Klass* array_klass, jint length))
   NOT_PRODUCT(_new_null_free_array_slowcase_cnt++;)
-  // TODO 8350865 This is dead code since 8325660 because null-free arrays can only be created via the factory methods that are not yet implemented in C1. Should probably be fixed by 8265122.
 
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -535,18 +534,15 @@ JRT_ENTRY(void, Runtime1::load_flat_array(JavaThread* current, flatArrayOopDesc*
   current->set_vm_result_oop(obj);
 JRT_END
 
-JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, arrayOopDesc* array, int index, oopDesc* value))
-  // TOOD 8350865 We can call here with a non-flat array because of LIR_Assembler::emit_opFlattenedArrayCheck
-  if (array->is_flatArray()) {
-    profile_flat_array(current, false, array->is_null_free_array());
-  }
+JRT_ENTRY(void, Runtime1::store_flat_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value))
+  assert(array->is_flatArray(), "should not be called");
+  profile_flat_array(current, false, array->is_null_free_array());
 
   NOT_PRODUCT(_store_flat_array_slowcase_cnt++;)
   if (value == nullptr && array->is_null_free_array()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_NullPointerException());
   } else {
-    // Here we know that we have a flat array
-    oop_cast<flatArrayOop>(array)->obj_at_put(index, value, CHECK);
+    array->obj_at_put(index, value, CHECK);
   }
 JRT_END
 
@@ -1135,6 +1131,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, StubId stub_id ))
     constantPoolHandle constants(current, caller_method->constants());
     LinkResolver::resolve_field_access(result, constants, field_access.index(), caller_method, Bytecodes::java_code(code), CHECK);
     patch_field_offset = result.offset();
+    patch_field_type = result.field_type();
 
     // If we're patching a field which is volatile then at compile it
     // must not have been know to be volatile, so the generated code
@@ -1146,21 +1143,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, StubId stub_id ))
     // handling in the volatile case.
 
     deoptimize_for_volatile = result.access_flags().is_volatile();
-
-    // If we are patching a field which should be atomic, then
-    // the generated code is not correct either, force deoptimizing.
-    // We need to only cover T_LONG and T_DOUBLE fields, as we can
-    // break access atomicity only for them.
-
-    // Strictly speaking, the deoptimization on 64-bit platforms
-    // is unnecessary, and T_LONG stores on 32-bit platforms need
-    // to be handled by special patching code when AlwaysAtomicAccesses
-    // becomes product feature. At this point, we are still going
-    // for the deoptimization for consistency against volatile
-    // accesses.
-
-    patch_field_type = result.field_type();
-    deoptimize_for_atomic = (AlwaysAtomicAccesses && (patch_field_type == T_DOUBLE || patch_field_type == T_LONG));
 
     // The field we are patching is null-free. Deoptimize and regenerate
     // the compiled code if we patch a putfield/putstatic because it
@@ -1254,19 +1236,15 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, StubId stub_id ))
   }
 
   if (deoptimize_for_volatile  ||
-      deoptimize_for_atomic    ||
       deoptimize_for_null_free ||
       deoptimize_for_flat      ||
       deoptimize_for_strict_static) {
-    // At compile time we assumed the field wasn't volatile/atomic but after
-    // loading it turns out it was volatile/atomic so we have to throw the
+    // At compile time we assumed the field wasn't volatile but after
+    // loading it turns out it was volatile so we have to throw the
     // compiled code out and let it be regenerated.
     if (TracePatching) {
       if (deoptimize_for_volatile) {
         tty->print_cr("Deoptimizing for patching volatile field reference");
-      }
-      if (deoptimize_for_atomic) {
-        tty->print_cr("Deoptimizing for patching atomic field reference");
       }
       if (deoptimize_for_null_free) {
         tty->print_cr("Deoptimizing for patching null-free field reference");
