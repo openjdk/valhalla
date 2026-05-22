@@ -23,7 +23,7 @@
 
 /**
  * @test 8385020
- * @summary
+ * @summary dying substitutability call transformed during igvn
  * @enablePreview
  * @run main/othervm -Xcomp -XX:CompileOnly=${test.main.class}::test* -XX:CompileCommand=dontinline,${test.main.class}::notInlined
  *                   -XX:+StressIGVN -XX:StressSeed=2677332830 ${test.main.class}
