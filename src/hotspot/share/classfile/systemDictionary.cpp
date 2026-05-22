@@ -1048,29 +1048,29 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
   return visible;
 }
 
-bool SystemDictionary::check_shared_class_super_type(InstanceKlass* klass, InstanceKlass* super_type,
+bool SystemDictionary::check_shared_class_dependency(InstanceKlass* klass, InstanceKlass* dependency,
                                                      Handle class_loader, bool is_superclass, TRAPS) {
-  assert(super_type->in_aot_cache(), "must be");
+  assert(dependency->in_aot_cache(), "must be");
 
-  // Quick check if the super type has been already loaded.
+  // Quick check if the dependency has been already loaded.
   // + Don't do it for unregistered classes -- they can be unloaded so
-  //   super_type->class_loader_data() could be stale.
-  // + Don't check if loader data is null, ie. the super_type isn't fully loaded.
-  if (!super_type->defined_by_other_loaders() && super_type->class_loader_data() != nullptr) {
-    // Check if the superclass is loaded by the current class_loader
-    Symbol* name = super_type->name();
+  //   dependency->class_loader_data() could be stale.
+  // + Don't check if loader data is null, ie. the dependency isn't fully loaded.
+  if (!dependency->defined_by_other_loaders() && dependency->class_loader_data() != nullptr) {
+    // Check if the dependency is loaded by the current class_loader.
+    Symbol* name = dependency->name();
     InstanceKlass* check = find_instance_klass(THREAD, name, class_loader);
-    if (check == super_type) {
+    if (check == dependency) {
       return true;
     }
   }
 
-  Klass *found = resolve_with_circularity_detection(klass->name(), super_type->name(),
+  Klass* found = resolve_with_circularity_detection(klass->name(), dependency->name(),
                                                     class_loader, is_superclass, CHECK_false);
-  if (found == super_type) {
+  if (found == dependency) {
     return true;
   } else {
-    // The dynamically resolved super type is not the same as the one we used during dump time,
+    // The dynamically resolved dependency is not the same as the one we used during dump time,
     // so we cannot use the class.
     return false;
   }
@@ -1085,7 +1085,7 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   // load <ik> from the shared archive.
 
   if (ik->super() != nullptr) {
-    bool check_super = check_shared_class_super_type(ik, ik->super(),
+    bool check_super = check_shared_class_dependency(ik, ik->super(),
                                                      class_loader, true,
                                                      CHECK_false);
     if (!check_super) {
@@ -1096,7 +1096,7 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   Array<InstanceKlass*>* interfaces = ik->local_interfaces();
   int num_interfaces = interfaces->length();
   for (int index = 0; index < num_interfaces; index++) {
-    bool check_interface = check_shared_class_super_type(ik, interfaces->at(index), class_loader, false,
+    bool check_interface = check_shared_class_dependency(ik, interfaces->at(index), class_loader, false,
                                                          CHECK_false);
     if (!check_interface) {
       return false;
@@ -1106,11 +1106,43 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   return true;
 }
 
+// Pre-load class referred to in non-static fields with archived inline field metadata. These fields
+// must be checked against the resolved runtime class before the shared class can be used.
+bool SystemDictionary::preload_from_required_inline_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
+  TempNewSymbol name = Signature::strip_envelope(sig);
+  log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
+                           "Cause: archived flat/null-restricted field metadata",
+                           name->as_C_string(), ik->name()->as_C_string());
+
+  InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
+  bool check = check_shared_class_dependency(ik, k, class_loader, false, THREAD);
+  if (!check) {
+    if (HAS_PENDING_EXCEPTION) {
+      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                               "(cause: archived flat/null-restricted field metadata) failed : %s",
+                               name->as_C_string(), ik->name()->as_C_string(),
+                               PENDING_EXCEPTION->klass()->name()->as_C_string());
+      CLEAR_PENDING_EXCEPTION;
+    } else {
+      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                               "(cause: archived flat/null-restricted field metadata) failed : "
+                               "app substituted a different version",
+                               name->as_C_string(), ik->name()->as_C_string());
+    }
+    return false;
+  }
+
+  assert(k != nullptr, "Sanity check");
+  log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                           "(cause: archived flat/null-restricted field metadata) succeeded",
+                           name->as_C_string(), ik->name()->as_C_string());
+
+  return true;
+}
+
 // Tries to pre-load classes referred to in non-static instance fields if they are found in the
-// loadable descriptors attribute. If loading fails, we can fail silently unless the shared class
-// has archived null-restricted field metadata that must be checked against the resolved class.
-bool SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig,
-                                                             int field_index, bool validate_field_klass, TRAPS) {
+// loadable descriptors attribute. If loading fails, we can fail silently.
+void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
   if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(sig)) {
     log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
@@ -1119,14 +1151,7 @@ bool SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
     InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
                                                                                  class_loader, false, THREAD);
     if (HAS_PENDING_EXCEPTION) {
-      if (validate_field_klass) {
-        log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                                 "(cause: field type in LoadableDescriptors attribute) failed : %s",
-                                 name->as_C_string(), ik->name()->as_C_string(),
-                                 PENDING_EXCEPTION->klass()->name()->as_C_string());
-      }
       CLEAR_PENDING_EXCEPTION;
-      return !validate_field_klass;
     }
 
     InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
@@ -1136,14 +1161,12 @@ bool SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, 
                                "(cause: field type in LoadableDescriptors attribute) failed : "
                                "app substituted a different version",
                                name->as_C_string(), ik->name()->as_C_string());
-      return !validate_field_klass;
     } else if (real_k != nullptr) {
       log_info(class, preload)("Preloading of class %s during loading of shared class %s "
                                "(cause: field type in LoadableDescriptors attribute) succeeded",
                                 name->as_C_string(), ik->name()->as_C_string());
     }
   }
-  return true;
 }
 
 
@@ -1177,16 +1200,19 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
       Symbol* sig = fs.signature();
       int field_index = fs.index();
 
-      if (Signature::has_envelope(sig)) {
-        // Pending exceptions are cleared so preload failures can fail silently unless archived
-        // null-restricted field metadata must be checked against the resolved class.
-        bool validate_field_klass = fs.is_null_free_inline_type();
-        bool check = try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index,
-                                                           validate_field_klass, CHECK_NULL);
+      if (!Signature::has_envelope(sig)) {
+        continue;
+      }
+
+      if (fs.is_flat() || fs.is_null_free_inline_type()) {
+        bool check = preload_from_required_inline_field(ik, class_loader, sig, field_index, CHECK_NULL);
         if (!check) {
           ik->set_shared_loading_failed();
           return nullptr;
         }
+      } else {
+        // Pending exceptions are cleared so we can fail silently.
+        try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
   }

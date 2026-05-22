@@ -318,7 +318,7 @@ private:
                                            InstanceKlass* ik,
                                            PackageEntry* pkg_entry,
                                            Handle class_loader);
-  static bool check_shared_class_super_type(InstanceKlass* klass, InstanceKlass* super,
+  static bool check_shared_class_dependency(InstanceKlass* klass, InstanceKlass* dependency,
                                             Handle class_loader,
                                             bool is_superclass, TRAPS);
   static bool check_shared_class_super_types(InstanceKlass* ik, Handle class_loader, TRAPS);
@@ -331,8 +331,8 @@ protected:
 
   static bool add_loader_constraint(Symbol* name, Klass* klass_being_linked,  Handle loader1,
                                     Handle loader2);
-  static bool try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig,
-                                                    int field_index, bool validate_field_klass, TRAPS);
+  static bool preload_from_required_inline_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS);
+  static void try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS);
   static InstanceKlass* load_shared_class(InstanceKlass* ik,
                                           Handle class_loader,
                                           Handle protection_domain,
