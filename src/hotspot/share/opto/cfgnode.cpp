@@ -695,9 +695,7 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       if (add_to_worklist) {
         igvn->add_users_to_worklist(this); // Check for further allowed opts
       }
-      uint nb_edges = 1;
-      for (DUIterator_Last imin, i = last_outs(imin); i >= imin; i -= nb_edges) {
-        nb_edges = 1;
+      for (DUIterator_Last imin, i = last_outs(imin); i >= imin; --i) {
         Node* n = last_out(i);
         igvn->hash_delete(n); // Remove from worklist before modifying edges
         if (n->outcnt() == 0) {
