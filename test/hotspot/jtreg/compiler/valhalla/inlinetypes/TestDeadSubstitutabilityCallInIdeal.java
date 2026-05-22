@@ -38,7 +38,7 @@ package compiler.valhalla.inlinetypes;
 public class TestDeadSubstitutabilityCallInIdeal {
     private static int intField;
     private static final MyValue[] flatField = { new MyValue(42) };
-    
+
     public static void main(String[] args) {
         MyValue v = new MyValue(42);
         A a = new A(42);
