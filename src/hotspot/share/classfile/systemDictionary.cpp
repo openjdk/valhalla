@@ -1109,34 +1109,44 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
 // Pre-load class referred to in non-static fields with archived inline field metadata. These fields
 // must be checked against the resolved runtime class before the shared class can be used.
 bool SystemDictionary::preload_from_required_inline_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
-  TempNewSymbol name = Signature::strip_envelope(sig);
-  log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
-                           "Cause: archived flat/null-restricted field metadata",
-                           name->as_C_string(), ik->name()->as_C_string());
+  if (log_is_enabled(Info, class, preload)) {
+    TempNewSymbol name = Signature::strip_envelope(sig);
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
+                             "Cause: archived flat/null-restricted field metadata",
+                             name->as_C_string(), ik->name()->as_C_string());
+  }
 
   InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
   bool check = check_shared_class_dependency(ik, k, class_loader, false, THREAD);
   if (!check) {
     if (HAS_PENDING_EXCEPTION) {
-      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                               "(cause: archived flat/null-restricted field metadata) failed : %s",
-                               name->as_C_string(), ik->name()->as_C_string(),
-                               PENDING_EXCEPTION->klass()->name()->as_C_string());
+      if (log_is_enabled(Info, class, preload)) {
+        TempNewSymbol name = Signature::strip_envelope(sig);
+        log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                                 "(cause: archived flat/null-restricted field metadata) failed : %s",
+                                 name->as_C_string(), ik->name()->as_C_string(),
+                                 PENDING_EXCEPTION->klass()->name()->as_C_string());
+      }
       CLEAR_PENDING_EXCEPTION;
     } else {
-      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                               "(cause: archived flat/null-restricted field metadata) failed : "
-                               "app substituted a different version",
-                               name->as_C_string(), ik->name()->as_C_string());
+      if (log_is_enabled(Info, class, preload)) {
+        TempNewSymbol name = Signature::strip_envelope(sig);
+        log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                                 "(cause: archived flat/null-restricted field metadata) failed : "
+                                 "app substituted a different version",
+                                 name->as_C_string(), ik->name()->as_C_string());
+      }
     }
     return false;
   }
 
   assert(k != nullptr, "Sanity check");
-  log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                           "(cause: archived flat/null-restricted field metadata) succeeded",
-                           name->as_C_string(), ik->name()->as_C_string());
-
+  if (log_is_enabled(Info, class, preload)) {
+    TempNewSymbol name = Signature::strip_envelope(sig);
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                             "(cause: archived flat/null-restricted field metadata) succeeded",
+                             name->as_C_string(), ik->name()->as_C_string());
+  }
   return true;
 }
 
