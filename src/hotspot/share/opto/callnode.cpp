@@ -1732,7 +1732,7 @@ Node *SafePointNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
       Node* n = in(i)->uncast();
       if (n->is_InlineType()) {
-        n->as_InlineType()->make_scalar_in_safepoints(phase->is_IterGVN());
+        n->as_InlineType()->make_scalar_in_safepoints(phase->is_IterGVN(), true, this);
       }
     }
   }
