@@ -117,7 +117,7 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   // Push cast through InlineTypeNode
   if (in(1)->is_InlineType()) {
-    return ideal_inline_type_node(phase);
+    return ideal_cast_of_inline_type_node(phase);
   }
 
   if (in(1) != nullptr && phase->type(in(1)) != Type::TOP) {
@@ -222,7 +222,7 @@ Node* ConstraintCastNode::pin_node_under_control_impl() const {
   return make_cast_for_type(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), _extra_types);
 }
 
-Node* ConstraintCastNode::ideal_inline_type_node(PhaseGVN* phase) {
+Node* ConstraintCastNode::ideal_cast_of_inline_type_node(PhaseGVN* phase) {
   InlineTypeNode* vt = in(1)->as_InlineType();
   const Type* join = vt->type()->filter(type());
   if (join == Type::TOP) {
