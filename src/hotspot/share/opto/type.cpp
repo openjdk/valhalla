@@ -2588,7 +2588,7 @@ bool TypeAry::singleton(void) const {
 
 bool TypeAry::empty(void) const {
   assert(!_size->empty(), "TypeInt is never empty");
-  // TODO 8370914 This should be simplified at construction time once we get rid of dual
+  // TODO 8385426 This should be simplified at construction time once we get rid of dual
   // Doing it with the dual-based join is annoying. TypeAry::empty tests whether the
   // element type is empty. When computing the dual of an array that can be flat or not,
   // we will get an element type that is empty, and doesn't need more. We even shouldn't
