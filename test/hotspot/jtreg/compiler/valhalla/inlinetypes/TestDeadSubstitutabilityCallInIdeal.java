@@ -28,7 +28,7 @@
  * @run main/othervm -Xcomp -XX:CompileOnly=${test.main.class}::test* -XX:CompileCommand=dontinline,${test.main.class}::notInlined
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressIGVN -XX:StressSeed=2677332830 ${test.main.class}
  * @run main/othervm -Xcomp -XX:CompileOnly=${test.main.class}::test* -XX:CompileCommand=dontinline,${test.main.class}::notInlined
- *                   -XX:+StressIGVN ${test.main.class}
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressIGVN ${test.main.class}
  * @run main/othervm -Xcomp -XX:CompileOnly=${test.main.class}::test* -XX:CompileCommand=dontinline,${test.main.class}::notInlined
  *                   ${test.main.class}
  */
