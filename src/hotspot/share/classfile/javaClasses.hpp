@@ -252,7 +252,6 @@ class java_lang_Class : AllStatic {
   static int _class_loader_offset;
   static int _module_offset;
   static int _component_mirror_offset;
-
   static int _name_offset;
   static int _source_file_offset;
   static int _classData_offset;
