@@ -6483,7 +6483,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
   }
 }
 
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
 
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
 void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
@@ -6687,7 +6687,7 @@ void MacroAssembler::clear_mem(Register base, Register cnt, Register val, XMMReg
   BIND(DONE);
 }
 
-#endif //COMPILER2_OR_JVMCI
+#endif //COMPILER2
 
 
 void MacroAssembler::generate_fill(BasicType t, bool aligned,
@@ -10079,7 +10079,7 @@ void MacroAssembler::vpternlogq(XMMRegister dst, int imm8, XMMRegister src2, Add
   }
 }
 
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
 
 void MacroAssembler::fill_masked(BasicType bt, Address dst, XMMRegister xmm, KRegister mask,
                                  Register length, Register temp, int vec_enc) {
@@ -10314,7 +10314,7 @@ void MacroAssembler::generate_fill_avx3(BasicType type, Register to, Register va
   }
   bind(L_exit);
 }
-#endif //COMPILER2_OR_JVMCI
+#endif //COMPILER2
 
 
 void MacroAssembler::convert_f2i(Register dst, XMMRegister src) {

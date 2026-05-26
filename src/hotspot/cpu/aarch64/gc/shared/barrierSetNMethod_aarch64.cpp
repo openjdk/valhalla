@@ -37,9 +37,6 @@
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/formatBuffer.hpp"
-#if INCLUDE_JVMCI
-#include "jvmci/jvmciRuntime.hpp"
-#endif
 
 static int slow_path_size(nmethod* nm) {
   // The slow path code is out of line with C2
@@ -112,18 +109,6 @@ class NativeNMethodBarrier {
     _default_entry_guard(nullptr),
     _verified_alt1_guard(nullptr),
     _verified_alt2_guard(nullptr) {
-#if INCLUDE_JVMCI
-    if (nm->is_compiled_by_jvmci()) {
-      address pc = nm->code_begin() + nm->jvmci_nmethod_data()->nmethod_entry_patch_offset();
-      RelocIterator iter(nm, pc, pc + 4);
-      guarantee(iter.next(), "missing relocs");
-      guarantee(iter.type() == relocInfo::section_word_type, "unexpected reloc");
-
-      // Only set the verified entry, the others are not supported.
-      _default_entry_guard = (int*) iter.section_word_reloc()->target();
-      _default_entry_instruction = pc;
-    } else
-#endif
     {
       // The default entry point has a known address. The guard address can be
       // decoded from the literal in the instruction. Verification will confirm
@@ -301,10 +286,3 @@ int BarrierSetNMethod::guard_value(nmethod* nm) {
   NativeNMethodBarrier barrier(nm);
   return barrier.get_default_guard_value();
 }
-
-#if INCLUDE_JVMCI
-bool BarrierSetNMethod::verify_barrier(nmethod* nm, err_msg& msg) {
-  NativeNMethodBarrier barrier(nm);
-  return barrier.check_barriers(msg);
-}
-#endif
