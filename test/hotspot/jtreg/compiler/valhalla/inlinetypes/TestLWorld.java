@@ -4857,7 +4857,7 @@ public class TestLWorld {
 
         MyClass152 nonValue = MY_NON_VALUE;
         int[] array = MY_ARRAY;
-        // TODO 8384979: This should be Integer
+        // TODO 8384979: This should be Integer, enable various verifications below as well
         int integerValue;
 
         public AllPrimitives(int i, Integer integerValue) {
