@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,30 +21,26 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 4528331 5006032
- * @summary Test Collections.binarySearch() with a null comparator
- * @library /test/lib
- */
+package jdk.test.lib.valueclass;
 
-import jdk.test.lib.valueclass.VClass;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
-public class BinarySearchNullComparator {
-
-    public static void main(String[] args) throws Exception {
-        List list = Arrays.asList(new String[] {"I", "Love", "You"});
-
-        int result = Collections.binarySearch(list, "You", null);
-        if (result != 2)
-            throw new Exception("Result: " + result);
-
-        List<VClass> values = Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }), new VClass(3, new int[] { 3 }));
-        int vresult = Collections.binarySearch(values, new VClass(3, new int[] { 3 }), null);
-        if (vresult != 2)
-            throw new Exception("Value result: " + vresult);
+/**
+ * A reusable value class helper for Collections tests.
+ * Wraps an int and an int array (x, arr), supports equality, ordering, and hashing.
+ * When compiled with -Xplugin:ValueClassPlugin --enable-preview this class
+ * is treated as a value class; otherwise it is a plain identity class,
+ * allowing the same tests to exercise both modes.
+ */
+@AsValueClass
+public final class VClass implements Comparable<VClass> {
+    public int x;
+    public int[] arr;
+    public VClass(int x, int[] arr) { this.x = x; this.arr = arr; }
+    public int compareTo(VClass other) {
+        int cmp = Integer.compare(x, other.x);
+        return cmp != 0 ? cmp : Arrays.compare(arr, other.arr);
     }
+    public boolean equals(Object o) { return o instanceof VClass t && x == t.x && Arrays.equals(arr, t.arr); }
+    public int hashCode() { return 31 * x + Arrays.hashCode(arr); }
 }
