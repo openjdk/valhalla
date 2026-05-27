@@ -124,7 +124,7 @@ final class MethodHandleAccessorFactory {
      *         the instantiated class declares a strict instance field
      */
     static ConstructorAccessorImpl newSerializableConstructorAccessor(Class<?> decl, Constructor<?> ctor) {
-        checkConstructorInSuperclass(decl, ctor);
+        validateSerializableConstructor(decl, ctor);
 
         // ExceptionInInitializerError may be thrown during class initialization
         // Ensure class initialized outside the invocation of method handle
@@ -138,7 +138,11 @@ final class MethodHandleAccessorFactory {
         }
     }
 
-    private static void checkConstructorInSuperclass(Class<?> decl, Constructor<?> ctor) {
+    /// Ensures a constructor is a valid super constructor to call for the serializable class {@code decl}
+    /// according to the serialization specification.
+    /// 1. The initialized class must not be a concrete value class (the superclasses may be abstract value)
+    /// 2. There should be no strict field initialization skipped by the constructor
+    private static void validateSerializableConstructor(Class<?> decl, Constructor<?> ctor) {
         if (decl == ctor.getDeclaringClass())
             throw new UnsupportedOperationException("Attempt to duplicate " + ctor);
         if (decl.isValue())
