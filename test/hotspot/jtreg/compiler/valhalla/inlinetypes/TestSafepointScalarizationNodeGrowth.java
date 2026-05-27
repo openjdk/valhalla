@@ -28,6 +28,7 @@
  * @enablePreview
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+AlwaysIncrementalInline -XX:-UseFieldFlattening
+ *                   -XX:-AbortVMOnCompilationFailure
  *                   -Xbatch -XX:CompileCommand=compileonly,${test.main.class}::test
  *                   ${test.main.class}
  */
