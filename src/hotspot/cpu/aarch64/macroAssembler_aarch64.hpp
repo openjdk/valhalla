@@ -692,7 +692,6 @@ public:
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
-  void test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker);
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
@@ -703,7 +702,6 @@ public:
 
   // Check array klass layout helper for flat or null-free arrays...
   void test_flat_array_layout(Register lh, Label& is_flat_array);
-  void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
 
   static address target_addr_for_insn(address insn_addr);
 
@@ -955,9 +953,6 @@ public:
   // inline type data payload offsets...
   void payload_offset(Register inline_klass, Register offset);
   void payload_address(Register oop, Register data, Register inline_klass);
-  // get data payload ptr a flat value array at index, kills rcx and index
-  void data_for_value_array_index(Register array, Register array_klass,
-                                  Register index, Register data);
 
   void load_heap_oop(Register dst, Address src, Register tmp1,
                      Register tmp2, DecoratorSet decorators = 0);
