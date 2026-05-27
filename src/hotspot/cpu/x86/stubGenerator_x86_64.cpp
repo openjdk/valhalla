@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/upcallLinker.hpp"
 #include "runtime/arguments.hpp"
@@ -5002,7 +5003,18 @@ address StubGenerator::generate_return_value_stub(address destination, const cha
   __ jcc(Assembler::notEqual, pending);
 
   if (has_res) {
+    // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+    // need to initialize the buffer and if so, call the inline class specific pack handler.
+    Label skip_pack;
     __ get_vm_result_oop(rax);
+    __ get_vm_result_metadata(rscratch1);
+    __ testptr(rscratch1, rscratch1);
+    __ jcc(Assembler::zero, skip_pack);
+    __ movptr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
+    __ movptr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
+    __ call(rscratch1);
+    __ membar(Assembler::StoreStore);
+    __ bind(skip_pack);
   }
 
   __ ret(0);
@@ -5118,7 +5130,7 @@ void StubGenerator::generate_compiler_stubs() {
   StubRoutines::_data_cache_writeback_sync = generate_data_cache_writeback_sync();
 
 #ifdef COMPILER2
-  if ((UseAVX == 2) && EnableX86ECoreOpts) {
+  if ((UseAVX == 2) && EnableX86ECoreOpts && UseCountTrailingZerosInstruction) {
     generate_string_indexof(StubRoutines::_string_indexof_array);
   }
 #endif

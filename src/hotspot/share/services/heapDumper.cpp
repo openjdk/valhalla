@@ -963,7 +963,7 @@ public:
   }
 };
 
-// Describes flat object (flatted field or element of flat array) in the holder oop
+// Describes flat object (flat field or element of flat array) in the holder oop
 class DumperFlatObject: public CHeapObj<mtServiceability> {
   friend class DumperFlatObjectList;
 private:
@@ -2542,7 +2542,7 @@ class VM_HeapDumper : public VM_GC_Operation, public WorkerTask, public Unmounte
       for (int i = 0; i < _thread_dumpers_count; i++) {
         delete _thread_dumpers[i];
       }
-      FREE_C_HEAP_ARRAY(ThreadDumper*, _thread_dumpers);
+      FREE_C_HEAP_ARRAY(_thread_dumpers);
     }
 
     if (_dumper_controller != nullptr) {

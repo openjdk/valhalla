@@ -814,7 +814,7 @@ public:
   virtual bool        may_modify(const TypeOopPtr* t_oop, PhaseValues* phase) const;
   // Does this node have a use of n other than in debug information?
   bool                has_non_debug_use(const Node* n);
-  bool                has_debug_use(const Node* n);
+  bool                has_debug_use(const Node* n) const;
   // Returns the unique CheckCastPP of a call
   // or result projection is there are several CheckCastPP
   // or returns null if there is no one.
@@ -897,14 +897,18 @@ public:
 // calls and optimized virtual calls, plus calls to wrappers for run-time
 // routines); generates static stub.
 class CallStaticJavaNode : public CallJavaNode {
+  // If this is an uncommon trap guarded by some condition, is it safe to change the condition to a narrower condition?
+  // See comment in PhaseIdealLoop::do_split_if()
+  bool _safe_for_fold_compare;
   virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 
   bool remove_unknown_flat_array_load(PhaseIterGVN* igvn, Node* ctl, Node* mem, Node* unc_arg);
+  Node* replace_is_substitutable(PhaseIterGVN* igvn);
 
 public:
   CallStaticJavaNode(Compile* C, const TypeFunc* tf, address addr, ciMethod* method)
-    : CallJavaNode(tf, addr, method) {
+    : CallJavaNode(tf, addr, method), _safe_for_fold_compare(true) {
     init_class_id(Class_CallStaticJava);
     if (C->eliminate_boxing() && (method != nullptr) && method->is_boxing_method()) {
       init_flags(Flag_is_macro);
@@ -923,7 +927,7 @@ public:
     }
   }
   CallStaticJavaNode(const TypeFunc* tf, address addr, const char* name, const TypePtr* adr_type)
-    : CallJavaNode(tf, addr, nullptr) {
+    : CallJavaNode(tf, addr, nullptr), _safe_for_fold_compare(true) {
     init_class_id(Class_CallStaticJava);
     // This node calls a runtime stub, which often has narrow memory effects.
     _adr_type = adr_type;
@@ -946,6 +950,14 @@ public:
 
   virtual int         Opcode() const;
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+
+  void clear_safe_for_fold_compare() {
+    _safe_for_fold_compare = false;
+  }
+
+  bool safe_for_fold_compare() const {
+    return _safe_for_fold_compare;
+  }
 
 #ifndef PRODUCT
   virtual void        dump_spec(outputStream *st) const;

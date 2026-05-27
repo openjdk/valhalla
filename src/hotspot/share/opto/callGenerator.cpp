@@ -80,7 +80,7 @@ public:
 
   virtual bool      is_parse() const           { return true; }
   virtual JVMState* generate(JVMState* jvms);
-  int is_osr() { return _is_osr; }
+  bool              is_osr() const             { return _is_osr; }
 
 };
 
@@ -153,7 +153,6 @@ protected:
 
 JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   GraphKit kit(jvms);
-  PhaseGVN& gvn = kit.gvn();
   bool is_static = method()->is_static();
   address target = is_static ? SharedRuntime::get_resolve_static_call_stub()
                              : SharedRuntime::get_resolve_opt_virtual_call_stub();
@@ -183,9 +182,6 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
     call->set_optimized_virtual(true);
   }
   kit.set_arguments_for_java_call(call);
-  if (kit.stopped()) {
-    return kit.transfer_exceptions_into_jvms();
-  }
   kit.set_edges_for_java_call(call, false, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
   kit.push_node(method()->return_type()->basic_type(), ret);
@@ -283,9 +279,6 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   _call_node = call;  // Save the call node in case we need it later
 
   kit.set_arguments_for_java_call(call);
-  if (kit.stopped()) {
-    return kit.transfer_exceptions_into_jvms();
-  }
   kit.set_edges_for_java_call(call, false /*must_throw*/, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
   kit.push_node(method()->return_type()->basic_type(), ret);
@@ -684,6 +677,12 @@ void CallGenerator::do_late_inline_helper() {
     for (uint i1 = 0; i1 < size; i1++) {
       map->init_req(i1, call->in(i1));
     }
+    // Call node has in(ReturnAdr) set to top() node.
+    // We have to set map->in(ReturnAdr) to correct value
+    // because it is used by uncommon traps.
+    Node* ret_adr = C->start()->proj_out_or_null(TypeFunc::ReturnAdr);
+    precond(ret_adr != nullptr);
+    map->set_req(TypeFunc::ReturnAdr, ret_adr);
 
     PhaseGVN& gvn = *C->initial_gvn();
     // Make sure the state is a MergeMem for parsing.
@@ -698,6 +697,7 @@ void CallGenerator::do_late_inline_helper() {
       map->set_req(i1, C->top());
     }
     jvms->set_map(map);
+    precond(ret_adr == jvms->map()->returnadr());
 
     // Make enough space in the expression stack to transfer
     // the incoming arguments and return value.
@@ -715,6 +715,9 @@ void CallGenerator::do_late_inline_helper() {
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
         Node* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
+        // GraphKit::access_load_at() may be called from InlineTypeNode::make_from_multi() and it may change the map
+        // that arg_kit uses.
+        map = arg_kit.map();
         map->set_control(arg_kit.control());
         map->set_argument(jvms, i1, vt);
       } else {

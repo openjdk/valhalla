@@ -323,6 +323,14 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
   AC_SUBST(COPY_DEBUG_SYMBOLS)
   AC_SUBST(ZIP_EXTERNAL_DEBUG_SYMBOLS)
 
+  # Should we enable objcopy debuginfo compression ?
+  UTIL_ARG_ENABLE(NAME: objcopy-debuginfo-compression, DEFAULT: false,
+      RESULT: ENABLE_OBJCOPY_DEBUGINFO_COMPRESSION,
+      DESC: [Set to enable compression in the debuginfo files (Linux only)],
+      CHECKING_MSG: [if debuginfo compression with objcopy is done],
+      IF_ENABLED: [ OBJCOPY_COMPRESS_FLAGS="--compress-debug-sections=zlib-gnu" ])
+  AC_SUBST(OBJCOPY_COMPRESS_FLAGS)
+
   # Should we add external native debug symbols to the shipped bundles?
   AC_MSG_CHECKING([if we should add external native debug symbols to the shipped bundles])
   AC_ARG_WITH([external-symbols-in-bundles],
@@ -778,16 +786,14 @@ AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
 #
 # Enable or disable the default CDS archive generation for Compact Object Headers
 #
-# Default disabled within Valhalla until support added (JDK-8348568)
-#
-AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE_COH],
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE_NOCOH],
 [
-  UTIL_ARG_ENABLE(NAME: cds-archive-coh, DEFAULT: auto, RESULT: BUILD_CDS_ARCHIVE_COH,
-      DESC: [enable generation of default CDS archives for compact object headers (requires --enable-cds-archive)],
+  UTIL_ARG_ENABLE(NAME: cds-archive-nocoh, DEFAULT: auto, RESULT: BUILD_CDS_ARCHIVE_NOCOH,
+      DESC: [enable generation of default CDS archives for no compact object headers (requires --enable-cds-archive)],
       DEFAULT_DESC: [auto],
-      CHECKING_MSG: [if default CDS archives for compact object headers should be generated],
+      CHECKING_MSG: [if default CDS archives for no compact object headers should be generated],
       CHECK_AVAILABLE: [
-        AC_MSG_CHECKING([if CDS archive with compact object headers is available])
+        AC_MSG_CHECKING([if CDS archive with no compact object headers is available])
         if test "x$BUILD_CDS_ARCHIVE" = "xfalse"; then
           AC_MSG_RESULT([no (CDS default archive generation is disabled)])
           AVAILABLE=false
@@ -804,7 +810,7 @@ AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE_COH],
           AVAILABLE=true
         fi
       ])
-  AC_SUBST(BUILD_CDS_ARCHIVE_COH)
+  AC_SUBST(BUILD_CDS_ARCHIVE_NOCOH)
 ])
 
 ################################################################################

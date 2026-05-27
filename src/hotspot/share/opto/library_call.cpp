@@ -2745,6 +2745,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     if (layout == LayoutKind::REFERENCE) {
       if (!base_type->is_aryptr()->is_not_flat()) {
         const TypeAryPtr* array_type = base_type->is_aryptr()->cast_to_not_flat();
+        // TODO 8350865 This should be a CheckCastPP, can we add a test?
         Node* new_base = _gvn.transform(new CastPPNode(control(), base, array_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
         replace_in_map(base, new_base);
         base = new_base;
@@ -2761,6 +2762,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
         ptr = basic_plus_adr(base, ConvL2X(offset));
         const TypeAryPtr* ptr_type = _gvn.type(ptr)->is_aryptr();
         if (ptr_type->field_offset().get() != 0) {
+          // TODO 8350865 This should be a CheckCastPP, can we add a test?
           ptr = _gvn.transform(new CastPPNode(control(), ptr, ptr_type->with_field_offset(0), ConstraintCastNode::DependencyType::NonFloatingNarrowing));
         }
       } else {
@@ -2779,7 +2781,7 @@ bool LibraryCallKit::inline_unsafe_flat_access(bool is_store, AccessKind kind) {
     const Type* value_type = _gvn.type(value);
     if (!value_type->is_inlinetypeptr()) {
       value_type = Type::get_const_type(value_klass)->filter_speculative(value_type);
-      Node* new_value = _gvn.transform(new CastPPNode(control(), value, value_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
+      Node* new_value = _gvn.transform(new CheckCastPPNode(control(), value, value_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
       new_value = InlineTypeNode::make_from_oop(this, new_value, value_klass);
       replace_in_map(value, new_value);
       value = new_value;
@@ -3183,8 +3185,6 @@ bool LibraryCallKit::inline_getFieldMap() {
 
   Node* map_addr = basic_plus_adr(mirror, field_map_offset);
   const TypeAryPtr* val_type = TypeAryPtr::INTS->cast_to_ptr_type(TypePtr::NotNull)->with_offset(0);
-  // TODO 8350865 Remove this
-  val_type = val_type->cast_to_not_flat(true)->cast_to_not_null_free(true);
   Node* map = access_load_at(mirror, map_addr, TypeAryPtr::INTS, val_type, T_ARRAY, IN_HEAP | MO_UNORDERED);
 
   set_result(map);
@@ -4767,10 +4767,19 @@ bool LibraryCallKit::inline_newArray(bool null_free, bool atomic) {
                 init_val = init_val->as_InlineType()->buffer(this);
               }
             }
-            // TODO 8350865 Should we add a check of the init_val type (maybe in debug only + halt)?
-            // If we insert a checkcast here, we can be sure that init_val is an InlineTypeNode, so
-            // when we folded a field load from an allocation (e.g. during escape analysis), we can
-            // remove the check init_val->is_InlineType().
+            if (init_val != nullptr) {
+#ifdef ASSERT
+              init_val = null_check(init_val);
+              Node* wrong_type_ctl = gen_subtype_check(init_val, makecon(TypeKlassPtr::make(array_klass->element_klass())));
+              {
+                PreserveJVMState pjvms(this);
+                set_control(wrong_type_ctl);
+                halt(control(), frameptr(), "incompatible type for initVal in newArray");
+                stop_and_kill_map();
+              }
+#endif
+              init_val = _gvn.transform(new CheckCastPPNode(control(), init_val, TypeOopPtr::make_from_klass(array_klass->element_klass()), ConstraintCastNode::DependencyType::NonFloatingNarrowing));
+            }
           }
           Node* obj = new_array(makecon(array_klass_type), length, 0, nullptr, false, init_val);
           const TypeAryPtr* arytype = gvn().type(obj)->is_aryptr();
@@ -4794,18 +4803,68 @@ bool LibraryCallKit::inline_getArrayProperties(ArrayPropertiesCheck check) {
   Node* bol;
   switch(check) {
     case IsFlat:
-      // TODO 8350865 Use the object version here instead of loading the klass
-      // The problem is that PhaseMacroExpand::expand_flatarraycheck_node can only handle some IR shapes and will fail, for example, if the bol is directly wired to a ReturnNode
       bol = flat_array_test(load_object_klass(array));
       break;
     case IsNullRestricted:
       bol = null_free_array_test(array);
       break;
-    case IsAtomic:
-      // TODO 8350865 Implement this. It's a bit more complicated, see conditions in JVM_IsAtomicArray
-      // Enable TestIntrinsics::test87/88 once this is implemented
-      // bol = null_free_atomic_array_test
-      return false;
+    case IsAtomic: {
+      // See conditions in JVM_IsAtomicArray
+      // 1. If not flat, then atomic, or else...
+      RegionNode* atomic_region = new RegionNode(1);
+      RegionNode* non_atomic_region = new RegionNode(1);
+      Node* array_klass = load_object_klass(array);
+      Node* is_flat_bol = flat_array_test(array_klass);
+      IfNode* iff_is_flat = create_and_xform_if(control(), is_flat_bol, PROB_FAIR, COUNT_UNKNOWN);
+      atomic_region->add_req(_gvn.transform(new IfFalseNode(iff_is_flat)));
+      set_control(_gvn.transform(new IfTrueNode(iff_is_flat)));
+
+      // 2. ...if the layout is atomic, then atomic, or else...
+      Node* layout_kind = atomic_layout_array_test_and_get_layout_kind(array, atomic_region);
+
+      // 3. ...if the element type is naturally atomic and null-free OR empty and nullable, then atomic, or else...
+      int element_klass_offset = in_bytes(ObjArrayKlass::element_klass_offset());
+      Node* array_element_klass_addr = off_heap_plus_addr(array_klass, element_klass_offset);
+      Node* array_element_klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), array_element_klass_addr, _gvn.type(array_klass)->is_klassptr()));
+      int klass_flags_offset = in_bytes(InstanceKlass::misc_flags_offset() + InstanceKlassFlags::flags_offset());
+      Node* array_element_klass_flags_addr = off_heap_plus_addr(array_element_klass, klass_flags_offset);
+      Node* array_element_klass_flags = make_load(control(), array_element_klass_flags_addr, TypeInt::INT, T_INT, MemNode::unordered);
+
+      // Here, layout can only be non-atomic, otherwise atomic_layout_array_test_and_get_layout_kind already decides the array to be atomic.
+      Node* is_null_free_cmp = _gvn.transform(new CmpINode(layout_kind, intcon(static_cast<jint>(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT))));
+      Node* is_null_free_bol = _gvn.transform(new BoolNode(is_null_free_cmp, BoolTest::eq));
+      IfNode* iff_is_null_free_bol = create_and_xform_if(control(), is_null_free_bol, PROB_FAIR, COUNT_UNKNOWN);
+      Node* is_null_free_ctl = _gvn.transform(new IfTrueNode(iff_is_null_free_bol));
+      Node* is_nullable_ctl = _gvn.transform(new IfFalseNode(iff_is_null_free_bol));
+
+      Node* is_naturally_atomic_flag = _gvn.transform(new AndINode(array_element_klass_flags, intcon(InstanceKlassFlags::_misc_is_naturally_atomic)));
+      Node* is_naturally_atomic_cmp = _gvn.transform(new CmpINode(is_naturally_atomic_flag, intcon(0)));
+      Node* is_naturally_atomic_bol = _gvn.transform(new BoolNode(is_naturally_atomic_cmp, BoolTest::ne));
+      IfNode* iff_is_naturally_atomic = create_and_xform_if(is_null_free_ctl, is_naturally_atomic_bol, PROB_FAIR, COUNT_UNKNOWN);
+      Node* is_naturally_atomic_ctl = _gvn.transform(new IfTrueNode(iff_is_naturally_atomic));
+      Node* is_not_naturally_atomic_ctl = _gvn.transform(new IfFalseNode(iff_is_naturally_atomic));
+      atomic_region->add_req(is_naturally_atomic_ctl);
+      non_atomic_region->add_req(is_not_naturally_atomic_ctl);
+
+      Node* is_empty_inline_type_flag = _gvn.transform(new AndINode(array_element_klass_flags, intcon(InstanceKlassFlags::_misc_is_empty_inline_type)));
+      Node* is_empty_inline_type_cmp = _gvn.transform(new CmpINode(is_empty_inline_type_flag, intcon(0)));
+      Node* is_empty_inline_type_bol = _gvn.transform(new BoolNode(is_empty_inline_type_cmp, BoolTest::ne));
+      IfNode* iff_is_empty_inline_type = create_and_xform_if(is_nullable_ctl, is_empty_inline_type_bol, PROB_FAIR, COUNT_UNKNOWN);
+      Node* is_empty_inline_type_ctl = _gvn.transform(new IfTrueNode(iff_is_empty_inline_type));
+      Node* is_nonempty_inline_type_ctl = _gvn.transform(new IfFalseNode(iff_is_empty_inline_type));
+      atomic_region->add_req(is_empty_inline_type_ctl);
+      non_atomic_region->add_req(is_nonempty_inline_type_ctl);
+
+      // ...non-atomic, but we tried everything.
+      RegionNode* decision = new RegionNode(3);
+      decision->set_req(1, _gvn.transform(atomic_region));
+      decision->set_req(2, _gvn.transform(non_atomic_region));
+      PhiNode* result = PhiNode::make(decision, intcon(1), TypeInt::BOOL);
+      result->set_req(2, intcon(0));
+      set_control(_gvn.transform(decision));
+      set_result(_gvn.transform(result));
+      return true;
+    }
     default:
       ShouldNotReachHere();
   }
@@ -5058,43 +5117,10 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     generate_negative_guard(length, bailout, &length);
 
     // Handle inline type arrays
-    bool can_validate = !too_many_traps(Deoptimization::Reason_class_check);
-    if (!stopped()) {
-      // TODO 8251971
-      if (!orig_t->is_null_free()) {
-        // Not statically known to be null free, add a check
-        generate_fair_guard(null_free_array_test(original), bailout);
-      }
-      orig_t = _gvn.type(original)->isa_aryptr();
-      if (orig_t != nullptr && orig_t->is_flat()) {
-        // Src is flat, check that dest is flat as well
-        if (exclude_flat) {
-          // Dest can't be flat, bail out
-          bailout->add_req(control());
-          set_control(top());
-        } else {
-          generate_fair_guard(flat_array_test(refined_klass_node, /* flat = */ false), bailout);
-        }
-        // TODO 8350865 This is not correct anymore. Write tests and fix logic similar to arraycopy.
-      } else if (UseArrayFlattening && (orig_t == nullptr || !orig_t->is_not_flat()) &&
-                 // If dest is flat, src must be flat as well (guaranteed by src <: dest check if validated).
-                 ((!tklass->is_flat() && tklass->can_be_inline_array()) || !can_validate)) {
-        // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
-        // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
-        generate_fair_guard(flat_array_test(load_object_klass(original)), bailout);
-        if (orig_t != nullptr) {
-          orig_t = orig_t->cast_to_not_flat();
-          original = _gvn.transform(new CheckCastPPNode(control(), original, orig_t));
-        }
-      }
-      if (!can_validate) {
-        // No validation. The subtype check emitted at macro expansion time will not go to the slow
-        // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
-        // TODO 8251971: Optimize for the case when src/dest are later found to be both flat/null-free.
-        generate_fair_guard(flat_array_test(refined_klass_node), bailout);
-        generate_fair_guard(null_free_array_test(original), bailout);
-      }
-    }
+    // TODO 8251971 This is too strong
+    generate_fair_guard(flat_array_test(load_object_klass(original)), bailout);
+    generate_fair_guard(flat_array_test(refined_klass_node), bailout);
+    generate_fair_guard(null_free_array_test(original), bailout);
 
     // Bail out if start is larger than the original length
     Node* orig_tail = _gvn.transform(new SubINode(orig_length, start));
@@ -5141,7 +5167,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       bool validated = false;
       // Reason_class_check rather than Reason_intrinsic because we
       // want to intrinsify even if this traps.
-      if (can_validate) {
+      if (!too_many_traps(Deoptimization::Reason_class_check)) {
         Node* not_subtype_ctrl = gen_subtype_check(original, klass_node);
 
         if (not_subtype_ctrl != top()) {
@@ -6646,7 +6672,7 @@ bool LibraryCallKit::inline_arraycopy() {
       slow_region->add_req(not_subtype_ctrl);
     }
 
-    // TODO 8350865 Improve this. What about atomicity? Make sure this is always folded for type arrays.
+    // TODO 8251971 Improve this. What about atomicity? Make sure this is always folded for type arrays.
     // If destination is null-restricted, source must be null-restricted as well: src_null_restricted || !dst_null_restricted
     Node* src_klass = load_object_klass(src);
     Node* adr_prop_src = basic_plus_adr(top(), src_klass, in_bytes(ArrayKlass::properties_offset()));
@@ -6669,7 +6695,7 @@ bool LibraryCallKit::inline_arraycopy() {
     Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::ne));
     generate_fair_guard(tst, slow_region);
 
-    // TODO 8350865 This is too strong
+    // TODO 8251971 This is too strong
     generate_fair_guard(flat_array_test(src), slow_region);
     generate_fair_guard(flat_array_test(dest), slow_region);
 
@@ -7638,7 +7664,8 @@ bool LibraryCallKit::inline_reference_get0() {
 
   DecoratorSet decorators = IN_HEAP | ON_WEAK_OOP_REF;
   Node* result = load_field_from_object(reference_obj, "referent", "Ljava/lang/Object;",
-                                        decorators, /*is_static*/ false, nullptr);
+                                        decorators, /*is_static*/ false,
+                                        env()->Reference_klass());
   if (result == nullptr) return false;
 
   // Add memory barrier to prevent commoning reads from this field
@@ -7661,7 +7688,8 @@ bool LibraryCallKit::inline_reference_refersTo0(bool is_phantom) {
   DecoratorSet decorators = IN_HEAP | AS_NO_KEEPALIVE;
   decorators |= (is_phantom ? ON_PHANTOM_OOP_REF : ON_WEAK_OOP_REF);
   Node* referent = load_field_from_object(reference_obj, "referent", "Ljava/lang/Object;",
-                                          decorators, /*is_static*/ false, nullptr);
+                                          decorators, /*is_static*/ false,
+                                          env()->Reference_klass());
   if (referent == nullptr) return false;
 
   // Add memory barrier to prevent commoning reads from this field
@@ -7748,8 +7776,6 @@ Node* LibraryCallKit::load_field_from_object(Node* fromObj, const char* fieldNam
     assert(tinst != nullptr, "obj is null");
     assert(tinst->is_loaded(), "obj is not loaded");
     fromKls = tinst->instance_klass();
-  } else {
-    assert(is_static, "only for static field access");
   }
   ciField* field = fromKls->get_field_by_name(ciSymbol::make(fieldName),
                                               ciSymbol::make(fieldTypeString),

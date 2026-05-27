@@ -341,10 +341,9 @@ LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr object, LIR_Opr array, L
   }
 }
 
-LIR_OpFlattenedArrayCheck::LIR_OpFlattenedArrayCheck(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub)
+LIR_OpFlattenedArrayCheck::LIR_OpFlattenedArrayCheck(LIR_Opr array, LIR_Opr tmp, CodeStub* stub)
   : LIR_Op(lir_flat_array_check, LIR_OprFact::illegalOpr, nullptr)
   , _array(array)
-  , _value(value)
   , _tmp(tmp)
   , _stub(stub) {}
 
@@ -855,7 +854,6 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       LIR_OpFlattenedArrayCheck* opFlattenedArrayCheck = (LIR_OpFlattenedArrayCheck*)op;
 
       if (opFlattenedArrayCheck->_array->is_valid()) do_input(opFlattenedArrayCheck->_array);
-      if (opFlattenedArrayCheck->_value->is_valid()) do_input(opFlattenedArrayCheck->_value);
       if (opFlattenedArrayCheck->_tmp->is_valid())   do_temp(opFlattenedArrayCheck->_tmp);
 
       do_stub(opFlattenedArrayCheck->_stub);
@@ -1592,7 +1590,6 @@ void LIR_List::instanceof(LIR_Opr result, LIR_Opr object, ciKlass* klass, LIR_Op
 
 void LIR_List::store_check(LIR_Opr object, LIR_Opr array, LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3,
                            CodeEmitInfo* info_for_exception, ciMethod* profiled_method, int profiled_bci) {
-  // FIXME -- if the types of the array and/or the object are known statically, we can avoid loading the klass
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_store_check, object, array, tmp1, tmp2, tmp3, info_for_exception);
   if (profiled_method != nullptr && TypeProfileCasts) {
     c->set_profiled_method(profiled_method);
@@ -1614,8 +1611,8 @@ void LIR_List::null_check(LIR_Opr opr, CodeEmitInfo* info, bool deoptimize_on_nu
   }
 }
 
-void LIR_List::check_flat_array(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub) {
-  LIR_OpFlattenedArrayCheck* c = new LIR_OpFlattenedArrayCheck(array, value, tmp, stub);
+void LIR_List::check_flat_array(LIR_Opr array, LIR_Opr tmp, CodeStub* stub) {
+  LIR_OpFlattenedArrayCheck* c = new LIR_OpFlattenedArrayCheck(array, tmp, stub);
   append(c);
 }
 
@@ -2154,7 +2151,6 @@ void LIR_OpTypeCheck::print_instr(outputStream* out) const {
 
 void LIR_OpFlattenedArrayCheck::print_instr(outputStream* out) const {
   array()->print(out);                   out->print(" ");
-  value()->print(out);                   out->print(" ");
   tmp()->print(out);                     out->print(" ");
   if (stub() != nullptr) {
     out->print("[label:" INTPTR_FORMAT "]", p2i(stub()->entry()));

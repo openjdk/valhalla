@@ -1011,15 +1011,6 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
   const TypeKlassPtr* k0 = r0->isa_klassptr();
   const TypeKlassPtr* k1 = r1->isa_klassptr();
   if ((p0 && p1) || (k0 && k1)) {
-    if (p0 && p1) {
-      Node* in1 = in(1)->uncast();
-      Node* in2 = in(2)->uncast();
-      AllocateNode* alloc1 = AllocateNode::Ideal_allocation(in1);
-      AllocateNode* alloc2 = AllocateNode::Ideal_allocation(in2);
-      if (MemNode::detect_ptr_independence(in1, alloc1, in2, alloc2, nullptr)) {
-        return TypeInt::CC_GT;  // different pointers
-      }
-    }
     bool    xklass0 = p0 ? p0->klass_is_exact() : k0->klass_is_exact();
     bool    xklass1 = p1 ? p1->klass_is_exact() : k1->klass_is_exact();
     bool unrelated_classes = false;
@@ -1293,6 +1284,24 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   this->set_req_X(1, ldk2, phase);
 
   return this;
+}
+
+const Type* CmpPNode::Value(PhaseGVN* phase) const {
+  const Type* res = CmpNode::Value(phase);
+  if (res == TypeInt::CC) {
+    const TypeOopPtr* p0 = phase->type(in(1))->isa_oopptr();
+    const TypeOopPtr* p1 = phase->type(in(2))->isa_oopptr();
+    if (p0 != nullptr && p1 != nullptr) {
+      Node* in1 = in(1)->uncast();
+      Node* in2 = in(2)->uncast();
+      AllocateNode* alloc1 = AllocateNode::Ideal_allocation(in1);
+      AllocateNode* alloc2 = AllocateNode::Ideal_allocation(in2);
+      if (MemNode::detect_ptr_independence(in1, alloc1, in2, alloc2, phase)) {
+        return TypeInt::CC_GT; // different pointers
+      }
+    }
+  }
+  return res;
 }
 
 //=============================================================================
@@ -1627,8 +1636,8 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   Node *cmp = in(1);
   if( !cmp->is_Sub() ) return nullptr;
   int cop = cmp->Opcode();
-  if( cop == Op_FastLock || cop == Op_FastUnlock ||
-      cmp->is_SubTypeCheck() || cop == Op_VectorTest ) {
+  if (cop == Op_FastLock || cop == Op_FastUnlock || cop == Op_FlatArrayCheck ||
+      cmp->is_SubTypeCheck() || cop == Op_VectorTest) {
     return nullptr;
   }
   Node *cmp1 = cmp->in(1);

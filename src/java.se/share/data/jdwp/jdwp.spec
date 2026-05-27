@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1801,43 +1801,6 @@ JDWP "Java(tm) Debug Wire Protocol"
             (Error VM_DEAD)
         )
     )
-    (Command IsSameObject=11
-        "<b>IsSameObject is a preview API of the Java platform.</b> "
-        "<em>Preview features may be removed in a future release, or upgraded to "
-        "permanent features of the Java platform.</em>"
-        "<p>"
-        "Determines whether two objects refer to the same Java object."
-        "<p>Since JDWP version 27."
-        (Out
-            (object object1 "The object ID")
-            (object object2 "The object ID")
-        )
-        (Reply
-            (boolean isSameObject "true if the objects refer to the same Java object; false otherwise")
-        )
-        (ErrorSet
-            (Error INVALID_OBJECT)
-            (Error VM_DEAD)
-        )
-    )
-    (Command ObjectHashCode=12
-        "<b>ObjectHashCode is a preview API of the Java platform.</b> "
-        "<em>Preview features may be removed in a future release, or upgraded to "
-        "permanent features of the Java platform.</em>"
-        "<p>"
-        "Returns hash code for an object."
-        "<p>Since JDWP version 27."
-        (Out
-            (object object "The object ID")
-        )
-        (Reply
-            (int hashCode "hash code value for the object")
-        )
-        (ErrorSet
-            (Error INVALID_OBJECT)
-            (Error VM_DEAD)
-        )
-    )
 )
 
 (CommandSet StringReference=10
@@ -2544,7 +2507,8 @@ JDWP "Java(tm) Debug Wire Protocol"
                     )
                     (Alt InstanceOnly=11
                         "Restricts reported events to those whose "
-                        "active 'this' object is the given object. "
+                        "active 'this' object is the given object "
+                        "as determined by applying the Java == operator. "
                         "Match value is the null object for static methods. "
                         "This modifier can be used with any event kind "
                         "except class prepare, class unload, thread start, "
@@ -2636,6 +2600,16 @@ JDWP "Java(tm) Debug Wire Protocol"
         "determine the correct local variable index. (Typically, this "
         "index can be determined for method arguments from the method "
         "signature without access to the local variable table information.) "
+        "<p>"
+        "When preview features are enabled, "
+        "if a local variable is the 'this' object and represents a "
+        "value object under construction, the "
+        "value returned will be for a snapshot of the "
+        "value object, not a reference to the actual value object under "
+        "construction. Therefore the value returned will not reflect "
+        "changes to the value object that happen later on during "
+        "construction."
+        
         (Out
             (threadObject thread "The frame's thread. ")
             (frame frame "The frame ID. ")
@@ -2707,6 +2681,14 @@ JDWP "Java(tm) Debug Wire Protocol"
         "Returns the value of the 'this' reference for this frame. "
         "If the frame's method is static or native, the reply "
         "will contain the null object reference. "
+        "<p>"
+        "When preview features are enabled, "
+        "if 'this' represents a value object under construction, the "
+        "value returned will be for a snapshot of the "
+        "value object, not a reference to the actual value object under "
+        "construction. Therefore the value returned will not reflect "
+        "changes to the value object that happen later on during "
+        "construction."
         (Out
             (threadObject thread "The frame's thread. ")
             (frame frame "The frame ID. ")

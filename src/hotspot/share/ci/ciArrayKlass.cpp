@@ -23,14 +23,11 @@
  */
 
 #include "ci/ciArrayKlass.hpp"
-#include "ci/ciFlatArrayKlass.hpp"
-#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.hpp"
-#include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
 //

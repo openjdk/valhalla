@@ -603,7 +603,7 @@ class CompileReplay : public StackObj {
         _nesting.check(); // Check if a reallocation in the resource arena is safe
         int new_length = _buffer_length * 2;
         // Next call will throw error in case of OOM.
-        _buffer = REALLOC_RESOURCE_ARRAY(char, _buffer, _buffer_length, new_length);
+        _buffer = REALLOC_RESOURCE_ARRAY(_buffer, _buffer_length, new_length);
         _buffer_length = new_length;
       }
       if (c == '\n') {
@@ -892,14 +892,11 @@ class CompileReplay : public StackObj {
   }
 
   ObjArrayKlass* create_concrete_object_array_klass(ObjArrayKlass* obj_array_klass, TRAPS) {
-    const ArrayProperties array_properties(checked_cast<ArrayProperties::Type>(parse_int("array_properties")));
+    ArrayProperties array_properties(checked_cast<ArrayProperties::Type>(parse_int("array_properties")));
     if (!Arguments::is_valhalla_enabled()) {
-      // Ignore array properties.
-      return obj_array_klass;
+      // Ignore Valhalla-specific properties
+      array_properties = ArrayProperties::Default();
     }
-
-    guarantee(array_properties.is_valid(), "invalid array_properties: %d", array_properties.value());
-
     return obj_array_klass->klass_with_properties(array_properties, THREAD);
   }
 
@@ -982,7 +979,6 @@ class CompileReplay : public StackObj {
           }
           break;
         }
-
         case JVM_CONSTANT_Long:
         case JVM_CONSTANT_Double:
           parsed_two_word = i + 1;

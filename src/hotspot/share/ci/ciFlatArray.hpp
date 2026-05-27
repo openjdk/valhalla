@@ -27,7 +27,6 @@
 
 #include "ci/ciArray.hpp"
 #include "ci/ciClassList.hpp"
-#include "oops/flatArrayOop.hpp"
 
 // ciFlatArray
 //

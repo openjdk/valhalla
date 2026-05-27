@@ -91,6 +91,12 @@ inline void CDSMustMatchFlags::do_print(outputStream* st, bool v) {
   st->print("%s", v ? "true" : "false");
 }
 
+#ifdef _LP64
+inline void CDSMustMatchFlags::do_print(outputStream* st, uint v) {
+  st->print("%u", v);
+}
+#endif
+
 inline void CDSMustMatchFlags::do_print(outputStream* st, intx v) {
   st->print("%zd", v);
 }
@@ -290,6 +296,7 @@ void FileMapHeader::populate(FileMapInfo *info, size_t core_region_alignment,
   }
 #endif
   _compressed_oops = UseCompressedOops;
+  _compatible_oop_compression = AOTCompatibleOopCompression;
   _narrow_klass_pointer_bits = CompressedKlassPointers::narrow_klass_pointer_bits();
   _narrow_klass_shift = ArchiveBuilder::precomputed_narrow_klass_shift();
 
@@ -471,7 +478,7 @@ public:
 
   ~FileHeaderHelper() {
     if (_header != nullptr) {
-      FREE_C_HEAP_ARRAY(char, _header);
+      FREE_C_HEAP_ARRAY(_header);
     }
     if (_fd != -1) {
       ::close(_fd);
@@ -1412,6 +1419,10 @@ bool FileMapInfo::map_aot_code_region(ReservedSpace rs) {
   FileMapRegion* r = region_at(AOTMetaspace::ac);
   assert(r->used() > 0 && r->used_aligned() == rs.size(), "must be");
 
+  if (UseCompressedOops) {
+    precond(header()->compatible_oop_compression() == AOTCompatibleOopCompression);
+  }
+
   char* requested_base = rs.base();
   assert(requested_base != nullptr, "should be inside code cache");
 
@@ -1435,6 +1446,13 @@ bool FileMapInfo::map_aot_code_region(ReservedSpace rs) {
     return false;
   } else {
     assert(mapped_base == requested_base, "must be");
+
+    if (VerifySharedSpaces && !r->check_region_crc(mapped_base)) {
+      aot_log_error(aot)("region %d CRC error", AOTMetaspace::ac);
+      os::unmap_memory(mapped_base, r->used_aligned());
+      return false;
+    }
+
     r->set_mapped_from_file(true);
     r->set_mapped_base(mapped_base);
     aot_log_info(aot)("Mapped static  region #%d at base " INTPTR_FORMAT " top " INTPTR_FORMAT " (%s)",
@@ -1537,14 +1555,14 @@ size_t FileMapInfo::read_bytes(void* buffer, size_t count) {
   return count;
 }
 
-// Get the total size in bytes of a read only region
+// Get the total size in bytes of all mapped read only region
 size_t FileMapInfo::readonly_total() {
   size_t total = 0;
-  if (current_info() != nullptr) {
+  if (current_info() != nullptr && current_info()->is_mapped()) {
     FileMapRegion* r = FileMapInfo::current_info()->region_at(AOTMetaspace::ro);
     if (r->read_only()) total += r->used();
   }
-  if (dynamic_info() != nullptr) {
+  if (dynamic_info() != nullptr && current_info()->is_mapped()) {
     FileMapRegion* r = FileMapInfo::dynamic_info()->region_at(AOTMetaspace::ro);
     if (r->read_only()) total += r->used();
   }
@@ -1658,6 +1676,7 @@ bool FileMapInfo::can_use_heap_region() {
   if (UseCompressedOops) {
     aot_log_info(aot)("    narrow_oop_mode = %d, narrow_oop_base = " PTR_FORMAT ", narrow_oop_shift = %d",
                       narrow_oop_mode(), p2i(narrow_oop_base()), narrow_oop_shift());
+    aot_log_info(aot)("    AOTCompatibleOopCompression = %s", header()->compatible_oop_compression() ? "true" : "false");
   }
   aot_log_info(aot)("The current max heap size = %zuM, G1HeapRegion::GrainBytes = %zu",
                 MaxHeapSize/M, G1HeapRegion::GrainBytes);
@@ -1666,6 +1685,7 @@ bool FileMapInfo::can_use_heap_region() {
   if (UseCompressedOops) {
     aot_log_info(aot)("    narrow_oop_mode = %d, narrow_oop_base = " PTR_FORMAT ", narrow_oop_shift = %d",
                       CompressedOops::mode(), p2i(CompressedOops::base()), CompressedOops::shift());
+    aot_log_info(aot)("    AOTCompatibleOopCompression = %s", AOTCompatibleOopCompression ? "true" : "false");
   }
   if (!object_streaming_mode()) {
     aot_log_info(aot)("    heap range = [" PTR_FORMAT " - "  PTR_FORMAT "]",

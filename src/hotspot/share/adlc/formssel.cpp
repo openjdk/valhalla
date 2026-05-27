@@ -809,7 +809,7 @@ bool InstructForm::captures_bottom_type(FormDict &globals) const {
   if (is_vector()) return true;
   if (is_mach_constant()) return true;
 
-  return false;
+  return  false;
 }
 
 
@@ -3969,7 +3969,7 @@ void MatchNode::count_commutative_op(int& count) {
   static const char *commut_vector_op_list[] = {
     "AddVB", "AddVS", "AddVI", "AddVL", "AddVHF", "AddVF", "AddVD",
     "MulVB", "MulVS", "MulVI", "MulVL", "MulVHF", "MulVF", "MulVD",
-    "AndV", "OrV", "XorV",
+    "AndV", "OrV", "XorV", "AndVMask", "OrVMask", "XorVMask",
     "MaxVHF", "MinVHF", "MaxV", "MinV", "UMax","UMin"
   };
 

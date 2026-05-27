@@ -26,7 +26,8 @@
 #include "unittest.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-// TODO FIXME This test needs to be rewritten after objArray/refArray/flatArray rework
+// FIXME This test needs to be rewritten after objArray/refArray/flatArray rework
+// Tracked by JDK-8383386
 
 TEST_VM(objArrayOop, osize) {
   static const struct {
