@@ -203,7 +203,7 @@ class AllFieldStream : public FieldStreamBase {
   AllFieldStream(const InstanceKlass* k):      FieldStreamBase(k->fieldinfo_stream(), k->constants()) {}
 };
 
-// Very generally, a base class for a stream adapter, a subclass class just implements
+// Very generally, a base class for a stream adapter, a subclass just implements
 // current_stream that returns a FieldStreamType, and this adapter takes care of providing
 // the methods of FieldStreamBase.
 //
