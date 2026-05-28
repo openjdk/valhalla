@@ -63,10 +63,10 @@ class InstanceKlassFlags {
     flag(trust_final_fields                 , 1 << 20) /* All instance final fields in this class should be trusted */ \
     /* end of list */
 
-  /* (*) An inline type is considered empty if it contains no non-static fields or
-     if it contains only empty inline fields. Note that JITs have a slightly different
-     definition: empty inline fields must be flat otherwise the container won't
-     be considered empty */
+    // (*) An inline type is considered empty if it contains no non-static fields or
+    //  if it contains only empty inline fields. Note that JITs have a slightly different
+    //  definition: empty inline fields must be flat otherwise the container won't
+    //  be considered empty.
 
 public:
 #define IK_FLAGS_ENUM_NAME(name, value)    _misc_##name = value,
