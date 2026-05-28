@@ -362,6 +362,7 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
   ResourceMark rm;
   Unique_Node_List safepoints;
   if (safepoint == nullptr) {
+    // Gathering all SafePoint users of `this`...
     Unique_Node_List worklist;
     worklist.push(this);
     while (worklist.size() > 0) {
@@ -376,6 +377,7 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
       }
     }
   } else {
+    // ...or just the provided one if given.
     safepoints.push(safepoint);
   }
 
