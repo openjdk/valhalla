@@ -4043,8 +4043,8 @@ public class Resolve {
                 !context.onlyWarnings()) {
             // Either the declaration of the named variable has no initializer,
             // or C is a value class (8.1.1.5). Plus, if warnings are enabled, treat
-            // C implicitly as if it were a value class. To preserve legacy behavior,
-            // bad final field writes are never reported as early access.
+            // the variable as strict -- as if it was declared in a value class.
+            // To preserve legacy behavior, bad final field writes are never reported as early access.
             return writeOnlyTarget && field.isFinal();
         }
         // At this point we have seen a legal early ref
