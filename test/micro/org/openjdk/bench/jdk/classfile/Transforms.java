@@ -134,7 +134,8 @@ public class Transforms {
                     shared
                     ? options
                     : Stream.concat(Stream.of(options), Stream.of(ClassFile.ConstantPoolSharingOption.NEW_POOL)).toArray(ClassFile.Option[]::new));
-            this.transform = bytes -> cc.transformClass(cc.parse(bytes), classTransform);
+            ClassFile tempcc = cc;
+            this.transform = bytes -> tempcc.transformClass(tempcc.parse(bytes), classTransform);
         }
     }
 

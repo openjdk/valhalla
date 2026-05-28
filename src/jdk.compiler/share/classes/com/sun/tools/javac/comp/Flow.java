@@ -339,8 +339,7 @@ public class Flow {
         unsetFieldsInfo = UnsetFieldsInfo.instance(context);
         Preview preview = Preview.instance(context);
         Source source = Source.instance(context);
-        allowValueClasses = (!preview.isPreview(Source.Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Source.Feature.VALUE_CLASSES.allowedInSource(source);
+        allowValueClasses = preview.isEnabled() && Source.Feature.VALUE_CLASSES.allowedInSource(source);
         exhaustiveness = ExhaustivenessComputer.instance(context);
     }
 

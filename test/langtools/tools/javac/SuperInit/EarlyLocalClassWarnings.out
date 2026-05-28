@@ -1,1 +1,2 @@
-EarlyLocalClass.java:13:37: compiler.warn.would.not.be.allowed.in.prologue: hashCode()
+EarlyLocalClass.java:17:32: compiler.err.cant.ref.before.ctor.called: this
+1 error
