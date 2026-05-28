@@ -75,7 +75,7 @@ public class SuperCallRemover extends JavacTestingAbstractProcessor {
                 for (JCStatement statement : tree.body.stats) {
                     if (statement instanceof JCExpressionStatement expressionStatement &&
                             expressionStatement.expr instanceof JCMethodInvocation methodInvocation &&
-                            TreeInfo.isSuperCall(methodInvocation) &&
+                            TreeInfo.isSuperCall(expressionStatement) &&
                             methodInvocation.args.isEmpty()) {
                         continue;
                     }

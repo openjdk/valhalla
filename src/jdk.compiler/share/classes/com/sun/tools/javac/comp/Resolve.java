@@ -4048,15 +4048,17 @@ public class Resolve {
             return writeOnlyTarget && field.isFinal();
         }
         // At this point we have seen a legal early ref
-        if (writeOnlyTarget) {
-            // Write early ref, this is allowed with flexible constructor bodies
-            preview.checkSourceLevel(pos, Feature.FLEXIBLE_CONSTRUCTORS);
-        } else {
-            // Read early ref, this is only allowed under JEP 401, and requires special codegen support
-            preview.checkSourceLevel(pos, Feature.VALUE_CLASSES);
-            if (context.ctorPrologue() && env.enclMethod != null) {
-                // Track the early read for codegen
-                localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, field);
+        if (!context.onlyWarnings()) {
+            if (writeOnlyTarget) {
+                // Write early ref, this is allowed with flexible constructor bodies
+                preview.checkSourceLevel(pos, Feature.FLEXIBLE_CONSTRUCTORS);
+            } else {
+                // Read early ref, this is only allowed under JEP 401, and requires special codegen support
+                preview.checkSourceLevel(pos, Feature.VALUE_CLASSES);
+                if (context.ctorPrologue() && env.enclMethod != null) {
+                    // Track the early read for codegen
+                    localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, field);
+                }
             }
         }
         return true;
