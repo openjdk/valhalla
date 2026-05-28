@@ -25,7 +25,7 @@
  * @test
  * @summary Test array klass creation during compilation running out of metaspace.
  * @bug 8385473
- * @requires vm.compiler1.enabled
+ * @requires vm.flagless & vm.compiler1.enabled
  * @library /test/lib /
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
