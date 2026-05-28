@@ -324,6 +324,10 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
 }
 
 void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
+  make_scalar_in_safepoints(igvn, allow_oop, nullptr);
+}
+
+void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop, SafePointNode* safepoint) {
   // If the inline type has a constant or loaded oop, use the oop instead of scalarization
   // in the safepoint to avoid keeping field loads live just for the debug info.
   Node* oop = get_oop();
@@ -353,21 +357,27 @@ void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oo
 
   ResourceMark rm;
   Unique_Node_List safepoints;
-  Unique_Node_List vt_worklist;
-  Unique_Node_List worklist;
-  worklist.push(this);
-  while (worklist.size() > 0) {
-    Node* n = worklist.pop();
-    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-      Node* use = n->fast_out(i);
-      if (use->is_SafePoint() && !use->is_CallLeaf() && (!use->is_Call() || use->as_Call()->has_debug_use(n))) {
-        safepoints.push(use);
-      } else if (use->is_ConstraintCast()) {
-        worklist.push(use);
+  if (safepoint == nullptr) {
+    // Gathering all SafePoint users of `this`...
+    Unique_Node_List worklist;
+    worklist.push(this);
+    while (worklist.size() > 0) {
+      Node* n = worklist.pop();
+      for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+        Node* use = n->fast_out(i);
+        if (use->is_SafePoint() && !use->is_CallLeaf() && (!use->is_Call() || use->as_Call()->has_debug_use(n))) {
+          safepoints.push(use);
+        } else if (use->is_ConstraintCast()) {
+          worklist.push(use);
+        }
       }
     }
+  } else {
+    // ...or just the provided one if given.
+    safepoints.push(safepoint);
   }
 
+  Unique_Node_List vt_worklist;
   // Process all safepoint uses and scalarize inline type
   while (safepoints.size() > 0) {
     SafePointNode* sfpt = safepoints.pop()->as_SafePoint();
