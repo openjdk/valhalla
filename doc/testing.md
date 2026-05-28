@@ -432,7 +432,7 @@ exercise both code paths.
 
 Example:
 
-    $ make test TEST=jdk_lang JTREG="VALUE_CLASS_PLUGIN=true" 
+    $ make test TEST=jdk_lang JTREG="VALUE_CLASS_PLUGIN=true"
 
 #### JVMTI_STRESS_AGENT
 
