@@ -2409,11 +2409,6 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
   tbnz(flags, ResolvedFieldEntry::is_flat_shift, is_flat);
 }
 
-void MacroAssembler::test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker) {
-  assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ResolvedFieldEntry::has_null_marker_shift, has_null_marker);
-}
-
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
   Label test_mark_word;
   // load mark word
@@ -2453,11 +2448,6 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
 void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
   tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   br(Assembler::NE, is_flat_array);
-}
-
-void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_array) {
-  tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  br(Assembler::EQ, is_non_flat_array);
 }
 
 // MacroAssembler protected routines needed to implement
@@ -5715,24 +5705,6 @@ void MacroAssembler::payload_address(Register oop, Register data, Register inlin
   } else {
     lea(data, Address(oop, offset));
   }
-}
-
-void MacroAssembler::data_for_value_array_index(Register array, Register array_klass,
-                                                Register index, Register data) {
-  assert_different_registers(array, array_klass, index);
-  assert_different_registers(rscratch1, array, index);
-
-  // array->base() + (index << Klass::layout_helper_log2_element_size(lh));
-  ldrw(rscratch1, Address(array_klass, Klass::layout_helper_offset()));
-
-  // Klass::layout_helper_log2_element_size(lh)
-  // (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-  lsr(rscratch1, rscratch1, Klass::_lh_log2_element_size_shift);
-  andr(rscratch1, rscratch1, Klass::_lh_log2_element_size_mask);
-  lslv(index, index, rscratch1);
-
-  add(data, array, index);
-  add(data, data, arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT));
 }
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1,
