@@ -27,10 +27,9 @@
  * @summary Ensure that replaceAll operator cannot add bad elements
  * @author  Mike Duigou
  * @library /test/lib
- * @run main CheckedMapReplaceAll
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.*;
 import java.util.function.BiFunction;
 
@@ -55,14 +54,14 @@ public class CheckedMapReplaceAll {
             System.out.println("Curses! Foiled again!");
         }
 
-        Map<Tuple,Tuple> vMap = Collections.checkedMap(new HashMap<>(), Tuple.class, Tuple.class);
-        vMap.put(new Tuple(1, 1), new Tuple(2, 2));
-        vMap.replaceAll((k, v) -> new Tuple(v.x + 1, v.x + 1));
-        if (!vMap.get(new Tuple(1, 1)).equals(new Tuple(3, 3)))
+        Map<VClass,VClass> vMap = Collections.checkedMap(new HashMap<>(), VClass.class, VClass.class);
+        vMap.put(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }));
+        vMap.replaceAll((k, v) -> new VClass(v.x + 1, new int[] { v.x + 1 }));
+        if (!vMap.get(new VClass(1, new int[] { 1 })).equals(new VClass(3, new int[] { 3 })))
             throw new RuntimeException("value checkedMap replaceAll failed");
 
-        Map raw = Collections.checkedMap(new HashMap<Tuple,Tuple>(), Tuple.class, Tuple.class);
-        raw.put(new Tuple(1, 1), new Tuple(2, 2));
+        Map raw = Collections.checkedMap(new HashMap<VClass,VClass>(), VClass.class, VClass.class);
+        raw.put(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }));
         try {
             raw.replaceAll((k, v) -> "not a Tuple");
             throw new RuntimeException("value checkedMap replaceAll accepted wrong type");

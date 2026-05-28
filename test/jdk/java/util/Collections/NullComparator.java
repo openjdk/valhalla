@@ -26,10 +26,9 @@
  * @bug 4224271
  * @summary A null Comparator is now specified to indicate natural ordering.
  * @library /test/lib
- * @run main NullComparator
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -66,17 +65,17 @@ public class NullComparator {
         if (!Collections.max(list, null).equals(new Integer(99)))
             throw new Exception("Collections.max");
 
-        List<Tuple> vlist = new ArrayList<>();
-        for (int i = 0; i < 100; i++) vlist.add(new Tuple(i, i));
+        List<VClass> vlist = new ArrayList<>();
+        for (int i = 0; i < 100; i++) vlist.add(new VClass(i, new int[] { i }));
         Collections.shuffle(vlist);
         Collections.sort(vlist, null);
         for (int i = 0; i < 100; i++)
-            if (!vlist.get(i).equals(new Tuple(i, i))) throw new Exception("value Collections.sort");
-        if (Collections.binarySearch(vlist, new Tuple(69, 69), null) != 69)
+            if (!vlist.get(i).equals(new VClass(i, new int[] { i }))) throw new Exception("value Collections.sort");
+        if (Collections.binarySearch(vlist, new VClass(69, new int[] { 69 }), null) != 69)
             throw new Exception("value binarySearch");
-        if (!Collections.min(vlist, null).equals(new Tuple(0, 0)))
+        if (!Collections.min(vlist, null).equals(new VClass(0, new int[] { 0 })))
             throw new Exception("value min");
-        if (!Collections.max(vlist, null).equals(new Tuple(99, 99)))
+        if (!Collections.max(vlist, null).equals(new VClass(99, new int[] { 99 })))
             throw new Exception("value max");
     }
 }

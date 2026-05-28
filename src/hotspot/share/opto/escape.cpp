@@ -1336,7 +1336,6 @@ bool ConnectionGraph::reduce_phi_on_safepoints_helper(Node* ophi, Node* cast, No
 #ifdef ASSERT
       const Type* res_type = alloc->result_cast()->bottom_type();
       if (res_type->is_inlinetypeptr() && !Compile::current()->has_circular_inline_type()) {
-        PhiNode* phi = ophi->as_Phi();
         assert(!ophi->as_Phi()->can_push_inline_types_down(_igvn), "missed earlier scalarization opportunity");
       }
 #endif
@@ -4609,6 +4608,8 @@ Node* ConnectionGraph::find_inst_mem(Node *orig_mem, int alias_idx, GrowableArra
           }
         }
         result = proj_in->in(TypeFunc::Memory);
+      } else if (proj_in->is_LoadFlat()) {
+        result = proj_in->in(TypeFunc::Memory);
       }
     } else if (result->is_MergeMem()) {
       MergeMemNode *mmem = result->as_MergeMem();
@@ -4901,7 +4902,8 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
             new_adr_type = new_adr_type->is_aryptr()->with_field_offset(adr_type->is_aryptr()->field_offset().get());
           }
           if (adr_type != new_adr_type && !init->already_has_narrow_mem_proj_with_adr_type(new_adr_type)) {
-            DEBUG_ONLY( uint alias_idx = _compile->get_alias_index(new_adr_type); )
+            // Do NOT remove the next line: ensure a new alias index is allocated for the instance type.
+            uint alias_idx = _compile->get_alias_index(new_adr_type);
             assert(_compile->get_general_index(alias_idx) == _compile->get_alias_index(adr_type), "new adr type should be narrowed down from existing adr type");
             NarrowMemProjNode* new_proj = new NarrowMemProjNode(init, new_adr_type);
             igvn->set_type(new_proj, new_proj->bottom_type());
@@ -5184,8 +5186,14 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
     if (visited.test_set(n->_idx)) {
       continue;
     }
-    if (n->is_Phi() || n->is_ClearArray()) {
-      // we don't need to do anything, but the users must be pushed
+    if (n->is_Phi()) {
+      if ((uint) _compile->get_alias_index(n->as_Phi()->adr_type()) < new_index_start) {
+        // Push memory phis on the orig_phis worklist to update
+        // during Phase 4 if needed.
+        orig_phis.append_if_missing(n->as_Phi());
+      }
+    } else if (n->is_ClearArray()) {
+     // we don't need to do anything, but the users must be pushed
     } else if (n->is_MemBar()) { // MemBar nodes
       if (!n->is_Initialize()) { // memory projections for Initialize pushed below (so we get to all their uses)
         // we don't need to do anything, but the users must be pushed

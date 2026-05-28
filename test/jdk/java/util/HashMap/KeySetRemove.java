@@ -29,7 +29,7 @@
  * @library /test/lib
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -45,8 +45,8 @@ public class KeySetRemove {
 
         Map[] valueMaps = {new HashMap<>(), new TreeMap<>()};
         for (int i=0; i<valueMaps.length; i++) {
-            valueMaps[i].put(new Tuple(1, 1), null);
-            if (!valueMaps[i].keySet().remove(new Tuple(1, 1)))
+            valueMaps[i].put(new VClass(1, new int[] { 1 }), null);
+            if (!valueMaps[i].keySet().remove(new VClass(1, new int[] { 1 })))
                 throw new Exception("Value banana was not removed: " + i);
         }
     }

@@ -27,10 +27,9 @@
  * @summary Basic test for Collections.frequency
  * @author  Josh Bloch
  * @library /test/lib
- * @run main Frequency
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -57,13 +56,13 @@ public class Frequency {
     }
 
     static void testValue() {
-        List<Tuple> values = new ArrayList<>();
+        List<VClass> values = new ArrayList<>();
         for (int i = 0; i < N; i++)
             for (int j = 0; j < i; j++)
-                values.add(new Tuple(i, i));
+                values.add(new VClass(i, new int[] { i }));
         Collections.shuffle(values);
         for (int i = 0; i < N; i++)
-            if (Collections.frequency(values, new Tuple(i, i)) != i)
+            if (Collections.frequency(values, new VClass(i, new int[] { i })) != i)
                 throw new RuntimeException("value frequency: " + i);
     }
 }

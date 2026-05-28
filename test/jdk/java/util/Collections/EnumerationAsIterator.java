@@ -29,7 +29,7 @@
  * @run testng EnumerationAsIterator
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -117,8 +117,8 @@ public class EnumerationAsIterator {
                Arrays.asList("a", "b", "c")),
 
             of("Value Collections.enumeration()",
-               () -> Collections.enumeration(Arrays.asList(new Tuple(1, 1), new Tuple(2, 2))),
-               Arrays.asList(new Tuple(1, 1), new Tuple(2, 2)))
+               () -> Collections.enumeration(Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }))),
+               Arrays.asList(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 })))
         ).iterator();
     }
 

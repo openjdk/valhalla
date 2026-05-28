@@ -323,7 +323,12 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
   if (ac->is_clonebasic()) {
     assert(ac->in(ArrayCopyNode::Src) != ac->in(ArrayCopyNode::Dest), "clone source equals destination");
     adr = _igvn.transform(AddPNode::make_with_base(base, _igvn.MakeConX(offset)));
-    adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
+    adr_type = _igvn.type(base)->is_ptr();
+    if (adr_type->isa_aryptr()) {
+      adr_type = adr_type->is_aryptr()->add_field_offset_and_offset(offset);
+    } else {
+      adr_type = adr_type->add_offset(offset);
+    }
   } else {
     if (!ac->modifies(offset, offset, &_igvn, true)) {
       // If the arraycopy does not copy to this offset, we cannot generate a rematerialization load for it.

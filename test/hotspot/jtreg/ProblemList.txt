@@ -47,8 +47,8 @@ compiler/compilercontrol/jcmd/ClearDirectivesFileStackTest.java 8225370 generic-
 
 compiler/cpuflags/TestAESIntrinsicsOnSupportedConfig.java 8190680 generic-all
 
-compiler/runtime/Test8168712.java#with-dtrace 8211769,8211771 generic-ppc64,generic-ppc64le,linux-s390x
-compiler/runtime/Test8168712.java#without-dtrace 8211769,8211771 generic-ppc64,generic-ppc64le,linux-s390x
+compiler/runtime/Test8168712.java#with-dtrace 8211771 linux-s390x
+compiler/runtime/Test8168712.java#without-dtrace 8211771 linux-s390x
 compiler/runtime/Test7196199.java 8365196 windows-x64
 
 compiler/c2/Test8004741.java 8235801 generic-all
@@ -79,7 +79,7 @@ compiler/codecache/CodeCacheFullCountTest.java 8332954 generic-all
 compiler/interpreter/Test6833129.java 8335266 generic-i586
 compiler/intrinsics/TestReturnOopSetForJFRWriteCheckpoint.java 8286300 linux-s390x
 
-compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
+compiler/c2/aarch64/TestStaticCallStub.java 8359963 generic-aarch64
 
 compiler/unsafe/AlignmentGapAccess.java 8373487 generic-all
 
@@ -95,7 +95,10 @@ gc/TestAllocHumongousFragment.java#aggressive 8298781 generic-all
 gc/TestAllocHumongousFragment.java#g1 8298781 generic-all
 gc/TestAllocHumongousFragment.java#static 8298781 generic-all
 gc/shenandoah/oom/TestAllocOutOfMemory.java#large 8344312 linux-ppc64le
-gc/shenandoah/TestEvilSyncBug.java#generational 8345501 generic-all
+gc/stress/jfr/TestStressAllocationGCEventsWithShenandoah.java#generational 8382335 generic-all
+gc/stress/jfr/TestStressAllocationGCEventsWithShenandoah.java#default 8382335 generic-all
+gc/stress/jfr/TestStressBigAllocationGCEventsWithShenandoah.java#generational 8382335 generic-all
+gc/stress/jfr/TestStressBigAllocationGCEventsWithShenandoah.java#default 8382335 generic-all
 
 #############################################################################
 
@@ -112,6 +115,7 @@ runtime/os/TestTracePageSizes.java#Serial 8267460 linux-aarch64
 runtime/StackGuardPages/TestStackGuardPagesNative.java 8303612 linux-all
 runtime/ErrorHandling/MachCodeFramesInErrorFile.java 8313315 linux-ppc64le
 runtime/NMT/VirtualAllocCommitMerge.java 8309698 linux-s390x
+runtime/Thread/TestAlwaysPreTouchStacks.java 8383372 macosx-aarch64
 
 applications/ctw/modules/jdk_jfr.java 8286300 linux-s390x
 applications/jcstress/copy.java 8229852 linux-all
@@ -204,20 +208,11 @@ vmTestbase/nsk/monitoring/ThreadMXBean/findMonitorDeadlockedThreads/find006/Test
 # Valhalla failures start here:
 compiler/c2/irTests/TestFloat16ScalarOperations.java 8377808 linux-aarch64
 compiler/codegen/TestRedundantLea.java#Spill              8361089 generic-all
-compiler/c2/TestGVNCrash.java 8381268 generic-all
-compiler/valhalla/inlinetypes/TestArrays.java#id1 8381268 generic-all
-compiler/valhalla/inlinetypes/TestArrays.java#id5 8381268 generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java#id0       8382504 generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java#id1       8382504 generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java#id3       8382504 generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java#id4       8382504 generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java#id5       8382504 generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java#id6       8382504 generic-all
-
-serviceability/sa/TestJhsdbJstackMixedWithXComp.java#xcomp-disable-tiered-compilation 8382548 linux-aarch64
+compiler/valhalla/inlinetypes/TestArrayNullMarkers.java#NVF-nAVF 8384262 generic-all
 
 vmTestbase/nsk/jdb/exclude/exclude001/exclude001.java 8375062 windows-x64
 vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java 8375076 windows-x64
+vmTestbase/nsk/jvmti/IterateOverReachableObjects/iterreachobj002/TestDescription.java 8384882 linux-all
 
 # The following test failures DID NOT reproduce during Tier[1-8] testing
 # done for 8377828. Further analysis is being done with 8376235:

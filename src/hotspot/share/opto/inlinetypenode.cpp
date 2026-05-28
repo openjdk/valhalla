@@ -26,9 +26,11 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "gc/shared/gc_globals.hpp"
+#include "memory/resourceArea.hpp"
 #include "oops/accessDecorators.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
+#include "opto/cfgnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/graphKit.hpp"
@@ -37,11 +39,16 @@
 #include "opto/movenode.hpp"
 #include "opto/multnode.hpp"
 #include "opto/narrowptrnode.hpp"
+#include "opto/node.hpp"
 #include "opto/opcodes.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
+#include "opto/subnode.hpp"
 #include "opto/type.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/growableArray.hpp"
+#include "utilities/pair.hpp"
+#include "utilities/tuple.hpp"
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
@@ -106,7 +113,7 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, Saf
 
 // Checks if the inputs of the InlineTypeNode were replaced by PhiNodes
 // for the given region (see InlineTypeNode::clone_with_phis).
-bool InlineTypeNode::has_phi_inputs(Node* region) {
+bool InlineTypeNode::has_phi_inputs(Node* region) const {
   // Check oop input
   bool result = get_oop()->is_Phi() && get_oop()->as_Phi()->region() == region;
 #ifdef ASSERT
@@ -181,7 +188,7 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
 }
 
 // Adds a new merge path to an inline type node with phi inputs
-void InlineTypeNode::add_new_path(Node* region) {
+void InlineTypeNode::add_new_path(Node* region) const {
   assert(has_phi_inputs(region), "must have phi inputs");
 
   PhiNode* phi = get_oop()->as_Phi();
@@ -222,7 +229,13 @@ Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
   ciField* field = this->field(index);
   assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
 
-  if (!recursive || !field->is_flat() || value->is_top()) {
+  if (value->is_top()) {
+    // The graph is dying but a load may still ask for a nested field
+    // inside a flattened field before the dead load itself is folded away.
+    assert(offset == field->offset_in_bytes() || field->is_flat(), "offset mismatch");
+    return value;
+  }
+  if (!recursive || !field->is_flat()) {
     assert(offset == field->offset_in_bytes(), "offset mismatch");
     return value;
   }
@@ -260,7 +273,7 @@ ciField* InlineTypeNode::field(uint index) const {
   return inline_klass()->declared_nonstatic_field_at(index);
 }
 
-uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) {
+uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) const {
   uint cnt = 0;
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
@@ -286,13 +299,13 @@ uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePoi
   return cnt;
 }
 
-void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
+void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const {
   JVMState* jvms = sfpt->jvms();
   assert(jvms != nullptr, "missing JVMS");
   uint first_ind = (sfpt->req() - jvms->scloff());
 
   // Iterate over the inline type fields in order of increasing offset and add the
-  // field values to the safepoint. Nullable inline types have an null marker field that
+  // field values to the safepoint. Nullable inline types have a null marker field that
   // needs to be checked before using the field values.
   sfpt->add_req(get_null_marker());
   uint nfields = add_fields_to_safepoint(worklist, sfpt);
@@ -607,160 +620,415 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_
   }
 }
 
-// Adds a check between val1 and val2. Jumps to 'region' if check passes and optionally sets the corresponding phi input to false.
-static void acmp_val_guard(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, BasicType bt, BoolTest::mask test, Node* val1, Node* val2) {
-  Node* cmp = nullptr;
-  switch (bt) {
-  case T_FLOAT:
-    val1 = igvn->register_new_node_with_optimizer(new MoveF2INode(val1));
-    val2 = igvn->register_new_node_with_optimizer(new MoveF2INode(val2));
-    // Fall-through to the int case
-  case T_BOOLEAN:
-  case T_CHAR:
-  case T_BYTE:
-  case T_SHORT:
-  case T_INT:
-    cmp = igvn->register_new_node_with_optimizer(new CmpINode(val1, val2));
-    break;
-  case T_DOUBLE:
-    val1 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val1));
-    val2 = igvn->register_new_node_with_optimizer(new MoveD2LNode(val2));
-    // Fall-through to the long case
-  case T_LONG:
-    cmp = igvn->register_new_node_with_optimizer(new CmpLNode(val1, val2));
-    break;
-  default:
-    assert(is_reference_type(bt), "must be");
-    cmp = igvn->register_new_node_with_optimizer(new CmpPNode(val1, val2));
+// If a value class contains cycle, bail out from trying to expand substitutability check involving it
+static bool check_cycle(ciInlineKlass* vk) {
+  ResourceMark rm;
+  GrowableArray<Pair<ciInlineKlass*, int>> visited;
+  visited.push(Pair(vk, 0));
+  while (visited.is_nonempty()) {
+    ciInlineKlass* current = visited.top().first;
+    bool finish = true;
+    for (int field_idx = visited.top().second; field_idx < current->nof_nonstatic_fields(); field_idx++) {
+      ciField* field = current->nonstatic_field_at(field_idx);
+      ciType* ft = field->type();
+      if (!ft->is_inlinetype()) {
+        continue;
+      } else if (visited.find_if([&](const auto& entry) { return entry.first == ft; }) >= 0) {
+        return true;
+      } else {
+        visited.top().second = field_idx + 1;
+        visited.push(Pair(ft->as_inline_klass(), 0));
+        finish = false;
+        break;
+      }
+    }
+    if (finish) {
+      visited.pop();
+    }
   }
-  Node* bol = igvn->register_new_node_with_optimizer(new BoolNode(cmp, test));
-  IfNode* iff = igvn->register_new_node_with_optimizer(new IfNode(*ctrl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
-  Node* if_f = igvn->register_new_node_with_optimizer(new IfFalseNode(iff));
-  Node* if_t = igvn->register_new_node_with_optimizer(new IfTrueNode(iff));
-
-  region->add_req(if_t);
-  if (phi != nullptr) {
-    phi->add_req(igvn->intcon(0));
-  }
-  *ctrl = if_f;
+  return false;
 }
 
-// Check if a substitutability check between 'this' and 'other' can be implemented in IR
-bool InlineTypeNode::can_emit_substitutability_check(Node* other) const {
-  if (other != nullptr && other->is_InlineType() && bottom_type() != other->bottom_type()) {
-    // Different types, this is dead code because there's a check above that guarantees this.
+// Check if a substitutability check between 'lhs' and 'rhs' can be implemented in IR
+bool InlineTypeNode::can_emit_substitutability_check(Node* lhs, Node* rhs) {
+  if (!lhs->bottom_type()->isa_ptr() ||
+      (rhs != nullptr && !rhs->bottom_type()->isa_ptr())) {
     return false;
   }
-  for (uint i = 0; i < field_count(); i++) {
-    ciType* ft = field(i)->type();
-    Node* fv = field_value(i);
-    if (ft->is_inlinetype() && fv->is_InlineType()) {
-      // Check recursively
-      if (!fv->as_InlineType()->can_emit_substitutability_check(nullptr)){
-        return false;
-      }
-    } else if (ft->can_be_inline_klass()) {
-      // Comparing this field might require (another) substitutability check, bail out
+
+  if (rhs != nullptr && lhs->eqv_uncast(rhs)) {
+    return true;
+  }
+
+  if (!lhs->bottom_type()->is_ptr()->can_be_inline_type() ||
+      (rhs != nullptr && !rhs->bottom_type()->is_ptr()->can_be_inline_type())) {
+    return true;
+  }
+
+  if (!lhs->is_InlineType() && (rhs == nullptr || !rhs->is_InlineType())) {
+    return false;
+  }
+
+  if (!lhs->is_InlineType()) {
+    swap(lhs, rhs);
+  }
+
+  InlineTypeNode* lhs_inline = lhs->as_InlineType();
+  InlineTypeNode* rhs_inline = rhs != nullptr ? rhs->isa_InlineType() : nullptr;
+  if (rhs_inline != nullptr && lhs_inline->type()->inline_klass() != rhs_inline->type()->inline_klass()) {
+    // Dead code, can skip the substitutability check
+    return true;
+  }
+
+  if (check_cycle(lhs_inline->inline_klass())) {
+    return false;
+  }
+
+  for (uint i = 0; i < lhs_inline->field_count(); i++) {
+    ciType* ft = lhs_inline->field(i)->type();
+    if (!ft->can_be_inline_klass()) {
+      continue;
+    }
+
+    Node* lhs_fv = lhs_inline->field_value(i);
+    Node* rhs_fv = rhs_inline != nullptr ? rhs_inline->field_value(i) : nullptr;
+    if (!can_emit_substitutability_check(lhs_fv, rhs_fv)) {
       return false;
     }
   }
   return true;
 }
 
-// Emit IR to check substitutability between 'this' (left operand) and the value object referred to by 'other' (right operand).
-// Parse-time checks guarantee that both operands have the same type. If 'other' is not an InlineTypeNode, we need to emit loads for the field values.
-void InlineTypeNode::check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* other, bool flat) const {
-  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  DecoratorSet decorators = IN_HEAP | MO_UNORDERED | C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD;
-  MergeMemNode* local_mem = igvn->register_new_node_with_optimizer(MergeMemNode::make(mem))->as_MergeMem();
+// Compare lhs and rhs given they are not value objects
+static void emit_substitutability_check_primitive(GraphKit* kit, PhiNode* result, Node* lhs, Node* rhs, BasicType bt) {
+  PhaseGVN& gvn = kit->gvn();
+  Node* cmp;
+  if (bt == T_INT || is_subword_type(bt)) {
+    cmp = kit->CmpI(lhs, rhs);
+  } else if (bt == T_LONG) {
+    cmp = kit->CmpL(lhs, rhs);
+  } else if (bt == T_FLOAT) {
+    lhs = gvn.transform(new MoveF2INode(lhs));
+    rhs = gvn.transform(new MoveF2INode(rhs));
+    cmp = kit->CmpI(lhs, rhs);
+  } else if (bt == T_DOUBLE) {
+    lhs = gvn.transform(new MoveD2LNode(lhs));
+    rhs = gvn.transform(new MoveD2LNode(rhs));
+    cmp = kit->CmpL(lhs, rhs);
+  } else {
+    assert(is_reference_type(bt), "unexpected bt %s", type2name(bt));
+    cmp = kit->CmpP(lhs, rhs);
+  }
 
-  ciInlineKlass* vk = inline_klass();
-  for (uint i = 0; i < field_count(); i++) {
-    ciField* field = this->field(i);
-    int field_off = field->offset_in_bytes();
-    if (flat) {
-      // Flat access, no header
-      field_off -= vk->payload_offset();
+  Node* bol = kit->Bool(cmp, BoolTest::eq);
+  IfNode* iff = kit->create_and_map_if(kit->control(), bol, PROB_FAIR, COUNT_UNKNOWN);
+
+  Node* iff_false = kit->IfFalse(iff);
+  result->add_req(kit->intcon(0));
+  result->region()->add_req(iff_false);
+
+  Node* iff_true = kit->IfTrue(iff);
+  kit->set_control(iff_true);
+}
+
+// Try to see what should be done with lhs and rhs. Either we can emit the answer if it is simple,
+// give up and emit a call to runtime, or start comparing the value objects field-by-field. In the
+// last case, NodeSentinel is returned.
+static Node* emit_substitutability_check_pointer(GraphKit* kit, PhiNode* result, Node* lhs, Node* rhs) {
+  PhaseGVN& gvn = kit->gvn();
+  Node* top = kit->C->top();
+  const Type* lhs_type = gvn.type(lhs);
+  const Type* rhs_type = gvn.type(rhs);
+
+  // Dead graph
+  if (lhs_type == Type::TOP || rhs_type == Type::TOP) {
+    kit->set_control(top);
+    return top;
+  }
+
+  Node* cmp = nullptr;
+  if (lhs->eqv_uncast(rhs)) {
+    cmp = kit->intcon(0);
+  } else if (!lhs_type->is_ptr()->can_be_inline_type() || !rhs_type->is_ptr()->can_be_inline_type()) {
+    // If one of the sides is not a value object, can only be substitutable if they are the same
+    cmp = kit->CmpP(lhs, rhs);
+  } else if (lhs_type->is_instptr()->as_klass_type()->join(rhs_type->is_instptr()->as_klass_type())->empty()) {
+    // Both belongs to provably different types, must be different unless both are null. Cannot
+    // rely on the pointer independence alone because different pointers may still be
+    // substitutable.
+    cmp = kit->CmpP(lhs, rhs);
+  }
+  if (cmp != nullptr) {
+    Node* res = kit->Bool(cmp, BoolTest::eq);
+    IfNode* iff = kit->create_and_map_if(kit->control(), res, PROB_FAIR, COUNT_UNKNOWN);
+
+    Node* iff_false = kit->IfFalse(iff);
+    result->region()->add_req(iff_false);
+    result->add_req(gvn.intcon(0));
+
+    Node* iff_true = kit->IfTrue(iff);
+    kit->set_control(iff_true);
+    return iff_true;
+  }
+
+  if (!lhs_type->is_inlinetypeptr() && !rhs_type->is_inlinetypeptr()) {
+    return nullptr;
+  }
+
+  // A cycle, give up
+  ciInlineKlass* vk = lhs_type->is_inlinetypeptr() ? lhs_type->inline_klass() : rhs_type->inline_klass();
+  if (check_cycle(vk)) {
+    return nullptr;
+  }
+
+  return NodeSentinel;
+}
+
+Node* InlineTypeNode::emit_substitutability_check(GraphKit* kit, Node* lhs, Node* rhs) {
+  if (!kit->C->allow_macro_nodes()) {
+    // After macro expansion, InlineTypeNodes are also eliminated, creation of new ones then is not
+    // allowed
+    return nullptr;
+  }
+
+  PhaseIterGVN& igvn = *kit->gvn().is_IterGVN();
+  RegionNode* region = new RegionNode(1);
+  PhiNode* result = new PhiNode(region, TypeInt::BOOL);
+  igvn.register_new_node_with_optimizer(region);
+  igvn.register_new_node_with_optimizer(result);
+
+  Node* preprocess = emit_substitutability_check_pointer(kit, result, lhs, rhs);
+  if (preprocess == nullptr) {
+    return nullptr;
+  } else if (preprocess != NodeSentinel) {
+    region->add_req(kit->control());
+    result->add_req(igvn.intcon(1));
+    kit->set_control(region);
+    return result;
+  }
+
+  const Type* lhs_type = igvn.type(lhs);
+  const Type* rhs_type = igvn.type(rhs);
+  assert(!lhs_type->maybe_null() && !rhs_type->maybe_null(), "must check null beforehand");
+  ciInlineKlass* vk = lhs_type->is_inlinetypeptr() ? lhs_type->inline_klass() : rhs_type->inline_klass();
+  const TypeInstPtr* vk_type = TypeOopPtr::make_from_klass(vk)->join(TypePtr::NOTNULL)->is_instptr();
+
+  if (!lhs->is_InlineType()) {
+    if (!lhs_type->higher_equal(vk_type)) {
+      lhs = igvn.transform(new CheckCastPPNode(kit->control(), lhs, vk_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
     }
-    Node* this_field = field_value(i);
-    ciType* ft = field->type();
-    BasicType bt = ft->basic_type();
+    lhs = InlineTypeNode::make_from_oop(kit, lhs, vk);
+  }
+  if (!rhs->is_InlineType()) {
+    if (!rhs_type->higher_equal(vk_type)) {
+      rhs = igvn.transform(new CheckCastPPNode(kit->control(), rhs, vk_type, ConstraintCastNode::DependencyType::NonFloatingNarrowing));
+    }
+    rhs = InlineTypeNode::make_from_oop(kit, rhs, vk);
+  }
 
-    Node* other_base = base;
-    Node* other_field = other;
+  RegionNode* true_region = new RegionNode(3);
+  igvn.register_new_node_with_optimizer(true_region);
+  region->add_req(true_region);
+  result->add_req(igvn.intcon(1));
 
-    // Get field value of the other operand
-    if (other->is_InlineType()) {
-      other_field = other->as_InlineType()->field_value(i);
-      other_base = nullptr;
-    } else {
-      // 'other' is an oop, compute address of the field
-      other_field = igvn->register_new_node_with_optimizer(AddPNode::make_with_base(base, other, igvn->MakeConX(field_off)));
-      if (field->is_flat()) {
-        // Flat field, load is handled recursively below
-        assert(this_field->is_InlineType(), "inconsistent field value");
-      } else {
-        // Non-flat field, load the field value and update the base because we are now operating on a different object
-        assert(is_java_primitive(bt) || other_field->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent field type");
-        C2AccessValuePtr addr(other_field, other_field->bottom_type()->is_ptr());
-        C2OptAccess access(*igvn, *ctrl, local_mem, decorators, bt, base, addr);
-        other_field = bs->load_at(access, Type::get_const_type(ft));
-        other_base = other_field;
+  // To verify the substitutability of 2 notnull value objects of the same type, we need to check
+  // the substitutability of each field in the objects:
+  //
+  // substitutable(cur_lhs, cur_rhs) {
+  //   cur_start_region:
+  //
+  //   if (cur_lhs.field1 == null && cur_rhs.field1 == null) {
+  //     goto cur_true_field1_region;
+  //   } else if ((cur_lhs.field1 == null) != (cur_rhs.field1 == null) {
+  //     return false;
+  //   } else if (cur_lhs.field1.klass != cur_rhs.field1.klass) {
+  //     return false;
+  //   }
+  //
+  //   cur_start_field1_region:
+  //   if (substitutable(cur_lhs.field1, cur_rhs.field1)) {
+  //     return false;
+  //   }
+  //   cur_true_field1_region:
+  //
+  //   if (cur_lhs.field2 == null && cur_rhs.field2 == null) {
+  //     goto cur_true_field2_region;
+  //   } else if ((cur_lhs.field2 == null) != (cur_rhs.field2 == null) {
+  //     return false;
+  //   } else if (cur_lhs.field2.klass != cur_rhs.field2.klass) {
+  //     return false;
+  //   }
+  //
+  //   cur_start_field2_region:
+  //   if (!substitutable(cur_lhs.field1, cur_rhs.field1)) {
+  //     return false;
+  //   }
+  //   cur_true_field2_region:
+  //
+  //   ...
+  //
+  //   cur_true_fieldn_region:
+  //
+  //   cur_true_region:
+  // }
+  //
+  // To avoid recursion, for field values that are value objects, we create the start and end
+  // region for the substitutability check of that field when both sides are notnull, save them on
+  // the worklist to process them later.
+  ResourceMark rm;
+  using WorklistEntry = Tuple<Node*, RegionNode*, InlineTypeNode*, InlineTypeNode*>;
+  GrowableArray<WorklistEntry> worklist;
+  worklist.push(WorklistEntry(kit->control(), true_region, lhs->as_InlineType(), rhs->as_InlineType()));
+  while (worklist.is_nonempty()) {
+    WorklistEntry entry = worklist.pop();
+    Node* cur_start_region = entry.get<0>();
+    RegionNode* cur_true_region = entry.get<1>();
+    InlineTypeNode* cur_lhs = entry.get<2>();
+    InlineTypeNode* cur_rhs = entry.get<3>();
+
+    kit->set_control(cur_start_region);
+    if (kit->stopped()) {
+      break;
+    }
+    ciInlineKlass* vk = cur_lhs->inline_klass();
+    assert(vk == cur_rhs->inline_klass(), "should not reach here otherwise");
+
+    auto is_simple_field = [](ciField* field) {
+      ciType* ft = field->type();
+      return is_java_primitive(ft->basic_type()) || !ft->as_klass()->can_be_inline_klass();
+    };
+
+    // Go through all fields, process the simple ones first
+    for (int field_idx = 0; field_idx < vk->nof_declared_nonstatic_fields(); field_idx++) {
+      ciField* field = vk->declared_nonstatic_field_at(field_idx);
+      if (is_simple_field(field)) {
+        Node* cur_lhs_field = cur_lhs->field_value(field_idx);
+        Node* cur_rhs_field = cur_rhs->field_value(field_idx);
+        emit_substitutability_check_primitive(kit, result, cur_lhs_field, cur_rhs_field, field->type()->basic_type());
       }
     }
 
-    if (this_field->is_InlineType()) {
-      RegionNode* done_region = new RegionNode(1);
-      ciField* field = this->field(i);
-      assert(!field->is_flat() || field->type()->is_inlinetype(), "must be an inline type");
-      if (!field->is_null_free()) {
-        // Nullable field, check null marker before accessing the fields
-        if (field->is_flat()) {
-          // Flat field, check embedded null marker
-          Node* null_marker = nullptr;
-          if (other_field->is_InlineType()) {
-            // TODO 8350865 Should we add an IGVN optimization to fold null marker loads from InlineTypeNodes?
-            null_marker = other_field->as_InlineType()->get_null_marker();
-          } else {
-            Node* nm_offset = igvn->MakeConX(ft->as_inline_klass()->null_marker_offset_in_payload());
-            Node* nm_adr = igvn->register_new_node_with_optimizer(AddPNode::make_with_base(base, other_field, nm_offset));
-            C2AccessValuePtr addr(nm_adr, nm_adr->bottom_type()->is_ptr());
-            C2OptAccess access(*igvn, *ctrl, local_mem, decorators, T_BOOLEAN, base, addr);
-            null_marker = bs->load_at(access, TypeInt::BOOL);
-          }
-          // Return false if null markers are not equal
-          acmp_val_guard(igvn, region, phi, ctrl, T_INT, BoolTest::ne, this_field->as_InlineType()->get_null_marker(), null_marker);
+    for (int field_idx = 0; field_idx < vk->nof_declared_nonstatic_fields(); field_idx++) {
+      ciField* field = vk->declared_nonstatic_field_at(field_idx);
+      if (is_simple_field(field)) {
+        // These fields have already been processed
+        continue;
+      }
 
-          // Null markers are equal. If both operands are null, skip the comparison of the fields.
-          acmp_val_guard(igvn, done_region, nullptr, ctrl, T_INT, BoolTest::eq, this_field->as_InlineType()->get_null_marker(), igvn->intcon(0));
-        } else {
-          // Non-flat field, check if oop is null
+      Node* cur_lhs_field = cur_lhs->field_value(field_idx);
+      Node* cur_rhs_field = cur_rhs->field_value(field_idx);
 
-          // Check if 'this' is null
-          RegionNode* not_null_region = new RegionNode(1);
-          acmp_val_guard(igvn, not_null_region, nullptr, ctrl, T_INT, BoolTest::ne, this_field->as_InlineType()->get_null_marker(), igvn->intcon(0));
+      Node* preprocess = emit_substitutability_check_pointer(kit, result, cur_lhs_field, cur_rhs_field);
+      if (kit->stopped()) {
+        break;
+      } else if (preprocess == nullptr) {
+        // Must emit a substitutability check for this field, give up for now
+        return nullptr;
+      } else if (preprocess != NodeSentinel) {
+        continue;
+      }
 
-          // 'this' is null. If 'other' is non-null, return false.
-          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::ne, other_field, igvn->zerocon(T_OBJECT));
+      // When field is not null-free, the shape would look like this:
+      //
+      // current_control:
+      // if (cur_lhs_field == null) {
+      //   if (cur_rhs_field == null) {
+      //     goto field_true_region;
+      //   } else {
+      //     return false;
+      //   }
+      // } else {
+      //   if (cur_rhs_field == null) {
+      //     return false;
+      //   }
+      // }
+      // if (cur_lhs_field.klass != cur_rhs_field.klass) {
+      //   return false;
+      // }
+      //
+      // field_start_region:
+      // if (!substitutable(cur_lhs_field, cur_rhs_field)) {
+      //   return false;
+      // }
+      // field_true_region:
+      //
+      // The substitutability test between the fields of cur_lhs_field and cur_rhs_field is then
+      // pushed on the worklist to be expanded later.
+      RegionNode* field_true_region = new RegionNode(3);
+      igvn.register_new_node_with_optimizer(field_true_region);
 
-          // Both are null, skip comparing the fields
-          done_region->add_req(*ctrl);
+      // Firstly, filter the cases when either is null
+      Node* null_unknown = kit->top();
+      cur_lhs_field = kit->null_check_common(cur_lhs_field, T_OBJECT, false, &null_unknown);
+      if (!null_unknown->is_top()) {
+        PreserveJVMState pjvms(kit);
+        kit->set_control(null_unknown);
+        Node* null_null = kit->top();
+        kit->null_check_common(cur_rhs_field, T_OBJECT, false, &null_null);
 
-          // 'this' is not null. If 'other' is null, return false.
-          *ctrl = igvn->register_new_node_with_optimizer(not_null_region);
-          acmp_val_guard(igvn, region, phi, ctrl, T_OBJECT, BoolTest::eq, other_field, igvn->zerocon(T_OBJECT));
+        // null - null, skip other checks
+        field_true_region->init_req(1, null_null);
+
+        // null - notnull
+        if (!kit->stopped()) {
+          region->add_req(kit->control());
+          result->add_req(igvn.intcon(0));
         }
       }
-      // Both operands are non-null, compare all the fields recursively
-      this_field->as_InlineType()->check_substitutability(igvn, region, phi, ctrl, mem, other_base, other_field, field->is_flat());
+      if (kit->stopped()) {
+        // cur_lhs_field is always null
+        kit->set_control(field_true_region);
+        continue;
+      }
 
-      done_region->add_req(*ctrl);
-      *ctrl = igvn->register_new_node_with_optimizer(done_region);
-    } else {
-      assert(!ft->can_be_inline_klass(), "Needs substitutability test");
-      acmp_val_guard(igvn, region, phi, ctrl, bt, BoolTest::ne, this_field, other_field);
+      Node* notnull_null = kit->top();
+      cur_rhs_field = kit->null_check_common(cur_rhs_field, T_OBJECT, false, &notnull_null);
+      if (!notnull_null->is_top()) {
+        region->add_req(notnull_null);
+        result->add_req(igvn.intcon(0));
+      }
+
+      if (kit->stopped()) {
+        // cur_rhs_field is always null
+        kit->set_control(field_true_region);
+        continue;
+      }
+      assert(!igvn.type(cur_lhs_field)->maybe_null() && !igvn.type(cur_rhs_field)->maybe_null(), "must be notnull");
+
+      // Can expand this comparison
+      const Type* cur_lhs_field_type = igvn.type(cur_lhs_field);
+      const Type* cur_rhs_field_type = igvn.type(cur_rhs_field);
+      ciInlineKlass* vk = cur_lhs_field_type->is_inlinetypeptr() ? cur_lhs_field_type->inline_klass() : cur_rhs_field_type->inline_klass();
+      const TypeInstKlassPtr* vk_klass_type = TypeInstKlassPtr::make(vk, Type::ignore_interfaces);
+      Node* vk_klass = igvn.makecon(vk_klass_type);
+
+      // Both must be vk
+      Node* not_vk = kit->top();
+      cur_lhs_field = kit->gen_checkcast(cur_lhs_field, vk_klass, &not_vk);
+      if (!not_vk->is_top()) {
+        region->add_req(not_vk);
+        result->add_req(igvn.intcon(0));
+      }
+      not_vk = kit->top();
+      cur_rhs_field = kit->gen_checkcast(cur_rhs_field, vk_klass, &not_vk);
+      if (!not_vk->is_top()) {
+        region->add_req(not_vk);
+        result->add_req(igvn.intcon(0));
+      }
+      if (!kit->stopped()) {
+        // Push the expanded InlineTypeNodes for processing later
+        worklist.push(WorklistEntry(kit->control(), field_true_region, cur_lhs_field->as_InlineType(), cur_rhs_field->as_InlineType()));
+      }
+
+      kit->set_control(field_true_region);
     }
+
+    cur_true_region->init_req(2, kit->control());
+    kit->set_control(cur_true_region);
   }
+
+  kit->set_control(region);
+  return result;
 }
 
 InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
@@ -876,7 +1144,7 @@ static void replace_proj(Compile* C, CallNode* call, uint& proj_idx, Node* value
 // projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
-void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) {
+void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C) const {
   uint proj_idx = TypeFunc::Parms;
   // Replace oop projection
   replace_proj(C, call, proj_idx, get_oop(), T_OBJECT);
@@ -887,7 +1155,7 @@ void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile
   assert(proj_idx == call->tf()->range_cc()->cnt(), "missed a projection");
 }
 
-void InlineTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_idx) {
+void InlineTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_idx) const {
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
     ciField* field = this->field(i);
@@ -958,6 +1226,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
   if (oop->isa_InlineType() && !phase->type(oop)->maybe_null()) {
     InlineTypeNode* vtptr = oop->as_InlineType();
+    assert(inline_klass() == vtptr->inline_klass(), "inconsistent types");
     set_oop(*phase, vtptr->get_oop());
     set_is_buffered(*phase);
     set_null_marker(*phase);
@@ -1042,11 +1311,11 @@ InlineTypeNode* InlineTypeNode::make_all_zero_impl(PhaseGVN& gvn, ciInlineKlass*
     } else if (ft->is_inlinetype()) {
       int old_len = visited.length();
       visited.push(ft);
-      ciInlineKlass* vk = ft->as_inline_klass();
+      ciInlineKlass* vk_field = ft->as_inline_klass();
       if (field->is_null_free()) {
-        value = make_all_zero_impl(gvn, vk, visited);
+        value = make_all_zero_impl(gvn, vk_field, visited);
       } else {
-        value = make_null_impl(gvn, vk, visited);
+        value = make_null_impl(gvn, vk_field, visited);
       }
       visited.trunc_to(old_len);
     }
@@ -1128,12 +1397,12 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
       vt = vt->clone_with_phis(&gvn, region, kit->map());
       vt->merge_with(&gvn, null_vt, 2, true);
       vt->set_oop(gvn, oop);
+      vt->set_is_buffered(gvn);
       kit->set_control(gvn.transform(region));
     }
   } else {
     // Oop can never be null
     vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
-    Node* init_ctl = kit->control();
     vt->set_is_buffered(gvn);
     vt->set_null_marker(gvn);
     Node* payload_ptr = kit->basic_plus_adr(oop, vk->payload_offset());
@@ -1187,7 +1456,8 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
 InlineTypeNode* InlineTypeNode::make_from_flat_array(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* idx) {
   assert(vk->maybe_flat_in_array(), "element type %s cannot be flat in array", vk->name()->as_utf8());
   PhaseGVN& gvn = kit->gvn();
-  DecoratorSet decorators = IN_HEAP | IS_ARRAY | MO_UNORDERED | C2_CONTROL_DEPENDENT_LOAD;
+  // The flat field loads are dependent on both the array layout checks as well as the range check.
+  DecoratorSet decorators = IN_HEAP | IS_ARRAY | MO_UNORDERED | C2_CONTROL_DEPENDENT_LOAD | C2_UNKNOWN_CONTROL_LOAD;
   kit->C->set_flat_accesses();
   InlineTypeNode* vt_nullable = nullptr;
   InlineTypeNode* vt_null_free = nullptr;
@@ -1319,7 +1589,7 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, int holder_offset) {
+Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, int holder_offset) const {
   if (vk == nullptr) {
     vk = inline_klass();
   }
@@ -1462,15 +1732,15 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       vt->initialize_fields(kit, multi, base_input, in, true, null_check_region, visited);
       if (!field->is_null_free()) {
         assert(field->null_marker_offset() != -1, "inconsistency");
-        Node* null_marker = nullptr;
+        Node* null_marker_field_vt = nullptr;
         if (multi->is_Start()) {
-          null_marker = gvn.transform(new ParmNode(multi->as_Start(), base_input));
+          null_marker_field_vt = gvn.transform(new ParmNode(multi->as_Start(), base_input));
         } else if (in) {
-          null_marker = multi->as_Call()->in(base_input);
+          null_marker_field_vt = multi->as_Call()->in(base_input);
         } else {
-          null_marker = gvn.transform(new ProjNode(multi->as_Call(), base_input));
+          null_marker_field_vt = gvn.transform(new ProjNode(multi->as_Call(), base_input));
         }
-        vt->set_req(NullMarker, null_marker);
+        vt->set_req(NullMarker, null_marker_field_vt);
         base_input++;
       }
       parm = gvn.transform(vt);
@@ -1528,7 +1798,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
 
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
 // Equivalent InlineTypeNodes are merged by GVN, so we just need to search for AllocateNode users to find redundant allocations.
-void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
+void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) const {
   PhaseIterGVN* igvn = &phase->igvn();
   // Search for allocations of this inline type. Ignore scalar replaceable ones, they
   // will be removed anyway and changing the memory chain will confuse other optimizations.
@@ -1708,7 +1978,7 @@ bool LoadFlatNode::expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const {
   return true;
 }
 
-bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
+bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) const {
   assert(igvn.delay_transform(), "transformation must be delayed");
   if ((_decorators & C2_MISMATCHED) != 0) {
     return false;
@@ -1756,7 +2026,7 @@ bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
   return true;
 }
 
-void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) {
+void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) const {
   assert(igvn.delay_transform(), "transformation must be delayed");
   GraphKit kit(this, igvn);
   Node* base = this->base();
@@ -1839,7 +2109,7 @@ InlineTypeNode* LoadFlatNode::collect_projs(GraphKit* kit, ciInlineKlass* vk, in
 }
 
 // Extract the values of the flattened fields from the loaded payload
-void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* payload) {
+void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* payload) const {
   BasicType payload_bt = _vk->atomic_size_to_basic_type(_null_free);
   for (int i = 0; i < _vk->nof_nonstatic_fields(); i++) {
     ProjNode* proj_out = proj_out_or_null(TypeFunc::Parms + i);
@@ -1917,7 +2187,7 @@ void StoreFlatNode::store(GraphKit* kit, Node* base, Node* ptr, InlineTypeNode* 
   kit->set_all_memory(kit->gvn().transform(new ProjNode(store, TypeFunc::Memory)));
 }
 
-bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
+bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) const {
   assert(igvn.delay_transform(), "transformation must be delayed");
   if ((_decorators & C2_MISMATCHED) != 0) {
     return false;
@@ -1935,7 +2205,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     const TypePtr* field_ptr_type = field_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(field_ptr, field_ptr_type);
     Node* field_value = value->field_value_by_offset(field->offset_in_bytes(), true);
-    Node* store = kit.access_store_at(base, field_ptr, field_ptr_type, field_value, igvn.type(field_value), field->type()->basic_type(), _decorators);
+    kit.access_store_at(base, field_ptr, field_ptr_type, field_value, igvn.type(field_value), field->type()->basic_type(), _decorators);
   }
 
   if (!_null_free) {
@@ -1943,7 +2213,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
     const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(null_marker_ptr, null_marker_ptr_type);
     Node* null_marker_value = value->get_null_marker();
-    Node* store = kit.access_store_at(base, null_marker_ptr, null_marker_ptr_type, null_marker_value, TypeInt::BOOL, T_BOOLEAN, _decorators);
+    kit.access_store_at(base, null_marker_ptr, null_marker_ptr_type, null_marker_value, TypeInt::BOOL, T_BOOLEAN, _decorators);
   }
 
   Node* old_ctrl = proj_out_or_null(TypeFunc::Control);
@@ -1958,7 +2228,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) {
   return true;
 }
 
-void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) {
+void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) const {
   // Convert to a payload value <= 64-bit and write atomically.
   // The payload might contain at most two oop fields that must be narrow because otherwise they would be 64-bit
   // in size and would then be written by a "normal" oop store. If the payload contains oops, its size is always

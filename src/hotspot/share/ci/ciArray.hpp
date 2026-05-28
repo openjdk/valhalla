@@ -73,9 +73,9 @@ public:
   // What kind of ciObject is this?
   bool is_array()        { return true; }
 
-  virtual bool is_flat()      { return false; }
-  bool is_null_free();
-  bool is_atomic();
+  virtual bool is_flat() { return false; }
+  bool is_null_free() const;
+  bool is_atomic() const;
 };
 
 #endif // SHARE_CI_CIARRAY_HPP

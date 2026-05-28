@@ -30,14 +30,14 @@
  * @library /test/lib
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.*;
 import java.util.function.IntFunction;
 
 public class NullKeyAtResize {
     public static void main(String[] args) throws Exception {
         test(Integer::valueOf);
-        test(i -> new Tuple(i, i));
+        test(i -> new VClass(i, new int[] { i }));
     }
 
     private static void test(IntFunction<Object> keyFactory) throws Exception {

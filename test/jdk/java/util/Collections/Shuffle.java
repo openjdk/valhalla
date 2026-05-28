@@ -27,10 +27,9 @@
  * @summary Basic test for Collections.shuffle
  * @key     randomness
  * @library /test/lib
- * @run main Shuffle
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -67,12 +66,12 @@ public class Shuffle {
     }
 
     static void testValue() {
-        List<Tuple> values = new ArrayList<>();
-        for (int i = 0; i < N; i++) values.add(new Tuple(i, i));
+        List<VClass> values = new ArrayList<>();
+        for (int i = 0; i < N; i++) values.add(new VClass(i, new int[] { i }));
         Collections.shuffle(values, new Random(1));
         if (values.size() != N) throw new RuntimeException("value shuffle size");
         for (int i = 0; i < N; i++)
-            if (Collections.frequency(values, new Tuple(i, i)) != 1)
+            if (Collections.frequency(values, new VClass(i, new int[] { i })) != 1)
                 throw new RuntimeException("value shuffle lost " + i);
     }
 

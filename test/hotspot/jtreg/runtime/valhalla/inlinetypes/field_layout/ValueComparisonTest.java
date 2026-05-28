@@ -29,7 +29,7 @@
  * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile ValueClassGenerator.java ValueComparisonTest.java
- * @run main/othervm runtime.valhalla.inlinetypes.field_layout.ValueComparisonTest
+ * @run main/othervm -XX:CompileCommand=exclude,ValueClass*::* runtime.valhalla.inlinetypes.field_layout.ValueComparisonTest
  */
 
 package runtime.valhalla.inlinetypes.field_layout;

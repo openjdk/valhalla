@@ -312,7 +312,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
     if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
 
-    // TODO 8350865 What about atomicity?
+    // TODO 8251971 What about atomicity?
     if (src_elem != dest_elem || ary_src->is_null_free() != ary_dest->is_null_free() || ary_src->is_flat() != ary_dest->is_flat() || dest_elem == T_VOID) {
       // We don't know if arguments are arrays of the same type
       return false;
@@ -454,7 +454,6 @@ void ArrayCopyNode::copy(GraphKit& kit,
                          const Type* value_type) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
-  PhaseGVN& phase = kit.gvn();
   if (atp_dest->is_flat()) {
     ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
@@ -522,7 +521,6 @@ void ArrayCopyNode::array_copy_backward(GraphKit& kit,
                                         int count) {
   if (!kit.stopped()) {
     // copy backward
-    PhaseGVN& gvn = kit.gvn();
 
     if (count > 0) {
       for (int i = count-1; i >= 0; i--) {

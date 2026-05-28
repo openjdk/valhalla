@@ -30,7 +30,7 @@
  * @library /test/lib
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 
 import java.security.Provider;
 import java.util.Map;
@@ -53,7 +53,7 @@ class MyProvider extends Provider {
         super(name, version, info);
         this.name = name;
         put("Signature.sigalg", "sigimpl");
-        put(new Tuple(1, 1), new Tuple(2, 2));
+        put(new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 }));
     }
 
     public String getName() {

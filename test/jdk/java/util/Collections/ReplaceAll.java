@@ -26,10 +26,9 @@
  * @bug 4323074
  * @summary Basic test for new replaceAll algorithm
  * @library /test/lib
- * @run main ReplaceAll
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -61,11 +60,11 @@ public class ReplaceAll {
                 throw new Exception("True return value: "+i);
         }
 
-        List<Tuple> values = new ArrayList<>();
-        for (int j = 1; j <= SIZE; j++) values.add(new Tuple(j % 3, j % 3));
-        if (!Collections.replaceAll(values, new Tuple(1, 1), new Tuple(99, 99)))
+        List<VClass> values = new ArrayList<>();
+        for (int j = 1; j <= SIZE; j++) values.add(new VClass(j % 3, new int[] { j % 3 }));
+        if (!Collections.replaceAll(values, new VClass(1, new int[] { 1 }), new VClass(99, new int[] { 99 })))
             throw new Exception("value false return");
-        if (Collections.replaceAll(values, new Tuple(100, 100), new Tuple(0, 0)))
+        if (Collections.replaceAll(values, new VClass(100, new int[] { 100 }), new VClass(0, new int[] { 0 })))
             throw new Exception("value true return for absent element");
     }
 }

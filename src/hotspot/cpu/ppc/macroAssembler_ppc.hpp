@@ -34,6 +34,9 @@
 
 class ciTypeArray;
 class OopMap;
+class ciInlineKlass;
+class SigEntry;
+class VMRegPair;
 
 class MacroAssembler: public Assembler {
  public:
@@ -802,7 +805,7 @@ class MacroAssembler: public Assembler {
                            MacroAssembler::PreservationLevel preservation_level);
   void load_method_holder(Register holder, Register method);
 
-  static int instr_size_for_decode_klass_not_null();
+  static int instr_size_for_load_klass();
   void decode_klass_not_null(Register dst, Register src = noreg);
   Register encode_klass_not_null(Register dst, Register src = noreg);
 
@@ -997,6 +1000,9 @@ class MacroAssembler: public Assembler {
   void should_not_reach_here(const char* msg = nullptr) { stop(stop_shouldnotreachhere, msg); }
 
   void zap_from_to(Register low, int before, Register high, int after, Register val, Register addr) PRODUCT_RETURN;
+
+  // Inline type specific methods
+  #include "asm/macroAssembler_common.hpp"
 };
 
 #endif // CPU_PPC_MACROASSEMBLER_PPC_HPP

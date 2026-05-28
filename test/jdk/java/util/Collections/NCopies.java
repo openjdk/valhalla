@@ -27,10 +27,9 @@
  * @summary Test Collections.nCopies
  * @author  Martin Buchholz
  * @library /test/lib
- * @run main NCopies
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.AbstractList;
@@ -146,11 +145,11 @@ public class NCopies {
     }
 
     private static void checkValueCopies() {
-        List<Tuple> copies = Collections.nCopies(10, new Tuple(7, 7));
-        check(copies.indexOf(new Tuple(7, 7)) == 0);
-        check(copies.lastIndexOf(new Tuple(7, 7)) == 9);
-        check(copies.equals(referenceNCopies(10, new Tuple(7, 7))));
-        check(copies.hashCode() == referenceNCopies(10, new Tuple(7, 7)).hashCode());
+        List<VClass> copies = Collections.nCopies(10, new VClass(7, new int[] { 7 }));
+        check(copies.indexOf(new VClass(7, new int[] { 7 })) == 0);
+        check(copies.lastIndexOf(new VClass(7, new int[] { 7 })) == 9);
+        check(copies.equals(referenceNCopies(10, new VClass(7, new int[] { 7 }))));
+        check(copies.hashCode() == referenceNCopies(10, new VClass(7, new int[] { 7 })).hashCode());
         check(copies.equals(copies.reversed()));
     }
 

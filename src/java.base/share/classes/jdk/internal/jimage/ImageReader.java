@@ -89,6 +89,10 @@ import static jdk.internal.jimage.ImageLocation.PREVIEW_INFIX;
  * to the jimage file provided by the shipped JDK by tools running on JDK 8.
  */
 public final class ImageReader implements AutoCloseable {
+
+    // For resource paths, there's no leading '/'.
+    private static final String PREVIEW_RESOURCE_PREFIX = PREVIEW_INFIX.substring(1);
+
     private final SharedImageReader reader;
 
     private volatile boolean closed;
@@ -230,11 +234,11 @@ public final class ImageReader implements AutoCloseable {
 
         static final class ReaderKey {
             private final Path imagePath;
-            private final boolean previewMode;
+            private final boolean isPreviewEnabled;
 
-            public ReaderKey(Path imagePath, boolean previewMode) {
+            public ReaderKey(Path imagePath, boolean isPreviewEnabled) {
                 this.imagePath = imagePath;
-                this.previewMode = previewMode;
+                this.isPreviewEnabled = isPreviewEnabled;
             }
 
             @Override
@@ -242,14 +246,15 @@ public final class ImageReader implements AutoCloseable {
                 // No pattern variables here (Java 8 compatible source).
                 if (obj instanceof ReaderKey) {
                     ReaderKey other = (ReaderKey) obj;
-                    return this.imagePath.equals(other.imagePath) && this.previewMode == other.previewMode;
+                    return this.imagePath.equals(other.imagePath)
+                            && this.isPreviewEnabled == other.isPreviewEnabled;
                 }
                 return false;
             }
 
             @Override
             public int hashCode() {
-                return imagePath.hashCode() ^ Boolean.hashCode(previewMode);
+                return imagePath.hashCode() ^ Boolean.hashCode(isPreviewEnabled);
             }
         }
 
@@ -267,17 +272,18 @@ public final class ImageReader implements AutoCloseable {
         private final Map<String, Node> nodes;
 
         // Preview mode support.
-        private final boolean previewMode;
+        private final boolean isPreviewEnabled;
         // A relativized mapping from non-preview name to directories containing
-        // preview-only nodes. This is used to add preview-only content to
+        // preview-only nodes. This is used to merge preview-only content into
         // directories as they are completed.
-        private final HashMap<String, Directory> previewDirectoriesToMerge;
+        // E.g. "/modules/xxx/foo/bar" -> Directory("/modules/xxx/META-INF/preview/foo/bar")
+        private final Map<String, Directory> previewDirectoriesToMerge;
 
-        private SharedImageReader(Path imagePath, ByteOrder byteOrder, boolean previewMode) throws IOException {
+        private SharedImageReader(Path imagePath, ByteOrder byteOrder, boolean isPreviewEnabled) throws IOException {
             super(imagePath, byteOrder);
             this.imageFileAttributes = Files.readAttributes(imagePath, BasicFileAttributes.class);
             this.nodes = new HashMap<>(INITIAL_NODE_CACHE_CAPACITY);
-            this.previewMode = previewMode;
+            this.isPreviewEnabled = isPreviewEnabled;
 
             // Node creation is very lazy, so we can just make the top-level directories
             // now without the risk of triggering the building of lots of other nodes.
@@ -292,8 +298,8 @@ public final class ImageReader implements AutoCloseable {
             // which module/package pairs have preview resources, and build the (small)
             // set of preview nodes early. This also ensures that preview-only entries
             // in the /packages directory are not present in non-preview mode.
-            this.previewDirectoriesToMerge = previewMode ? new HashMap<>() : null;
-            packages.setChildren(processPackagesDirectory(previewMode));
+            this.previewDirectoriesToMerge = isPreviewEnabled ? new HashMap<>() : null;
+            packages.setChildren(processPackagesDirectory(isPreviewEnabled));
         }
 
         /**
@@ -328,7 +334,7 @@ public final class ImageReader implements AutoCloseable {
                     // Only do this in preview mode for the small set of packages with
                     // preview versions (the number of preview entries should be small).
                     List<String> moduleNames = new ArrayList<>();
-                    ModuleReference.readNameOffsets(getOffsetBuffer(pkgDir), /*normal*/ false, /*preview*/ true)
+                    ModuleLink.readNameOffsets(getOffsetBuffer(pkgDir), /*normal*/ false, /*preview*/ true)
                             .forEachRemaining(n -> moduleNames.add(getString(n)));
                     previewPackagesToModules.put(pkgDir.getBase().replace('.', '/'), moduleNames);
                 }
@@ -421,7 +427,7 @@ public final class ImageReader implements AutoCloseable {
                     close();
                     nodes.clear();
 
-                    if (!OPEN_FILES.remove(new ReaderKey(getImagePath(), previewMode), this)) {
+                    if (!OPEN_FILES.remove(new ReaderKey(getImagePath(), isPreviewEnabled), this)) {
                         throw new IOException("image file not found in open list");
                     }
                 }
@@ -465,17 +471,26 @@ public final class ImageReader implements AutoCloseable {
          * the node handling code.
          */
         Node findResourceNode(String moduleName, String resourcePath) {
-            // Unlike findNode(), this method makes only one lookup in the
-            // underlying jimage, but can only reliably return resource nodes.
+            // Unlike findNode(), this method can only reliably return resource nodes.
             if (moduleName.indexOf('/') >= 0) {
                 throw new IllegalArgumentException("invalid module name: " + moduleName);
+            }
+            if (resourcePath.startsWith(PREVIEW_RESOURCE_PREFIX)) {
+                return null;
             }
             String nodeName = MODULES_PREFIX + "/" + moduleName + "/" + resourcePath;
             // Synchronize as tightly as possible to reduce locking contention.
             synchronized (this) {
                 Node node = nodes.get(nodeName);
                 if (node == null) {
-                    ImageLocation loc = findLocation(moduleName, resourcePath);
+                    ImageLocation loc = null;
+                    if (isPreviewEnabled) {
+                        // We must test preview location first (if in preview mode).
+                        loc = findLocation(moduleName, PREVIEW_RESOURCE_PREFIX + resourcePath);
+                    }
+                    if (loc == null) {
+                        loc = findLocation(moduleName, resourcePath);
+                    }
                     if (loc != null && loc.getType() == RESOURCE) {
                         node = newResource(nodeName, loc);
                         nodes.put(node.getName(), node);
@@ -501,9 +516,13 @@ public final class ImageReader implements AutoCloseable {
             if (moduleName.indexOf('/') >= 0) {
                 throw new IllegalArgumentException("invalid module name: " + moduleName);
             }
+            if (resourcePath.startsWith(PREVIEW_RESOURCE_PREFIX)) {
+                return false;
+            }
             // In preview mode, preview-only resources are eagerly added to the
             // cache, so we must check that first.
-            if (previewMode) {
+            ImageLocation loc = null;
+            if (isPreviewEnabled) {
                 String nodeName = MODULES_PREFIX + "/" + moduleName + "/" + resourcePath;
                 // Synchronize as tightly as possible to reduce locking contention.
                 synchronized (this) {
@@ -512,8 +531,11 @@ public final class ImageReader implements AutoCloseable {
                         return node.isResource();
                     }
                 }
+                loc = findLocation(moduleName, PREVIEW_RESOURCE_PREFIX + resourcePath);
             }
-            ImageLocation loc = findLocation(moduleName, resourcePath);
+            if (loc == null) {
+                loc = findLocation(moduleName, resourcePath);
+            }
             return loc != null && loc.getType() == RESOURCE;
         }
 
@@ -659,7 +681,7 @@ public final class ImageReader implements AutoCloseable {
             // entries, but it's not worth "right-sizing" the array for that.
             IntBuffer offsets = getOffsetBuffer(loc);
             List<Node> children = new ArrayList<>(offsets.capacity() / 2);
-            ModuleReference.readNameOffsets(offsets, /*normal*/ true, previewMode)
+            ModuleLink.readNameOffsets(offsets, /*normal*/ true, isPreviewEnabled)
                     .forEachRemaining(n -> {
                         String modName = getString(n);
                         Node link = newLinkNode(dir.getName() + "/" + modName, MODULES_PREFIX + "/" + modName);

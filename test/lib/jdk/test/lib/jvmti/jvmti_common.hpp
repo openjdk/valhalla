@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -279,6 +279,15 @@ get_frame_count(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread) {
   return frame_count;
 }
 
+static jmethodID
+get_frame_method(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread, jint depth) {
+  jmethodID method;
+  jlocation loc;
+  jvmtiError err = jvmti->GetFrameLocation(thread, depth, &method, &loc);
+  check_jvmti_status(jni, err, "get_frame_method: error in JVMTI GetFrameLocation");
+  return method;
+}
+
 static jvmtiThreadInfo
 get_thread_info(jvmtiEnv *jvmti, JNIEnv* jni, jthread thread) {
   jvmtiThreadInfo thr_info;
@@ -413,6 +422,46 @@ find_method(jvmtiEnv *jvmti, JNIEnv *jni, jclass klass, const char* mname) {
   }
   deallocate(jvmti, jni, (void*)methods);
   return method;
+}
+
+static void
+log_object_class(jvmtiEnv *jvmti, JNIEnv *jni, jobject obj) {
+  jclass cls = jni->GetObjectClass(obj);
+  if (cls == nullptr) {
+    fatal(jni, "log_object_class: class is nullptr\n");
+    return;
+  }
+  char* sig = nullptr;
+  check_jvmti_error(jvmti->GetClassSignature(cls, &sig, nullptr), "GetClassSignature");
+
+  LOG(" - got an object of class: %s\n", sig);
+  jvmti->Deallocate((unsigned char *)sig);
+}
+
+static jobject
+get_local_object(jvmtiEnv *jvmti, JNIEnv *jni, jthread thread, jint depth, jint slot) {
+  LOG("GetLocalObject: depth: %d slot %d\n", (int)depth, (int)slot);
+  jobject obj = nullptr;
+  check_jvmti_error(jvmti->GetLocalObject(thread, depth, slot, &obj), "GetLocalObject");
+
+  log_object_class(jvmti, jni, obj);
+  return obj;
+}
+
+static jobject
+get_local_instance(jvmtiEnv *jvmti, JNIEnv *jni, jthread thread, jint depth) {
+  LOG("GetLocalInstance: depth: %d\n", (int)depth);
+  jobject obj = nullptr;
+  check_jvmti_error(jvmti->GetLocalInstance(thread, depth, &obj), "GetLocalInstance");
+
+  log_object_class(jvmti, jni, obj);
+  return obj;
+}
+
+static void
+set_local_object(jvmtiEnv *jvmti, jthread thread, jint depth, jint slot, jobject obj) {
+  LOG("SetLocalObject for slot %d\n", (int)slot);
+  check_jvmti_error(jvmti->SetLocalObject(thread, depth, slot, obj), "SetLocalObject");
 }
 
 // Wait for target thread to reach the required JVMTI thread state.

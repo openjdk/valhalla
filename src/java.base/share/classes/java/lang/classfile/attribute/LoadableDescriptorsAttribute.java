@@ -44,16 +44,16 @@ import jdk.internal.javac.PreviewFeature;
 
 /**
  * Models the {@link Attributes#loadableDescriptors() LoadableDescriptors}
- * attribute (JVMS {@jvms value-objects-4.7.32}), which suggests the JVM may load mentioned
- * types before the {@code class} file carrying this attribute is loaded.
+ * attribute (JVMS {@jvms value-objects-4.7.32}), which permits the JVM to
+ * load mentioned classes and interfaces before the {@code class} file carrying
+ * this attribute is loaded.
  * <p>
  * This attribute only appears on classes, and does not permit {@linkplain
  * AttributeMapper#allowMultiple multiple instances} in a class.  It has a
  * data dependency on the {@linkplain AttributeMapper.AttributeStability#CP_REFS
  * constant pool}.
  * <p>
- * The attribute was introduced in the Java SE Platform version XX, major
- * version {@value ClassFile#JAVA_25_VERSION}. (FIXME)
+ * The attribute is a preview VM feature in the current Java SE release.
  *
  * @see Attributes#loadableDescriptors()
  * @jvms value-objects-4.7.32 The {@code LoadableDescriptors} Attribute

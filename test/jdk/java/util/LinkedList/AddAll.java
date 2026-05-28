@@ -28,7 +28,7 @@
  * @library /test/lib
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,8 +39,8 @@ public class AddAll {
     public static void main(String[] args) throws Exception {
         testAddAll(Collections.nCopies(7, "deadly sin"),
                    Collections.nCopies(4, "basic food group"));
-        testAddAll(Collections.nCopies(7, new Tuple(7, 1)),
-                   Collections.nCopies(4, new Tuple(4, 2)));
+        testAddAll(Collections.nCopies(7, new VClass(7, new int[] { 1 })),
+                   Collections.nCopies(4, new VClass(4, new int[] { 2 })));
     }
 
     private static void testAddAll(List head, List tail) {

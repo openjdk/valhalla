@@ -27,10 +27,9 @@
  * @summary Basic test for newly public swap algorithm
  * @author  Josh Bloch
  * @library /test/lib
- * @run main Swap
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -49,10 +48,10 @@ public class Swap {
         if (!l.equals(l2))
             throw new RuntimeException("Wrong result");
 
-        List<Tuple> vl = new ArrayList<>(Collections.nCopies(SIZE, new Tuple(0, 0)));
-        vl.set(0, new Tuple(1, 1));
+        List<VClass> vl = new ArrayList<>(Collections.nCopies(SIZE, new VClass(0, new int[] { 0 })));
+        vl.set(0, new VClass(1, new int[] { 1 }));
         for (int i = 0; i < SIZE - 1; i++) Collections.swap(vl, i, i + 1);
-        if (!vl.get(SIZE - 1).equals(new Tuple(1, 1)))
+        if (!vl.get(SIZE - 1).equals(new VClass(1, new int[] { 1 })))
             throw new RuntimeException("value swap failed");
     }
 }

@@ -461,7 +461,7 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     int org_length = org->length();
     int copy_len = MIN2(to, org_length) - MIN2(from, org_length);
     FlatArrayKlass* const fak = FlatArrayKlass::cast(org->klass());
-    flatArrayOop dst = oopFactory::new_flatArray(fak, len, CHECK_NULL);
+    flatArrayOop dst = fak->allocate_instance(len, CHECK_NULL);
     assert(!ak->is_null_free_array_klass() || copy_len == len,
            "Failed to throw the IllegalArgumentException");
     if (copy_len != 0) {
@@ -592,7 +592,8 @@ JVM_ENTRY(jboolean, JVM_IsAtomicArray(JNIEnv *env, jarray array))
     if (LayoutKindHelper::is_atomic_flat(fak->layout_kind())) {
       return true;
     }
-    if (fak->element_klass()->is_naturally_atomic()) {
+    bool is_null_free = !LayoutKindHelper::is_nullable_flat(fak->layout_kind());
+    if (fak->element_klass()->is_naturally_atomic(is_null_free)) {
       return true;
     }
 
@@ -830,13 +831,8 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     args.push_oop(ho);
     methodHandle method(THREAD, Universe::value_object_hash_code_method());
     JavaCalls::call(&result, method, &args, THREAD);
-    if (HAS_PENDING_EXCEPTION) {
-      if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
-        Handle e(THREAD, PENDING_EXCEPTION);
-        CLEAR_PENDING_EXCEPTION;
-        THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
-      }
-    }
+    Exceptions::wrap_exception_in_internal_error("Internal error in hashCode", CHECK_0);
+
     const intptr_t identity_hash = result.get_jint();
 
     // We now have to set the hash via CAS. It's possible that this will race
@@ -3441,10 +3437,6 @@ JVM_LEAF(jboolean, JVM_IsPreviewEnabled(void))
   return Arguments::enable_preview() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
-JVM_LEAF(jboolean, JVM_IsValhallaEnabled(void))
-  return Arguments::is_valhalla_enabled() ? JNI_TRUE : JNI_FALSE;
-JVM_END
-
 JVM_LEAF(jboolean, JVM_IsContinuationsSupported(void))
   return VMContinuations ? JNI_TRUE : JNI_FALSE;
 JVM_END
@@ -3525,7 +3517,7 @@ JVM_ENTRY(jobject, JVM_InvokeMethod(JNIEnv *env, jobject method, jobject obj, jo
     method_handle = Handle(THREAD, JNIHandles::resolve(method));
     Handle receiver(THREAD, JNIHandles::resolve(obj));
     objArrayHandle args(THREAD, (objArrayOop)JNIHandles::resolve(args0));
-    assert(args() == nullptr || !args->is_flatArray(), "args are never flat or are they???");
+    assert(args() == nullptr || !args->is_flatArray(), "args are never flat");
 
     oop result = Reflection::invoke_method(method_handle(), receiver, args, CHECK_NULL);
     jobject res = JNIHandles::make_local(THREAD, result);
@@ -3547,7 +3539,7 @@ JVM_END
 
 JVM_ENTRY(jobject, JVM_NewInstanceFromConstructor(JNIEnv *env, jobject c, jobjectArray args0))
   objArrayHandle args(THREAD, (objArrayOop)JNIHandles::resolve(args0));
-  assert(args() == nullptr || !args->is_flatArray(), "args are never flat or are they???");
+  assert(args() == nullptr || !args->is_flatArray(), "args are never flat");
   oop constructor_mirror = JNIHandles::resolve(c);
   oop result = Reflection::invoke_constructor(constructor_mirror, args, CHECK_NULL);
   jobject res = JNIHandles::make_local(THREAD, result);

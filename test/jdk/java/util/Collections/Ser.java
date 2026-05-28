@@ -27,7 +27,6 @@
  * @summary EMPTY_SET, EMPTY_LIST, and the collections returned by
  *          nCopies and singleton were spec'd to be serializable, but weren't.
  * @library /test/lib
- * @run main Ser
  */
 
 import jdk.test.lib.valueclass.AsValueClass;
@@ -43,7 +42,7 @@ import java.util.Set;
 public class Ser {
 
     @AsValueClass
-    static class SerV implements Serializable {
+    static final class SerV implements Serializable {
         int x;
         SerV(int x) { this.x = x; }
         public boolean equals(Object o) { return o instanceof SerV v && x == v.x; }

@@ -26,10 +26,9 @@
  * @bug 4323074
  * @summary Basic test for new Enumeration -> List converter
  * @library /test/lib
- * @run main Enum
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.util.Collections;
 import java.util.List;
 import java.util.Vector;
@@ -50,9 +49,9 @@ public class Enum {
                 throw new Exception("Copy failed: "+size);
         }
 
-        Vector<Tuple> vv = new Vector<>();
-        for (int j = 0; j < SIZE; j++) vv.add(new Tuple(j, j));
-        List<Tuple> vl = Collections.list(vv.elements());
+        Vector<VClass> vv = new Vector<>();
+        for (int j = 0; j < SIZE; j++) vv.add(new VClass(j, new int[] { j }));
+        List<VClass> vl = Collections.list(vv.elements());
         if (!vl.equals(vv))
             throw new RuntimeException("value Enumeration -> List failed");
     }

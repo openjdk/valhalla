@@ -27,10 +27,9 @@
  * @summary Basic test for Collections.reverseOrder
  * @author  Josh Bloch, Martin Buchholz
  * @library /test/lib
- * @run main ReverseOrder2
  */
 
-import jdk.test.lib.valueclass.Tuple;
+import jdk.test.lib.valueclass.VClass;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -71,10 +70,10 @@ public class ReverseOrder2 {
         test2(new ArrayList<Integer>());
         test2(new LinkedList<Integer>());
 
-        List<Tuple> values = new ArrayList<>(Arrays.asList(new Tuple(0, 0), new Tuple(1, 1), new Tuple(2, 2)));
+        List<VClass> values = new ArrayList<>(Arrays.asList(new VClass(0, new int[] { 0 }), new VClass(1, new int[] { 1 }), new VClass(2, new int[] { 2 })));
         Collections.shuffle(values);
         Collections.sort(values, Collections.reverseOrder());
-        if (!values.equals(Arrays.asList(new Tuple(2, 2), new Tuple(1, 1), new Tuple(0, 0))))
+        if (!values.equals(Arrays.asList(new VClass(2, new int[] { 2 }), new VClass(1, new int[] { 1 }), new VClass(0, new int[] { 0 }))))
             throw new RuntimeException("value reverseOrder2 failed");
     }
 

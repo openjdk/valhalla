@@ -1137,7 +1137,7 @@ class JvmtiObjectAllocEventMark : public JvmtiClassEventMark  {
    jlong    _size;
  public:
    JvmtiObjectAllocEventMark(JavaThread *thread, oop obj) : JvmtiClassEventMark(thread, oop_to_klass(obj)) {
-     _jobj = (jobject)to_jobject(obj);
+     _jobj = obj->is_inline() ? nullptr : (jobject)to_jobject(obj); // nullptr for non-identity objects
      _size = obj->size() * wordSize;
    };
    jobject jni_jobject() { return _jobj; }
@@ -1160,7 +1160,7 @@ class JvmtiCompiledMethodLoadEventMark : public JvmtiMethodEventMark {
     JvmtiCodeBlobEvents::build_jvmti_addr_location_map(nm, &_map, &_map_length);
   }
   ~JvmtiCompiledMethodLoadEventMark() {
-     FREE_C_HEAP_ARRAY(jvmtiAddrLocationMap, _map);
+     FREE_C_HEAP_ARRAY(_map);
   }
 
   jint code_size() { return _code_size; }
