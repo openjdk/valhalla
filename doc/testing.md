@@ -406,8 +406,13 @@ new virtual thread for executing each test class.
 #### VALUE_CLASS_PLUGIN
 
 Enables the `ValueClassPlugin` javac plugin when compiling and running JTReg
-tests. This mode is intended for testing Valhalla value classes (JEP 401) with
-test sources that can also compile and run as regular identity classes.
+tests. This is a **temporary mode** intended for use while value classes
+(JEP 401) are a preview feature. The long-term plan is to replace classes
+annotated with `@jdk.test.lib.valueclass.AsValueClass` with plain
+`value class` declarations once value classes are finalized.
+
+In the meantime, this mode allows test sources to compile and run as either
+value classes or regular identity classes without source-level changes.
 
 When set to any non-empty value, the following options are appended to every
 JTReg invocation:
