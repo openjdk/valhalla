@@ -1067,7 +1067,6 @@ public:
   inline intptr_t* start_of_itable() const;
   inline intptr_t* end_of_itable() const;
   inline oop static_field_base_raw();
-  void assert_bounds_check(address addr, bool edge_ok = false, intptr_t size_in_bytes = -1) const;
 
   inline OopMapBlock* start_of_nonstatic_oop_maps() const;
   inline Klass** end_of_nonstatic_oop_maps() const;

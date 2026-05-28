@@ -562,37 +562,8 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
     return nullptr;
   }
 
-#ifdef ASSERT
-  ik->assert_bounds_check((address) ik->start_of_vtable(), false, size);
-  ik->assert_bounds_check((address) ik->start_of_itable(), false, size);
-  ik->assert_bounds_check((address) ik->end_of_itable(), true, size);
-  ik->assert_bounds_check((address) ik->end_of_nonstatic_oop_maps(), true, size);
-#endif //ASSERT
   return ik;
 }
-
-#ifdef ASSERT
-void InstanceKlass::assert_bounds_check(address addr, bool edge_ok, intptr_t size_in_bytes) const {
-  const char* bad = nullptr;
-  address end = nullptr;
-  if (addr < (address)this) {
-    bad = "before";
-  } else if (addr == (address)this) {
-    if (edge_ok) return;
-    bad = "just before";
-  } else if (addr == (end = (address)this + sizeof(intptr_t) * (size_in_bytes < 0 ? size() : size_in_bytes))) {
-    if (edge_ok) return;
-    bad = "just after";
-  } else if (addr > end) {
-    bad = "after";
-  } else {
-    return;
-  }
-  this->print_on(tty);
-  fatal("%s object bounds: " INTPTR_FORMAT " [" INTPTR_FORMAT ".." INTPTR_FORMAT "]",
-        bad, (intptr_t)addr, (intptr_t)this, (intptr_t)end);
-}
-#endif // ASSERT
 
 // copy method ordering from resource area to Metaspace
 void InstanceKlass::copy_method_ordering(const intArray* m, TRAPS) {
