@@ -177,8 +177,9 @@ valhalla_adopted = \
     java/util/Collections \
     java/util/HashMap \
     java/util/HashSet \
-    java/util/HashTable \
+    java/util/Hashtable \
     java/util/LinkedHashMap \
+    java/util/LinkedHashSet \
     java/util/LinkedList
 
 # All util components not part of some other util category
