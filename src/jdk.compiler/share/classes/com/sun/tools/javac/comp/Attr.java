@@ -2590,7 +2590,7 @@ public class Attr extends JCTree.Visitor {
 
             // Done with this()/super() parameters.
             if (!env.info.earlyContext.onlyWarnings()) {
-                // End of constructor prologue (but only if no init warnings is needed)
+                // End of constructor prologue (but only if no initialization warnings are needed)
                 env.info.earlyContext = EarlyConstructionContext.NONE;
             }
 
