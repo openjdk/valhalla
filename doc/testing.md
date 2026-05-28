@@ -403,6 +403,37 @@ the `test/jtreg_test_thread_factory/` directory. This class gets compiled
 during the test image build. The implementation of the Virtual class creates a
 new virtual thread for executing each test class.
 
+#### VALUE_CLASS_PLUGIN
+
+Enables the `ValueClassPlugin` javac plugin when compiling and running JTReg
+tests. This mode is intended for testing Valhalla value classes (JEP 401) with
+test sources that can also compile and run as regular identity classes.
+
+When set to any non-empty value, the following options are appended to every
+JTReg invocation:
+
+* `-cpa:<valueClassPlugin.jar>` — appends the plugin JAR to the compile-time
+  classpath (only when the JAR is present in the test image under
+  `jtreg_value_class_plugin/valueClassPlugin.jar`).
+* `-vmoption:--enable-preview` — enables JVM preview features at runtime.
+* `-javacoption:-XDaccessInternalAPI` — grants the compiler access to internal
+  APIs required by the plugin.
+* `-javacoption:--source <version> --enable-preview` — enables preview language
+  features at compile time.
+* `-javacoption:-Xplugin:ValueClassPlugin` — activates the plugin.
+
+The plugin scans each compilation unit after parsing and converts any class
+annotated with `@jdk.test.lib.valueclass.AsValueClass` into a value class by
+setting the internal `VALUE_CLASS` modifier flag and clearing the
+`IDENTITY_TYPE` flag. This transformation only takes effect when
+`--enable-preview` is active; without it the annotation is a no-op and the
+class compiles as an ordinary identity class, so the same test source can
+exercise both code paths.
+
+Example:
+
+    $ make test TEST=jdk_lang JTREG="VALUE_CLASS_PLUGIN=true" 
+
 #### JVMTI_STRESS_AGENT
 
 Executes JTReg tests with JVM TI stress agent. The stress agent is the part of
