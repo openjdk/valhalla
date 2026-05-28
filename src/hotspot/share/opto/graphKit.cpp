@@ -1577,26 +1577,15 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
     return obj;
   }
 
-  if (obj->is_InlineType()) {
-    InlineTypeNode* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->set_null_marker(_gvn);
-    vt->set_type(t_not_null);
-    vt = _gvn.transform(vt)->as_InlineType();
-    if (do_replace_in_map) {
-      replace_in_map(obj, vt);
-    }
-    return vt;
-  }
-
-  Node* cast = new CastPPNode(control(), obj,t_not_null);
-  cast = _gvn.transform( cast );
+  Node* cast = new CastPPNode(control(), obj, t_not_null);
+  cast = _gvn.transform(cast);
 
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
-  if (do_replace_in_map)
+  if (do_replace_in_map) {
     replace_in_map(obj, cast);
-
-  return cast;                  // Return casted value
+  }
+  return cast;
 }
 
 // Sometimes in intrinsics, we implicitly know an object is not null
@@ -3733,7 +3722,6 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node** failure_contro
           assert(safe_for_replace, "must be");
           obj = null_check(obj);
         }
-        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineType(), "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
         if (null_free) {
