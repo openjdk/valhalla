@@ -34,7 +34,7 @@ package compiler.valhalla.inlinetypes;
 
 public class TestEAPhisWithFlatArrayAccesses {
     static int field;
-    
+
     static value class MyValue {
         byte b1 = 42;
         byte b2 = 43;
@@ -68,7 +68,7 @@ public class TestEAPhisWithFlatArrayAccesses {
     }
 
     static MyValue[] flatArray3 = new MyValue[2];
-    
+
     public static int test1(MyValue v, boolean flag, boolean flag2, boolean flag3, boolean flag5) {
         Object obj = new Object();
         A a = new A(42);
