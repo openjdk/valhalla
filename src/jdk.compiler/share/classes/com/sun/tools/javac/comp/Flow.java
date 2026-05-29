@@ -337,6 +337,8 @@ public class Flow {
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         unsetFieldsInfo = UnsetFieldsInfo.instance(context);
+        Preview preview = Preview.instance(context);
+        Source source = Source.instance(context);
         exhaustiveness = ExhaustivenessComputer.instance(context);
     }
 

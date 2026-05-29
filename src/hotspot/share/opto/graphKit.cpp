@@ -384,8 +384,7 @@ void GraphKit::combine_exception_states(SafePointNode* ex_map, SafePointNode* ph
   JVMState* ex_jvms = ex_map->_jvms;
   assert(ex_jvms->same_calls_as(phi_map->_jvms), "consistent call chains");
   assert(ex_jvms->stkoff() == phi_map->_jvms->stkoff(), "matching locals");
-  // TODO 8325632 Re-enable
-  // assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
+  assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
   assert(ex_jvms->monoff() == phi_map->_jvms->monoff(), "matching JVMS");
   assert(ex_jvms->scloff() == phi_map->_jvms->scloff(), "matching scalar replaced objects");
   assert(ex_map->req() == phi_map->req(), "matching maps");
@@ -1371,11 +1370,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (value->is_InlineType()) {
     // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
-    InlineTypeNode* vtptr = value->as_InlineType();
-    while (vtptr->get_oop()->is_InlineType()) {
-      vtptr = vtptr->get_oop()->as_InlineType();
-    }
-    null_check_common(vtptr->get_null_marker(), T_INT, assert_null, null_control, speculative, true);
+    null_check_common(value->as_InlineType()->get_null_marker(), T_INT, assert_null, null_control, speculative, true);
     if (stopped()) {
       return top();
     }
@@ -1577,26 +1572,15 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
     return obj;
   }
 
-  if (obj->is_InlineType()) {
-    InlineTypeNode* vt = obj->isa_InlineType()->clone_if_required(&gvn(), map(), do_replace_in_map);
-    vt->set_null_marker(_gvn);
-    vt->set_type(t_not_null);
-    vt = _gvn.transform(vt)->as_InlineType();
-    if (do_replace_in_map) {
-      replace_in_map(obj, vt);
-    }
-    return vt;
-  }
-
-  Node* cast = new CastPPNode(control(), obj,t_not_null);
-  cast = _gvn.transform( cast );
+  Node* cast = new CastPPNode(control(), obj, t_not_null);
+  cast = _gvn.transform(cast);
 
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
-  if (do_replace_in_map)
+  if (do_replace_in_map) {
     replace_in_map(obj, cast);
-
-  return cast;                  // Return casted value
+  }
+  return cast;
 }
 
 // Sometimes in intrinsics, we implicitly know an object is not null
@@ -3733,7 +3717,6 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node** failure_contro
           assert(safe_for_replace, "must be");
           obj = null_check(obj);
         }
-        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineType(), "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
         if (null_free) {
