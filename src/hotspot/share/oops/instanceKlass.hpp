@@ -176,7 +176,6 @@ class InlineLayoutInfo : public MetaspaceObj {
 
 class InstanceKlass: public Klass {
   friend class VMStructs;
-  friend class JVMCIVMStructs;
   friend class ClassFileParser;
   friend class CompileReplay;
   friend class TemplateTable;
