@@ -3735,8 +3735,6 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
   if (Compile::current()->eliminate_boxing() && (t == InstPtr) &&
       (offset.get() > 0) && xk && (k != nullptr) && k->is_instance_klass()) {
     _is_ptr_to_boxed_value = k->as_instance_klass()->is_boxed_value_offset(offset.get());
-    // TODO check all users of this
-    // Urgh, with scalarized return we actually have to detect this based on the projection of the field in the scalarized return
     _is_ptr_to_strict_final_field = _is_ptr_to_boxed_value;
   }
 

@@ -1503,7 +1503,6 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
     }
 
     // Load boxed value from result of valueOf() call is input parameter.
-    // TODO this does not trigger anymore, probably because InlineTypeNode is in-between, right?
     if (this->is_Load() && ld_adr->is_AddP() &&
         (tp != nullptr) && tp->is_ptr_to_boxed_value()) {
       intptr_t ignore = 0;
@@ -1725,7 +1724,6 @@ Node* StoreNode::convert_to_reinterpret_store(PhaseGVN& gvn, Node* val, const Ty
 // merging a newly allocated object and a load from the cache.
 // We want to replace this load with the original incoming
 // argument to the valueOf call.
-// TODO this does not trigger anymore, right? But we need this if the autobox cache is re-enabled
 Node* LoadNode::eliminate_autobox(PhaseIterGVN* igvn) {
   assert(igvn->C->eliminate_boxing(), "sanity");
   intptr_t ignore = 0;

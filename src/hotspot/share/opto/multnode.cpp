@@ -134,11 +134,12 @@ const Type* ProjNode::proj_type(const Type* t) const {
   CallStaticJavaNode* call = in(0)->isa_CallStaticJava();
   if (call != nullptr && call->is_boxing_method()) {
     // The result of autoboxing is always non-null on normal path.
-    if (call->tf()->returns_inline_type_as_fields() && (_con == TypeFunc::Parms + 2)) {
-      // Null marker
-      return TypeInt::ONE;
-    } else if (!call->tf()->returns_inline_type_as_fields() && _con == TypeFunc::Parms) {
-      // Oop return
+    if (call->tf()->returns_inline_type_as_fields()) {
+      // Last returned value is the null marker
+      if (_con == call->tf()->range_cc()->cnt() - 1) {
+        t = TypeInt::ONE;
+      }
+    } else if (_con == TypeFunc::Parms) {
       t = t->join_speculative(TypePtr::NOTNULL);
     }
   }
@@ -213,29 +214,42 @@ Node* ProjNode::Identity(PhaseGVN* phase) {
 
   CallStaticJavaNode* call = in(0)->isa_CallStaticJava();
   if (call != nullptr) {
-    // Integer.valueOf(int)
     if (call->is_boxing_method() && call->method()->return_type()->is_inlinetype()) {
+      // Boxing, for example, via Integer.valueOf(int)
       if (call->tf()->returns_inline_type_as_fields()) {
+        // Null marker is handled by ProjNode::proj_type
         if (_con == TypeFunc::Parms) {
-          // TODO we loose the oop here ... Can we keep it connected? It would be removed if not used, for example in the testBoxUnboxExplicit case
+          // Oop return
+          // TODO we loose the oop here. Can we add a load from the cache instead? (This is only relevant for integer types), see java_lang_Integer_IntegerCache::cache
+          // But we need to make sure that this is folded if not needed
+          /*
+            if (i >= IntegerCache.low && i <= IntegerCache.high)
+              return IntegerCache.cache[i + (-IntegerCache.low)];
+           */
           return phase->makecon(TypeOopPtr::NULL_PTR);
         } else if (_con == TypeFunc::Parms + 1) {
+          // Field value
           return call->in(TypeFunc::Parms);
         }
       } else {
-        if (_con == TypeFunc::Parms) {
-          // TODO Implement?
+        // TODO also handle non-scalarized return
+        if (false && _con == TypeFunc::Parms) {
+          ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
+          InlineTypeNode* vt = InlineTypeNode::make_uninitialized(*phase, vk);
+          vt->set_null_marker(*phase);
+          vt->set_field_value(0, call->in(TypeFunc::Parms));
+          return phase->transform(vt);
         }
       }
-    // Integer.intValue()
-    } else if (call->is_unboxing_method() && (_con == TypeFunc::Parms)) {
+    } else if (call->is_unboxing_method() && _con == TypeFunc::Parms) {
+      // Unboxing, for example, via Integer.intValue()
       if (call->method()->has_scalarized_args()) {
         return call->in(TypeFunc::Parms + 1);
-      } else {
-        Node* arg = call->in(TypeFunc::Parms);
-        if (arg->is_InlineType()) {
-          return arg->as_InlineType()->field_value(0);
-        }
+      }
+      Node* arg = call->in(TypeFunc::Parms);
+      if (arg->is_InlineType() &&
+          phase->type(arg->as_InlineType()->get_null_marker()) == TypeInt::ONE) {
+        return arg->as_InlineType()->field_value(0);
       }
     }
   }

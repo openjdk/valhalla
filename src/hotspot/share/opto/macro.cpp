@@ -704,6 +704,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr
   };
 
   // Create a new InlineTypeNode and retrieve the field values from memory
+  // TODO pass null_free here?
   InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, false);
   transform_later(vt);
   if (null_free) {
@@ -1557,8 +1558,10 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
   return true;
 }
 
-bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode *boxing) {
+bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode* boxing) {
   // EA should remove all uses of non-escaping boxing node.
+  // TODO
+  // The result projection should have been replaced by ProjNode::Identity.
   if (!C->eliminate_boxing() || boxing->proj_out_or_null(TypeFunc::Parms) != nullptr) {
     return false;
   }
@@ -1578,14 +1581,23 @@ bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode *boxing) {
 
   const TypeTuple* r = boxing->tf()->range_sig();
   assert(r->cnt() > TypeFunc::Parms, "sanity");
-  const TypeInstPtr* t = r->field_at(TypeFunc::Parms)->isa_instptr();
-  // TODO fix
-  //assert(t != nullptr, "sanity");
+  ciInstanceKlass* boxing_klass = nullptr;
+  ciInlineKlass* scalarized_inline_klass = nullptr;
+  if (boxing->tf()->returns_inline_type_as_fields()) {
+    ciType* return_type = boxing->method()->return_type();
+    assert(return_type->is_inlinetype(), "unexpected scalarized boxing return");
+    scalarized_inline_klass = return_type->as_inline_klass();
+    boxing_klass = scalarized_inline_klass;
+  } else {
+    const TypeInstPtr* t = r->field_at(TypeFunc::Parms)->isa_instptr();
+    assert(t != nullptr, "sanity");
+    boxing_klass = t->instance_klass();
+  }
 
   CompileLog* log = C->log();
   if (log != nullptr) {
     log->head("eliminate_boxing type='%d'",
-              log->identify(t->instance_klass()));
+              log->identify(boxing_klass));
     JVMState* p = boxing->jvms();
     while (p != nullptr) {
       log->elem("jvms bci='%d' method='%d'", p->bci(), log->identify(p->method()));
@@ -1600,6 +1612,39 @@ bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode *boxing) {
   if (PrintEliminateAllocations) {
     tty->print("++++ Eliminated: %d ", boxing->_idx);
     boxing->method()->print_short_name(tty);
+    tty->cr();
+  }
+#endif
+
+  return true;
+}
+
+bool PhaseMacroExpand::eliminate_unboxing_node(CallStaticJavaNode* unboxing) {
+  // The result projection should have been replaced by ProjNode::Identity.
+  if (!C->eliminate_boxing() || unboxing->proj_out_or_null(TypeFunc::Parms) != nullptr) {
+    return false;
+  }
+  // TODO why is this needed? Add tests with null
+  if (!unboxing->method()->has_scalarized_args()) {
+    Node* arg = unboxing->in(TypeFunc::Parms);
+    if (!arg->is_InlineType()) {
+      return false;
+    }
+    const TypeInt* null_marker_type = _igvn.type(arg->as_InlineType()->get_null_marker())->isa_int();
+    if (null_marker_type == nullptr || !null_marker_type->is_con(1)) {
+      return false;
+    }
+  }
+
+  _callprojs = unboxing->extract_projections(false /*separate_io_proj*/, false /*do_asserts*/);
+  process_users_of_allocation(unboxing);
+
+  // TODO the log is missing, merge this with above method?
+
+#ifndef PRODUCT
+  if (PrintEliminateAllocations) {
+    tty->print("++++ Eliminated: %d ", unboxing->_idx);
+    unboxing->method()->print_short_name(tty);
     tty->cr();
   }
 #endif
@@ -3231,8 +3276,10 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
         break;
       case Node::Class_CallStaticJava: {
         CallStaticJavaNode* call = n->as_CallStaticJava();
-        if (!call->method()->is_method_handle_intrinsic()) {
+        if (call->is_boxing_method()) {
           success = eliminate_boxing_node(n->as_CallStaticJava());
+        } else if (call->is_unboxing_method()) {
+          success = eliminate_unboxing_node(n->as_CallStaticJava());
         }
         break;
       }

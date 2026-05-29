@@ -1662,7 +1662,6 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
            n->as_Call()->proj_out_or_null(TypeFunc::Parms) != nullptr) ||
           (n->is_CallStaticJava() &&
            n->as_CallStaticJava()->is_boxing_method())) {
-        // TODO?
         add_call_node(n->as_Call());
       } else if (n->as_Call()->tf()->returns_inline_type_as_fields()) {
         bool returns_oop = false;

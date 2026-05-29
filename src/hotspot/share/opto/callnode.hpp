@@ -950,7 +950,7 @@ public:
   // Late inlining modifies the JVMState, so we need to deep clone it
   // when the call node is cloned (because it is macro node).
   virtual bool needs_deep_clone_jvms(Compile* C) {
-    return is_boxing_method() || CallNode::needs_deep_clone_jvms(C);
+    return is_boxing_method() || is_unboxing_method() || CallNode::needs_deep_clone_jvms(C);
   }
 
   virtual int         Opcode() const;
