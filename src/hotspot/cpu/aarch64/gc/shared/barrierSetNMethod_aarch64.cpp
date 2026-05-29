@@ -108,40 +108,39 @@ class NativeNMethodBarrier {
     _verified_alt2_instruction(nullptr),
     _default_entry_guard(nullptr),
     _verified_alt1_guard(nullptr),
-    _verified_alt2_guard(nullptr) {
-    {
-      // The default entry point has a known address. The guard address can be
-      // decoded from the literal in the instruction. Verification will confirm
-      // that this instruction corresponds to a load.
-      _default_entry_instruction = nm->code_begin() + nm->frame_complete_offset() + entry_barrier_offset(nm);
-      _default_entry_guard = decode_guard_from_instruction(nm, _default_entry_instruction);
+    _verified_alt2_guard(nullptr)
+  {
+    // The default entry point has a known address. The guard address can be
+    // decoded from the literal in the instruction. Verification will confirm
+    // that this instruction corresponds to a load.
+    _default_entry_instruction = nm->code_begin() + nm->frame_complete_offset() + entry_barrier_offset(nm);
+    _default_entry_guard = decode_guard_from_instruction(nm, _default_entry_instruction);
 
-      // If the nmethod has scalarized arguments, then there are more entry
-      // points, each with their own nmethod entry barrier.
-      if (!nm->is_osr_method() && nm->method()->has_scalarized_args()) {
-        assert(nm->verified_entry_point() != nm->verified_inline_entry_point(), "scalarized entry point not found");
-        address method_body = nm->is_compiled_by_c1() ? nm->verified_inline_entry_point() : nm->verified_entry_point();
-        int barrier_offset = _default_entry_instruction - method_body;
+    // If the nmethod has scalarized arguments, then there are more entry
+    // points, each with their own nmethod entry barrier.
+    if (!nm->is_osr_method() && nm->method()->has_scalarized_args()) {
+      assert(nm->verified_entry_point() != nm->verified_inline_entry_point(), "scalarized entry point not found");
+      address method_body = nm->is_compiled_by_c1() ? nm->verified_inline_entry_point() : nm->verified_entry_point();
+      int barrier_offset = _default_entry_instruction - method_body;
 
-        // Set the first alternative entry point.
-        address entry_point2 = nm->is_compiled_by_c1() ? nm->verified_entry_point() : nm->verified_inline_entry_point();
-        _verified_alt1_instruction = entry_point2 + barrier_offset;
-        assert(_default_entry_instruction != _verified_alt1_instruction, "sanity");
-        _verified_alt1_guard = decode_guard_from_instruction(nm, _verified_alt1_instruction);
+      // Set the first alternative entry point.
+      address entry_point2 = nm->is_compiled_by_c1() ? nm->verified_entry_point() : nm->verified_inline_entry_point();
+      _verified_alt1_instruction = entry_point2 + barrier_offset;
+      assert(_default_entry_instruction != _verified_alt1_instruction, "sanity");
+      _verified_alt1_guard = decode_guard_from_instruction(nm, _verified_alt1_instruction);
 
-        // If there is a second alternative entry point, set it too.
-        if (method_body != nm->verified_inline_ro_entry_point() && entry_point2 != nm->verified_inline_ro_entry_point()) {
-          _verified_alt2_instruction = nm->verified_inline_ro_entry_point() + barrier_offset;
-          _verified_alt2_guard = decode_guard_from_instruction(nm, _verified_alt2_instruction);
-          assert(_default_entry_instruction != _verified_alt2_instruction &&
-                 _verified_alt1_instruction != _verified_alt2_instruction,
-                 "sanity");
-        }
+      // If there is a second alternative entry point, set it too.
+      if (method_body != nm->verified_inline_ro_entry_point() && entry_point2 != nm->verified_inline_ro_entry_point()) {
+        _verified_alt2_instruction = nm->verified_inline_ro_entry_point() + barrier_offset;
+        _verified_alt2_guard = decode_guard_from_instruction(nm, _verified_alt2_instruction);
+        assert(_default_entry_instruction != _verified_alt2_instruction &&
+               _verified_alt1_instruction != _verified_alt2_instruction,
+               "sanity");
       }
-      // Perform the checking as verification.
-      err_msg msg("%s", "");
-      assert(check_barriers(msg), "%s", msg.buffer());
     }
+    // Perform the checking as verification.
+    err_msg msg("%s", "");
+    assert(check_barriers(msg), "%s", msg.buffer());
   }
 
   // Gets the value of the default entry guard.
