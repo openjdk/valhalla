@@ -152,7 +152,6 @@ class JavaThread: public Thread {
   // Used to pass back results to the interpreter or generated code running Java code.
   oop           _vm_result_oop;       // oop result is GC-preserved
   Metadata*     _vm_result_metadata;  // non-oop result
-  oop           _return_buffered_value; // buffered value being returned
 
   ObjectMonitor* volatile _current_pending_monitor;     // ObjectMonitor this thread is waiting to lock
   bool           _current_pending_monitor_is_from_java; // locking is from Java code
@@ -459,8 +458,11 @@ class JavaThread: public Thread {
   volatile address _exception_handler_pc;        // PC for handler of exception
 
  private:
-  // support for JNI critical regions
+  // support for JNI critical regions interaction with GC
   jint    _jni_active_critical;                  // count of entries into JNI critical region
+
+  // support for JNI critical regions deferral of JVM TI suspension
+  jint    _jni_deferred_suspension_count;
 
   // Checked JNI: function name requires exception check
   char* _pending_jni_exception_check_fn;
@@ -833,9 +835,6 @@ public:
 
   void set_vm_result_metadata(Metadata* x)       { _vm_result_metadata = x; }
 
-  oop return_buffered_value() const              { return _return_buffered_value; }
-  void set_return_buffered_value(oop val)        { _return_buffered_value = val; }
-
   // Is thread in scope of an InternalOOMEMark?
   bool is_in_internal_oome_mark() const          { return _is_in_internal_oome_mark; }
   void set_is_in_internal_oome_mark(bool b)      { _is_in_internal_oome_mark = b;    }
@@ -898,7 +897,6 @@ public:
   static ByteSize callee_target_offset()         { return byte_offset_of(JavaThread, _callee_target); }
   static ByteSize vm_result_oop_offset()         { return byte_offset_of(JavaThread, _vm_result_oop); }
   static ByteSize vm_result_metadata_offset()    { return byte_offset_of(JavaThread, _vm_result_metadata); }
-  static ByteSize return_buffered_value_offset() { return byte_offset_of(JavaThread, _return_buffered_value); }
   static ByteSize thread_state_offset()          { return byte_offset_of(JavaThread, _thread_state); }
   static ByteSize saved_exception_pc_offset()    { return byte_offset_of(JavaThread, _saved_exception_pc); }
   static ByteSize osthread_offset()              { return byte_offset_of(JavaThread, _osthread); }
@@ -985,9 +983,18 @@ public:
     _jni_active_critical--;
     assert(_jni_active_critical >= 0, "JNI critical nesting problem?");
   }
-
   // Atomic version; invoked by a thread other than the owning thread.
   bool in_critical_atomic() { return AtomicAccess::load(&_jni_active_critical) > 0; }
+
+  bool jni_deferred_suspension() { return AtomicAccess::load(&_jni_deferred_suspension_count); }
+  inline void enter_jni_deferred_suspension();
+  void exit_jni_deferred_suspension() {
+    precond(Thread::current() == this);
+    int sc = AtomicAccess::load(&_jni_deferred_suspension_count);
+    AtomicAccess::store(&_jni_deferred_suspension_count, sc - 1);
+    assert(_jni_deferred_suspension_count >= 0,
+           "JNI deferred suspension nesting problem?");
+  }
 
   // Checked JNI: is the programmer required to check for exceptions, if so specify
   // which function name. Returning to a Java frame should implicitly clear the

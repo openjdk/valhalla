@@ -476,7 +476,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   #ifndef _LP64
      Unimplemented();
   #endif
-    // Check if we are returning an non-null inline type and load its fields into registers
+    // Check if we are returning a non-null inline type and load its fields into registers
     ciType* return_type = compilation()->method()->return_type();
     if (return_type->is_inlinetype()) {
       ciInlineKlass* vk = return_type->as_inline_klass();
@@ -499,7 +499,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
       __ jmp(skip);
       __ bind(not_null);
 
-      // Check if we are returning an non-null inline type and load its fields into registers
+      // Check if we are returning a non-null inline type and load its fields into registers
       __ test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
       // Load fields from a buffered value with an inline class specific handler
@@ -1427,6 +1427,10 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
         if (k->is_loaded() && k->is_obj_array_klass()) {
           // For a direct pointer comparison, we need the refined array klass pointer
           ciKlass* k_refined = ciObjArrayKlass::make(k->as_obj_array_klass()->element_klass());
+          if (!k_refined->is_loaded()) {
+            bailout("encountered unloaded_ciobjarrayklass due to out of memory error");
+            return;
+          }
           __ mov_metadata(tmp_load_klass, k_refined->constant_encoding());
           __ cmpptr(klass_RInfo, tmp_load_klass);
         } else {
@@ -1602,7 +1606,7 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   ciKlass* left_klass = op->left_klass();
   ciKlass* right_klass = op->right_klass();
 
-  // (2) Inline type check -- if either of the operands is not a inline type,
+  // (2) Inline type check -- if either of the operands is not an inline type,
   //     they are not substitutable. We do this only if we are not sure that the
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.

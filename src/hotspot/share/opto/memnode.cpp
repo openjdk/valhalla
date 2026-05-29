@@ -1301,27 +1301,14 @@ static Node* see_through_inline_type(PhaseValues* phase, const LoadNode* load, N
     return nullptr;
   }
 
-  InlineTypeNode* vt = base->uncast()->isa_InlineType();
-  if (vt == nullptr) {
+  InlineTypeNode* vt = base->isa_InlineType();
+  if (vt == nullptr || offset < vt->type()->inline_klass()->payload_offset()) {
     return nullptr;
   }
 
-  const TypeInstPtr* base_type = phase->type(base)->isa_instptr();
-  if (base_type == nullptr) {
-    return nullptr;
-  }
-
-  // There can be cases when an InlineTypeNode is casted to some unrelated type, the graph is dead
-  // but we should not recklessly fold the load
-  ciInstanceKlass* expected_type = base_type->instance_klass();
-  ciInlineKlass* actual_type = vt->type()->inline_klass();
-  if (expected_type == actual_type && actual_type->get_field_by_offset(offset, false) != nullptr) {
-    Node* value = vt->field_value_by_offset(offset, true);
-    assert(value != nullptr, "must see some value");
-    return value;
-  }
-
-  return nullptr;
+  Node* value = vt->field_value_by_offset(offset, true);
+  assert(value != nullptr, "must see some value");
+  return value;
 }
 
 // This routine exists to make sure this set of tests is done the same
@@ -2934,7 +2921,7 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   // introducing a new debug info operator for Klass.java_mirror).
   //
   // This optimization does not apply to arrays because if k is not a
-  // constant, it was obtained via load_klass which returns the VM type
+  // constant, it was obtained via load_klass which returns the refined type
   // and '.java_mirror.as_klass' should return the Java type instead.
 
   if (toop->isa_instptr() && toop->is_instptr()->instance_klass() == phase->C->env()->Class_klass()

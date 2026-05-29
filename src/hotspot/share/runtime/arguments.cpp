@@ -537,6 +537,8 @@ static SpecialFlag const special_jvm_flags[] = {
   { "UseSharedSpaces",              JDK_Version::jdk(18), JDK_Version::jdk(19), JDK_Version::undefined() },
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "CreateMinidumpOnCrash",        JDK_Version::jdk(9),  JDK_Version::undefined(), JDK_Version::undefined() },
+  { "InitiatingHeapOccupancyPercent", JDK_Version::jdk(27),  JDK_Version::jdk(28), JDK_Version::jdk(29) },
+  { "AlwaysCompileLoopMethods",     JDK_Version::jdk(27),  JDK_Version::jdk(28), JDK_Version::jdk(29) },
 
   // -------------- Obsolete Flags - sorted by expired_in --------------
 
@@ -585,6 +587,7 @@ typedef struct {
 
 static AliasedFlag const aliased_jvm_flags[] = {
   { "CreateMinidumpOnCrash",    "CreateCoredumpOnCrash" },
+  G1GC_ONLY({"InitiatingHeapOccupancyPercent" COMMA "G1IHOP" } COMMA)
   { nullptr, nullptr}
 };
 
@@ -2720,6 +2723,7 @@ jint Arguments::finalize_vm_init_args() {
     return JNI_ERR;
   }
 
+  // Called after ClassLoader::lookup_vm_options() but before class loading begins.
   ClassLoader::set_preview_mode(is_valhalla_enabled());
 
   if (!check_vm_args_consistency()) {
@@ -3520,17 +3524,10 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
 void Arguments::set_compact_headers_flags() {
 #ifdef _LP64
   if (UseCompactObjectHeaders && !UseObjectMonitorTable) {
-    // If UseCompactObjectHeaders is on the command line, turn on UseObjectMonitorTable.
-    if (FLAG_IS_CMDLINE(UseCompactObjectHeaders)) {
-      FLAG_SET_DEFAULT(UseObjectMonitorTable, true);
-
-      // If UseObjectMonitorTable is on the command line, turn off UseCompactObjectHeaders.
-    } else if (FLAG_IS_CMDLINE(UseObjectMonitorTable)) {
-      FLAG_SET_DEFAULT(UseCompactObjectHeaders, false);
-      // If neither on the command line, the defaults are incompatible, but turn on UseObjectMonitorTable.
-    } else {
-      FLAG_SET_DEFAULT(UseObjectMonitorTable, true);
+    if (FLAG_IS_CMDLINE(UseObjectMonitorTable)) {
+      warning("-UseObjectMonitorTable is incompatible with +UseCompactObjectHeaders; ignoring -UseObjectMonitorTable");
     }
+    FLAG_SET_DEFAULT(UseObjectMonitorTable, true);
   }
 #endif
 }
@@ -3616,6 +3613,7 @@ jint Arguments::apply_ergo() {
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableAtomicValueFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullFreeAtomicValueFlattening);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseNullableNonAtomicValueFlattening);
+    DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(UseAcmpFastPath);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintInlineLayout);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(PrintFlatArrayLayout);
     DISABLE_FLAG_AND_WARN_IF_NOT_DEFAULT(IgnoreAssertUnsetFields);
@@ -3647,6 +3645,7 @@ jint Arguments::apply_ergo() {
     DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullFreeAtomicValueFlattening, false);
     DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(UseNullableNonAtomicValueFlattening, false);
     DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(FlatArrayElementMaxOops, 0);
+    DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING(FlatteningBudget, 0);
 #undef DISABLE_FLAG_AND_WARN_IF_NO_FLATTENING
     if (is_interpreter_only() && !CDSConfig::is_dumping_archive() && !UseSharedSpaces) {
       // Disable calling convention optimizations if inline types are not supported.
