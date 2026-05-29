@@ -2300,7 +2300,6 @@ public class TestNullableInlineTypes {
         }
     }
 
-
     @ForceInline
     public Object test80_helper(Object obj, int i) {
         if ((i % 2) == 0) {
