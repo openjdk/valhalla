@@ -196,10 +196,6 @@ public class Lower extends TreeTranslator {
      */
     JCTree outermostMemberDef;
 
-    /** A hash table mapping local classes to a set of outer this fields
-     */
-    public Map<ClassSymbol, Set<JCExpression>> initializerOuterThis = new WeakHashMap<>();
-
     /** A navigator class for assembling a mapping from local class symbols
      *  to class definition trees.
      *  There is only one case; all other cases simply traverse down the tree.
@@ -1411,10 +1407,10 @@ public class Lower extends TreeTranslator {
      *  @param pos               The source code position of the definition.
      *  @param freevars          The free variables.
      *  @param owner             The class in which the definitions go.
-     *  @param additionalFlags   Any additional flags
      */
     List<JCVariableDecl> freevarDefs(int pos, List<VarSymbol> freevars, Symbol owner) {
-        return freevarDefs(pos, freevars, owner, LOCAL_CAPTURE_FIELD);
+        long strict = (allowValueClasses && owner.isValueClass()) ? STRICT : 0;
+        return freevarDefs(pos, freevars, owner, LOCAL_CAPTURE_FIELD | strict);
     }
 
     List<JCVariableDecl> freevarDefs(int pos, List<VarSymbol> freevars, Symbol owner,
@@ -1502,7 +1498,8 @@ public class Lower extends TreeTranslator {
      *  @param owner      The class in which the definition goes.
      */
     JCVariableDecl outerThisDef(int pos, ClassSymbol owner) {
-        VarSymbol outerThis = makeOuterThisVarSymbol(owner, FINAL | SYNTHETIC | (allowValueClasses && owner.isValueClass() ? STRICT : 0));
+        long strict = (allowValueClasses && owner.isValueClass()) ? STRICT : 0;
+        VarSymbol outerThis = makeOuterThisVarSymbol(owner, FINAL | SYNTHETIC | strict);
         return makeOuterThisVarDecl(pos, outerThis);
     }
 
@@ -2184,7 +2181,7 @@ public class Lower extends TreeTranslator {
 
         // If this is a local class, define proxies for all its free variables.
         List<JCVariableDecl> fvdefs = freevarDefs(
-            tree.pos, freevars(currentClass), currentClass, allowValueClasses && currentClass.isValueClass() ? STRICT : LOCAL_CAPTURE_FIELD);
+            tree.pos, freevars(currentClass), currentClass);
 
         // Recursively translate superclass, interfaces.
         tree.extending = translate(tree.extending);
@@ -3007,17 +3004,6 @@ public class Lower extends TreeTranslator {
             } else {
                 // nested class
                 thisArg = makeOwnerThis(tree.pos(), c, false);
-                if (currentMethodSym != null &&
-                        ((currentMethodSym.flags_field & (STATIC | BLOCK)) == BLOCK) &&
-                        currentMethodSym.owner.isValueClass()) {
-                    // instance initializer in a value class
-                    Set<JCExpression> outerThisSet = initializerOuterThis.get(currentClass);
-                    if (outerThisSet == null) {
-                        outerThisSet = new HashSet<>();
-                    }
-                    outerThisSet.add(thisArg);
-                    initializerOuterThis.put(currentClass, outerThisSet);
-                }
             }
             tree.args = tree.args.prepend(thisArg);
         }

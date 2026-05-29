@@ -191,23 +191,20 @@ public class LocalProxyVariablesTests {
         }
 
         @Override
-        public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
-            JCClassDecl transformed = (JCClassDecl)super.translateTopLevelClass(cdef, make);
-            analyzeTransformedClass(transformed);
-            return transformed;
+        public void patchConstructor(JCMethodDecl mdef, TreeMaker make) {
+            super.patchConstructor(mdef, make);
+            analyzeTransformedMethod(mdef);
         }
 
-        /* we need to analyze the tree obtained from invoking `translateTopLevelClass` asap, we can't wait
+        /* we need to analyze the tree obtained from patchConstructor asap, we can't wait
          * until the compilation ends as other phases continue transforming the AST
          */
-        void analyzeTransformedClass(JCClassDecl transformed) {
-            for (JCTree def : transformed.defs) {
-                if (def instanceof JCMethodDecl methodDecl && methodDecl.name.toString().equals("<init>")) {
-                    for (JCStatement stat : methodDecl.body.stats) {
-                        if (stat instanceof JCVariableDecl variableDecl && variableDecl.sym.isSynthetic()) {
-                            Assert.check(expectedProxyNames.contains(variableDecl.name.toString()));
-                            expectedProxyNames.remove(variableDecl.name.toString());
-                        }
+        void analyzeTransformedMethod(JCMethodDecl transformed) {
+            if (transformed instanceof JCMethodDecl methodDecl && methodDecl.name.toString().equals("<init>")) {
+                for (JCStatement stat : methodDecl.body.stats) {
+                    if (stat instanceof JCVariableDecl variableDecl && variableDecl.sym.isSynthetic()) {
+                        Assert.check(expectedProxyNames.contains(variableDecl.name.toString()));
+                        expectedProxyNames.remove(variableDecl.name.toString());
                     }
                 }
             }
