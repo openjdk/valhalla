@@ -384,8 +384,7 @@ void GraphKit::combine_exception_states(SafePointNode* ex_map, SafePointNode* ph
   JVMState* ex_jvms = ex_map->_jvms;
   assert(ex_jvms->same_calls_as(phi_map->_jvms), "consistent call chains");
   assert(ex_jvms->stkoff() == phi_map->_jvms->stkoff(), "matching locals");
-  // TODO 8325632 Re-enable
-  // assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
+  assert(ex_jvms->sp() == phi_map->_jvms->sp(), "matching stack sizes");
   assert(ex_jvms->monoff() == phi_map->_jvms->monoff(), "matching JVMS");
   assert(ex_jvms->scloff() == phi_map->_jvms->scloff(), "matching scalar replaced objects");
   assert(ex_map->req() == phi_map->req(), "matching maps");
@@ -1371,11 +1370,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (value->is_InlineType()) {
     // Null checking a scalarized but nullable inline type. Check the null marker
     // input instead of the oop input to avoid keeping buffer allocations alive.
-    InlineTypeNode* vtptr = value->as_InlineType();
-    while (vtptr->get_oop()->is_InlineType()) {
-      vtptr = vtptr->get_oop()->as_InlineType();
-    }
-    null_check_common(vtptr->get_null_marker(), T_INT, assert_null, null_control, speculative, true);
+    null_check_common(value->as_InlineType()->get_null_marker(), T_INT, assert_null, null_control, speculative, true);
     if (stopped()) {
       return top();
     }
