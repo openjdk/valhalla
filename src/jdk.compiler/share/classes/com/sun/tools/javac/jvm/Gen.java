@@ -565,6 +565,7 @@ public class Gen extends JCTree.Visitor {
             if (initCode.nonEmpty() || initBlocks.nonEmpty()) {
                 if (allowValueClasses &&
                         (md.sym.owner.isValueClass() || ((md.sym.owner.flags_field & RECORD) != 0))) {
+                    rewriteEarlyInitializersIfNeeded(md, initCode);
                     md.body.stats = initCode.appendList(md.body.stats);
                     TreeInfo.mapSuperCalls(md.body, supercall -> make.Block(0, initBlocks.prepend(supercall)));
                 } else {
@@ -577,6 +578,32 @@ public class Gen extends JCTree.Visitor {
 
             if (md.body.bracePos == Position.NOPOS)
                 md.body.bracePos = TreeInfo.endPos(md.body.stats.last());
+        }
+    }
+
+    /**
+     * Some early field initializer might contain references to synthetic Lower symbols,
+     * such as 'this$0' or local var proxies. Since these are effectively "early reads",
+     * we need to replace such reference with a reference to the corresponding
+     * (synthetic) constructor parameter.
+     */
+    void rewriteEarlyInitializersIfNeeded(JCMethodDecl md, List<JCStatement> initCode) {
+        class EarlyInitializerVisitor extends TreeScanner {
+            @Override
+            public void visitIdent(JCIdent tree) {
+                for (JCVariableDecl param : md.params) {
+                    if (param.name == tree.name &&
+                            tree.sym.isSynthetic() &&
+                            tree.sym.kind == VAR &&
+                            tree.sym.owner == md.sym.enclClass()) {
+                        tree.sym = param.sym;
+                    }
+                }
+            }
+        }
+        EarlyInitializerVisitor initializerVisitor = new EarlyInitializerVisitor();
+        for (JCStatement init : initCode) {
+            initializerVisitor.scan(init);
         }
     }
 
