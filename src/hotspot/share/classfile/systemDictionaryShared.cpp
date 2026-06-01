@@ -307,10 +307,8 @@ class SystemDictionaryShared::ExclusionCheckCandidates
         if (fs.access_flags().is_static()) continue;
 
         if (fs.is_flat() || fs.is_null_free_inline_type()) {
-          InlineKlass* field_klass = k->get_inline_type_field_klass_or_null(fs.index());
-          if (field_klass != nullptr && field_klass->is_instance_klass()) {
-            add_candidate(InstanceKlass::cast(field_klass));
-          }
+          InlineKlass* field_klass = k->get_inline_type_field_klass(fs.index());
+          add_candidate(InstanceKlass::cast(field_klass));
         }
       }
     }
@@ -542,8 +540,7 @@ bool SystemDictionaryShared::check_dependencies_exclusion(InstanceKlass* k, Dump
   if (k->has_inlined_fields()) {
     for (AllFieldStream fs(k); !fs.done(); fs.next()) {
       if (fs.is_flat() || fs.is_null_free_inline_type()) {
-        InlineKlass* field_klass = k->get_inline_type_field_klass_or_null(fs.index());
-        assert(field_klass != nullptr, "must be loaded");
+        InlineKlass* field_klass = k->get_inline_type_field_klass(fs.index());
         if (is_dependency_excluded(k, InstanceKlass::cast(field_klass), "inline field")) {
           return true;
         }
