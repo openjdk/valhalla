@@ -27,6 +27,7 @@
 
 #include "ci/ciInstanceKlass.hpp"
 #include "oops/inlineKlass.hpp"
+#include "opto/compile.hpp"
 
 // ciInlineKlass
 //
@@ -35,6 +36,13 @@ class ciInlineKlass : public ciInstanceKlass {
   CI_PACKAGE_ACCESS
 
 private:
+  struct ArrayDescriptionThatGoesInAGrowableArray : ArrayDescription {
+    ArrayDescriptionThatGoesInAGrowableArray() : ArrayDescription(Klass::KlassKind::RefArrayKlassKind, ArrayProperties::Default(), LayoutKind::REFERENCE) {}
+    ArrayDescriptionThatGoesInAGrowableArray(const ArrayDescription& ad) : ArrayDescription(ad) {}
+  };
+
+  GrowableArray<ArrayDescriptionThatGoesInAGrowableArray> _array_descriptions =
+    GrowableArray<ArrayDescriptionThatGoesInAGrowableArray>(ciEnv::current()->arena(), 0, 0, ArrayDescriptionThatGoesInAGrowableArray());
 
   InlineKlass* to_InlineKlass() const {
     return InlineKlass::cast(get_Klass());
@@ -83,6 +91,7 @@ public:
   int field_map_offset() const;
   ciConstant get_field_map() const;
   ciConstant get_null_reset_value();
+  ArrayDescription array_description_of_array_properties(const ArrayProperties&);
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

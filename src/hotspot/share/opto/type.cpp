@@ -5723,7 +5723,44 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
 #endif
 
 bool TypeAryPtr::empty(void) const {
-  if (_ary->empty())       return true;
+  if (_ary->empty()) {
+    return true;
+  }
+
+  auto impossible_layout = [this](const ArrayDescription& description) -> bool {
+    LayoutKind layout_kind = description._layout_kind;
+    if (_ary->_flat && !LayoutKindHelper::is_flat(layout_kind)) {
+      return true;
+    }
+    if (_ary->_not_flat && LayoutKindHelper::is_flat(layout_kind)) {
+      return true;
+    }
+    return false;
+  };
+
+  if (const TypeOopPtr* elem_ptr = elem()->make_oopptr(); elem_ptr != nullptr && elem_ptr->is_inlinetypeptr()) {
+    if (_ary->_atomic) {
+      // Surely atomic
+      ArrayDescription description = elem()->inline_klass()->array_description_of_array_properties(ArrayProperties::Default().with_null_restricted(is_null_free()).with_non_atomic(false));
+      if (impossible_layout(description)) {
+        return true;
+      }
+    } else if (klass_is_exact()) {
+      // Surely non-atomic
+      ArrayDescription description = elem()->inline_klass()->array_description_of_array_properties(ArrayProperties::Default().with_null_restricted(is_null_free()).with_non_atomic(true));
+      if (impossible_layout(description)) {
+        return true;
+      }
+    } else {
+      // Maybe?
+      ArrayDescription description_atomic = elem()->inline_klass()->array_description_of_array_properties(ArrayProperties::Default().with_null_restricted(is_null_free()).with_non_atomic(false));
+      ArrayDescription description_non_atomic = elem()->inline_klass()->array_description_of_array_properties(ArrayProperties::Default().with_null_restricted(is_null_free()).with_non_atomic(true));
+      if (impossible_layout(description_atomic) && impossible_layout(description_non_atomic)) {
+        return true;
+      }
+    }
+  }
+
   return TypeOopPtr::empty();
 }
 

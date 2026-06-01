@@ -166,3 +166,15 @@ ciConstant ciInlineKlass::get_null_reset_value() {
   oop null_reset_value = vk->null_reset_value();
   return ciConstant(T_OBJECT, CURRENT_ENV->get_object(null_reset_value));
 }
+
+ArrayDescription ciInlineKlass::array_description_of_array_properties(const ArrayProperties& requested_properties) {
+  for (const ArrayDescriptionThatGoesInAGrowableArray& description : _array_descriptions) {
+    if (description._properties == requested_properties) {
+      return description;
+    }
+  }
+  VM_ENTRY_MARK
+  ArrayDescription description = ObjArrayKlass::array_layout_selection(get_InlineKlass(), requested_properties);
+  _array_descriptions.push(ArrayDescriptionThatGoesInAGrowableArray(description));
+  return description;
+}
