@@ -5728,7 +5728,7 @@ bool TypeAryPtr::empty(void) const {
   }
 
   // Reference array is always possible. Only flat array with non-flattenable content can be an issue.
-  if (_ary->_flat) {
+  if (const TypeOopPtr* elem_ptr = elem()->make_oopptr(); _ary->_flat && elem_ptr != nullptr && elem_ptr->is_inlinetypeptr()) {
     auto impossible_layout = [](const ArrayDescription& description) -> bool {
       return !LayoutKindHelper::is_flat(description._layout_kind);  // We get a contradiction between _ary->_flat and array_layout_selection
     };
