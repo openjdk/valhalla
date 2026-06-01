@@ -5727,18 +5727,11 @@ bool TypeAryPtr::empty(void) const {
     return true;
   }
 
-  auto impossible_layout = [this](const ArrayDescription& description) -> bool {
-    LayoutKind layout_kind = description._layout_kind;
-    if (_ary->_flat && !LayoutKindHelper::is_flat(layout_kind)) {
-      return true;
-    }
-    if (_ary->_not_flat && LayoutKindHelper::is_flat(layout_kind)) {
-      return true;
-    }
-    return false;
-  };
-
-  if (const TypeOopPtr* elem_ptr = elem()->make_oopptr(); elem_ptr != nullptr && elem_ptr->is_inlinetypeptr()) {
+  // Reference array is always possible. Only flat array with non-flattenable content can be an issue.
+  if (_ary->_flat) {
+    auto impossible_layout = [](const ArrayDescription& description) -> bool {
+      return !LayoutKindHelper::is_flat(description._layout_kind);  // We get a contradiction between _ary->_flat and array_layout_selection
+    };
     if (_ary->_atomic) {
       // Surely atomic
       ArrayDescription description = elem()->inline_klass()->array_description_of_array_properties(ArrayProperties::Default().with_null_restricted(is_null_free()).with_non_atomic(false));
@@ -5752,7 +5745,7 @@ bool TypeAryPtr::empty(void) const {
         return true;
       }
     } else {
-      // Maybe?
+      // Not sure...
       ArrayDescription description_atomic = elem()->inline_klass()->array_description_of_array_properties(ArrayProperties::Default().with_null_restricted(is_null_free()).with_non_atomic(false));
       ArrayDescription description_non_atomic = elem()->inline_klass()->array_description_of_array_properties(ArrayProperties::Default().with_null_restricted(is_null_free()).with_non_atomic(true));
       if (impossible_layout(description_atomic) && impossible_layout(description_non_atomic)) {
