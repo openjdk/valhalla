@@ -306,8 +306,8 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         } else if (is_strict_final_load) {
           Node* klass = alloc->in(AllocateNode::KlassNode);
           const TypeKlassPtr* tklass = phase->type(klass)->is_klassptr();
-          if (tklass->klass_is_exact() && !tklass->exact_klass()->equals(t_oop->is_instptr()->exact_klass())) {
-            // Allocation of another type, must be another object
+          if (tklass->klass_is_exact() && !tklass->exact_klass()->is_subclass_of(t_oop->is_instptr()->instance_klass())) {
+            // Allocation of an unrelated type, must be another object
             result = proj_in->in(TypeFunc::Memory);
           } else if (base_local != nullptr && (base_local->is_Parm() || base_local->in(0) != alloc)) {
             // Allocation of another object
