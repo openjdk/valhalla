@@ -7762,6 +7762,9 @@ bool LibraryCallKit::inline_reference_clear0(bool is_phantom) {
 // bool java.lang.ref.Reference.reachabilityFence();
 bool LibraryCallKit::inline_reference_reachabilityFence() {
   Node* referent = argument(0);
+  if (referent->is_InlineType()) {
+    referent = referent->as_InlineType()->buffer(this);
+  }
   insert_reachability_fence(referent);
   return true;
 }
