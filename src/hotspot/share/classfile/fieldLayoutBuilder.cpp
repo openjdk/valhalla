@@ -86,7 +86,7 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
     }
   } else {
     // To preserve the consistency between the null-marker and the field content, the NULLABLE_NON_ATOMIC_FLAT
-    // can only be used in containers that have atomicity quarantees (can_use_atomic_flat argument set to true)
+    // can only be used in containers that have atomicity guarantees (can_use_atomic_flat argument set to true)
     if (field_info.access_flags().is_strict() && field_info.access_flags().is_final() && can_use_atomic_flat) {
       if (vk->has_nullable_non_atomic_layout()) return LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
     }
@@ -161,11 +161,11 @@ LayoutRawBlock::LayoutRawBlock(Kind kind, int size) :
 
 
 LayoutRawBlock::LayoutRawBlock(int index, Kind kind, int size, int alignment) :
- _next_block(nullptr),
- _prev_block(nullptr),
- _inline_klass(nullptr),
- _block_kind(kind),
- _layout_kind(LayoutKind::UNKNOWN),
+  _next_block(nullptr),
+  _prev_block(nullptr),
+  _inline_klass(nullptr),
+  _block_kind(kind),
+  _layout_kind(LayoutKind::UNKNOWN),
  _offset(-1),
  _alignment(alignment),
  _size(size),
@@ -543,7 +543,7 @@ void FieldLayout::fill_holes(const InstanceKlass* super_klass) {
   while (b->next_block() != nullptr) {
     if (b->next_block()->offset() > (b->offset() + b->size())) {
       int size = b->next_block()->offset() - (b->offset() + b->size());
-      // FIXME it would be better if initial empty block where tagged as PADDING for value classes
+      // FIXME it would be better if initial empty blocks were tagged as PADDING for value classes
       // Tracked by JDK-8383383
       LayoutRawBlock* empty = new LayoutRawBlock(filling_type, size);
       empty->set_offset(b->offset() + b->size());
@@ -1161,7 +1161,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     }
   } else { // the class has inherited some fields from its super(s)
     if (!_is_abstract_value) {
-      // This is the step where the layout of the final concrete value class' layout
+      // This is the step where the final concrete value class' layout
       // is computed. Super abstract value classes might have been too conservative
       // regarding alignment constraints, but now that the full set of non-static fields is
       // known, compute which alignment to use, then set first allowed field offset
@@ -1272,7 +1272,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         }
       }
       assert(null_marker_offset != -1, "Sanity check");
-      // Now that the null marker is there, the size of the nullable layout must computed
+      // Now that the null marker is there, the size of the nullable layout must be computed
       int new_raw_size = _layout->last_block()->offset() - _layout->first_field_block()->offset();
       if (UseNullableNonAtomicValueFlattening) {
         _nullable_non_atomic_layout_size_in_bytes = new_raw_size;
@@ -1280,7 +1280,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
         _null_free_non_atomic_layout_alignment = _payload_alignment;
       }
       if (UseNullableAtomicValueFlattening) {
-        // For the nullable atomic layout, the size mut be compatible with the platform capabilities
+        // For the nullable atomic layout, the size must be compatible with the platform capabilities
         int nullable_atomic_size = round_up_power_of_2(new_raw_size);
         if (nullable_atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {
           _nullable_atomic_layout_size_in_bytes = nullable_atomic_size;
@@ -1343,7 +1343,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
       _payload_size_in_bytes = nullable_non_atomic_layout_size_in_bytes();
     }
 
-    // if the inline class has a null-free atomic layout, the the layout used in heap allocated standalone
+    // if the inline class has a null-free atomic layout, the layout used in heap allocated standalone
     // instances must have at least equal to the atomic layout to allow safe read/write atomic
     // operation
     if (has_null_free_atomic_layout() && payload_layout_size_in_bytes() < null_free_atomic_layout_size_in_bytes()) {

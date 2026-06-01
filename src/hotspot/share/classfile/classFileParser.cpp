@@ -4297,7 +4297,7 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
 
     // The JVMS says that super classes for value types must not have the ACC_IDENTITY
     // flag set. But, java.lang.Object must still be allowed to be a direct super class
-    // for a value classes.  So, it is treated as a special case for now.
+    // for value classes. So, it is treated as a special case for now.
     if (!this_klass->access_flags().is_identity_class() &&
         super->name() != vmSymbols::java_lang_Object() &&
         super->is_identity_class()) {
@@ -6225,7 +6225,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
 
     if (Arguments::is_valhalla_enabled()) {
-      // If this class is an value class, its super class cannot be an identity class unless it is java.lang.Object.
+      // If this class is a value class, its super class cannot be an identity class unless it is java.lang.Object.
       if (_super_klass->access_flags().is_identity_class() && !access_flags().is_identity_class() &&
           _super_klass != vmClasses::Object_klass()) {
         ResourceMark rm(THREAD);
@@ -6250,7 +6250,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
         && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
       // Conditions above are not sufficient to determine atomicity requirements,
-      // the presence of fields with atomic requirements could force the current class to have atomicy requirements too
+      // the presence of fields with atomic requirements could force the current class to have atomicity requirements too
       // Marking as not needing atomicity for now, can be updated when computing the fields layout
       // The InstanceKlass must be filled with the value from the FieldLayoutInfo returned by
       // the FieldLayoutBuilder, not with this _must_be_atomic field.
@@ -6348,13 +6348,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   }
 }
 
-// In order to be able to optimize fields layouts by applying heap flattening,
-// the JVM needs to know the layout of the class of the fields, which implies
-// having these classes loaded. The strategy has two folds:
+// In order to be able to optimize field layouts by applying heap flattening,
+// the JVM needs to know the layout of the field classes, which implies
+// having these classes loaded. The strategy has two parts:
 //  1 - if the current class has a LoadableDescriptors attribute containing the
 //      name of the class of the field and PreloadClasses is true, the JVM will
 //      try to speculatively load this class. Failures to load the class are
-//      silently discarded, and loadings resulting in a non-optimizable class
+//      silently discarded, and loads resulting in a non-optimizable class
 //      are ignored
 //  2 - if step 1 cannot be applied, the JVM will simply check if the class
 //      loader of the current class already knows these classes (no class
@@ -6389,7 +6389,7 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                      "(cause: field type in LoadableDescriptors attribute) succeeded",
                                      name->as_C_string(), _class_name->as_C_string());
           } else {
-            // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log this
+            // Non-value classes are allowed by the current spec, but it could be an indication of an issue so let's log this
             log_info(class, preload)("Preloading of class %s during loading of class %s "
                                      "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                      name->as_C_string(), _class_name->as_C_string());
