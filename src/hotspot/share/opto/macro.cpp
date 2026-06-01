@@ -1582,12 +1582,10 @@ bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode* boxing) {
   const TypeTuple* r = boxing->tf()->range_sig();
   assert(r->cnt() > TypeFunc::Parms, "sanity");
   ciInstanceKlass* boxing_klass = nullptr;
-  ciInlineKlass* scalarized_inline_klass = nullptr;
   if (boxing->tf()->returns_inline_type_as_fields()) {
     ciType* return_type = boxing->method()->return_type();
     assert(return_type->is_inlinetype(), "unexpected scalarized boxing return");
-    scalarized_inline_klass = return_type->as_inline_klass();
-    boxing_klass = scalarized_inline_klass;
+    boxing_klass = return_type->as_inline_klass();
   } else {
     const TypeInstPtr* t = r->field_at(TypeFunc::Parms)->isa_instptr();
     assert(t != nullptr, "sanity");
