@@ -220,13 +220,10 @@ Node* ProjNode::Identity(PhaseGVN* phase) {
         // Null marker is handled by ProjNode::proj_type
         if (_con == TypeFunc::Parms) {
           // Oop return
-          // TODO we loose the oop here. Can we add a load from the cache instead? (This is only relevant for integer types), see java_lang_Integer_IntegerCache::cache
-          // But we need to make sure that this is folded if not needed
-          /*
-            if (i >= IntegerCache.low && i <= IntegerCache.high)
-              return IntegerCache.cache[i + (-IntegerCache.low)];
-           */
-          return phase->makecon(TypeOopPtr::NULL_PTR);
+
+          // Keep the oop projection if an object use still needs it.
+          // Replacing it with null would force re-buffering and would lose the potentially cached valueOf() result.
+          return this;
         } else if (_con == TypeFunc::Parms + 1) {
           // Field value
           return call->in(TypeFunc::Parms);
