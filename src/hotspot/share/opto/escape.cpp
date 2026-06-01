@@ -4609,8 +4609,16 @@ Node* ConnectionGraph::find_inst_mem(Node *orig_mem, int alias_idx, GrowableArra
         }
         result = proj_in->in(TypeFunc::Memory);
       } else if (proj_in->is_LoadFlat()) {
+        // Either:
+        // - this is a LoadFlat for alias_idx's non escaping allocation: it will get removed by
+        // ConnectionGraph::optimize_flat_accesses() and has no effect on the memory state
+        // - or it is a LoadFlat for some object unrelated to alias_idx
+        // In both cases, it's safe to assume this LoadFlat doesn't modify the memory for alias_idx
         result = proj_in->in(TypeFunc::Memory);
       } else if (proj_in->is_StoreFlat()) {
+        // Either:
+        // - this is a StoreFlat for alias_idx's non escaping allocation that does modify the memory state for alias_idx
+        // - or it is a StoreFlat for some object unrelated to alias_idx that can't modify the memory state for alias_idx
         Node* base = proj_in->as_StoreFlat()->base();
         const TypeOopPtr* t_store_base =igvn->type(base)->is_oopptr();
         if (t_store_base->instance_id() != toop->instance_id()) {
