@@ -304,8 +304,6 @@ class SystemDictionaryShared::ExclusionCheckCandidates
     // the field holder.
     if (k->has_inlined_fields()) {
       for (AllFieldStream fs(k); !fs.done(); fs.next()) {
-        if (fs.access_flags().is_static() && !fs.field_flags().is_null_free_inline_type()) continue;
-
         if (fs.is_flat() || fs.is_null_free_inline_type()) {
           InlineKlass* field_klass = k->get_inline_type_field_klass(fs.index());
           add_candidate(InstanceKlass::cast(field_klass));
@@ -539,8 +537,6 @@ bool SystemDictionaryShared::check_dependencies_exclusion(InstanceKlass* k, Dump
   // field layouts will be consistent at runtime.
   if (k->has_inlined_fields()) {
     for (AllFieldStream fs(k); !fs.done(); fs.next()) {
-      if (fs.access_flags().is_static() && !fs.field_flags().is_null_free_inline_type()) continue;
-
       if (fs.is_flat() || fs.is_null_free_inline_type()) {
         InlineKlass* field_klass = k->get_inline_type_field_klass(fs.index());
         if (is_dependency_excluded(k, InstanceKlass::cast(field_klass), "inline field")) {
