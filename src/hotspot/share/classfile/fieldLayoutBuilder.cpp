@@ -1161,7 +1161,7 @@ void FieldLayoutBuilder::compute_inline_class_layout() {
     }
   } else { // the class has inherited some fields from its super(s)
     if (!_is_abstract_value) {
-      // This is the step where the final concrete value class' layout
+      // This is the step where the layout of the final concrete value class' layout
       // is computed. Super abstract value classes might have been too conservative
       // regarding alignment constraints, but now that the full set of non-static fields is
       // known, compute which alignment to use, then set first allowed field offset

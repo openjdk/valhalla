@@ -6349,8 +6349,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 }
 
 // In order to be able to optimize field layouts by applying heap flattening,
-// the JVM needs to know the layout of the field classes, which implies
-// having these classes loaded. The strategy has two parts:
+// the JVM needs to know the layout of the class of the fields, which implies
+// having these classes loaded. The strategy has two folds:
 //  1 - if the current class has a LoadableDescriptors attribute containing the
 //      name of the class of the field and PreloadClasses is true, the JVM will
 //      try to speculatively load this class. Failures to load the class are
@@ -6389,7 +6389,7 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                      "(cause: field type in LoadableDescriptors attribute) succeeded",
                                      name->as_C_string(), _class_name->as_C_string());
           } else {
-            // Non-value classes are allowed by the current spec, but it could be an indication of an issue so let's log this
+            // Non value classes are allowed by the current spec, but it could be an indication of an issue so let's log this
             log_info(class, preload)("Preloading of class %s during loading of class %s "
                                      "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                      name->as_C_string(), _class_name->as_C_string());

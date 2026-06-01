@@ -73,7 +73,7 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
     super_klass = element_klass->array_klass(CHECK_NULL);
   }
 
-  // Create the type name for the klass.
+  // Create type name for klass.
   Symbol* name = create_element_klass_array_name(THREAD, element_klass);
 
   // Initialize instance variables

@@ -124,3 +124,4 @@ ciConstant ciFlatArray::field_value(int index, ciField* field) {
   add_to_constant_value_cache(index, value);
   return get_field_from_object_constant(value);
 }
+
