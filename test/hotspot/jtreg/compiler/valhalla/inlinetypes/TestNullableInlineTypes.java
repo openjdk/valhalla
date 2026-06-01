@@ -2355,7 +2355,8 @@ public class TestNullableInlineTypes {
 
     // Test nested loops
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    // TODO: Fix JDK-8385677
+    //@IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test81() {
         Object val = null;
         for (int i = 0; i < 10; ++i) {
@@ -2390,7 +2391,8 @@ public class TestNullableInlineTypes {
 
     // Test loops with casts
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    // TODO: Fix JDK-8385677
+    //@IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test82() {
         Object val = null;
         for (int i = 0; i < 10; ++i) {
