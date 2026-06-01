@@ -2413,7 +2413,7 @@ class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
             } // end LineNumberTable
             ;
             Attr(#140) { // StackMapTable
-              [] { //
+              [] { // 
                 13b; // same_frame
                 25b; // same_frame
               }
@@ -2449,7 +2449,7 @@ class compiler/valhalla/inlinetypes/TestMismatchHandlingHelper {
             } // end LineNumberTable
             ;
             Attr(#140) { // StackMapTable
-              [] { //
+              [] { // 
                 252b, 16, []z{O,91}; // append_frame 1
               }
             } // end StackMapTable
@@ -3319,7 +3319,7 @@ class compiler/valhalla/inlinetypes/M {
             } // end LineNumberTable
             ;
             Attr(#23) { // StackMapTable
-              [] { //
+              [] { // 
                 6b; // same_frame
                 253b, 5, []z{O,14; I}; // append_frame 2
                 250b, 21; // chop_frame 1
@@ -3425,7 +3425,7 @@ class compiler/valhalla/inlinetypes/N {
             } // end LineNumberTable
             ;
             Attr(#19) { // StackMapTable
-              [] { //
+              [] { // 
                 6b; // same_frame
               }
             } // end StackMapTable
@@ -3529,7 +3529,7 @@ class compiler/valhalla/inlinetypes/O {
             } // end LineNumberTable
             ;
             Attr(#19) { // StackMapTable
-              [] { //
+              [] { // 
                 6b; // same_frame
               }
             } // end StackMapTable
