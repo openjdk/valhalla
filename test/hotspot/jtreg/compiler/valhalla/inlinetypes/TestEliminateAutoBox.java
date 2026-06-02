@@ -63,9 +63,6 @@ public class TestEliminateAutoBox {
             "-XX:CompileCommand=inline,java.lang.*::*Value"
     };
 
-// TODO also run with -XX:-AggressiveUnboxing
-// TODO verify that the LoadNode::eliminate_autobox works and load from cache is always removed, i.e. also fail on loads
-
     public static void main(String[] args) {
         new TestFramework()
                 .addScenarios(
