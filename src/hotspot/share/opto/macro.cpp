@@ -704,8 +704,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr
   };
 
   // Create a new InlineTypeNode and retrieve the field values from memory
-  // TODO pass null_free here?
-  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, false);
+  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk, null_free);
   transform_later(vt);
   if (null_free) {
     vt->set_null_marker(_igvn);
@@ -1558,45 +1557,37 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
   return true;
 }
 
-bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode* boxing) {
+bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode* call) {
   // EA should remove all uses of non-escaping boxing node.
-  // TODO
-  // The result projection should have been replaced by ProjNode::Identity.
-  if (!C->eliminate_boxing() || boxing->proj_out_or_null(TypeFunc::Parms) != nullptr) {
+  if (!C->eliminate_boxing()) {
     return false;
   }
-
-  if (boxing->tf()->returns_inline_type_as_fields()) {
-    int res_cnt = boxing->tf()->range_cc()->cnt() - TypeFunc::Parms;
-    for (int i = 0; i < res_cnt; ++i) {
-      if (boxing->proj_out_or_null(TypeFunc::Parms + i) != nullptr) {
-        return false;
-      }
+  for (uint i = TypeFunc::Parms; i < call->tf()->range_cc()->cnt(); ++i) {
+    if (call->proj_out_or_null(i) != nullptr) {
+      return false;
     }
   }
 
-  assert(boxing->result_cast() == nullptr, "unexpected boxing node result");
+  _callprojs = call->extract_projections(false /*separate_io_proj*/, false /*do_asserts*/);
 
-  _callprojs = boxing->extract_projections(false /*separate_io_proj*/, false /*do_asserts*/);
+  process_users_of_allocation(call);
 
-  const TypeTuple* r = boxing->tf()->range_sig();
-  assert(r->cnt() > TypeFunc::Parms, "sanity");
-  ciInstanceKlass* boxing_klass = nullptr;
-  if (boxing->tf()->returns_inline_type_as_fields()) {
-    ciType* return_type = boxing->method()->return_type();
-    assert(return_type->is_inlinetype(), "unexpected scalarized boxing return");
-    boxing_klass = return_type->as_inline_klass();
+  const TypeInstPtr* t = nullptr;
+  if (call->is_boxing_method()) {
+    const TypeTuple* range = call->tf()->range_sig();
+    t = range->field_at(TypeFunc::Parms)->isa_instptr();
   } else {
-    const TypeInstPtr* t = r->field_at(TypeFunc::Parms)->isa_instptr();
-    assert(t != nullptr, "sanity");
-    boxing_klass = t->instance_klass();
+    assert(call->is_unboxing_method(), "Unexpected call");
+    const TypeTuple* domain = call->tf()->domain_sig();
+    t = domain->field_at(TypeFunc::Parms)->isa_instptr();
+    assert(!t->maybe_null(), "missing receiver null check?");
   }
 
   CompileLog* log = C->log();
   if (log != nullptr) {
     log->head("eliminate_boxing type='%d'",
-              log->identify(boxing_klass));
-    JVMState* p = boxing->jvms();
+              log->identify(t->instance_klass()));
+    JVMState* p = call->jvms();
     while (p != nullptr) {
       log->elem("jvms bci='%d' method='%d'", p->bci(), log->identify(p->method()));
       p = p->caller();
@@ -1604,52 +1595,16 @@ bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode* boxing) {
     log->tail("eliminate_boxing");
   }
 
-  process_users_of_allocation(boxing);
-
 #ifndef PRODUCT
   if (PrintEliminateAllocations) {
-    tty->print("++++ Eliminated: %d ", boxing->_idx);
-    boxing->method()->print_short_name(tty);
+    tty->print("++++ Eliminated: %d ", call->_idx);
+    call->method()->print_short_name(tty);
     tty->cr();
   }
 #endif
 
   return true;
 }
-
-bool PhaseMacroExpand::eliminate_unboxing_node(CallStaticJavaNode* unboxing) {
-  // The result projection should have been replaced by ProjNode::Identity.
-  if (!C->eliminate_boxing() || unboxing->proj_out_or_null(TypeFunc::Parms) != nullptr) {
-    return false;
-  }
-  // TODO why is this needed? Add tests with null
-  if (!unboxing->method()->has_scalarized_args()) {
-    Node* arg = unboxing->in(TypeFunc::Parms);
-    if (!arg->is_InlineType()) {
-      return false;
-    }
-    const TypeInt* null_marker_type = _igvn.type(arg->as_InlineType()->get_null_marker())->isa_int();
-    if (null_marker_type == nullptr || !null_marker_type->is_con(1)) {
-      return false;
-    }
-  }
-
-  _callprojs = unboxing->extract_projections(false /*separate_io_proj*/, false /*do_asserts*/);
-  process_users_of_allocation(unboxing);
-
-  // TODO the log is missing, merge this with above method?
-
-#ifndef PRODUCT
-  if (PrintEliminateAllocations) {
-    tty->print("++++ Eliminated: %d ", unboxing->_idx);
-    unboxing->method()->print_short_name(tty);
-    tty->cr();
-  }
-#endif
-
-  return true;
-}
-
 
 Node* PhaseMacroExpand::make_load_raw(Node* ctl, Node* mem, Node* base, int offset, const Type* value_type, BasicType bt) {
   Node* adr = off_heap_plus_addr(base, offset);
@@ -3274,10 +3229,8 @@ void PhaseMacroExpand::eliminate_macro_nodes(bool eliminate_locks) {
         break;
       case Node::Class_CallStaticJava: {
         CallStaticJavaNode* call = n->as_CallStaticJava();
-        if (call->is_boxing_method()) {
+        if (!call->method()->is_method_handle_intrinsic()) {
           success = eliminate_boxing_node(n->as_CallStaticJava());
-        } else if (call->is_unboxing_method()) {
-          success = eliminate_unboxing_node(n->as_CallStaticJava());
         }
         break;
       }

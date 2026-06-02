@@ -113,8 +113,16 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxingInt")
-    public void runUnboxingInt() {
+    public void runUnboxingInt(RunInfo info) {
         Asserts.assertEQ(testUnboxingInt(Integer.valueOf(INT_VALUE)), INT_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxingInt(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Eliminate an implicit Integer boxing followed by an implicit unboxing.
@@ -156,8 +164,16 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxBoxImplicitInt")
-    public void runUnboxBoxImplicitInt() {
+    public void runUnboxBoxImplicitInt(RunInfo info) {
         Asserts.assertEQ(testUnboxBoxImplicitInt(Integer.valueOf(INT_VALUE)), INT_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxBoxImplicitInt(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Eliminate an explicit Integer.intValue followed by valueOf.
@@ -171,8 +187,16 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxBoxExplicitInt")
-    public void runUnboxBoxExplicitInt() {
+    public void runUnboxBoxExplicitInt(RunInfo info) {
         Asserts.assertEQ(testUnboxBoxExplicitInt(Integer.valueOf(INT_VALUE)), INT_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxBoxExplicitInt(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Eliminate a scalarized Long.valueOf result with a two-slot field.
@@ -196,8 +220,16 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxingLong")
-    public void runUnboxingLong() {
+    public void runUnboxingLong(RunInfo info) {
         Asserts.assertEQ(testUnboxingLong(Long.valueOf(LONG_VALUE)), LONG_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxingLong(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Eliminate an implicit Long boxing followed by an implicit unboxing.
@@ -239,8 +271,16 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxBoxImplicitLong")
-    public void runUnboxBoxImplicitLong() {
+    public void runUnboxBoxImplicitLong(RunInfo info) {
         Asserts.assertEQ(testUnboxBoxImplicitLong(Long.valueOf(LONG_VALUE)), LONG_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxBoxImplicitLong(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Eliminate an explicit Long.longValue followed by valueOf.
@@ -254,8 +294,16 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxBoxExplicitLong")
-    public void runUnboxBoxExplicitLong() {
+    public void runUnboxBoxExplicitLong(RunInfo info) {
         Asserts.assertEQ(testUnboxBoxExplicitLong(Long.valueOf(LONG_VALUE)), LONG_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxBoxExplicitLong(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Eliminate a scalarized Double.valueOf result with a two-slot field.
@@ -279,8 +327,16 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxingDouble")
-    public void runUnboxingDouble() {
+    public void runUnboxingDouble(RunInfo info) {
         Asserts.assertEQ(testUnboxingDouble(Double.valueOf(DOUBLE_VALUE)), DOUBLE_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxingDouble(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Eliminate an implicit Double boxing followed by an implicit unboxing.
@@ -322,8 +378,16 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxBoxImplicitDouble")
-    public void runUnboxBoxImplicitDouble() {
+    public void runUnboxBoxImplicitDouble(RunInfo info) {
         Asserts.assertEQ(testUnboxBoxImplicitDouble(Double.valueOf(DOUBLE_VALUE)), DOUBLE_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxBoxImplicitDouble(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Eliminate an explicit Double.doubleValue followed by valueOf.
@@ -337,7 +401,15 @@ public class TestEliminateAutoBox {
     }
 
     @Run(test = "testUnboxBoxExplicitDouble")
-    public void runUnboxBoxExplicitDouble() {
+    public void runUnboxBoxExplicitDouble(RunInfo info) {
         Asserts.assertEQ(testUnboxBoxExplicitDouble(Double.valueOf(DOUBLE_VALUE)), DOUBLE_VALUE);
+        if (!info.isWarmUp()) {
+            try {
+                testUnboxBoxExplicitDouble(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 }

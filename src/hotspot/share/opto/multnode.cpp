@@ -215,38 +215,29 @@ Node* ProjNode::Identity(PhaseGVN* phase) {
   CallStaticJavaNode* call = in(0)->isa_CallStaticJava();
   if (call != nullptr) {
     if (call->is_boxing_method() && call->method()->return_type()->is_inlinetype()) {
-      // Boxing, for example, via Integer.valueOf(int)
+      // Boxing (for example, via Integer.valueOf(int))
       if (call->tf()->returns_inline_type_as_fields()) {
-        // Null marker is handled by ProjNode::proj_type
         if (_con == TypeFunc::Parms) {
-          // Oop return
-
-          // Keep the oop projection if an object use still needs it.
-          // Replacing it with null would force re-buffering and would lose the potentially cached valueOf() result.
+          // Oop projection: Keep it to avoid re-buffering. If unused,
+          // it will go away and enable removal of the boxing call.
           return this;
         } else if (_con == TypeFunc::Parms + 1) {
-          // Field value
+          // Field projection: Use unboxed input value
           return call->in(TypeFunc::Parms);
         }
-      } else {
-        // TODO also handle non-scalarized return
-        if (false && _con == TypeFunc::Parms) {
-          ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
-          InlineTypeNode* vt = InlineTypeNode::make_uninitialized(*phase, vk);
-          vt->set_null_marker(*phase);
-          vt->set_field_value(0, call->in(TypeFunc::Parms));
-          return phase->transform(vt);
-        }
+        // The null marker projection is removed by ProjNode::proj_type.
       }
     } else if (call->is_unboxing_method() && _con == TypeFunc::Parms) {
-      // Unboxing, for example, via Integer.intValue()
+      // Unboxing (for example, via Integer.intValue())
+      // Use field value of boxed input value object
       if (call->method()->has_scalarized_args()) {
         return call->in(TypeFunc::Parms + 1);
-      }
-      Node* arg = call->in(TypeFunc::Parms);
-      if (arg->is_InlineType() &&
-          phase->type(arg->as_InlineType()->get_null_marker()) == TypeInt::ONE) {
-        return arg->as_InlineType()->field_value(0);
+      } else {
+        Node* arg = call->in(TypeFunc::Parms);
+        if (arg->is_InlineType()) {
+          assert(!phase->type(arg)->maybe_null(), "missing receiver null check?");
+          return arg->as_InlineType()->field_value(0);
+        }
       }
     }
   }

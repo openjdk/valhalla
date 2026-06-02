@@ -118,7 +118,6 @@ private:
   Node* inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr* elem_adr_type, int elem_idx, int offset_in_element, bool null_free, AllocateNode* alloc, SafePointNode* sfpt);
 
   bool eliminate_boxing_node(CallStaticJavaNode* boxing);
-  bool eliminate_unboxing_node(CallStaticJavaNode* unboxing);
   bool eliminate_allocate_node(AllocateNode *alloc);
   void undo_previous_scalarizations(GrowableArray <SafePointNode *> safepoints_done, AllocateNode* alloc);
   bool scalar_replacement(AllocateNode *alloc, GrowableArray <SafePointNode *>& safepoints);
