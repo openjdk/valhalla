@@ -90,7 +90,6 @@ public class LocalProxyVarsGen extends TreeTranslator {
     private final Symtab syms;
     private final Target target;
     private TreeMaker make;
-    private final UnsetFieldsInfo unsetFieldsInfo;
     private ClassSymbol currentClass = null;
     private java.util.List<JCVariableDecl> instanceFields;
     private Map<JCMethodDecl, Set<Symbol>> fieldsReadInPrologue = new HashMap<>();
@@ -106,7 +105,6 @@ public class LocalProxyVarsGen extends TreeTranslator {
         names = Names.instance(context);
         syms = Symtab.instance(context);
         target = Target.instance(context);
-        unsetFieldsInfo = UnsetFieldsInfo.instance(context);
         Options options = Options.instance(context);
         noLocalProxyVars = options.isSet("noLocalProxyVars");
     }
@@ -263,15 +261,6 @@ public class LocalProxyVarsGen extends TreeTranslator {
                 result = make.at(md).Ident(fieldToLocalMap.get(tree.sym));
             } else {
                 result = tree;
-            }
-        }
-
-        @Override
-        public void visitAssign(JCAssign tree) {
-            JCExpression previousLHS = tree.lhs;
-            super.visitAssign(tree);
-            if (ctorPrologue && previousLHS != tree.lhs) {
-                unsetFieldsInfo.removeUnsetFieldInfo(currentClass, tree);
             }
         }
 
