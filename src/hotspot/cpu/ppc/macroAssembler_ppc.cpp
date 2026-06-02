@@ -29,6 +29,7 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/shared/barrierSetRuntime.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "memory/resourceArea.hpp"
@@ -3318,6 +3319,130 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
   ld(holder, ConstantPool::pool_holder_offset(), holder);
 }
 
+void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_inline_type) {
+  assert_different_registers(markword, R0);
+  andi(R0, markword, markWord::inline_type_pattern_mask);
+  cmpwi(CR0, R0, markWord::inline_type_pattern);
+  beq(CR0, is_inline_type);
+}
+
+void MacroAssembler::test_oop_is_not_inline_type(Register object, Label& not_inline_type, bool can_be_null) {
+  if (can_be_null) {
+    cmpdi(CR0, object, 0);
+    beq(CR0, not_inline_type);
+  }
+  ld(R0, oopDesc::mark_offset_in_bytes(), object);
+  andi(R0, R0, markWord::inline_type_pattern_mask);
+  cmpwi(CR0, R0, markWord::inline_type_pattern);
+  bne(CR0, not_inline_type);
+}
+
+void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Label& is_null_free_inline_type) {
+  testbitdi(CR0, R0, flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
+  bne(CR0, is_null_free_inline_type);
+}
+
+void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Label& not_null_free_inline_type) {
+  testbitdi(CR0, R0, flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
+  beq(CR0, not_null_free_inline_type);
+}
+
+void MacroAssembler::test_field_is_flat(Register flags, Label& is_flat) {
+  testbitdi(CR0, R0, flags, ResolvedFieldEntry::is_flat_shift);
+  bne(CR0, is_flat);
+}
+
+void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
+  Label test_mark_word;
+  // load mark word
+  ld(temp_reg, oopDesc::mark_offset_in_bytes(), oop);
+  // if unlocked bit is set we can directly use the mark word
+  andi_(R0, temp_reg, markWord::unlocked_value);
+  bne(CR0, test_mark_word);
+  // slow path use klass prototype
+  load_prototype_header(temp_reg, oop);
+
+  bind(test_mark_word);
+  andi_(R0, temp_reg, test_bit);
+  if (jmp_set) {
+    bne(CR0, jmp_label);
+  } else {
+    beq(CR0, jmp_label);
+  }
+}
+
+void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
+}
+
+void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg, Label& is_non_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
+}
+
+void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
+}
+
+void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label& is_non_null_free_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
+}
+
+void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
+  testbitdi(CR0, R0, lh, exact_log2(Klass::_lh_array_tag_flat_value_bit_inplace));
+  bne(CR0, is_flat_array);
+}
+
+void MacroAssembler::load_metadata(Register dst, Register src) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+  } else {
+    lwz(dst, oopDesc::klass_offset_in_bytes(), src);
+  }
+}
+
+void MacroAssembler::load_prototype_header(Register dst, Register src) {
+  load_klass(dst, src);
+  ld(dst, Klass::prototype_header_offset(), dst);
+}
+
+void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register inline_layout_info) {
+  // flat_field_copy implementation is fairly complex, and there are not any
+  // "short-cuts" to be made from asm. What there is, appears to have the same
+  // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
+  // of hand-rolled instructions...
+  if (decorators & IS_DEST_UNINITIALIZED) {
+    call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, inline_layout_info);
+  } else {
+    call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, inline_layout_info);
+  }
+}
+
+void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
+  ld(offset, in_bytes(InlineKlass::adr_members_offset()), inline_klass);
+  lwz(offset, in_bytes(InlineKlass::payload_offset_offset()), offset);
+}
+
+void MacroAssembler::payload_address(Register oop, Register data, Register inline_klass, Register t1) {
+  // ((address) (void*) o) + vk->payload_offset();
+  payload_offset(inline_klass, t1);
+  add(data, oop, t1);
+}
+
+void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
+  assert_different_registers(holder_klass, index, layout_info);
+  InlineLayoutInfo array[2];
+  int size = (char*)&array[1] - (char*)&array[0]; // computing size of array elements
+  if (is_power_of_2(size)) {
+    sldi(index, index, log2i_exact(size)); // Scale index by power of 2
+  } else {
+    mulld(index, index, size); // Scale the index to be the entry index * array_element_size
+  }
+  ld(layout_info, InstanceKlass::inline_layout_info_array_offset(), holder_klass);
+  addi(layout_info, layout_info, Array<InlineLayoutInfo>::base_offset_in_bytes());
+  add(layout_info, layout_info, index);
+}
+
+
 // Clear Array
 // For very short arrays. tmp == R0 is allowed.
 void MacroAssembler::clear_memory_unrolled(Register base_ptr, int cnt_dwords, Register tmp, int offset) {
@@ -4725,8 +4850,8 @@ void MacroAssembler::atomically_flip_locked_state(bool is_unlock, Register obj, 
   if (!is_unlock) {
     ldarx(tmp, obj, MacroAssembler::cmpxchgx_hint_acquire_lock());
     xori(tmp, tmp, markWord::unlocked_value); // flip unlocked bit
-    andi_(R0, tmp, markWord::lock_mask_in_place);
-    bne(CR0, failed); // failed if new header doesn't contain locked_value (which is 0)
+    andi_(R0, tmp, markWord::lock_mask_in_place | markWord::inline_type_bit_in_place);
+    bne(CR0, failed); // failed if new header doesn't contain locked_value (which is 0) or belongs to an inline type
   } else {
     ldarx(tmp, obj, MacroAssembler::cmpxchgx_hint_release_lock());
     andi_(R0, tmp, markWord::lock_mask_in_place);

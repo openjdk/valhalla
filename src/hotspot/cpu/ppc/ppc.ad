@@ -11406,8 +11406,8 @@ instruct array_size(iRegLdst dst, iRegPsrc end, iRegPsrc start) %{
 %}
 
 // Clear-array with constant short array length. The versions below can use dcbz with cnt > 30.
-instruct inlineCallClearArrayShort(immLmax30 cnt, rarg2RegP base, Universe dummy, regCTR ctr) %{
-  match(Set dummy (ClearArray cnt base));
+instruct inlineCallClearArrayShort(immLmax30 cnt, rarg2RegP base, immL_0 zero, Universe dummy, regCTR ctr) %{
+  match(Set dummy (ClearArray (Binary cnt base) zero));
   effect(USE_KILL base, KILL ctr);
   ins_cost(2 * MEMORY_REF_COST);
 
@@ -11419,8 +11419,8 @@ instruct inlineCallClearArrayShort(immLmax30 cnt, rarg2RegP base, Universe dummy
 %}
 
 // Clear-array with constant large array length.
-instruct inlineCallClearArrayLarge(immL cnt, rarg2RegP base, Universe dummy, iRegLdst tmp, regCTR ctr) %{
-  match(Set dummy (ClearArray cnt base));
+instruct inlineCallClearArrayLarge(immL cnt, rarg2RegP base, immL_0 zero, Universe dummy, iRegLdst tmp, regCTR ctr) %{
+  match(Set dummy (ClearArray (Binary cnt base) zero));
   effect(USE_KILL base, TEMP tmp, KILL ctr);
   ins_cost(3 * MEMORY_REF_COST);
 
@@ -11432,8 +11432,8 @@ instruct inlineCallClearArrayLarge(immL cnt, rarg2RegP base, Universe dummy, iRe
 %}
 
 // Clear-array with dynamic array length.
-instruct inlineCallClearArray(rarg1RegL cnt, rarg2RegP base, Universe dummy, regCTR ctr) %{
-  match(Set dummy (ClearArray cnt base));
+instruct inlineCallClearArray(rarg1RegL cnt, rarg2RegP base, immL_0 zero, Universe dummy, regCTR ctr) %{
+  match(Set dummy (ClearArray (Binary cnt base) zero));
   effect(USE_KILL cnt, USE_KILL base, KILL ctr);
   ins_cost(4 * MEMORY_REF_COST);
 

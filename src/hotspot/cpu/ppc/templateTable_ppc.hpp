@@ -31,8 +31,10 @@
   static void generate_vtable_call(Register Rrecv_klass, Register Rindex, Register Rret, Register Rtemp);
   static void invokeinterface_object_method(Register Rrecv_klass, Register Rret, Register Rflags, Register Rcache, Register Rtemp, Register Rtemp2);
 
+  static void invoke_is_substitutable(Register aobj, Register bobj, Label& is_subst, Label& not_subst);
+
   // Branch_conditional which takes TemplateTable::Condition.
   static void branch_conditional(ConditionRegister crx, TemplateTable::Condition cc, Label& L, bool invert = false);
-  static void if_cmp_common(Register Rfirst, Register Rsecond, Register Rscratch1, Register Rscratch2, Condition cc, bool is_jint, bool cmp0);
+  static void if_cmp_common(Register Rfirst, Register Rsecond, Register Rscratch1, Register Rscratch2, Condition cc, bool is_jint, bool is_acmp = false);
 
 #endif // CPU_PPC_TEMPLATETABLE_PPC_HPP

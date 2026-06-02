@@ -270,6 +270,7 @@ inline void FreezeBase::set_top_frame_metadata_pd(const frame& hf) {
 //
 template<typename FKind>
 frame FreezeBase::new_heap_frame(frame& f, frame& caller, int size_adjust) {
+  assert(size_adjust == 0, "unsupported");
   assert(FKind::is_instance(f), "");
 
   intptr_t *sp, *fp;
@@ -504,6 +505,7 @@ inline frame ThawBase::new_entry_frame() {
 //  if there are no stackargs. This is to comply with shared code (see e.g. StackChunkFrameStream::frame_size())
 //
 template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame& caller, bool bottom, int size_adjust) {
+  assert(size_adjust == 0, "unsupported");
   assert(FKind::is_instance(hf), "");
 
   assert(is_aligned(caller.fp(), frame::frame_alignment), PTR_FORMAT, p2i(caller.fp()));

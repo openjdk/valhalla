@@ -339,8 +339,21 @@ class StubGenerator: public StubCodeGenerator {
       __ blr(); // return to caller
 
       // case T_OBJECT:
-      // case T_LONG:
       __ bind(ret_is_object);
+      if (InlineTypeReturnedAsFields) {
+        // Check for scalarized return value
+        __ cmpdi(CR0, R3_RET, 0);
+        __ beq(CR0, ret_is_long);
+        // Load pack handler address
+        __ untested("call stub InlineTypeReturnedAsFields"); // TODO: check return registers usage
+        __ andi(R12_scratch2, R3_RET, -2);
+        __ ld(R12_scratch2, InlineKlass::adr_members_offset(), R12_scratch2);
+        __ ld(R12_scratch2, InlineKlass::pack_handler_jobject_offset(), R12_scratch2);
+        __ mtctr(R12_scratch2);
+        __ bctr(); // tail call
+      } // else fall through
+
+      // case T_LONG:
       __ bind(ret_is_long);
       __ std(R3_RET, 0, r_arg_result_addr);
       __ blr(); // return to caller
@@ -2606,10 +2619,20 @@ class StubGenerator: public StubCodeGenerator {
     __ beq(CR0, L_objArray);
 
     __ cmpd(CR5, src_klass, dst_klass);          // if (src->klass() != dst->klass()) return -1;
-    __ cmpwi(CR6, lh, Klass::_lh_neutral_value); // if (!src->is_Array()) return -1;
+    __ bne(CR5, L_failed);
 
-    __ crnand(CR5, Assembler::equal, CR6, Assembler::less);
-    __ beq(CR5, L_failed);
+    // Check for flat inline type array -> return -1
+    __ test_flat_array_oop(src, temp, L_failed);
+
+    // Check for null-free (non-flat) inline type array -> handle as object array
+    __ test_null_free_array_oop(src, temp, L_objArray);
+
+    // TODO: x86 checks this twice, looks redundant:
+    // Check for flat inline type array -> return -1
+    //__ test_flat_array_layout(lh, L_failed);
+
+    __ cmpwi(CR6, lh, Klass::_lh_neutral_value); // if (!src->is_Array()) return -1;
+    __ bge(CR6, L_failed);
 
     // At this point, it is known to be a typeArray (array_tag 0x3).
 #ifdef ASSERT

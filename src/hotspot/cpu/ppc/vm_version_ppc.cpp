@@ -342,6 +342,14 @@ void VM_Version::initialize() {
     FLAG_SET_DEFAULT(UseUnalignedAccesses, true);
   }
 
+  // TODO: Valhalla stuff
+  if (FLAG_IS_DEFAULT(UseArrayFlattening                 )) FLAG_SET_DEFAULT(UseArrayFlattening                 , false);
+  if (FLAG_IS_DEFAULT(UseFieldFlattening                 )) FLAG_SET_DEFAULT(UseFieldFlattening                 , false);
+  if (FLAG_IS_DEFAULT(UseNullFreeNonAtomicValueFlattening)) FLAG_SET_DEFAULT(UseNullFreeNonAtomicValueFlattening, false);
+  if (FLAG_IS_DEFAULT(UseNullableAtomicValueFlattening   )) FLAG_SET_DEFAULT(UseNullableAtomicValueFlattening   , false);
+  if (FLAG_IS_DEFAULT(UseNullFreeAtomicValueFlattening   )) FLAG_SET_DEFAULT(UseNullFreeAtomicValueFlattening   , false);
+  if (FLAG_IS_DEFAULT(UseNullableNonAtomicValueFlattening)) FLAG_SET_DEFAULT(UseNullableNonAtomicValueFlattening, false);
+
   check_virtualizations();
 }
 

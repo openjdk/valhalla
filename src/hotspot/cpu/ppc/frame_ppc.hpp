@@ -417,7 +417,6 @@
   // returns the sending frame, without applying any barriers
   inline frame sender_raw(RegisterMap* map) const;
 
-  intptr_t* repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const;
   static intptr_t* repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr);
   bool was_augmented_on_entry(int& real_size) const;
 

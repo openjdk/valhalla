@@ -30,6 +30,7 @@
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
+#include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/safepoint.hpp"
 
 #define __ masm->
@@ -98,7 +99,7 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->try_resolve_jobject_in_native(masm, Robj, R3_ARG1, R4_ARG2, Rtmp, slow);
 
-  __ srwi(Rtmp, R5_ARG3, 2); // offset
+  __ srwi(Rtmp, R5_ARG3, jfieldIDWorkaround::offset_shift); // offset
 
   assert(count < LIST_CAPACITY, "LIST_CAPACITY too small");
   speculative_load_pclist[count] = __ pc();   // Used by the segfault handler

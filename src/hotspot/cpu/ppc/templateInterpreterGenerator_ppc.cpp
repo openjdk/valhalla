@@ -619,6 +619,11 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
     default  : ShouldNotReachHere();
   }
 
+  if (state == atos && InlineTypeReturnedAsFields) {
+    __ unimplemented("return entry InlineTypeReturnedAsFields");
+    //__ store_inline_type_fields_to_buf(nullptr, true);
+  }
+
   __ restore_interpreter_state(R11_scratch1, false /*bcp_and_mdx_only*/, true /*restore_top_frame_sp*/);
 
   // Compiled code destroys templateTableBase, reload.
@@ -1792,6 +1797,7 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, b
   if (synchronized) {
     lock_method(R3_ARG1, R4_ARG2, R5_ARG3);
   }
+
 #ifdef ASSERT
   else {
     Label Lok;
@@ -1801,6 +1807,12 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized, b
     __ bind(Lok);
   }
 #endif // ASSERT
+
+  // Issue a StoreStore barrier on entry to Object_init if the
+  // class has strict field fields.  Be lazy, always do it.
+  if (object_init) {
+    __ membar(MacroAssembler::StoreStore);
+  }
 
   // --------------------------------------------------------------------------
   // JVMTI support
