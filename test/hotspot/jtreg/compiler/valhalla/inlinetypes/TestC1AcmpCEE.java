@@ -51,7 +51,6 @@ public class TestC1AcmpCEE {
         }
     }
 
-    // Test for fix (1)
     public static int testDirectIntegerConstantCompareEqual() {
         if (CONSTANT == CONSTANT_EQUAL) {
             return 42;
@@ -60,12 +59,10 @@ public class TestC1AcmpCEE {
         }
     }
 
-    // Test for fix (2)
     public static int testDirectIntegerConstantCEEEqual() {
         return (CONSTANT == CONSTANT_EQUAL) ? 42 : 0;
     }
 
-    // Test for fix (3)
     public static int testNestedIfOp(Integer left, Integer right) {
         // After inlining helper(), the code looks like this:
         //
