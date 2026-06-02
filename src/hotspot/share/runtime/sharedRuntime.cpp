@@ -1243,7 +1243,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
       }
     } else {
       assert(attached_method->has_scalarized_args(), "invalid use of attached method");
-      if (!attached_method->method_holder()->is_inline_klass()) {
+      if (!attached_method->method_holder()->is_inline_klass() || attached_method->is_static()) {
         // Ignore the attached method in this case to not confuse below code
         attached_method = methodHandle(current, nullptr);
       }
