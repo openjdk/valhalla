@@ -2906,17 +2906,15 @@ private:
       if (n->is_Phi()) {
         for (uint j = 1; j < n->req(); ++j) {
           Node* in = n->in(j);
-          if (in == nullptr) {
-            continue;
+          if (in != nullptr) {
+            _nodes_from_phi.push(in);
           }
-          _nodes_from_phi.push(in);
         }
       } else if (n->is_ConstraintCast()) {
         Node* in = n->in(1);
-        if (in == nullptr) {
-          continue;
+        if (in != nullptr) {
+          _nodes_from_phi.push(in);
         }
-        _nodes_from_phi.push(in);
       }
     }
   }
@@ -2936,24 +2934,21 @@ private:
       if (n->is_Phi()) {
         for (uint j = 1; j < n->req(); ++j) {
           Node* in = n->in(j);
-          if (in == nullptr) {
-            continue;
+          if (in != nullptr) {
+            _nodes_from_phi.push(in);
           }
-          _nodes_from_phi.push(in);
         }
       } else if (n->is_ConstraintCast()) {
         Node* in = n->in(1);
-        if (in == nullptr) {
-          continue;
+        if (in != nullptr) {
+          _nodes_from_phi.push(in);
         }
-        _nodes_from_phi.push(in);
       } else if (n->is_InlineType()) {
         Node* buf = n->as_InlineType()->get_oop();
-        if (buf == nullptr) {
-          continue;
+        if (buf != nullptr) {
+          _nodes_from_phi.push(buf);
+          _subgraph_to_clone.push(n);
         }
-        _nodes_from_phi.push(buf);
-        _subgraph_to_clone.push(n);
       }
     }
   }
@@ -3007,12 +3002,11 @@ private:
       if (n->is_Phi()) {
         for (uint j = 1; j < n->req(); ++j) {
           Node* in = n->in(j);
-          if (in == nullptr) {
-            continue;
-          }
-          Node* in_clone = get_clone(in);
-          if (in_clone != nullptr) {
-            n_clone->set_req(j, in_clone);
+          if (in != nullptr) {
+            Node* in_clone = get_clone(in);
+            if (in_clone != nullptr) {
+              n_clone->set_req(j, in_clone);
+            }
           }
         }
       } else if (n->is_ConstraintCast()) {
@@ -3049,10 +3043,7 @@ private:
         before_casts++;
       } else if (n->is_InlineType()) {
         Node* buf = n->as_InlineType()->get_oop();
-        if (buf == nullptr) {
-          continue;
-        }
-        if (i >= _init_nodes) {
+        if (buf != nullptr && i >= _init_nodes) {
           vts_to_skip++;
         }
       }
@@ -3065,17 +3056,15 @@ private:
       if (n->is_Phi()) {
         for (uint j = 1; j < n->req(); ++j) {
           Node* in = n->in(j);
-          if (in == nullptr) {
-            continue;
+          if (in != nullptr) {
+            after.push(in);
           }
-          after.push(in);
         }
       } else if (n->is_ConstraintCast()) {
         Node* in = n->in(1);
-        if (in == nullptr) {
-          continue;
+        if (in != nullptr) {
+          after.push(in);
         }
-        after.push(in);
       }
     }
     for (int i = after.size() - 1; i >= 0; i--) {
@@ -3093,25 +3082,22 @@ private:
         after_phis++;
         for (uint j = 1; j < n->req(); ++j) {
           Node *in = n->in(j);
-          if (in == nullptr) {
-            continue;
+          if (in != nullptr) {
+            after.push(in);
           }
-          after.push(in);
         }
       } else if (n->is_ConstraintCast()) {
         after_casts++;
         Node* in = n->in(1);
-        if (in == nullptr) {
-          continue;
+        if (in != nullptr) {
+          after.push(in);
         }
-        after.push(in);
       } else if (n->is_InlineType()) {
         assert(i < init_nodes, "");
         Node* buf = n->as_InlineType()->get_oop();
-        if (buf == nullptr) {
-          continue;
+        if (buf != nullptr) {
+          after.push(buf);
         }
-        after.push(buf);
       }
     }
     assert(after.size() + vts_to_skip == _nodes_from_phi.size(), "");
