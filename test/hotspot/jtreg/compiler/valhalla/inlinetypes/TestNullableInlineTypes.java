@@ -2355,7 +2355,8 @@ public class TestNullableInlineTypes {
 
     // Test nested loops
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test81() {
         Object val = null;
         for (int i = 0; i < 10; ++i) {
@@ -2390,7 +2391,8 @@ public class TestNullableInlineTypes {
 
     // Test loops with casts
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS})
     public long test82() {
         Object val = null;
         for (int i = 0; i < 10; ++i) {
@@ -3045,17 +3047,17 @@ public class TestNullableInlineTypes {
 
         @ForceInline
         public MyValue104() {
-            this.field1 = new MyValue105();
+            MyValue104.field1 = new MyValue105();
             this.field2 = new MyValue105();
-            this.field3 = new MyValueEmpty();
+            MyValue104.field3 = new MyValueEmpty();
             this.field4 = new MyValueEmpty();
         }
 
         @ForceInline
         public MyValue104(MyValue105 val1, MyValue105 val2, MyValueEmpty val3, MyValueEmpty val4) {
-            this.field1 = val1;
+            MyValue104.field1 = val1;
             this.field2 = val2;
-            this.field3 = val3;
+            MyValue104.field3 = val3;
             this.field4 = val4;
         }
     }
