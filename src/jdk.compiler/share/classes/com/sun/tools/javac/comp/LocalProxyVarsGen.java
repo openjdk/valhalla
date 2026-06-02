@@ -36,6 +36,7 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
@@ -216,23 +217,15 @@ public class LocalProxyVarsGen extends TreeTranslator {
             int argPosition = 0;
             ListBuffer<JCStatement> superArgsProxies = new ListBuffer<>();
             Symbol.MethodSymbol constructorCallSymbol = (Symbol.MethodSymbol) TreeInfo.symbolFor(constructorCall.meth);
-            ListBuffer<VarSymbol> allDeclaredArgs = new ListBuffer<>();
-            if (!constructorCallSymbol.extraParams.isEmpty()) {
-                allDeclaredArgs.addAll(constructorCallSymbol.extraParams);
-            }
-            if (constructorCallSymbol.params != null && !constructorCallSymbol.params.isEmpty()) {
-                allDeclaredArgs.addAll(constructorCallSymbol.params);
-            }
-            if (!constructorCallSymbol.capturedLocals.isEmpty()) {
-                allDeclaredArgs.addAll(constructorCallSymbol.capturedLocals);
-            }
+            List<Type> allDeclaredArgs = constructorCallSymbol.externalType(types).getParameterTypes();
             for (JCExpression arg : constructorCall.args) {
-                VarSymbol declaredArg = allDeclaredArgs.next();
+                Type declaredType = allDeclaredArgs.head;
                 long flags = SYNTHETIC | FINAL;
-                VarSymbol proxyForArgSym = new VarSymbol(flags, newLocalName("" + argPosition), types.erasure(declaredArg.type), constructor.sym);
+                VarSymbol proxyForArgSym = new VarSymbol(flags, newLocalName("" + argPosition), types.erasure(declaredType), constructor.sym);
                 JCVariableDecl proxyForArgDecl = make.at(constructor.pos).VarDef(proxyForArgSym, arg);
                 superArgsProxies = superArgsProxies.append(proxyForArgDecl);
                 argPosition++;
+                allDeclaredArgs = allDeclaredArgs.tail;
             }
             List<JCStatement> superArgsProxiesList = superArgsProxies.toList();
             ListBuffer<JCExpression> newArgs = new ListBuffer<>();
