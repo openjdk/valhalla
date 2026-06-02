@@ -591,19 +591,21 @@ public class Gen extends JCTree.Visitor {
         class EarlyInitializerVisitor extends TreeScanner {
             @Override
             public void visitIdent(JCIdent tree) {
-                for (JCVariableDecl param : md.params) {
-                    if (param.name == tree.name &&
-                            tree.sym.isSynthetic() &&
-                            tree.sym.kind == VAR &&
-                            tree.sym.owner == md.sym.enclClass()) {
-                        tree.sym = param.sym;
-                    }
+                if ((tree.sym.flags() & OUTER_THIS_FIELD) != 0) {
+                    tree.sym = md.sym.extraParams.head;
+                } else if ((tree.sym.flags() & LOCAL_CAPTURE_FIELD) != 0) {
+                    Symbol capturedSym = tree.sym.baseSymbol();
+                    tree.sym = md.sym.capturedLocals.stream()
+                            .filter(l -> l.baseSymbol() == capturedSym)
+                            .findAny().orElseThrow();
                 }
             }
         }
-        EarlyInitializerVisitor initializerVisitor = new EarlyInitializerVisitor();
-        for (JCStatement init : initCode) {
-            initializerVisitor.scan(init);
+        if (md.sym.capturedLocals.nonEmpty() || md.sym.extraParams.nonEmpty()) {
+            EarlyInitializerVisitor initializerVisitor = new EarlyInitializerVisitor();
+            for (JCStatement init : initCode) {
+                initializerVisitor.scan(init);
+            }
         }
     }
 

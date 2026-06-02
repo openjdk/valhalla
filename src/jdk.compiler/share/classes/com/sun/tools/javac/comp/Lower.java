@@ -1458,12 +1458,14 @@ public class Lower extends TreeTranslator {
 
     private VarSymbol makeOuterThisVarSymbol(Symbol owner, long flags) {
         Type target = owner.innermostAccessibleEnclosingClass().erasure(types);
-        // Set NOOUTERTHIS for all synthetic outer instance variables, and unset
-        // it when the variable is accessed. If the variable is never accessed,
-        // we skip creating an outer instance field and saving the constructor
-        // parameter to it.
-        VarSymbol outerThis =
-            new VarSymbol(flags | NOOUTERTHIS, outerThisName(target, owner), target, owner);
+        if (owner.kind == TYP) {
+            // Set NOOUTERTHIS for all synthetic outer instance variables, and unset
+            // it when the variable is accessed. If the variable is never accessed,
+            // we skip creating an outer instance field and saving the constructor
+            // parameter to it.
+            flags = flags | NOOUTERTHIS | OUTER_THIS_FIELD;
+        }
+        VarSymbol outerThis = new VarSymbol(flags, outerThisName(target, owner), target, owner);
         outerThisStack = outerThisStack.prepend(outerThis);
         return outerThis;
     }
