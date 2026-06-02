@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,6 +23,7 @@
 
 /*
  * @test
+ * @bug 8384871
  * @summary Test that C1's conditional folding preserves acmp substitutability.
  * @enablePreview
  * @library /test/lib
@@ -31,7 +31,7 @@
  *                   -XX:CompileCommand=compileonly,${test.main.class}::test*
  *                   -XX:CompileCommand=inline,${test.main.class}::helper*
  *                   ${test.main.class}
- * @run main/othervm ${test.main.class}
+ * @run main ${test.main.class}
  */
 
 package compiler.valhalla.inlinetypes;
