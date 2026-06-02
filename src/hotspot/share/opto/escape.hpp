@@ -564,6 +564,9 @@ private:
   PhiNode *split_memory_phi(PhiNode *orig_phi, int alias_idx, GrowableArray<PhiNode *>  &orig_phi_worklist, uint rec_depth);
 
   void  move_inst_mem(Node* n, GrowableArray<PhiNode *>  &orig_phis);
+
+  bool store_flat_alias_with(StoreFlatNode* store_flat, const TypeOopPtr *toop);
+
   Node* find_inst_mem(Node* mem, int alias_idx,GrowableArray<PhiNode *>  &orig_phi_worklist, uint rec_depth = 0);
   Node* step_through_mergemem(MergeMemNode *mmem, int alias_idx, const TypeOopPtr *toop);
 
