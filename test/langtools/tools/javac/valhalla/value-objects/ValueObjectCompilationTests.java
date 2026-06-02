@@ -1078,6 +1078,45 @@ class ValueObjectCompilationTests extends CompilationTestCase {
           }
           """);
         invokeMain("Test", dir);
+
+        dir = assertOK(true, """
+          import java.util.function.Supplier;
+
+          class Test {
+              static int seen;
+              static class Box { Box(int i) { } }
+              static void test() {
+                  int x = 42;
+                  value class V {
+                      Supplier<Box> s = () -> new Box(x); // lambda capture ref
+                      V() { super(); }
+                  }
+                  new V().s.get();
+              }
+              public static void main(String[] args) {
+                  test();
+              }
+          }
+          """);
+        invokeMain("Test", dir);
+
+        dir = assertOK(true, """
+          import java.util.function.Supplier;
+
+          class Test {
+              static int seen;
+              class Inner { }
+              value class V {
+                  Supplier<Inner> s = () -> new Inner(); // lambda this$0 ref
+                  V() { super(); }
+              }
+              public static void main(String[] args) {
+                  Test t = new Test();
+                  t.new V().s.get();
+              }
+          }
+          """);
+        invokeMain("Test", dir);
     }
 
     void invokeMain(String className, File dir) throws Exception {
