@@ -225,9 +225,6 @@ public:
 #define DECLARE_BLOB_INIT_METHOD(blob_name)     \
   static void initialize_ ## blob_name ## _stubs();
 
-  static address _load_inline_type_fields_in_regs;
-  static address _store_inline_type_fields_to_buf;
-
   STUBGEN_BLOBS_DO(DECLARE_BLOB_INIT_METHOD)
 
 #undef DECLARE_BLOB_INIT_METHOD
@@ -369,10 +366,6 @@ public:
   static void arrayof_jlong_copy     (HeapWord* src, HeapWord* dest, size_t count);
   static void arrayof_oop_copy       (HeapWord* src, HeapWord* dest, size_t count);
   static void arrayof_oop_copy_uninit(HeapWord* src, HeapWord* dest, size_t count);
-
-  static address load_inline_type_fields_in_regs() { return _load_inline_type_fields_in_regs; }
-  static address store_inline_type_fields_to_buf() { return _store_inline_type_fields_to_buf; }
-
 };
 
 #endif // SHARE_RUNTIME_STUBROUTINES_HPP
