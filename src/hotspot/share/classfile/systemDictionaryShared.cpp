@@ -539,7 +539,7 @@ bool SystemDictionaryShared::check_dependencies_exclusion(InstanceKlass* k, Dump
     for (AllFieldStream fs(k); !fs.done(); fs.next()) {
       if (fs.is_flat() || fs.is_null_free_inline_type()) {
         InlineKlass* field_klass = k->get_inline_type_field_klass(fs.index());
-        if (is_dependency_excluded(k, InstanceKlass::cast(field_klass), "inline field")) {
+        if (is_dependency_excluded(k, InstanceKlass::cast(field_klass), "inline field type")) {
           return true;
         }
       }

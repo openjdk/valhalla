@@ -25,7 +25,7 @@
 /*
  * @test
  * @bug 8384756
- * @summary Verify exclusion of classes if their types are also excluded
+ * @summary A class should be excluded if the type of one of its inlined fields is excluded.
  * @requires vm.cds
  * @library /test/lib
  * @enablePreview
