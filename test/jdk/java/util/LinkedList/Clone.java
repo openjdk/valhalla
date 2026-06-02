@@ -39,7 +39,7 @@ import java.util.TreeSet;
 public class Clone {
     public static void main(String[] args) {
         testStrings();
-        testTuples();
+        testVClass();
     }
 
     private static void testStrings() {
@@ -66,7 +66,7 @@ public class Clone {
         checkTreeMapClone(m, "TreeMap.clone() is broken.");
     }
 
-    private static void testTuples() {
+    private static void testVClass() {
         LinkedList2 l = new LinkedList2();
         checkLinkedListClone(l, "LinkedList.clone() is broken for VClass 1.");
         l.add(new VClass(1, new int[] { 0 }));
