@@ -148,6 +148,7 @@ ifneq ($(MODULE_PREVIEW_SRC_DIRS),)
   # We cannot compile directly into the desired directory because it's the
   # compiler which creates the original '<module>/<classpath>/...' hierarchy.
   PREVIEW_OUTPUTDIR := $(SUPPORT_OUTPUTDIR)/$(PREVIEW_CLASSES_LABEL)
+  PATCH_COMMAND := $(MODULE)=$(call strip, $(COMPILATION_OUTPUTDIR)/$(MODULE))
 
   $(eval $(call SetupJavaCompilation, $(MODULE)-$(PREVIEW_CLASSES_LABEL), \
       SMALL_JAVA := false, \
@@ -166,6 +167,7 @@ ifneq ($(MODULE_PREVIEW_SRC_DIRS),)
           $(JAVAC_FLAGS) \
           --module-source-path $(MODULE_PREVIEW_SOURCEPATH) \
           --module-path $(MODULEPATH) \
+          --patch-module $(PATCH_COMMAND) \
           --system none \
           --enable-preview -source $(JDK_SOURCE_TARGET_VERSION), \
   ))
