@@ -1572,19 +1572,18 @@ bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode* call) {
 
   process_users_of_allocation(call);
 
-  const TypeInstPtr* t = nullptr;
-  if (call->is_boxing_method()) {
-    const TypeTuple* range = call->tf()->range_sig();
-    t = range->field_at(TypeFunc::Parms)->isa_instptr();
-  } else {
-    assert(call->is_unboxing_method(), "Unexpected call");
-    const TypeTuple* domain = call->tf()->domain_sig();
-    t = domain->field_at(TypeFunc::Parms)->isa_instptr();
-    assert(!t->maybe_null(), "missing receiver null check?");
-  }
-
   CompileLog* log = C->log();
   if (log != nullptr) {
+    const TypeInstPtr* t = nullptr;
+    if (call->is_boxing_method()) {
+      const TypeTuple* range = call->tf()->range_sig();
+      t = range->field_at(TypeFunc::Parms)->isa_instptr();
+    } else {
+      assert(call->is_unboxing_method(), "Unexpected call");
+      const TypeTuple* domain = call->tf()->domain_sig();
+      t = domain->field_at(TypeFunc::Parms)->isa_instptr();
+      assert(!t->maybe_null(), "missing receiver null check?");
+    }
     log->head("eliminate_boxing type='%d'",
               log->identify(t->instance_klass()));
     JVMState* p = call->jvms();
