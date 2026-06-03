@@ -66,7 +66,6 @@ endif
 MODULESOURCEPATH := $(call GetModuleSrcPath)
 
 # Add imported modules to the modulepath
-# This path usually includes class files without source files
 MODULEPATH := $(call PathList, $(IMPORT_MODULES_CLASSES))
 
 ################################################################################
