@@ -419,10 +419,9 @@ public class Gen extends JCTree.Visitor {
 
     /** Distribute member initializer code into constructors and {@code <clinit>}
      *  method.
-     *  @param defs         The list of class member declarations.
-     *  @param c            The enclosing class.
+     *  @param classDecl         The class declaration to normalize.
      */
-    List<JCTree> normalizeDefs(List<JCTree> defs, ClassSymbol c) {
+    List<JCTree> normalizeDefs(JCClassDecl classDecl) {
         ListBuffer<JCStatement> initCode = new ListBuffer<>();
         // only used for value classes
         ListBuffer<JCStatement> initBlocks = new ListBuffer<>();
@@ -434,7 +433,7 @@ public class Gen extends JCTree.Visitor {
         //  - initCode for instance initializers
         //  - clinitCode for class initializers
         //  - methodDefs for method definitions
-        for (List<JCTree> l = defs; l.nonEmpty(); l = l.tail) {
+        for (List<JCTree> l = classDecl.defs; l.nonEmpty(); l = l.tail) {
             JCTree def = l.head;
             switch (def.getTag()) {
             case BLOCK:
@@ -442,7 +441,7 @@ public class Gen extends JCTree.Visitor {
                 if ((block.flags & STATIC) != 0)
                     clinitCode.append(block);
                 else if ((block.flags & SYNTHETIC) == 0) {
-                    if (c.isValueClass()) {
+                    if (classDecl.sym.isValueClass()) {
                         initBlocks.append(block);
                     } else {
                         initCode.append(block);
@@ -488,23 +487,23 @@ public class Gen extends JCTree.Visitor {
         // Insert any instance initializers into all constructors.
         List<TypeCompound> initTAlist = List.nil();
         if (initCode.nonEmpty() || initBlocks.nonEmpty()) {
-            initTAs.addAll(c.getInitTypeAttributes());
+            initTAs.addAll(classDecl.sym.getInitTypeAttributes());
             initTAlist = initTAs.toList();
         }
         for (JCTree t : methodDefs) {
-            normalizeMethod((JCMethodDecl)t, initCode.toList(), initBlocks.toList(), initTAlist);
+            normalizeMethod(classDecl, (JCMethodDecl)t, initCode.toList(), initBlocks.toList(), initTAlist);
         }
         // If there are class initializers, create a <clinit> method
         // that contains them as its body.
         if (clinitCode.length() != 0) {
             MethodSymbol clinit = new MethodSymbol(
-                STATIC | (c.flags() & STRICTFP),
+                STATIC | (classDecl.sym.flags() & STRICTFP),
                 names.clinit,
                 new MethodType(
                     List.nil(), syms.voidType,
                     List.nil(), syms.methodClass),
-                c);
-            c.members().enter(clinit);
+                    classDecl.sym);
+            classDecl.sym.members().enter(clinit);
             List<JCStatement> clinitStats = clinitCode.toList();
             JCBlock block = make.at(clinitStats.head.pos()).Block(0, clinitStats);
             block.bracePos = TreeInfo.endPos(clinitStats.last());
@@ -512,8 +511,8 @@ public class Gen extends JCTree.Visitor {
 
             if (!clinitTAs.isEmpty())
                 clinit.appendUniqueTypeAttributes(clinitTAs.toList());
-            if (!c.getClassInitTypeAttributes().isEmpty())
-                clinit.appendUniqueTypeAttributes(c.getClassInitTypeAttributes());
+            if (!classDecl.sym.getClassInitTypeAttributes().isEmpty())
+                clinit.appendUniqueTypeAttributes(classDecl.sym.getClassInitTypeAttributes());
         }
         // Return all method definitions.
         return methodDefs.toList();
@@ -554,7 +553,7 @@ public class Gen extends JCTree.Visitor {
      *  @param initCode  The list of instance initializer statements.
      *  @param initTAs  Type annotations from the initializer expression.
      */
-    void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initBlocks,  List<TypeCompound> initTAs) {
+    void normalizeMethod(JCClassDecl classDecl, JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initBlocks,  List<TypeCompound> initTAs) {
         if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
@@ -570,7 +569,7 @@ public class Gen extends JCTree.Visitor {
                 md.sym.appendUniqueTypeAttributes(initTAs);
             }
 
-            localProxyVarsGen.patchConstructor(md, make);
+            localProxyVarsGen.patchConstructor(classDecl, md, make);
 
             if (md.body.bracePos == Position.NOPOS)
                 md.body.bracePos = TreeInfo.endPos(md.body.stats.last());
@@ -2550,7 +2549,7 @@ public class Gen extends JCTree.Visitor {
             this.toplevel = env.toplevel;
             /* method normalizeDefs() can add references to external classes into the constant pool
              */
-            cdef.defs = normalizeDefs(cdef.defs, c);
+            cdef.defs = normalizeDefs(cdef);
             generateReferencesToPrunedTree(c);
             Env<GenContext> localEnv = new Env<>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;

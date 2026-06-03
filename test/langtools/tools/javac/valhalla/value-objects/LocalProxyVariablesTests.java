@@ -161,6 +161,20 @@ public class LocalProxyVariablesTests {
                     }
                 }
                 """, "MustPatchNullSuperArg",  Set.of("local$i", "local$0", "local$1"));
+        doTest(
+                """
+                class Test {
+                    static int seed() { return 42; }
+                    static value class V {
+                        int x = seed();
+                        int y = x;
+                        V() { super(); }
+                    }
+                    public static void main(String[] args) {
+                        new V();
+                    }
+                }
+                """, Set.of("local$x"));
     }
 
     void doTest(String src, Set<String> expectedLocalProxyNames) throws Throwable {
@@ -215,8 +229,8 @@ public class LocalProxyVariablesTests {
         }
 
         @Override
-        public void patchConstructor(JCMethodDecl mdef, TreeMaker make) {
-            super.patchConstructor(mdef, make);
+        public void patchConstructor(JCClassDecl cdef, JCMethodDecl mdef, TreeMaker make) {
+            super.patchConstructor(cdef, mdef, make);
             // if className is "" then we process any class name, usually there will be only one
             // if not we check only the class with name equals to className
             if (className.equals("") || className.equals(mdef.sym.owner.name.toString())) {
