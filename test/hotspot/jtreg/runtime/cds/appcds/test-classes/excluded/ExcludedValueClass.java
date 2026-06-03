@@ -34,4 +34,8 @@ public value class ExcludedValueClass {
         i = 0;
         System.out.println("Hello from ExcludedValueClass!");
     }
+
+    public static void foo() {
+        System.out.println("Static method foo!");
+    }
 }

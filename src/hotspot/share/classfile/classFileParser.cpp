@@ -5479,6 +5479,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   ik->set_static_oop_field_count(_static_oop_count);
 
   if (_has_null_restricted_static_fields) {
+    ik->set_has_null_restricted_static_fields();
     for (int i = 0; i < _temp_field_info->length(); i++) {
       FieldInfo& fieldinfo = _temp_field_info->at(i);
       if (fieldinfo.access_flags().is_static() && fieldinfo.field_flags().is_null_free_inline_type()) {
@@ -5486,7 +5487,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
         assert(Signature::has_envelope(sig), "Must already have been checked");
         TempNewSymbol name = Signature::strip_envelope(sig);
         if (name == _class_name) {
-          // replace the nullptr previously stored now that we have the InstanceKlass for this klass
+          // Replace the nullptr previously stored now that we have the InstanceKlass for this klass.
           _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(ik));
         }
         assert(_inline_layout_info_array->adr_at(fieldinfo.index())->klass()->is_inline_klass(), "Must be");
@@ -6394,8 +6395,8 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
         if (fieldinfo.field_flags().is_null_free_inline_type() && !is_inline_type()) {
           fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
         } else {
-          // dummy setting to triggger the allocation of the inline_layout_info array
-          // the real pointer will be set later in ::fill_instance_klass, once the InlineKlass has been allocated
+          // Dummy setting to trigger the allocation of the inline_layout_info array -
+          // the real pointer will be set later in ::fill_instance_klass, once the InlineKlass has been allocated.
           set_inline_layout_info_klass(fieldinfo.index(), nullptr, CHECK);
         }
         continue;

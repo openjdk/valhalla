@@ -23,16 +23,30 @@
  */
 
 /*
- * @test
+ * @test id=inline
  * @bug 8384756
  * @summary A class should be excluded if the type of one of its inlined fields is excluded.
  * @requires vm.cds
  * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
  * @enablePreview
  * @compile test-classes/InlineFieldExclusionApp.java test-classes/excluded/ExcludedValueClass.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar app.jar InlineFieldExclusionApp
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar excluded.jar excluded/ExcludedValueClass
- * @run main/othervm InlineFieldExclusionTest
+ * @run main/othervm InlineFieldExclusionTest InlineFieldExclusionApp
+ */
+
+/* @test id=static
+ * @bug 8384756
+ * @summary A class should be excluded if the type of one of its inlined fields is excluded.
+ * @requires vm.cds
+ * @library /test/lib
+ * @modules java.base/jdk.internal.vm.annotation
+ * @enablePreview
+ * @compile test-classes/StaticNullRestrictedExclusionApp.java test-classes/excluded/ExcludedValueClass.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar app.jar StaticNullRestrictedExclusionApp
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar excluded.jar excluded/ExcludedValueClass
+ * @run main/othervm InlineFieldExclusionTest StaticNullRestrictedExclusionApp
  */
 
 import jdk.test.lib.helpers.ClassFileInstaller;
@@ -41,6 +55,11 @@ import java.io.File;
 
 public class InlineFieldExclusionTest {
     public static void main(String[] args) throws Exception {
+        if (args.length < 1) {
+            throw new RuntimeException("Missing main class name");
+        }
+
+        String mainClass = args[0];
         String appJar = ClassFileInstaller.getJarPath("app.jar");
         String unsignedJar = ClassFileInstaller.getJarPath("excluded.jar");
 
@@ -50,13 +69,12 @@ public class InlineFieldExclusionTest {
         String classpath = appJar + System.getProperty("path.separator") + signedJar;
         OutputAnalyzer output;
 
-        String mainClass = "InlineFieldExclusionApp";
         String[] suffix = TestCommon.list("--enable-preview",
                                           "-Xlog:cds,aot,class+load");
 
         String skipMsg1 = "Skipping excluded/ExcludedValueClass: Signed JAR";
-        String skipMsg2 = "Skipping InlineFieldExclusionApp: inline field";
-        String loadFromJar = ".class,load\s*. InlineFieldExclusionApp source: file:.*app.jar";
+        String skipMsg2 = "Skipping " + mainClass;
+        String loadFromJar = ".class,load\s*. " + mainClass + " source: file:.*app.jar";
 
         // ExcludedValueClass should be excluded from the archive because it is found inside
         // a signed JAR. InlineFieldExclusionApp has a flat field of type ExcludedValueClass and
