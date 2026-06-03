@@ -35,6 +35,7 @@ import java.util.Set;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
@@ -163,12 +164,16 @@ public class LocalProxyVarsGen {
             // assign the proxy locals to the fields and finally invoke the super with the fresh local variables
             int argPosition = 0;
             ListBuffer<JCStatement> superArgsProxies = new ListBuffer<>();
+            Symbol.MethodSymbol constructorCallSymbol = (Symbol.MethodSymbol) TreeInfo.symbolFor(constructorCall.meth);
+            List<Type> allDeclaredArgs = constructorCallSymbol.externalType(types).getParameterTypes();
             for (JCExpression arg : constructorCall.args) {
+                Type declaredType = allDeclaredArgs.head;
                 long flags = SYNTHETIC | FINAL;
-                VarSymbol proxyForArgSym = new VarSymbol(flags, newLocalName("" + argPosition), types.erasure(arg.type), constructor.sym);
+                VarSymbol proxyForArgSym = new VarSymbol(flags, newLocalName("" + argPosition), types.erasure(declaredType), constructor.sym);
                 JCVariableDecl proxyForArgDecl = make.at(constructor.pos).VarDef(proxyForArgSym, arg);
                 superArgsProxies = superArgsProxies.append(proxyForArgDecl);
                 argPosition++;
+                allDeclaredArgs = allDeclaredArgs.tail;
             }
             List<JCStatement> superArgsProxiesList = superArgsProxies.toList();
             ListBuffer<JCExpression> newArgs = new ListBuffer<>();
