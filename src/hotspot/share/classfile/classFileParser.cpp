@@ -6241,17 +6241,17 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_LooselyConsistentValue) && _access_flags.is_identity_class()) {
     THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
-          err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
-                  _class_name->as_klass_external_name()));
+              err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
+                      _class_name->as_klass_external_name()));
   }
 
   // Determining if the class allows tearing or not (default is not)
   if (Arguments::is_valhalla_enabled() && !_access_flags.is_identity_class()) {
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
         && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
-      // Conditions above are not sufficient to determine atomicity requirements,
-      // the presence of fields with atomic requirements could force the current class to have atomicity requirements too
-      // Marking as not needing atomicity for now, can be updated when computing the fields layout
+      // Conditions above are not sufficient to determine atomicity requirements.
+      // Fields with atomicity requirements could force the current class to have atomicity requirements too.
+      // Mark as not needing atomicity for now - can be updated when computing the fields layout.
       // The InstanceKlass must be filled with the value from the FieldLayoutInfo returned by
       // the FieldLayoutBuilder, not with this _must_be_atomic field.
       _must_be_atomic = false;
@@ -6395,9 +6395,9 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                      name->as_C_string(), _class_name->as_C_string());
             if (fieldinfo.field_flags().is_null_free_inline_type()) {
               log_warning(class, preload)("After preloading of class %s during loading of class %s "
-                                     "field was annotated with @NullRestricted but loaded class is not a value class, "
-                                     "the annotation is ignored",
-                                     name->as_C_string(), _class_name->as_C_string());
+                                          "field was annotated with @NullRestricted but loaded class is not a value class, "
+                                          "the annotation is ignored",
+                                          name->as_C_string(), _class_name->as_C_string());
               fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
             }
           }
@@ -6408,9 +6408,9 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                    PENDING_EXCEPTION->klass()->name()->as_C_string());
           if (fieldinfo.field_flags().is_null_free_inline_type()) {
             log_warning(class, preload)("After preloading of class %s during loading of class %s failed,"
-                                   "field was annotated with @NullRestricted but class is unknown, "
-                                   "the annotation is ignored",
-                                   name->as_C_string(), _class_name->as_C_string());
+                                        "field was annotated with @NullRestricted but class is unknown, "
+                                        "the annotation is ignored",
+                                        name->as_C_string(), _class_name->as_C_string());
             fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
           }
 
@@ -6431,14 +6431,14 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
           ResourceMark rm(THREAD);
           if (klass == nullptr) {
             log_warning(class, preload)("During loading of class %s, class %s is unknown, "
-                                 "but a field of this type was annotated with @NullRestricted, "
-                                 "the annotation is ignored",
-                                 _class_name->as_C_string(), name->as_C_string());
+                                        "but a field of this type was annotated with @NullRestricted, "
+                                        "the annotation is ignored",
+                                        _class_name->as_C_string(), name->as_C_string());
           } else {
             log_warning(class, preload)("During loading of class %s, class %s was found in the local system dictionary "
-                                 "and is not a concrete value class, but a field of this type was annotated with "
-                                 "@NullRestricted, the annotation is ignored",
-                                 _class_name->as_C_string(), name->as_C_string());
+                                        "and is not a concrete value class, but a field of this type was annotated with "
+                                        "@NullRestricted, the annotation is ignored",
+                                        _class_name->as_C_string(), name->as_C_string());
           }
           fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
         }
