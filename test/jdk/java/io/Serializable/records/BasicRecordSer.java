@@ -26,7 +26,7 @@
  * @bug 8246774 8326879
  * @summary Basic test that serializes and deserializes a number of records
  * @run junit BasicRecordSer
- * @run testng/othervm --enable-preview BasicRecordSer
+ * @run junit/othervm --enable-preview BasicRecordSer
  */
 
 import java.io.ByteArrayInputStream;
