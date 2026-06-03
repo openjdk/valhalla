@@ -47,10 +47,10 @@ public class ToArray {
         checkMap(true);
         checkSet(false);
         checkSet(true);
-        checkTupleMap(false);
-        checkTupleMap(true);
-        checkTupleSet(false);
-        checkTupleSet(true);
+        checkVClassMap(false);
+        checkVClassMap(true);
+        checkVClassSet(false);
+        checkVClassSet(true);
     }
 
     private static <T extends Comparable<T>> void checkToArray(String message, T[] expected, Collection<T> collection,
@@ -161,7 +161,7 @@ public class ToArray {
                 .toArray(Long[]::new), longSet, !ordered);
     }
 
-    private static void checkTupleMap(boolean ordered) {
+    private static void checkVClassMap(boolean ordered) {
         Map<VClass, VClass> map = ordered ? new LinkedHashMap<>() : new HashMap<>();
         checkToArray("Empty-tuple-keys", new VClass[0], map.keySet(), !ordered);
         checkToArray("Empty-tuple-values", new VClass[0], map.values(), !ordered);
@@ -180,7 +180,7 @@ public class ToArray {
         checkToArray("Empty-tuple-values", new VClass[0], map.values(), !ordered);
     }
 
-    private static void checkTupleSet(boolean ordered) {
+    private static void checkVClassSet(boolean ordered) {
         Collection<VClass> set = ordered ? new LinkedHashSet<>() : new HashSet<>();
         checkToArray("Empty-tuple", new VClass[0], set, !ordered);
         set.add(new VClass(1, new int[] { 1 }));

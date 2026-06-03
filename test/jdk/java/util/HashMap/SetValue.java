@@ -40,7 +40,7 @@ public class SetValue {
 
     public static void main(String[] args) throws Exception {
         testStringValue();
-        testTupleValue();
+        testVClass();
     }
 
     private static void testStringValue() {
@@ -52,7 +52,7 @@ public class SetValue {
             throw new RuntimeException("Return value: " + returnVal);
     }
 
-    private static void testTupleValue() {
+    private static void testVClass() {
         Map<String, VClass> m = new HashMap<>();
         VClass oldValue = new VClass(1, new int[] { 1 });
         VClass newValue = new VClass(2, new int[] { 2 });

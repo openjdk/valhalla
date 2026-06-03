@@ -156,7 +156,6 @@ public class TreeBinAssert {
     /**
      * Class that will have specified hash code in a HashMap.
      */
-    @AsValueClass
     static class Key implements Comparable<Key> {
         final int hash;
 
@@ -173,6 +172,64 @@ public class TreeBinAssert {
 
         @Override public int compareTo(Key k) {
             return Integer.compare(this.hash, k.hash);
+        }
+    }
+
+    @AsValueClass
+    static class KeyVClass implements Comparable<KeyVClass> {
+        final int hash;
+
+        public KeyVClass(int desiredHash) {
+            // Account for processing done by HashMap
+            this.hash = desiredHash ^ (desiredHash >>> 16);
+        }
+
+        @Override public int hashCode() { return this.hash; }
+
+        @Override public boolean equals(Object o) {
+            return o.hashCode() == this.hashCode();
+        }
+
+        @Override public int compareTo(KeyVClass k) {
+            return Integer.compare(this.hash, k.hash);
+        }
+    }
+
+    @Test(dataProvider = "SizeAndHashes")
+    public void testMapVClass(int size, int[] hashes) {
+        Map<KeyVClass,Integer> map = new HashMap<>(size);
+
+        doTestVClass(map, hashes,
+                     (c,k) -> { ((Map<KeyVClass,Integer>)c).put(k,0); },
+                     (c)   -> { return ((Map<KeyVClass,Integer>)c).keySet().iterator(); }
+        );
+    }
+
+    @Test(dataProvider = "SizeAndHashes")
+    public void testSetVClass(int size, int[] hashes) {
+        Set<KeyVClass> set = new LinkedHashSet<>(size);
+
+        doTestVClass(set, hashes,
+                     (c,k) -> { ((Set<KeyVClass>)c).add(k); },
+                     (c)   -> { return ((Set<KeyVClass>)c).iterator(); }
+        );
+    }
+
+    private void doTestVClass(Object collection, int[] hashes,
+                              BiConsumer<Object,KeyVClass> addKey,
+                              Function<Object,Iterator<KeyVClass>> mkItr) {
+        Iterator<KeyVClass> itr = null;
+        for (int h : hashes) {
+            if (h == ITR_RM) {
+                if (itr == null) {
+                    itr = mkItr.apply(collection);
+                }
+                itr.next();
+                itr.remove();
+            } else {
+                itr = null;
+                addKey.accept(collection, new KeyVClass(h));
+            }
         }
     }
 }
