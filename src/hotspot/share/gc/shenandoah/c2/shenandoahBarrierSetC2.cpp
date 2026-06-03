@@ -419,7 +419,7 @@ void ShenandoahBarrierSetC2::eliminate_gc_barrier_data(Node* node) const {
   }
 }
 
-void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
+void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseIterGVN* macro, Node* node) const {
   eliminate_gc_barrier_data(node);
 }
 
