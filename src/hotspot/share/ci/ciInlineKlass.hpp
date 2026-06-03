@@ -36,13 +36,6 @@ class ciInlineKlass : public ciInstanceKlass {
   CI_PACKAGE_ACCESS
 
 private:
-  struct ArrayDescriptionThatGoesInAGrowableArray : ArrayDescription {
-    ArrayDescriptionThatGoesInAGrowableArray() : ArrayDescription(Klass::KlassKind::RefArrayKlassKind, ArrayProperties::Default(), LayoutKind::REFERENCE) {}
-    ArrayDescriptionThatGoesInAGrowableArray(const ArrayDescription& ad) : ArrayDescription(ad) {}
-  };
-
-  GrowableArray<ArrayDescriptionThatGoesInAGrowableArray> _array_descriptions =
-    GrowableArray<ArrayDescriptionThatGoesInAGrowableArray>(ciEnv::current()->arena(), 0, 0, ArrayDescriptionThatGoesInAGrowableArray());
 
   InlineKlass* to_InlineKlass() const {
     return InlineKlass::cast(get_Klass());
