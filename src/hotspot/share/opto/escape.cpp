@@ -4533,9 +4533,9 @@ void ConnectionGraph::move_inst_mem(Node* n, Unique_Node_List& orig_phis) {
 //
 #define FIND_INST_MEM_RECURSION_DEPTH_LIMIT 1000
 
-bool ConnectionGraph::store_flat_alias_with(StoreFlatNode* store_flat, const TypeOopPtr *toop) {
-  Node* base = store_flat->base();
-  const TypeOopPtr* t_store_base = _igvn->type(base)->is_oopptr();
+bool ConnectionGraph::flat_access_aliases_with(Node* flat_access, const TypeOopPtr *toop) {
+  Node* base = flat_access->is_StoreFlat() ? flat_access->as_StoreFlat()->base() : flat_access->as_LoadFlat()->base();
+  const TypeOopPtr* t_base = _igvn->type(base)->is_oopptr();
   uint idx = base->_idx;
   if (idx >= nodes_size()) {
     return false;
@@ -4551,7 +4551,7 @@ bool ConnectionGraph::store_flat_alias_with(StoreFlatNode* store_flat, const Typ
   if (ptn->is_JavaObject()) {
     Node* jobj_base = get_map(ptn->idx());
     if (jobj_base == nullptr || _igvn->type(jobj_base)->is_oopptr()->instance_id() != toop->instance_id()) {
-      assert(t_store_base->instance_id() != toop->instance_id(), "should not alias");
+      assert(t_base->instance_id() != toop->instance_id(), "should not alias");
       return false;
     }
     return true;
@@ -4563,7 +4563,7 @@ bool ConnectionGraph::store_flat_alias_with(StoreFlatNode* store_flat, const Typ
       return true;
     }
   }
-  assert(t_store_base->instance_id() != toop->instance_id(), "should not alias");
+  assert(t_base->instance_id() != toop->instance_id(), "should not alias");
   return false;
 }
 
@@ -4649,12 +4649,16 @@ Node* ConnectionGraph::find_inst_mem(Node* orig_mem, int alias_idx, Unique_Node_
         // ConnectionGraph::optimize_flat_accesses() and has no effect on the memory state
         // - or it is a LoadFlat for some object unrelated to alias_idx
         // In both cases, it's safe to assume this LoadFlat doesn't modify the memory for alias_idx
-        result = proj_in->in(TypeFunc::Memory);
+        // If the LoadFlat is mismatched, it's not removed so don't step over it if it's a flat access to the alias_idx
+        // known instance
+        if (!proj_in->as_LoadFlat()->is_mismatched() || !flat_access_aliases_with(proj_in, toop)) {
+          result = proj_in->in(TypeFunc::Memory);
+        }
       } else if (proj_in->is_StoreFlat()) {
         // Either:
         // - this is a StoreFlat for alias_idx's non escaping allocation that does modify the memory state for alias_idx
         // - or it is a StoreFlat for some object unrelated to alias_idx that can't modify the memory state for alias_idx
-        if (!store_flat_alias_with(proj_in->as_StoreFlat(), toop)) {
+        if (!flat_access_aliases_with(proj_in, toop)) {
           result = proj_in->in(TypeFunc::Memory);
         }
       }

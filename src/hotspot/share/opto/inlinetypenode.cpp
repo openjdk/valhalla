@@ -2276,3 +2276,7 @@ const Type* StoreFlatNode::Value(PhaseGVN* phase) const {
   }
   return bottom_type();
 }
+
+bool LoadFlatNode::is_mismatched() const {
+  return (_decorators & C2_MISMATCHED) != 0;
+}
