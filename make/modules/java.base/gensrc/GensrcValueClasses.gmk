@@ -37,7 +37,6 @@ java.base-VALUE_CLASS-REPLACEMENTS := \
     java/lang/Character.java \
     java/lang/Number.java \
     java/lang/Record.java \
-    java/lang/Runtime.java \
     java/util/Optional.java \
     java/util/OptionalInt.java \
     java/util/OptionalLong.java \
