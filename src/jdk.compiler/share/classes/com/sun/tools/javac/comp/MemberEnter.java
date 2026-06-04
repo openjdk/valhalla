@@ -220,7 +220,7 @@ public class MemberEnter extends JCTree.Visitor {
 
         localEnv.info.scope.leave();
         if (chk.checkUnique(tree.pos(), m, enclScope)) {
-            enclScope.enter(m);
+        enclScope.enter(m);
         }
 
         annotate.annotateLater(tree.mods.annotations, localEnv, m);
