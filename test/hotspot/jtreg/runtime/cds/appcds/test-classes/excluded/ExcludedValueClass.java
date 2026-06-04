@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,43 +19,23 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- */
-/*
- * @test
- * @bug 8334037
- * @library /tools/javac/lib
- * @summary Test for compiler crash when local class created in early lambda
- * @modules jdk.compiler/com.sun.tools.javac.tree
- *          jdk.compiler/com.sun.tools.javac.util
- * @enablePreview
- * @run main LambdaLocalEarlyCrash
+ *
  */
 
-public class LambdaLocalEarlyCrash {
-    interface A { }
+package excluded;
 
-    class Inner {
-       Inner() {
-          this(() -> {
-             class Local {
-                void g() {
-                   m();
-                }
-             }
-             new Local().g(); // error
-          });
-       }
+// This value class will be placed in a signed JAR causing it to be excluded
+// during a CDS dump. If a field of this type is flattened or null-restricted,
+// the holder classes must be excluded from the archive as well.
+public value class ExcludedValueClass {
+    int i;
 
-       Inner(Runnable tr) {
-          tr.run();
-       }
+    public ExcludedValueClass() {
+        i = 0;
+        System.out.println("Hello from ExcludedValueClass!");
     }
 
-    void m() {
-       System.out.println("Hello");
-    }
-
-    public static void main(String[] args) {
-       new LambdaLocalEarlyCrash().new Inner();
+    public static void foo() {
+        System.out.println("Static method foo!");
     }
 }

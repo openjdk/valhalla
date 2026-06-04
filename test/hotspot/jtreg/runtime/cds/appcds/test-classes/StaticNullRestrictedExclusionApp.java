@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,13 +19,26 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-// key: compiler.warn.would.not.be.allowed.in.prologue
-// options: -Xlint:initialization --enable-preview -source ${jdk.version}
+import excluded.ExcludedValueClass;
 
-public class InitializationWarning {
-    InitializationWarning(Object oo) {
-        hashCode();
+import jdk.internal.vm.annotation.NullRestricted;
+
+public class StaticNullRestrictedExclusionApp {
+
+    @NullRestricted
+    static ExcludedValueClass v = new ExcludedValueClass();
+    int i;
+
+    StaticNullRestrictedExclusionApp() {
+        i = 0;
+    }
+
+    public static void main(String args[]) {
+        StaticNullRestrictedExclusionApp h = new StaticNullRestrictedExclusionApp();
+        ExcludedValueClass.foo();
+        System.out.println("Hello from StaticNullRestrictedExclusionApp!");
     }
 }

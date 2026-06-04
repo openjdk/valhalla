@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,43 +19,25 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- */
-/*
- * @test
- * @bug 8334037
- * @library /tools/javac/lib
- * @summary Test for compiler crash when local class created in early lambda
- * @modules jdk.compiler/com.sun.tools.javac.tree
- *          jdk.compiler/com.sun.tools.javac.util
- * @enablePreview
- * @run main LambdaLocalEarlyCrash
+ *
  */
 
-public class LambdaLocalEarlyCrash {
-    interface A { }
+import excluded.ExcludedValueClass;
 
-    class Inner {
-       Inner() {
-          this(() -> {
-             class Local {
-                void g() {
-                   m();
-                }
-             }
-             new Local().g(); // error
-          });
-       }
+public class InlineFieldExclusionApp {
 
-       Inner(Runnable tr) {
-          tr.run();
-       }
+    ExcludedValueClass v;
+
+    InlineFieldExclusionApp() {
+        v = new ExcludedValueClass();
     }
 
-    void m() {
-       System.out.println("Hello");
-    }
-
-    public static void main(String[] args) {
-       new LambdaLocalEarlyCrash().new Inner();
+    public static void main(String args[]) {
+        InlineFieldExclusionApp h = new InlineFieldExclusionApp();
+        ExcludedValueClass test = new ExcludedValueClass();
+        if (h.v != test) {
+            throw new RuntimeException("Should be flattened");
+        }
+        System.out.println("Hello from InlineFieldExclusionApp!");
     }
 }
