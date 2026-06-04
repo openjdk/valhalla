@@ -297,8 +297,7 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         warnOnIllegalUtf8 = Feature.WARN_ON_ILLEGAL_UTF8.allowedInSource(source);
@@ -1556,6 +1555,9 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.valueBasedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= VALUE_BASED;
+            } else if (proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
+                Assert.check(sym.kind == TYP);
+                sym.flags_field |= MIGRATED_VALUE_CLASS;
             } else if (proxy.type.tsym.flatName() == syms.restrictedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
                 sym.flags_field |= RESTRICTED;
@@ -1570,11 +1572,13 @@ public class ClassReader {
                 } else if (proxy.type.tsym == syms.deprecatedType.tsym) {
                     sym.flags_field |= (DEPRECATED | DEPRECATED_ANNOTATION);
                     setFlagIfAttributeTrue(proxy, sym, names.forRemoval, DEPRECATED_REMOVAL);
-                }  else if (proxy.type.tsym == syms.previewFeatureType.tsym) {
+                } else if (proxy.type.tsym == syms.previewFeatureType.tsym) {
                     sym.flags_field |= PREVIEW_API;
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
-                }  else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
+                } else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
+                } else if (proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
+                    sym.flags_field |= MIGRATED_VALUE_CLASS;
                 } else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
@@ -3363,8 +3367,8 @@ public class ClassReader {
     private boolean needsValueFlag(Symbol c, long flags) {
         boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if (allowValueClasses) {
-            if (previewClassFile && majorVersion >= V67.major && (flags & INTERFACE) == 0 ||
-                    majorVersion >= V67.major && isMigratedValueClass(flags)) {
+            if (previewClassFile && majorVersion >= Version.MAX().major && (flags & INTERFACE) == 0 ||
+                    majorVersion >= Version.MAX().major && isMigratedValueClass(flags)) {
                 return true;
             }
         }

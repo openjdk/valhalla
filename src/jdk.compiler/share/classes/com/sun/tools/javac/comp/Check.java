@@ -167,8 +167,7 @@ public class Check {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
         allowPrimitivePatterns = preview.isEnabled() && Feature.PRIMITIVE_PATTERNS.allowedInSource(source);
-        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -2582,7 +2581,7 @@ public class Check {
         Type identitySuper = null;
         for (Type t : types.closure(c)) {
             if (t != c) {
-                if (t.isIdentityClass() && (t.tsym.flags() & VALUE_BASED) == 0)
+                if (t.isIdentityClass() && (t.tsym.flags() & MIGRATED_VALUE_CLASS) == 0)
                     identitySuper = t;
                 if (c.isValueClass() && identitySuper != null && identitySuper.tsym != syms.objectType.tsym) { // Object is special
                     log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));

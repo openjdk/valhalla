@@ -2302,7 +2302,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
         && ((flags & JVM_ACC_STATIC) == 0 )
         && !_access_flags.is_identity_class()) {
       classfile_parse_error("Invalid synchronized method in non-identity class %s", THREAD);
-        return nullptr;
+      return nullptr;
     }
   }
 
@@ -4300,7 +4300,7 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
 
     // The JVMS says that super classes for value types must not have the ACC_IDENTITY
     // flag set. But, java.lang.Object must still be allowed to be a direct super class
-    // for a value classes.  So, it is treated as a special case for now.
+    // for value classes. So, it is treated as a special case for now.
     if (!this_klass->access_flags().is_identity_class() &&
         super->name() != vmSymbols::java_lang_Object() &&
         super->is_identity_class()) {
@@ -4924,8 +4924,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_LONG:
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
-    case JVM_SIGNATURE_CLASS:
-    {
+    case JVM_SIGNATURE_CLASS: {
       if (_major_version < JAVA_1_5_VERSION) {
         signature++;
         length--;
@@ -6247,7 +6246,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
 
     if (Arguments::is_valhalla_enabled()) {
-      // If this class is an value class, its super class cannot be an identity class unless it is java.lang.Object.
+      // If this class is a value class, its super class cannot be an identity class unless it is java.lang.Object.
       if (_super_klass->access_flags().is_identity_class() && !access_flags().is_identity_class() &&
           _super_klass != vmClasses::Object_klass()) {
         ResourceMark rm(THREAD);
@@ -6263,17 +6262,17 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_LooselyConsistentValue) && _access_flags.is_identity_class()) {
     THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
-          err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
-                  _class_name->as_klass_external_name()));
+              err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
+                      _class_name->as_klass_external_name()));
   }
 
   // Determining if the class allows tearing or not (default is not)
   if (Arguments::is_valhalla_enabled() && !_access_flags.is_identity_class()) {
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
         && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
-      // Conditions above are not sufficient to determine atomicity requirements,
-      // the presence of fields with atomic requirements could force the current class to have atomicy requirements too
-      // Marking as not needing atomicity for now, can be updated when computing the fields layout
+      // Conditions above are not sufficient to determine atomicity requirements.
+      // Fields with atomicity requirements could force the current class to have atomicity requirements too.
+      // Mark as not needing atomicity for now - can be updated when computing the fields layout.
       // The InstanceKlass must be filled with the value from the FieldLayoutInfo returned by
       // the FieldLayoutBuilder, not with this _must_be_atomic field.
       _must_be_atomic = false;
@@ -6370,13 +6369,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   }
 }
 
-// In order to be able to optimize fields layouts by applying heap flattening,
+// In order to be able to optimize field layouts by applying heap flattening,
 // the JVM needs to know the layout of the class of the fields, which implies
 // having these classes loaded. The strategy has two folds:
 //  1 - if the current class has a LoadableDescriptors attribute containing the
 //      name of the class of the field and PreloadClasses is true, the JVM will
 //      try to speculatively load this class. Failures to load the class are
-//      silently discarded, and loadings resulting in a non-optimizable class
+//      silently discarded, and loads resulting in a non-optimizable class
 //      are ignored
 //  2 - if step 1 cannot be applied, the JVM will simply check if the class
 //      loader of the current class already knows these classes (no class
@@ -6402,6 +6401,7 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
         continue;
       }
       if (PreloadClasses && is_class_in_loadable_descriptors_attribute(sig)) {
+        ResourceMark rm(THREAD);
         log_info(class, preload)("Preloading of class %s during loading of class %s. "
                                  "Cause: field type in LoadableDescriptors attribute",
                                  name->as_C_string(), _class_name->as_C_string());
@@ -6419,15 +6419,15 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                      "(cause: field type in LoadableDescriptors attribute) succeeded",
                                      name->as_C_string(), _class_name->as_C_string());
           } else {
-            // Non value class are allowed by the current spec, but it could be an indication of an issue so let's log this
+            // Non value classes are allowed by the current spec, but it could be an indication of an issue so let's log this
             log_info(class, preload)("Preloading of class %s during loading of class %s "
                                      "(cause: field type in LoadableDescriptors attribute) but loaded class is not a value class",
                                      name->as_C_string(), _class_name->as_C_string());
             if (fieldinfo.field_flags().is_null_free_inline_type()) {
               log_warning(class, preload)("After preloading of class %s during loading of class %s "
-                                     "field was annotated with @NullRestricted but loaded class is not a value class, "
-                                     "the annotation is ignored",
-                                     name->as_C_string(), _class_name->as_C_string());
+                                          "field was annotated with @NullRestricted but loaded class is not a value class, "
+                                          "the annotation is ignored",
+                                          name->as_C_string(), _class_name->as_C_string());
               fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
             }
           }
@@ -6438,9 +6438,9 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                    PENDING_EXCEPTION->klass()->name()->as_C_string());
           if (fieldinfo.field_flags().is_null_free_inline_type()) {
             log_warning(class, preload)("After preloading of class %s during loading of class %s failed,"
-                                   "field was annotated with @NullRestricted but class is unknown, "
-                                   "the annotation is ignored",
-                                   name->as_C_string(), _class_name->as_C_string());
+                                        "field was annotated with @NullRestricted but class is unknown, "
+                                        "the annotation is ignored",
+                                        name->as_C_string(), _class_name->as_C_string());
             fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
           }
 
@@ -6453,20 +6453,22 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
         InstanceKlass* klass = SystemDictionary::find_instance_klass(THREAD, name, Handle(THREAD, loader));
         if (klass != nullptr && klass->is_inline_klass()) {
           set_inline_layout_info_klass(fieldinfo.index(), InlineKlass::cast(klass), CHECK);
+          ResourceMark rm(THREAD);
           log_info(class, preload)("During loading of class %s , class %s found in local system dictionary"
                                    "(field type not in LoadableDescriptors attribute)",
                                    _class_name->as_C_string(), name->as_C_string());
         } else if (fieldinfo.field_flags().is_null_free_inline_type()) {
+          ResourceMark rm(THREAD);
           if (klass == nullptr) {
-          log_warning(class, preload)("During loading of class %s, class %s is unknown, "
-                                 "but a field of this type was annotated with @NullRestricted, "
-                                 "the annotation is ignored",
-                                 _class_name->as_C_string(), name->as_C_string());
+            log_warning(class, preload)("During loading of class %s, class %s is unknown, "
+                                        "but a field of this type was annotated with @NullRestricted, "
+                                        "the annotation is ignored",
+                                        _class_name->as_C_string(), name->as_C_string());
           } else {
             log_warning(class, preload)("During loading of class %s, class %s was found in the local system dictionary "
-                                 "and is not a concrete value class, but a field of this type was annotated with "
-                                 "@NullRestricted, the annotation is ignored",
-                                 _class_name->as_C_string(), name->as_C_string());
+                                        "and is not a concrete value class, but a field of this type was annotated with "
+                                        "@NullRestricted, the annotation is ignored",
+                                        _class_name->as_C_string(), name->as_C_string());
           }
           fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
         }
