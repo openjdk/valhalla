@@ -204,9 +204,29 @@ void PhaseVector::scalarize_vbox_node(VectorBoxNode* vec_box) {
       // Adjust JVMS from post-call to pre-call state: put args on stack
       uint nargs = call->method()->arg_size();
       kit.ensure_stack(kit.sp() + nargs);
-      for (uint i = TypeFunc::Parms; i < call->tf()->domain_sig()->cnt(); i++) {
-        kit.push(call->in(i));
+      uint in_idx = TypeFunc::Parms;
+      for (uint parm_idx = 0; parm_idx < nargs; parm_idx++) {
+        if (call->method()->is_scalarized_arg(static_cast<int>(parm_idx))) {
+          bool nullable = call->tf()->domain_sig()->field_at(in_idx)->maybe_null();
+          ciInlineKlass* vk = call->tf()->domain_sig()->field_at(in_idx)->inline_klass();
+          InlineTypeNode* it = InlineTypeNode::make_uninitialized(gvn, vk, !nullable);
+          it->set_oop(gvn, call->in(in_idx));
+          in_idx++;
+          if (nullable) {
+            it->set_null_marker(gvn, call->in(in_idx));
+            in_idx++;
+          }
+          for (int field_idx = 0; field_idx < vk->nof_nonstatic_fields(); field_idx++) {
+            it->set_field_value(field_idx, call->in(in_idx));
+            in_idx++;
+          }
+          kit.push(gvn.transform(it));
+        } else {
+          kit.push(call->in(in_idx));
+          in_idx++;
+        }
       }
+      assert(in_idx == call->tf()->domain_cc()->cnt(), "should have processed exactly as many input as the scalarized calling convention; %d vs %d", in_idx, call->tf()->domain_cc()->cnt());
       jvms = kit.sync_jvms();
 
       Node* new_vbox = nullptr;
