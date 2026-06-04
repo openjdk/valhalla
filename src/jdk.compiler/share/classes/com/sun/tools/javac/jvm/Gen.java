@@ -493,7 +493,7 @@ public class Gen extends JCTree.Visitor {
         for (JCTree t : methodDefs) {
             normalizeMethod((JCMethodDecl)t, initCode.toList(), initBlocks.toList(), initTAlist);
         }
-        localProxyVarsGen.allConstNormalized(classDecl.sym);
+        localProxyVarsGen.allFieldNormalized(classDecl.sym);
         // If there are class initializers, create a <clinit> method
         // that contains them as its body.
         if (clinitCode.length() != 0) {
