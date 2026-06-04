@@ -33,7 +33,7 @@ import java.util.Optional;
 import jdk.internal.math.FloatConsts;
 import jdk.internal.math.FloatingDecimal;
 import jdk.internal.math.FloatToDecimal;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.DeserializeFactory;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -688,7 +688,7 @@ public final class Float extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
-    @DeserializeConstructor("value")
+    @DeserializeFactory("value")
     public Float(float value) {
         this.value = value;
     }

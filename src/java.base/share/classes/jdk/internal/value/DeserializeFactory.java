@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,7 +39,7 @@ import static java.lang.annotation.ElementType.METHOD;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(value={CONSTRUCTOR, METHOD})
-public @interface DeserializeConstructor {
+public @interface DeserializeFactory {
     /// Identifies the serial field names for the method parameters.
     /// The serial field type are the corresponding parameter types.
     String[] value();

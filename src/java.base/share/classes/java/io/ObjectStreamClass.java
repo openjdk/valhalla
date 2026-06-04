@@ -54,7 +54,7 @@ import jdk.internal.event.SerializationMisdeclarationEvent;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.util.ByteArray;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.DeserializeFactory;
 import jdk.internal.value.ValueClass;
 
 /**
@@ -64,7 +64,7 @@ import jdk.internal.value.ValueClass;
  *
  * <p>The algorithm to compute the SerialVersionUID is described in
  * <a href="{@docRoot}/../specs/serialization/class.html#stream-unique-identifiers">
- *    <cite>Java Object Serialization Specification</cite>, Section 4.6, "Stream Unique Identifiers"</a>.
+ *    <cite>Java Object Serialization Specification,</cite> Section 4.6, "Stream Unique Identifiers"</a>.
  *
  * @spec serialization/index.html Java Object Serialization Specification
  * @author      Mike Warres
@@ -122,8 +122,9 @@ public final class ObjectStreamClass implements Serializable {
     private boolean isEnum;
     /** true if represents record type */
     private boolean isRecord;
-    /** true if represents a value class */
-    private boolean isValueOrStrictInit;
+    /** true if represented class cannot use allocate-and-fill deserialization,
+     * due to value class or strict field initialization restrictions. */
+    private boolean requiresDeserializeFactory;
     /** true if represented class implements Serializable */
     private boolean serializable;
     /** true if represented class implements Externalizable */
@@ -189,12 +190,14 @@ public final class ObjectStreamClass implements Serializable {
     private MethodHandle canonicalCtr;
     /** cache of record deserialization constructors per unique set of stream fields
      * (shared among OSCs for same class), or null */
-    private DeserializationConstructorsCache deserializationCtrs;
-    /** session-cache of record deserialization constructor
+    private RecordConstructorsCache cachedRecordConstructors;
+    /** session-cache of deserialization factory
      * (in de-serialized OSC only), or null */
-    private MethodHandle deserializationCtr;
-    /** value deserialization method identified by {@link DeserializeConstructor}.*/
-    private Executable deserializeConstructor;
+    private MethodHandle cachedFactory;
+    /** value deserialization factory method or constructor identified by
+     * {@link DeserializeFactory}, used when regular deserialization is
+     * illegal but deserialization support is required. */
+    private Executable deserializeFactory;
 
     /** class-defined writeObject method, or null if none */
     private Method writeObjectMethod;
@@ -347,7 +350,7 @@ public final class ObjectStreamClass implements Serializable {
         isProxy = Proxy.isProxyClass(cl);
         isEnum = Enum.class.isAssignableFrom(cl);
         isRecord = cl.isRecord();
-        isValueOrStrictInit = cl.isValue() || ValueClass.hasStrictInstanceField(cl);
+        requiresDeserializeFactory = cl.isValue() || ValueClass.hasStrictInstanceField(cl);
         serializable = Serializable.class.isAssignableFrom(cl);
         externalizable = Externalizable.class.isAssignableFrom(cl);
 
@@ -374,13 +377,14 @@ public final class ObjectStreamClass implements Serializable {
 
                 if (isRecord) {
                     canonicalCtr = canonicalRecordCtr(cl);
-                    deserializationCtrs = new DeserializationConstructorsCache();
-                } else if (isValueOrStrictInit) {
+                    cachedRecordConstructors = new RecordConstructorsCache();
+                } else if (requiresDeserializeFactory) {
                     if (!Modifier.isAbstract(cl.getModifiers())) {
-                        // Serializable value classes should have constructor(s) annotated with {@link DeserializeConstructor}
-                        deserializeConstructor = getDeserializingValueCons(cl, fields);
+                        // Serializable value classes that appear in streams should
+                        // have a factory annotated with @DeserializeFactory
+                        deserializeFactory = getDeserializeFactory(cl, fields);
                     }
-                    if (deserializeConstructor == null) {
+                    if (deserializeFactory == null) {
                         serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
                                                                         "cannot serialize value class");
                     }
@@ -418,7 +422,7 @@ public final class ObjectStreamClass implements Serializable {
         if (deserializeEx == null) {
             if (isEnum) {
                 deserializeEx = new ExceptionInfo(name, "enum type");
-            } else if (cons == null && !(isRecord || isValueOrStrictInit)) {
+            } else if (cons == null && !(isRecord || requiresDeserializeFactory)) {
                 deserializeEx = new ExceptionInfo(name, "no valid constructor");
             }
         }
@@ -555,11 +559,11 @@ public final class ObjectStreamClass implements Serializable {
         if (osc != null) {
             localDesc = osc;
             isRecord = localDesc.isRecord;
-            isValueOrStrictInit = localDesc.isValueOrStrictInit;
+            requiresDeserializeFactory = localDesc.requiresDeserializeFactory;
             // canonical record constructor is shared
             canonicalCtr = localDesc.canonicalCtr;
             // cache of deserialization constructors is shared
-            deserializationCtrs = localDesc.deserializationCtrs;
+            cachedRecordConstructors = localDesc.cachedRecordConstructors;
             writeObjectMethod = localDesc.writeObjectMethod;
             readObjectMethod = localDesc.readObjectMethod;
             readObjectNoDataMethod = localDesc.readObjectNoDataMethod;
@@ -570,7 +574,7 @@ public final class ObjectStreamClass implements Serializable {
             }
             assert cl.isRecord() ? localDesc.cons == null : true;
             cons = localDesc.cons;
-            deserializeConstructor = localDesc.deserializeConstructor;
+            deserializeFactory = localDesc.deserializeFactory;
         }
 
         fieldRefl = getReflector(fields, localDesc);
@@ -838,16 +842,21 @@ public final class ObjectStreamClass implements Serializable {
     }
 
     /**
-     * {@return {code true} if the class is a value class, {@code false} otherwise}
+     * {@return whether this class must use a deserialize factory}
+     * Concrete value classes and classes declaring strict fields cannot use the
+     * standard allocate-and-fill deserialization process.
      */
-    boolean isValueOrStrictInit() {
+    boolean requiresDeserializeFactory() {
         requireInitialized();
-        return isValueOrStrictInit;
+        return requiresDeserializeFactory;
     }
 
-    boolean isDeserializeConstructor() {
+    /**
+     * {@return whether this class declares a deserialize factory}
+     */
+    boolean hasDeserializeFactory() {
         requireInitialized();
-        return deserializeConstructor != null;
+        return deserializeFactory != null;
     }
 
     /**
@@ -1329,23 +1338,23 @@ public final class ObjectStreamClass implements Serializable {
     }
 
     /**
-     * Return a method handle for the static method or constructor(s) that matches the
-     * serializable fields and annotated with {@link DeserializeConstructor}.
+     * Return an Executable for the static method or constructor(s) that matches the
+     * serializable fields and annotated with {@link DeserializeFactory}.
      * The descriptor for the class is still being initialized, so is passed the fields needed.
      * @param clazz The class to query
      * @param fields the serializable fields of the class
-     * @return a MethodHandle, null if none found
+     * @return an Executable, null if none found
      */
     @SuppressWarnings("unchecked")
-    private static Executable getDeserializingValueCons(Class<?> clazz,
-                                                        ObjectStreamField[] fields) {
+    private static Executable getDeserializeFactory(Class<?> clazz,
+                                                    ObjectStreamField[] fields) {
         return Stream.concat(
                 Arrays.stream(clazz.getDeclaredMethods()).filter(m -> Modifier.isStatic(m.getModifiers())),
                 Arrays.stream(clazz.getDeclaredConstructors()))
                 .<Executable>mapMulti((exec, sink) -> {
                     if (exec.getParameterCount() != fields.length)
                         return;
-                    var deserialzeConstructor = exec.getDeclaredAnnotation(DeserializeConstructor.class);
+                    var deserialzeConstructor = exec.getDeclaredAnnotation(DeserializeFactory.class);
                     if (deserialzeConstructor == null)
                         return;
                     var names = deserialzeConstructor.value();
@@ -1371,17 +1380,17 @@ public final class ObjectStreamClass implements Serializable {
         var map = HashMap.<String, Integer>newHashMap(names.length);
         for (int i = 0; i < names.length; i++) {
             if (map.put(names[i], i) != null) {
-                return false; // Duplicate names
+                return false; // Duplicate names in the factory
             }
         }
         var params = exec.getParameterTypes();
         for (ObjectStreamField field : fields) {
             var i = map.get(field.getName());
             if (i == null) {
-                return false; // Name mismatch
+                return false; // Name not accounted by the factory
             }
             if (!field.getType().equals(params[i])) {
-                return false;
+                return false; // Name match, type mismatch
             }
         }
         return true;
@@ -2204,8 +2213,8 @@ public final class ObjectStreamClass implements Serializable {
      * A LRA cache of record deserialization constructors.
      */
     @SuppressWarnings("serial")
-    private static final class DeserializationConstructorsCache
-        extends ConcurrentHashMap<DeserializationConstructorsCache.Key, MethodHandle>  {
+    private static final class RecordConstructorsCache
+        extends ConcurrentHashMap<RecordConstructorsCache.Key, MethodHandle>  {
 
         // keep max. 10 cached entries - when the 11th element is inserted the oldest
         // is removed and 10 remains - 11 is the biggest map size where internal
@@ -2213,7 +2222,7 @@ public final class ObjectStreamClass implements Serializable {
         private static final int MAX_SIZE = 10;
         private Key.Impl first, last; // first and last in FIFO queue
 
-        DeserializationConstructorsCache() {
+        RecordConstructorsCache() {
             // start small - if there is more than one shape of ObjectStreamClass
             // deserialized, there will typically be two (current version and previous version)
             super(2);
@@ -2313,49 +2322,72 @@ public final class ObjectStreamClass implements Serializable {
         }
     }
 
-    /** Record specific support for retrieving and binding stream field values. */
-    static final class ConstructorSupport {
+    /** Support for retrieving and binding stream field values for alternative
+     * deserialization of record and factory-based value classes. */
+    static final class DeserializationFactorySupport {
         /**
-         * Returns canonical record constructor adapted to take two arguments:
+         * Returns factory method handle adapted to take two arguments:
          * {@code (byte[] primValues, Object[] objValues)}
          * and return
          * {@code Object}
          */
-        static MethodHandle deserializationCtr(ObjectStreamClass desc, boolean isRecord) {
+        static MethodHandle findFactory(ObjectStreamClass desc) {
             // check the cached value 1st
-            MethodHandle mh = desc.deserializationCtr;
+            MethodHandle mh = desc.cachedFactory;
             if (mh != null) return mh;
-            if (isRecord) {
-                mh = desc.deserializationCtrs.get(desc.getFields(false));
-                if (mh != null) return desc.deserializationCtr = mh;
-            }
+
+            mh = desc.isRecord() ? recordConstructor(desc) : deserializationFactory(desc);
+
+            // store into cache
+            return desc.cachedFactory = mh;
+        }
+
+        private static MethodHandle recordConstructor(ObjectStreamClass desc) {
+            // check the cached value 1st
+            MethodHandle mh = desc.cachedRecordConstructors.get(desc.getFields(false));
+            if (mh != null) return mh;
 
             // retrieve record components
-            Class<?>[] types;
-            String[] names;
-            int count;
-            if (isRecord) {
-                var recordComponents = desc.forClass().getRecordComponents();
-                types = Arrays.stream(recordComponents).map(RecordComponent::getType).toArray(Class<?>[]::new);
-                names = Arrays.stream(recordComponents).map(RecordComponent::getName).toArray(String[]::new);
-                count = recordComponents.length;
-                // retrieve the canonical constructor
-                // (T1, T2, ..., Tn):TR
-                mh = desc.getRecordConstructor();
-            } else {
-                var ctor = desc.deserializeConstructor;
-                types = ctor.getParameterTypes();
-                names = ctor.getDeclaredAnnotation(DeserializeConstructor.class).value();
-                count = types.length;
-                var lookup = MethodHandles.publicLookup();
-                try {
-                    mh = ctor instanceof Method m ? lookup.unreflect(m)
-                            : lookup.unreflectConstructor((Constructor<?>) ctor);
-                } catch (ReflectiveOperationException e) {
-                    throw new InternalError(e);
-                }
+            RecordComponent[] recordComponents = desc.forClass().getRecordComponents();
+
+            var types = Arrays.stream(recordComponents).map(RecordComponent::getType).toArray(Class<?>[]::new);
+            var names = Arrays.stream(recordComponents).map(RecordComponent::getName).toArray(String[]::new);
+            var count = recordComponents.length;
+            // retrieve the canonical constructor
+            // (T1, T2, ..., Tn):TR
+            mh = desc.getRecordConstructor();
+
+            mh = buildMethodHandle(desc, mh, types, names, count);
+
+            // store it into cache and return the 1st value stored
+            mh = desc.cachedRecordConstructors.putIfAbsentAndGet(desc.getFields(false), mh);
+
+            return mh;
+        }
+
+        private static MethodHandle deserializationFactory(ObjectStreamClass desc) {
+            var ctor = desc.deserializeFactory;
+            var types = ctor.getParameterTypes();
+            var names = ctor.getDeclaredAnnotation(DeserializeFactory.class).value();
+            var count = types.length;
+
+            MethodHandle mh;
+            var lookup = MethodHandles.publicLookup();
+            try {
+                mh = ctor instanceof Method m ? lookup.unreflect(m)
+                        : lookup.unreflectConstructor((Constructor<?>) ctor);
+            } catch (ReflectiveOperationException e) {
+                throw new InternalError(e);
             }
 
+            return buildMethodHandle(desc, mh, types, names, count);
+        }
+
+        private static MethodHandle buildMethodHandle(ObjectStreamClass desc,
+                                                      MethodHandle mh,
+                                                      Class<?>[] types,
+                                                      String[] names,
+                                                      int count) {
             // change return type to Object
             // (T1, T2, ..., Tn):TR -> (T1, T2, ..., Tn):Object
             mh = mh.asType(mh.type().changeReturnType(Object.class));
@@ -2378,12 +2410,7 @@ public final class ObjectStreamClass implements Serializable {
             // what we are left with is a MethodHandle taking just the primValues
             // and objValues arrays and returning the constructed record instance
             // (byte[], Object[]):Object
-
-            // store it into cache and return the 1st value stored
-            if (isRecord) {
-                mh = desc.deserializationCtrs.putIfAbsentAndGet(desc.getFields(false), mh);
-            }
-            return desc.deserializationCtr = mh;
+            return mh;
         }
 
         /** Returns the number of primitive fields for the given descriptor. */

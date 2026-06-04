@@ -1335,9 +1335,7 @@ public class ObjectOutputStream
             if (desc.isRecord()) {
                 writeRecordData(obj, desc);
             } else if (desc.isExternalizable() && !desc.isProxy()) {
-                if (desc.isValueOrStrictInit())
-                    throw new InvalidClassException("Externalizable not valid for value class "
-                            + desc.forClass().getName());
+                assert !desc.requiresDeserializeFactory() : "Should be caught in checkSerialize";
                 writeExternalData((Externalizable) obj);
             } else {
                 writeSerialData(obj, desc);

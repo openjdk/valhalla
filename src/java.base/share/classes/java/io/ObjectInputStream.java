@@ -26,7 +26,7 @@
 package java.io;
 
 import java.io.ObjectInputFilter.Config;
-import java.io.ObjectStreamClass.ConstructorSupport;
+import java.io.ObjectStreamClass.DeserializationFactorySupport;
 import java.lang.System.Logger;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Array;
@@ -2142,9 +2142,9 @@ public class ObjectInputStream
         }
 
         final boolean isRecord = desc.isRecord();
-        if (isRecord || desc.isDeserializeConstructor()) {
+        if (isRecord || desc.hasDeserializeFactory()) {
             assert obj == null;
-            obj = readRecordOrValue(desc, isRecord);
+            obj = readFromFactory(desc);
             if (!unshared)
                 handles.setObject(passHandle, obj);
         } else if (desc.isExternalizable()) {
@@ -2234,13 +2234,14 @@ public class ObjectInputStream
     }
 
     /**
-     * Reads and returns a record.
+     * Reads and returns a factory-deserialized object, such as a record or
+     * a wrapper class as a value class.
      * If an exception is marked for any of the fields, the dependency
-     * mechanism marks the record as having an exception.
-     * Null is returned from readRecord and later the exception is thrown at
+     * mechanism marks the object as having an exception.
+     * Null is returned from readFromFactory and later the exception is thrown at
      * the exit of {@link #readObject(Class)}.
      */
-    private Object readRecordOrValue(ObjectStreamClass desc, boolean isRecord) throws IOException {
+    private Object readFromFactory(ObjectStreamClass desc) throws IOException {
         ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
         if (slots.length != 1) {
             // skip any superclass stream field values
@@ -2253,17 +2254,17 @@ public class ObjectInputStream
 
         FieldValues fieldValues = new FieldValues(desc, true);
         if (handles.lookupException(passHandle) != null) {
-            return null;     // slot marked with exception, don't create record
+            return null;     // slot marked with exception, don't create object
         }
 
-        // get canonical record constructor adapted to take two arguments:
+        // get the factory adapted to take two arguments:
         // - byte[] primValues
         // - Object[] objValues
         // and return Object
-        MethodHandle ctrMH = ConstructorSupport.deserializationCtr(desc, isRecord);
+        MethodHandle factoryMH = DeserializationFactorySupport.findFactory(desc);
 
         try {
-            return (Object) ctrMH.invokeExact(fieldValues.primValues, fieldValues.objValues);
+            return (Object) factoryMH.invokeExact(fieldValues.primValues, fieldValues.objValues);
         } catch (Exception e) {
             throw new InvalidObjectException(e.getMessage(), e);
         } catch (Error e) {

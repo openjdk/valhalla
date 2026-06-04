@@ -53,7 +53,7 @@ import java.io.Serializable;
 import java.util.stream.Stream;
 
 import jdk.internal.MigratedValueClass;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.DeserializeFactory;
 
 import jdk.test.lib.helpers.StrictInit;
 import org.junit.jupiter.api.Assertions;
@@ -124,12 +124,12 @@ public class ValueSerializationTest {
         }
     }
 
-    /* Non-Serializable point, because it does not have an @DeserializeConstructor constructor. */
+    /* Non-Serializable point, because it does not have an @DeserializeFactory constructor. */
     public static value class NonSerializablePointNoCons implements Serializable {
         public int x;
         public int y;
 
-        // Note: Must NOT have @DeserializeConstructor annotation
+        // Note: Must NOT have @DeserializeFactory annotation
         public NonSerializablePointNoCons(int x, int y) {
             this.x = x;
             this.y = y;
@@ -183,7 +183,7 @@ public class ValueSerializationTest {
     static value class SerializablePoint implements Serializable {
         public int x;
         public int y;
-        @DeserializeConstructor({"x", "y"})
+        @DeserializeFactory({"x", "y"})
         private SerializablePoint(int x, int y) { this.x = x; this.y = y; }
 
         @Override public String toString() {
@@ -194,7 +194,7 @@ public class ValueSerializationTest {
     /* A Serializable Foo, with a serial proxy */
     static value class SerializableFoo implements Serializable {
         public int x;
-        @DeserializeConstructor("x")
+        @DeserializeFactory("x")
         SerializableFoo(int x) { this.x = x; }
 
         @Serial Object writeReplace() throws ObjectStreamException {
