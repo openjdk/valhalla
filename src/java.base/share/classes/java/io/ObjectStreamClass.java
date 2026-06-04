@@ -54,7 +54,7 @@ import jdk.internal.event.SerializationMisdeclarationEvent;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.util.ByteArray;
-import jdk.internal.value.DeserializeFactory;
+import jdk.internal.value.Deserializer;
 import jdk.internal.value.ValueClass;
 
 /**
@@ -124,7 +124,7 @@ public final class ObjectStreamClass implements Serializable {
     private boolean isRecord;
     /** true if represented class cannot use allocate-and-fill deserialization,
      * due to value class or strict field initialization restrictions. */
-    private boolean requiresDeserializeFactory;
+    private boolean requiresDeserializer;
     /** true if represented class implements Serializable */
     private boolean serializable;
     /** true if represented class implements Externalizable */
@@ -193,11 +193,11 @@ public final class ObjectStreamClass implements Serializable {
     private RecordConstructorsCache cachedRecordConstructors;
     /** session-cache of deserialization factory
      * (in de-serialized OSC only), or null */
-    private MethodHandle cachedFactory;
+    private MethodHandle cachedAlternativeFactory;
     /** value deserialization factory method or constructor identified by
-     * {@link DeserializeFactory}, used when regular deserialization is
+     * {@link Deserializer}, used when regular deserialization is
      * illegal but deserialization support is required. */
-    private Executable deserializeFactory;
+    private Executable deserializer;
 
     /** class-defined writeObject method, or null if none */
     private Method writeObjectMethod;
@@ -350,7 +350,7 @@ public final class ObjectStreamClass implements Serializable {
         isProxy = Proxy.isProxyClass(cl);
         isEnum = Enum.class.isAssignableFrom(cl);
         isRecord = cl.isRecord();
-        requiresDeserializeFactory = cl.isValue() || ValueClass.hasStrictInstanceField(cl);
+        requiresDeserializer = cl.isValue() || ValueClass.hasStrictInstanceField(cl);
         serializable = Serializable.class.isAssignableFrom(cl);
         externalizable = Externalizable.class.isAssignableFrom(cl);
 
@@ -378,13 +378,13 @@ public final class ObjectStreamClass implements Serializable {
                 if (isRecord) {
                     canonicalCtr = canonicalRecordCtr(cl);
                     cachedRecordConstructors = new RecordConstructorsCache();
-                } else if (requiresDeserializeFactory) {
+                } else if (requiresDeserializer) {
                     if (!Modifier.isAbstract(cl.getModifiers())) {
                         // Serializable value classes that appear in streams should
-                        // have a factory annotated with @DeserializeFactory
-                        deserializeFactory = getDeserializeFactory(cl, fields);
+                        // have a factory annotated with @Deserializer
+                        deserializer = findDeserializer(cl, fields);
                     }
-                    if (deserializeFactory == null) {
+                    if (deserializer == null) {
                         serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
                                                                         "cannot serialize value class");
                     }
@@ -422,7 +422,7 @@ public final class ObjectStreamClass implements Serializable {
         if (deserializeEx == null) {
             if (isEnum) {
                 deserializeEx = new ExceptionInfo(name, "enum type");
-            } else if (cons == null && !(isRecord || requiresDeserializeFactory)) {
+            } else if (cons == null && !(isRecord || requiresDeserializer)) {
                 deserializeEx = new ExceptionInfo(name, "no valid constructor");
             }
         }
@@ -559,7 +559,7 @@ public final class ObjectStreamClass implements Serializable {
         if (osc != null) {
             localDesc = osc;
             isRecord = localDesc.isRecord;
-            requiresDeserializeFactory = localDesc.requiresDeserializeFactory;
+            requiresDeserializer = localDesc.requiresDeserializer;
             // canonical record constructor is shared
             canonicalCtr = localDesc.canonicalCtr;
             // cache of deserialization constructors is shared
@@ -574,7 +574,7 @@ public final class ObjectStreamClass implements Serializable {
             }
             assert cl.isRecord() ? localDesc.cons == null : true;
             cons = localDesc.cons;
-            deserializeFactory = localDesc.deserializeFactory;
+            deserializer = localDesc.deserializer;
         }
 
         fieldRefl = getReflector(fields, localDesc);
@@ -846,17 +846,17 @@ public final class ObjectStreamClass implements Serializable {
      * Concrete value classes and classes declaring strict fields cannot use the
      * standard allocate-and-fill deserialization process.
      */
-    boolean requiresDeserializeFactory() {
+    boolean requiresDeserializer() {
         requireInitialized();
-        return requiresDeserializeFactory;
+        return requiresDeserializer;
     }
 
     /**
      * {@return whether this class declares a deserialize factory}
      */
-    boolean hasDeserializeFactory() {
+    boolean hasDeserializer() {
         requireInitialized();
-        return deserializeFactory != null;
+        return deserializer != null;
     }
 
     /**
@@ -1339,26 +1339,19 @@ public final class ObjectStreamClass implements Serializable {
 
     /**
      * Return an Executable for the static method or constructor(s) that matches the
-     * serializable fields and annotated with {@link DeserializeFactory}.
+     * serializable fields and annotated with {@link Deserializer}.
      * The descriptor for the class is still being initialized, so is passed the fields needed.
      * @param clazz The class to query
      * @param fields the serializable fields of the class
      * @return an Executable, null if none found
      */
-    @SuppressWarnings("unchecked")
-    private static Executable getDeserializeFactory(Class<?> clazz,
-                                                    ObjectStreamField[] fields) {
+    private static Executable findDeserializer(Class<?> clazz,
+                                               ObjectStreamField[] fields) {
         return Stream.concat(
                 Arrays.stream(clazz.getDeclaredMethods()).filter(m -> Modifier.isStatic(m.getModifiers())),
                 Arrays.stream(clazz.getDeclaredConstructors()))
                 .<Executable>mapMulti((exec, sink) -> {
-                    if (exec.getParameterCount() != fields.length)
-                        return;
-                    var deserialzeConstructor = exec.getDeclaredAnnotation(DeserializeFactory.class);
-                    if (deserialzeConstructor == null)
-                        return;
-                    var names = deserialzeConstructor.value();
-                    if (!matchFactoryParamTypes(exec, names, fields))
+                    if (!isDeserializer(exec, fields))
                         return;
                     exec.setAccessible(true);
                     sink.accept(exec);
@@ -1367,22 +1360,36 @@ public final class ObjectStreamClass implements Serializable {
     }
 
     /**
-     * Check that the parameters of the factory method match the fields of this class.
+     * Check that an executable is a valid deserializer declaration for
+     * this class. This checks parameters types of the executable and the
+     * names identified by the deserializer annotation against the fields
+     * of this class.
      *
-     * @return true if all fields match the parameters, false if not
+     * @return true if exec is a valid deserializer
      */
-    private static boolean matchFactoryParamTypes(Executable exec,
-                                                  String[] names,
-                                                  ObjectStreamField[] fields) {
+    private static boolean isDeserializer(Executable exec,
+                                          ObjectStreamField[] fields) {
+        if (exec.getParameterCount() != fields.length) {
+            return false;
+        }
+
+        var deserializer = exec.getDeclaredAnnotation(Deserializer.class);
+        if (deserializer == null) {
+            return false;
+        }
+
+        var names = deserializer.value();
         if (names.length != fields.length) {
             return false;
         }
+
         var map = HashMap.<String, Integer>newHashMap(names.length);
         for (int i = 0; i < names.length; i++) {
             if (map.put(names[i], i) != null) {
                 return false; // Duplicate names in the factory
             }
         }
+
         var params = exec.getParameterTypes();
         for (ObjectStreamField field : fields) {
             var i = map.get(field.getName());
@@ -2324,22 +2331,22 @@ public final class ObjectStreamClass implements Serializable {
 
     /** Support for retrieving and binding stream field values for alternative
      * deserialization of record and factory-based value classes. */
-    static final class DeserializationFactorySupport {
+    static final class AlternativeDeserialization {
         /**
          * Returns factory method handle adapted to take two arguments:
          * {@code (byte[] primValues, Object[] objValues)}
          * and return
          * {@code Object}
          */
-        static MethodHandle findFactory(ObjectStreamClass desc) {
+        static MethodHandle getFactory(ObjectStreamClass desc) {
             // check the cached value 1st
-            MethodHandle mh = desc.cachedFactory;
+            MethodHandle mh = desc.cachedAlternativeFactory;
             if (mh != null) return mh;
 
-            mh = desc.isRecord() ? recordConstructor(desc) : deserializationFactory(desc);
+            mh = desc.isRecord() ? recordConstructor(desc) : deserializer(desc);
 
             // store into cache
-            return desc.cachedFactory = mh;
+            return desc.cachedAlternativeFactory = mh;
         }
 
         private static MethodHandle recordConstructor(ObjectStreamClass desc) {
@@ -2365,10 +2372,10 @@ public final class ObjectStreamClass implements Serializable {
             return mh;
         }
 
-        private static MethodHandle deserializationFactory(ObjectStreamClass desc) {
-            var ctor = desc.deserializeFactory;
+        private static MethodHandle deserializer(ObjectStreamClass desc) {
+            var ctor = desc.deserializer;
             var types = ctor.getParameterTypes();
-            var names = ctor.getDeclaredAnnotation(DeserializeFactory.class).value();
+            var names = ctor.getDeclaredAnnotation(Deserializer.class).value();
             var count = types.length;
 
             MethodHandle mh;

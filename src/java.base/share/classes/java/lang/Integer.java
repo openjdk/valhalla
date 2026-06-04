@@ -29,7 +29,7 @@ import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.util.DecimalDigits;
-import jdk.internal.value.DeserializeFactory;
+import jdk.internal.value.Deserializer;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTRuntimeSetup;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
@@ -1043,7 +1043,7 @@ public final class Integer extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
-    @DeserializeFactory("value")
+    @Deserializer("value")
     public Integer(int value) {
         this.value = value;
     }

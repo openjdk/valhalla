@@ -27,7 +27,7 @@ package java.lang;
 
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.DeserializeFactory;
+import jdk.internal.value.Deserializer;
 import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
@@ -9423,7 +9423,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
-    @DeserializeFactory("value")
+    @Deserializer("value")
     public Character(char value) {
         this.value = value;
     }

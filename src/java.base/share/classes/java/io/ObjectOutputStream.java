@@ -1335,7 +1335,7 @@ public class ObjectOutputStream
             if (desc.isRecord()) {
                 writeRecordData(obj, desc);
             } else if (desc.isExternalizable() && !desc.isProxy()) {
-                assert !desc.requiresDeserializeFactory() : "Should be caught in checkSerialize";
+                assert !desc.requiresDeserializer() : "Should be caught in checkSerialize";
                 writeExternalData((Externalizable) obj);
             } else {
                 writeSerialData(obj, desc);

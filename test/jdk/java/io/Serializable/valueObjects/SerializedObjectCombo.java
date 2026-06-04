@@ -113,7 +113,7 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
     private static final String TEST_SOURCE_TEMPLATE = """
             import java.io.*;
             import java.util.*;
-            import jdk.internal.value.DeserializeFactory;
+            import jdk.internal.value.Deserializer;
             import jdk.internal.MigratedValueClass;
 
             #{TOP_FRAGMENTS}
@@ -785,7 +785,7 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
      * if an exception should have been thrown.
      */
     private enum CodeShape implements Predicate<Set<ComboParameter>> {
-        BAD_SO_CONSTRUCTOR("Value class does not have a constructor annotated with DeserializeFactory",
+        BAD_SO_CONSTRUCTOR("Value class does not have a constructor annotated with Deserializer",
                 InvalidClassException.class,
                 ValueKind.VALUE,
                 FactoryFragment.NONE
@@ -1003,14 +1003,14 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
     enum FactoryFragment implements ComboParameter, CodeShapePredicate {
         NONE(""),
         ANNOTATED_OBJECT_CONSTRUCTOR_FRAGMENT("""
-                    @DeserializeFactory({"f1", "f2"})
+                    @Deserializer({"f1", "f2"})
                     #{CLASSACCESS} #{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2) {
                         this.f1 = f1;
                         this.f2 = f2;
                         #{FIELD_CONSTRUCTOR_ADDITIONS}
                     }
 
-                    @DeserializeFactory({"f1", "f2"})
+                    @Deserializer({"f1", "f2"})
                     #{CLASSACCESS} #{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2, int fExtra) {
                         this.f1 = f1;
                         this.f2 = f2;
@@ -1024,12 +1024,12 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
                         #{FIELD_CONSTRUCTOR_ADDITIONS}
                     }
 
-                    @DeserializeFactory({"f1", "f2"})
+                    @Deserializer({"f1", "f2"})
                     #{CLASSACCESS} static #{TESTNAME} create#{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2) {
                         return new #{TESTNAME}(f1, f2);
                     }
 
-                    @DeserializeFactory({"f1", "f2"})
+                    @Deserializer({"f1", "f2"})
                     #{CLASSACCESS} static #{TESTNAME} create#{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2, int fExtra) {
                         return new #{TESTNAME}(f1, f2);
                     }

@@ -26,7 +26,7 @@
 package java.io;
 
 import java.io.ObjectInputFilter.Config;
-import java.io.ObjectStreamClass.DeserializationFactorySupport;
+import java.io.ObjectStreamClass.AlternativeDeserialization;
 import java.lang.System.Logger;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Array;
@@ -2142,9 +2142,9 @@ public class ObjectInputStream
         }
 
         final boolean isRecord = desc.isRecord();
-        if (isRecord || desc.hasDeserializeFactory()) {
+        if (isRecord || desc.hasDeserializer()) {
             assert obj == null;
-            obj = readFromFactory(desc);
+            obj = readAlternative(desc);
             if (!unshared)
                 handles.setObject(passHandle, obj);
         } else if (desc.isExternalizable()) {
@@ -2234,14 +2234,14 @@ public class ObjectInputStream
     }
 
     /**
-     * Reads and returns a factory-deserialized object, such as a record or
-     * a wrapper class as a value class.
+     * Reads and returns an alternatively-deserialized object, such as a record
+     * or a wrapper class as a value class.
      * If an exception is marked for any of the fields, the dependency
      * mechanism marks the object as having an exception.
      * Null is returned from readFromFactory and later the exception is thrown at
      * the exit of {@link #readObject(Class)}.
      */
-    private Object readFromFactory(ObjectStreamClass desc) throws IOException {
+    private Object readAlternative(ObjectStreamClass desc) throws IOException {
         ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
         if (slots.length != 1) {
             // skip any superclass stream field values
@@ -2261,7 +2261,7 @@ public class ObjectInputStream
         // - byte[] primValues
         // - Object[] objValues
         // and return Object
-        MethodHandle factoryMH = DeserializationFactorySupport.findFactory(desc);
+        MethodHandle factoryMH = AlternativeDeserialization.getFactory(desc);
 
         try {
             return (Object) factoryMH.invokeExact(fieldValues.primValues, fieldValues.objValues);

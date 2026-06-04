@@ -50,7 +50,7 @@ import java.util.Objects;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
-import jdk.internal.value.DeserializeFactory;
+import jdk.internal.value.Deserializer;
 import jdk.internal.MigratedValueClass;
 
 
@@ -317,7 +317,7 @@ public class SimpleValueGraphs implements Serializable {
         private TreeV left;
         private TreeV right;
 
-        @DeserializeFactory({"left", "right"})
+        @Deserializer({"left", "right"})
         TreeV(TreeV left, TreeV right) {
             this.left = left;
             this.right = right;

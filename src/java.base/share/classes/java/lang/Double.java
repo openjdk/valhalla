@@ -35,7 +35,7 @@ import jdk.internal.math.FloatingDecimal;
 import jdk.internal.math.DoubleConsts;
 import jdk.internal.math.DoubleToDecimal;
 import jdk.internal.util.DecimalDigits;
-import jdk.internal.value.DeserializeFactory;
+import jdk.internal.value.Deserializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -1085,7 +1085,7 @@ public final class Double extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
-    @DeserializeFactory("value")
+    @Deserializer("value")
     public Double(double value) {
         this.value = value;
     }

@@ -35,7 +35,7 @@ import java.util.Optional;
 
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.DeserializeFactory;
+import jdk.internal.value.Deserializer;
 import jdk.internal.value.ValueClass;
 import jdk.internal.util.DecimalDigits;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
@@ -1105,7 +1105,7 @@ public final class Long extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
-    @DeserializeFactory("value")
+    @Deserializer("value")
     public Long(long value) {
         this.value = value;
     }

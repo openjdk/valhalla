@@ -34,12 +34,14 @@ import static java.lang.annotation.ElementType.METHOD;
  * construct a value object during deserialization.
  * The annotation is used by java.io.ObjectStreamClass to select the constructor
  * or factory method to create objects from a stream.
+ * This is a temporary measure for legacy serialization migration compatibility;
+ * future value object persistence would be handled by other mechanisms.
  *
  * @since Valhalla
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(value={CONSTRUCTOR, METHOD})
-public @interface DeserializeFactory {
+public @interface Deserializer {
     /// Identifies the serial field names for the method parameters.
     /// The serial field type are the corresponding parameter types.
     String[] value();
