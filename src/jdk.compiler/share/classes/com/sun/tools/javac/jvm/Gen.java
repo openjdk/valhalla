@@ -491,8 +491,9 @@ public class Gen extends JCTree.Visitor {
             initTAlist = initTAs.toList();
         }
         for (JCTree t : methodDefs) {
-            normalizeMethod(classDecl, (JCMethodDecl)t, initCode.toList(), initBlocks.toList(), initTAlist);
+            normalizeMethod((JCMethodDecl)t, initCode.toList(), initBlocks.toList(), initTAlist);
         }
+        localProxyVarsGen.allConstNormalized(classDecl.sym);
         // If there are class initializers, create a <clinit> method
         // that contains them as its body.
         if (clinitCode.length() != 0) {
@@ -553,7 +554,7 @@ public class Gen extends JCTree.Visitor {
      *  @param initCode  The list of instance initializer statements.
      *  @param initTAs  Type annotations from the initializer expression.
      */
-    void normalizeMethod(JCClassDecl classDecl, JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initBlocks,  List<TypeCompound> initTAs) {
+    void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<JCStatement> initBlocks,  List<TypeCompound> initTAs) {
         if (TreeInfo.isConstructor(md) && TreeInfo.hasConstructorCall(md, names._super)) {
             // We are seeing a constructor that has a super() call.
             // Find the super() invocation and append the given initializer code.
@@ -569,7 +570,7 @@ public class Gen extends JCTree.Visitor {
                 md.sym.appendUniqueTypeAttributes(initTAs);
             }
 
-            localProxyVarsGen.patchConstructor(classDecl, md, make);
+            localProxyVarsGen.patchConstructor(md, make);
 
             if (md.body.bracePos == Position.NOPOS)
                 md.body.bracePos = TreeInfo.endPos(md.body.stats.last());

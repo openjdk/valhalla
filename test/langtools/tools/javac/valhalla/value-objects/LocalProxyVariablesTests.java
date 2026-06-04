@@ -229,8 +229,8 @@ public class LocalProxyVariablesTests {
         }
 
         @Override
-        public void patchConstructor(JCClassDecl cdef, JCMethodDecl mdef, TreeMaker make) {
-            super.patchConstructor(cdef, mdef, make);
+        public void patchConstructor(JCMethodDecl mdef, TreeMaker make) {
+            super.patchConstructor(mdef, make);
             // if className is "" then we process any class name, usually there will be only one
             // if not we check only the class with name equals to className
             if (className.equals("") || className.equals(mdef.sym.owner.name.toString())) {
@@ -262,7 +262,7 @@ public class LocalProxyVariablesTests {
                     }
                 }
             }
-            Assert.check(expectedProxyNames.isEmpty(), "not all expected proxy names were found");
+            Assert.check(expectedProxyNames.isEmpty(), "not all expected proxy names were found at " + transformed);
         }
     }
 
