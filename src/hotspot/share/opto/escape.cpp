@@ -4533,9 +4533,10 @@ void ConnectionGraph::move_inst_mem(Node* n, Unique_Node_List& orig_phis) {
 //
 #define FIND_INST_MEM_RECURSION_DEPTH_LIMIT 1000
 
-bool ConnectionGraph::flat_access_aliases_with(Node* flat_access, const TypeOopPtr *toop) {
+// Does LoadFlat/StoreFlat flat_access alias with memory acess with type toop?
+// toop is the type for some field of some known instance
+bool ConnectionGraph::flat_access_aliases_with(Node* flat_access, const TypeOopPtr* toop) {
   Node* base = flat_access->is_StoreFlat() ? flat_access->as_StoreFlat()->base() : flat_access->as_LoadFlat()->base();
-  const TypeOopPtr* t_base = _igvn->type(base)->is_oopptr();
   uint idx = base->_idx;
   if (idx >= nodes_size()) {
     return false;
@@ -4551,7 +4552,7 @@ bool ConnectionGraph::flat_access_aliases_with(Node* flat_access, const TypeOopP
   if (ptn->is_JavaObject()) {
     Node* jobj_base = get_map(ptn->idx());
     if (jobj_base == nullptr || _igvn->type(jobj_base)->is_oopptr()->instance_id() != toop->instance_id()) {
-      assert(t_base->instance_id() != toop->instance_id(), "should not alias");
+      assert(_igvn->type(base)->is_oopptr()->instance_id() != toop->instance_id(), "should not alias");
       return false;
     }
     return true;
@@ -4563,7 +4564,7 @@ bool ConnectionGraph::flat_access_aliases_with(Node* flat_access, const TypeOopP
       return true;
     }
   }
-  assert(t_base->instance_id() != toop->instance_id(), "should not alias");
+  assert(_igvn->type(base)->is_oopptr()->instance_id() != toop->instance_id(), "should not alias");
   return false;
 }
 
@@ -4645,10 +4646,12 @@ Node* ConnectionGraph::find_inst_mem(Node* orig_mem, int alias_idx, Unique_Node_
         result = proj_in->in(TypeFunc::Memory);
       } else if (proj_in->is_LoadFlat()) {
         // Either:
-        // - this is a LoadFlat for alias_idx's non escaping allocation: it will get removed by
+        // 1- this is a non mismatched LoadFlat for alias_idx's non escaping allocation: it will get removed by
         // ConnectionGraph::optimize_flat_accesses() and has no effect on the memory state
-        // - or it is a LoadFlat for some object unrelated to alias_idx
-        // In both cases, it's safe to assume this LoadFlat doesn't modify the memory for alias_idx
+        // 2- or it is a LoadFlat for some object unrelated to alias_idx
+        // 3- this is mismatched LoadFlat for alias_idx's non escaping allocation: it won't get removed by
+        // ConnectionGraph::optimize_flat_accesses()
+        // In cases 1- and 2-, it's safe to assume this LoadFlat doesn't modify the memory for alias_idx
         // If the LoadFlat is mismatched, it's not removed so don't step over it if it's a flat access to the alias_idx
         // known instance
         if (!proj_in->as_LoadFlat()->is_mismatched() || !flat_access_aliases_with(proj_in, toop)) {
