@@ -1704,13 +1704,6 @@ public class JavaCompiler {
                 compileStates.put(env, CompileState.UNLAMBDA);
             }
 
-            if (shouldStop(CompileState.STRICT_FIELDS_PROXIES))
-                return;
-            for (JCTree def : cdefs) {
-                LocalProxyVarsGen.instance(context).translateTopLevelClass(def, localMake);
-            }
-            compileStates.put(env, CompileState.STRICT_FIELDS_PROXIES);
-
             //generate code for each class
             for (List<JCTree> l = cdefs; l.nonEmpty(); l = l.tail) {
                 JCClassDecl cdef = (JCClassDecl)l.head;

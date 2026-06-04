@@ -703,7 +703,7 @@ static const char* get_preview_path(const char* path) {
   const char file_sep = os::file_separator()[0];
   // 18 represents the length of "META-INF" (8) + "preview" (7) + 2 file separators + \0
   size_t len = strlen(path) + 18;
-  char *preview_path = NEW_RESOURCE_ARRAY(char, len);
+  char* preview_path = NEW_RESOURCE_ARRAY(char, len);
   jio_snprintf(preview_path, len, "%s%cMETA-INF%cpreview", path, file_sep, file_sep);
   return preview_path;
 }
@@ -1520,20 +1520,6 @@ char* ClassLoader::lookup_vm_options() {
 void ClassLoader::set_preview_mode(bool enable_preview) {
   assert(Preview_mode == PREVIEW_MODE_UNINITIALIZED, "set_preview_mode must not be called twice");
   Preview_mode = enable_preview ? PREVIEW_MODE_ENABLE_PREVIEW : PREVIEW_MODE_DEFAULT;
-}
-
-bool ClassLoader::is_module_observable(const char* module_name) {
-  assert(JImageOpen != nullptr, "jimage library should have been opened");
-  if (!jimage_is_open()) {
-    struct stat st;
-    const char *path = get_exploded_module_path(module_name, true);
-    bool res = os::stat(path, &st) == 0;
-    FREE_C_HEAP_ARRAY(path);
-    return res;
-  }
-  // We don't expect preview mode (i.e. --enable-preview) to affect module visibility.
-  jlong size;
-  return jimage_find_resource(module_name, "module-info.class", /* is_preview */ false, &size) != 0;
 }
 
 jlong ClassLoader::classloader_time_ms() {
