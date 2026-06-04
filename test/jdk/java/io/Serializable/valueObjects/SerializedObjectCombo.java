@@ -98,7 +98,7 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
     private static final ParamSet EXTERNALIZABLE_METHODS_SET = new ParamSet("EXTERNALIZABLE_METHODS",
             ExternalizableMethodFragments.values());
     private static final ParamSet OBJECT_CONSTRUCTOR_SET = new ParamSet("OBJECT_CONSTRUCTOR",
-            ObjectConstructorFragment.ANNOTATED_OBJECT_CONSTRUCTOR_FRAGMENT, ObjectConstructorFragment.NONE);
+            FactoryFragment.values());
     private static final ParamSet VALUE_SET = new ParamSet("VALUE",
             ValueKind.values());
     private static final ParamSet TESTNAME_EXTENDS_SET = new ParamSet("TESTNAME_EXTENDS",
@@ -788,7 +788,7 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
         BAD_SO_CONSTRUCTOR("Value class does not have a constructor annotated with DeserializeFactory",
                 InvalidClassException.class,
                 ValueKind.VALUE,
-                ObjectConstructorFragment.ANNOTATED_OBJECT_CONSTRUCTOR_FRAGMENT.negate()
+                FactoryFragment.NONE
                 ),
         BAD_EXT_VALUE("Externalizable can not be a value class",
                 CompileException.class,
@@ -998,9 +998,9 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
     }
 
     /**
-     * ObjectConstructorFragment Fragments
+     * FactoryFragment Fragments
      */
-    enum ObjectConstructorFragment implements ComboParameter, CodeShapePredicate {
+    enum FactoryFragment implements ComboParameter, CodeShapePredicate {
         NONE(""),
         ANNOTATED_OBJECT_CONSTRUCTOR_FRAGMENT("""
                     @DeserializeFactory({"f1", "f2"})
@@ -1017,12 +1017,29 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
                         #{FIELD_CONSTRUCTOR_ADDITIONS}
                     }
                 """),
+        ANNOTATED_FACTORY_METHOD_FRAGMENT("""
+                    private #{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2) {
+                        this.f1 = f1;
+                        this.f2 = f2;
+                        #{FIELD_CONSTRUCTOR_ADDITIONS}
+                    }
+
+                    @DeserializeFactory({"f1", "f2"})
+                    #{CLASSACCESS} static #{TESTNAME} create#{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2) {
+                        return new #{TESTNAME}(f1, f2);
+                    }
+
+                    @DeserializeFactory({"f1", "f2"})
+                    #{CLASSACCESS} static #{TESTNAME} create#{TESTNAME}(#{FIELD[0]} f1, #{FIELD[1]} f2, int fExtra) {
+                        return new #{TESTNAME}(f1, f2);
+                    }
+                """),
 
         ;
 
         private final String template;
 
-        ObjectConstructorFragment(String template) {
+        FactoryFragment(String template) {
             this.template = template;
         }
 
