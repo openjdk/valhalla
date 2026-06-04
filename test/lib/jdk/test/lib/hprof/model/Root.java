@@ -66,7 +66,6 @@ public class Root {
         this(id, referrerId, type, description, null);
     }
 
-    @SuppressWarnings("initialization")
     public Root(long id, long referrerId, int type, String description,
                 StackTrace stackTrace) {
         this.id = id;
