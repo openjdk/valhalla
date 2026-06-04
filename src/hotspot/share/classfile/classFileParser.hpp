@@ -576,7 +576,6 @@ class ClassFileParser {
   bool is_inline_type() const { return !_access_flags.is_identity_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
   bool has_inlined_fields() const { return _layout_info->_has_inlined_fields; }
-  bool has_static_null_restricted_fields() const { return _has_null_restricted_static_fields; }
 
   u2 java_fields_count() const { return _java_fields_count; }
   bool is_abstract() const { return _access_flags.is_abstract(); }
