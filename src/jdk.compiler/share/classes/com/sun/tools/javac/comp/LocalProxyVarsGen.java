@@ -122,10 +122,11 @@ public class LocalProxyVarsGen {
             earlyReads = fieldsReadInPrologue.get(tree.sym.owner);
         }
         if (fieldsReadInPrologue.get(tree.sym) != null) {
+            Set<Symbol> constructorEarlyReads = fieldsReadInPrologue.remove(tree.sym);
             if (earlyReads == null) {
-                earlyReads = fieldsReadInPrologue.get(tree.sym);
+                earlyReads = constructorEarlyReads;
             } else {
-                earlyReads.addAll(fieldsReadInPrologue.get(tree.sym));
+                earlyReads.addAll(constructorEarlyReads);
             }
             fieldsReadInPrologue.remove(tree.sym);
         }
