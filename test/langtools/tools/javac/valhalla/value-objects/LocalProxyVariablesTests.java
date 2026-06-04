@@ -215,39 +215,36 @@ public class LocalProxyVariablesTests {
         }
 
         @Override
-        public JCTree translateTopLevelClass(JCTree cdef, TreeMaker make) {
-            JCClassDecl transformed = (JCClassDecl)super.translateTopLevelClass(cdef, make);
+        public void patchConstructor(JCMethodDecl mdef, TreeMaker make) {
+            super.patchConstructor(mdef, make);
             // if className is "" then we process any class name, usually there will be only one
             // if not we check only the class with name equals to className
-            if (className.equals("") || className.equals(((JCClassDecl)cdef).name.toString())) {
-                analyzeTransformedClass(transformed);
+            if (className.equals("") || className.equals(mdef.sym.owner.name.toString())) {
+                analyzeTransformedMethod(mdef);
             }
-            return transformed;
         }
 
-        /* we need to analyze the tree obtained from invoking `translateTopLevelClass` asap, we can't wait
+        /* we need to analyze the tree obtained from patchConstructor asap, we can't wait
          * until the compilation ends as other phases continue transforming the AST
          */
-        void analyzeTransformedClass(JCClassDecl transformed) {
-            for (JCTree def : transformed.defs) {
-                if (def instanceof JCMethodDecl methodDecl && methodDecl.name.toString().equals("<init>")) {
-                    ListBuffer<JCStatement> statsToAnalyze = new ListBuffer<>();
-                    for (JCStatement stat : methodDecl.body.stats) {
-                        /* if the super constructor invocation has arguments, then it could be that some proxy variables
-                         * had been created to store the value of those arguments and all this synthetic code is generated
-                         * inside a block, so we need to see inside blocks
-                         */
-                        if (stat instanceof JCBlock block) {
-                            statsToAnalyze.addAll(block.stats);
-                        } else {
-                            statsToAnalyze.add(stat);
-                        }
+        void analyzeTransformedMethod(JCMethodDecl transformed) {
+            if (transformed instanceof JCMethodDecl methodDecl && methodDecl.name.toString().equals("<init>")) {
+                ListBuffer<JCStatement> statsToAnalyze = new ListBuffer<>();
+                for (JCStatement stat : methodDecl.body.stats) {
+                    /* if the super constructor invocation has arguments, then it could be that some proxy variables
+                     * had been created to store the value of those arguments and all this synthetic code is generated
+                     * inside a block, so we need to see inside blocks
+                     */
+                    if (stat instanceof JCBlock block) {
+                        statsToAnalyze.addAll(block.stats);
+                    } else {
+                        statsToAnalyze.add(stat);
                     }
-                    for (JCStatement stat : statsToAnalyze) {
-                        if (stat instanceof JCVariableDecl variableDecl && variableDecl.sym.isSynthetic()) {
-                            Assert.check(expectedProxyNames.contains(variableDecl.name.toString()), variableDecl.name.toString() + " was not expected");
-                            expectedProxyNames.remove(variableDecl.name.toString());
-                        }
+                }
+                for (JCStatement stat : statsToAnalyze) {
+                    if (stat instanceof JCVariableDecl variableDecl && variableDecl.sym.isSynthetic()) {
+                        Assert.check(expectedProxyNames.contains(variableDecl.name.toString()), variableDecl.name.toString() + " was not expected");
+                        expectedProxyNames.remove(variableDecl.name.toString());
                     }
                 }
             }
