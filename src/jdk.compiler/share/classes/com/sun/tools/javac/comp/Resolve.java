@@ -4057,7 +4057,8 @@ public class Resolve {
                 preview.checkSourceLevel(pos, Feature.VALUE_CLASSES);
                 if (context.ctorPrologue()) {
                     // Track the early read for codegen
-                    localProxyVarsGen.addFieldReadInPrologue(env.enclMethod != null ? env.enclMethod : env.enclClass, field);
+                    JCTree declaringTree = env.enclMethod != null ? env.enclMethod : env.enclClass;
+                    localProxyVarsGen.addFieldReadInPrologue(declaringTree, field);
                 }
             }
         }

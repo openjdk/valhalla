@@ -117,17 +117,21 @@ public class LocalProxyVarsGen {
         /* if some fields have initializers those probably were added using the enclosing class as their map key
          * we need to recover those now and add them to this constructor
          */
+        Set<Symbol> earlyReads = null;
         if (fieldsReadInPrologue.get(classDecl) != null) {
-            for (Symbol field : fieldsReadInPrologue.get(classDecl)) {
-                addFieldReadInPrologue(tree, field);
-            }
+            earlyReads = fieldsReadInPrologue.get(classDecl);
+            fieldsReadInPrologue.remove(classDecl);
         }
         if (fieldsReadInPrologue.get(tree) != null) {
-            Set<Symbol> earlyReads = fieldsReadInPrologue.get(tree);
-            if (earlyReads != null && !noLocalProxyVars) {
-                addLocalProxiesFor(tree, earlyReads, make);
-                fieldsReadInPrologue.remove(tree);
+            if (earlyReads == null) {
+                earlyReads = fieldsReadInPrologue.get(tree);
+            } else {
+                earlyReads.addAll(fieldsReadInPrologue.get(tree));
             }
+            fieldsReadInPrologue.remove(tree);
+        }
+        if (earlyReads != null && !noLocalProxyVars) {
+            addLocalProxiesFor(tree, earlyReads, make);
         }
     }
 
