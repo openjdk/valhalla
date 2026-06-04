@@ -43,6 +43,7 @@ import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -4051,15 +4052,16 @@ public class Resolve {
         } else {
             // Read early ref, this is only allowed under JEP 401, and requires special codegen support
             preview.checkSourceLevel(pos, Feature.VALUE_CLASSES);
-            if (context.ctorPrologue() && env.enclMethod != null) {
+            if (context.ctorPrologue()) {
                 // Track the early read for codegen
-                localProxyVarsGen.addFieldReadInPrologue(env.enclMethod, field);
+                Symbol owner = env.enclMethod != null ? env.enclMethod.sym : env.enclClass.sym;
+                localProxyVarsGen.addFieldReadInPrologue(owner, field);
             }
         }
         return true;
     }
 
-    /* ***************************************************************************
+/* ***************************************************************************
  *  ResolveError classes, indicating error situations when accessing symbols
  ****************************************************************************/
 

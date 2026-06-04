@@ -161,6 +161,20 @@ public class LocalProxyVariablesTests {
                     }
                 }
                 """, "MustPatchNullSuperArg",  Set.of("local$i", "local$0", "local$1"));
+        doTest(
+                """
+                class Test {
+                    static int seed() { return 42; }
+                    static value class V {
+                        int x = seed();
+                        int y = x;
+                        V() { super(); }
+                    }
+                    public static void main(String[] args) {
+                        new V();
+                    }
+                }
+                """, Set.of("local$x"));
     }
 
     void doTest(String src, Set<String> expectedLocalProxyNames) throws Throwable {
@@ -248,7 +262,7 @@ public class LocalProxyVariablesTests {
                     }
                 }
             }
-            Assert.check(expectedProxyNames.isEmpty(), "not all expected proxy names were found");
+            Assert.check(expectedProxyNames.isEmpty(), "not all expected proxy names were found at " + transformed);
         }
     }
 

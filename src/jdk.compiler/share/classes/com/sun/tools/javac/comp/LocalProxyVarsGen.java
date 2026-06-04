@@ -90,7 +90,7 @@ public class LocalProxyVarsGen {
     private final Symtab syms;
     private final Target target;
     private TreeMaker make;
-    private final Map<JCMethodDecl, Set<Symbol>> fieldsReadInPrologue = new HashMap<>();
+    private final Map<Symbol, Set<Symbol>> fieldsReadInPrologue = new HashMap<>();
 
     private final boolean noLocalProxyVars;
 
@@ -106,21 +106,38 @@ public class LocalProxyVarsGen {
         noLocalProxyVars = options.isSet("noLocalProxyVars");
     }
 
-    public void addFieldReadInPrologue(JCMethodDecl constructor, Symbol sym) {
+    public void addFieldReadInPrologue(Symbol owner, Symbol sym) {
         Assert.checkNonNull(sym, "parameter 'sym' is null");
-        Set<Symbol> fieldSet = fieldsReadInPrologue.getOrDefault(constructor, new LinkedHashSet<>());
+        Set<Symbol> fieldSet = fieldsReadInPrologue.getOrDefault(owner, new LinkedHashSet<>());
         fieldSet.add(sym);
-        fieldsReadInPrologue.put(constructor, fieldSet);
+        fieldsReadInPrologue.put(owner, fieldSet);
     }
 
     public void patchConstructor(JCMethodDecl tree, TreeMaker make) {
-        if (fieldsReadInPrologue.get(tree) != null) {
-            Set<Symbol> earlyReads = fieldsReadInPrologue.get(tree);
-            if (earlyReads != null && !noLocalProxyVars) {
-                addLocalProxiesFor(tree, earlyReads, make);
-                fieldsReadInPrologue.remove(tree);
+        /* if some fields have initializers those probably were added using the enclosing class as their map key
+         * we need to recover those now and add them to this constructor
+         */
+        Set<Symbol> earlyReads = null;
+        if (fieldsReadInPrologue.get(tree.sym.owner) != null) {
+            earlyReads = fieldsReadInPrologue.get(tree.sym.owner);
+        }
+        if (fieldsReadInPrologue.get(tree.sym) != null) {
+            Set<Symbol> constructorEarlyReads = fieldsReadInPrologue.remove(tree.sym);
+            if (constructorEarlyReads != null) {
+                if (earlyReads == null) {
+                    earlyReads = constructorEarlyReads;
+                } else {
+                    earlyReads.addAll(constructorEarlyReads);
+                }
             }
         }
+        if (earlyReads != null && !noLocalProxyVars) {
+            addLocalProxiesFor(tree, earlyReads, make);
+        }
+    }
+
+    public void allFieldNormalized(Symbol.ClassSymbol csym) {
+        fieldsReadInPrologue.remove(csym);
     }
 
     void addLocalProxiesFor(JCMethodDecl constructor, Set<Symbol> fields, TreeMaker make) {
