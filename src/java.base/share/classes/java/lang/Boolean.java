@@ -64,8 +64,8 @@ import java.util.Optional;
  */
 @jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Boolean implements java.io.Serializable,
-                                      Comparable<Boolean>, Constable
+public final /*value*/ class Boolean
+        implements java.io.Serializable, Comparable<Boolean>, Constable
 {
     /**
      * The {@code Boolean} object corresponding to the primitive

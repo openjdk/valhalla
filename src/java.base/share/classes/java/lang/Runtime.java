@@ -966,7 +966,8 @@ public final class Runtime {
      * @since  9
      */
     @jdk.internal.ValueBased
-    public static final class Version
+    @jdk.internal.MigratedValueClass
+    public static final /*value*/ class Version
         implements Comparable<Version>
     {
         private final List<Integer>     version;
