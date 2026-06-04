@@ -123,12 +123,12 @@ public class LocalProxyVarsGen {
             fieldsReadInPrologue.remove(classDecl);
         }
         if (fieldsReadInPrologue.get(tree) != null) {
+            Set<Symbol> constructorEarlyReads = fieldsReadInPrologue.remove(tree);
             if (earlyReads == null) {
-                earlyReads = fieldsReadInPrologue.get(tree);
+                earlyReads = constructorEarlyReads;
             } else {
-                earlyReads.addAll(fieldsReadInPrologue.get(tree));
+                earlyReads.addAll(constructorEarlyReads);
             }
-            fieldsReadInPrologue.remove(tree);
         }
         if (earlyReads != null && !noLocalProxyVars) {
             addLocalProxiesFor(tree, earlyReads, make);
