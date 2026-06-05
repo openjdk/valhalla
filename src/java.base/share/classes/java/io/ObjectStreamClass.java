@@ -1378,12 +1378,12 @@ public final class ObjectStreamClass implements Serializable {
             return false;
         }
 
-        var names = deserializer.value();
+        String[] names = deserializer.value();
         if (names.length != fields.length) {
             return false;
         }
 
-        var map = HashMap.<String, Integer>newHashMap(names.length);
+        Map<String, Integer> map = HashMap.newHashMap(names.length);
         for (int i = 0; i < names.length; i++) {
             if (map.put(names[i], i) != null) {
                 return false; // Duplicate names in the factory
@@ -1392,7 +1392,7 @@ public final class ObjectStreamClass implements Serializable {
 
         var params = exec.getParameterTypes();
         for (ObjectStreamField field : fields) {
-            var i = map.get(field.getName());
+            Integer i = map.get(field.getName());
             if (i == null) {
                 return false; // Name not accounted by the factory
             }
@@ -2359,7 +2359,7 @@ public final class ObjectStreamClass implements Serializable {
 
             var types = Arrays.stream(recordComponents).map(RecordComponent::getType).toArray(Class<?>[]::new);
             var names = Arrays.stream(recordComponents).map(RecordComponent::getName).toArray(String[]::new);
-            var count = recordComponents.length;
+            int count = recordComponents.length;
             // retrieve the canonical constructor
             // (T1, T2, ..., Tn):TR
             mh = desc.getRecordConstructor();
@@ -2373,16 +2373,16 @@ public final class ObjectStreamClass implements Serializable {
         }
 
         private static MethodHandle deserializer(ObjectStreamClass desc) {
-            var ctor = desc.deserializer;
-            var types = ctor.getParameterTypes();
-            var names = ctor.getDeclaredAnnotation(Deserializer.class).value();
-            var count = types.length;
+            Executable deserializer = desc.deserializer;
+            var types = deserializer.getParameterTypes();
+            String[] names = deserializer.getDeclaredAnnotation(Deserializer.class).value();
+            int count = types.length;
 
             MethodHandle mh;
             var lookup = MethodHandles.publicLookup();
             try {
-                mh = ctor instanceof Method m ? lookup.unreflect(m)
-                        : lookup.unreflectConstructor((Constructor<?>) ctor);
+                mh = deserializer instanceof Method m ? lookup.unreflect(m)
+                        : lookup.unreflectConstructor((Constructor<?>) deserializer);
             } catch (ReflectiveOperationException e) {
                 throw new InternalError(e);
             }
