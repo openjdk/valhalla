@@ -167,8 +167,7 @@ public class Check {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
         allowPrimitivePatterns = preview.isEnabled() && Feature.PRIMITIVE_PATTERNS.allowedInSource(source);
-        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -677,31 +676,6 @@ public class Check {
                                     : t;
         }
 
-    void checkConstraintsOfValueClass(JCClassDecl tree, ClassSymbol c) {
-        DiagnosticPosition pos = tree.pos();
-        for (Type st : types.closure(c.type)) {
-            if (st == null || st.tsym == null || st.tsym.kind == ERR)
-                continue;
-            if  (st.tsym == syms.objectType.tsym || st.tsym == syms.recordType.tsym || st.isInterface())
-                continue;
-            if (!st.tsym.isAbstract()) {
-                if (c != st.tsym) {
-                    log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
-                }
-                continue;
-            }
-            // dealing with an abstract value or value super class below.
-            for (Symbol s : st.tsym.members().getSymbols(NON_RECURSIVE)) {
-                if (s.kind == MTH) {
-                    if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
-                        log.error(pos, Errors.SuperClassMethodCannotBeSynchronized(s, c, st));
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
     /** Check that type is a valid qualifier for a constructor reference expression
      */
     Type checkConstructorRefType(DiagnosticPosition pos, Type t) {
@@ -955,7 +929,7 @@ public class Check {
         }
         else if (!hasTrustMeAnno && varargElemType != null &&
                 !types.isReifiable(varargElemType)) {
-            warnUnchecked(tree.params.head.pos(), LintWarnings.UncheckedVarargsNonReifiableType(varargElemType));
+            warnUnchecked(tree.params.last().pos(), LintWarnings.UncheckedVarargsNonReifiableType(varargElemType));
         }
     }
     //where
@@ -2580,15 +2554,11 @@ public class Check {
         checkCompatibleConcretes(pos, c);
 
         Type identitySuper = null;
-        for (Type t : types.closure(c)) {
-            if (t != c) {
-                if (t.isIdentityClass() && (t.tsym.flags() & VALUE_BASED) == 0)
-                    identitySuper = t;
-                if (c.isValueClass() && identitySuper != null && identitySuper.tsym != syms.objectType.tsym) { // Object is special
-                    log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));
-                    break;
-                }
-            }
+        Type superType = types.supertype(c);
+        if (superType.isIdentityClass() && (superType.tsym.flags() & MIGRATED_VALUE_CLASS) == 0)
+            identitySuper = superType;
+        if (c.isValueClass() && identitySuper != null && identitySuper.tsym != syms.objectType.tsym) { // Object is special
+            log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));
         }
     }
 
@@ -3797,10 +3767,11 @@ public class Check {
             log.warning(pos, LintWarnings.MissingDeprecatedAnnotation);
         }
         // Note: @Deprecated has no effect on local variables, parameters and package decls.
-        if (lint.isEnabled(LintCategory.DEPRECATION) && !s.isDeprecatableViaAnnotation()) {
-            if (!syms.deprecatedType.isErroneous() && s.attribute(syms.deprecatedType.tsym) != null) {
-                log.warning(pos, LintWarnings.DeprecatedAnnotationHasNoEffect(Kinds.kindName(s)));
-            }
+        if (lint.isEnabled(LintCategory.DEPRECATION) && !s.isDeprecatableViaAnnotation() &&
+            (s.flags() & RECORD) == 0 &&
+            !syms.deprecatedType.isErroneous() &&
+            s.attribute(syms.deprecatedType.tsym) != null) {
+            log.warning(pos, LintWarnings.DeprecatedAnnotationHasNoEffect(Kinds.kindName(s)));
         }
     }
 

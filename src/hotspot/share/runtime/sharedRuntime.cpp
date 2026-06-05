@@ -166,15 +166,15 @@ void SharedRuntime::generate_stubs() {
     generate_throw_exception(StubId::shared_throw_NullPointerException_at_call_id,
                              CAST_FROM_FN_PTR(address, SharedRuntime::throw_NullPointerException_at_call));
 
-#if COMPILER2_OR_JVMCI
-  // Vectors are generated only by C2 and JVMCI.
+#ifdef COMPILER2
+  // Vectors are generated only by C2.
   bool support_wide = is_wide_vector(MaxVectorSize);
   if (support_wide) {
     _polling_page_vectors_safepoint_handler_blob =
       generate_handler_blob(StubId::shared_polling_page_vectors_safepoint_handler_id,
                             CAST_FROM_FN_PTR(address, SafepointSynchronize::handle_polling_page_exception));
   }
-#endif // COMPILER2_OR_JVMCI
+#endif // COMPILER2
   _polling_page_safepoint_handler_blob =
     generate_handler_blob(StubId::shared_polling_page_safepoint_handler_id,
                           CAST_FROM_FN_PTR(address, SafepointSynchronize::handle_polling_page_exception));
@@ -583,12 +583,6 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* curr
   assert(frame::verify_return_pc(return_address), "must be a return address: " INTPTR_FORMAT, p2i(return_address));
   assert(current->frames_to_pop_failed_realloc() == 0 || Interpreter::contains(return_address), "missed frames to pop?");
 
-#if INCLUDE_JVMCI
-  // JVMCI's ExceptionHandlerStub expects the thread local exception PC to be clear
-  // and other exception handler continuations do not read it
-  current->set_exception_pc(nullptr);
-#endif // INCLUDE_JVMCI
-
   if (Continuation::is_return_barrier_entry(return_address)) {
     return StubRoutines::cont_returnBarrierExc();
   }
@@ -718,31 +712,6 @@ void SharedRuntime::throw_and_post_jvmti_exception(JavaThread* current, Handle h
     JvmtiExport::post_exception_throw(current, method(), bcp, h_exception());
   }
 
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    vframeStream vfst(current, true);
-    methodHandle method = methodHandle(current, vfst.method());
-    int bci = vfst.bci();
-    MethodData* trap_mdo = method->method_data();
-    if (trap_mdo != nullptr) {
-      // Set exception_seen if the exceptional bytecode is an invoke
-      Bytecode_invoke call = Bytecode_invoke_check(method, bci);
-      if (call.is_valid()) {
-        ResourceMark rm(current);
-
-        // Lock to read ProfileData, and ensure lock is not broken by a safepoint
-        MutexLocker ml(trap_mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
-
-        ProfileData* pdata = trap_mdo->allocate_bci_to_data(bci, nullptr);
-        if (pdata != nullptr && pdata->is_BitData()) {
-          BitData* bit_data = (BitData*) pdata;
-          bit_data->set_exception_seen();
-        }
-      }
-    }
-  }
-#endif
-
   Exceptions::_throw(current, __FILE__, __LINE__, h_exception);
 }
 
@@ -775,21 +744,6 @@ address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc,
                                                     bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred) {
   assert(nm != nullptr, "must exist");
   ResourceMark rm;
-
-#if INCLUDE_JVMCI
-  if (nm->is_compiled_by_jvmci()) {
-    // lookup exception handler for this pc
-    int catch_pco = pointer_delta_as_int(ret_pc, nm->code_begin());
-    ExceptionHandlerTable table(nm);
-    HandlerTableEntry *t = table.entry_for(catch_pco, -1, 0);
-    if (t != nullptr) {
-      return nm->code_begin() + t->pco();
-    } else {
-      bool make_not_entrant = true;
-      return Deoptimization::deoptimize_for_missing_exception_handler(nm, make_not_entrant);
-    }
-  }
-#endif // INCLUDE_JVMCI
 
   ScopeDesc* sd = nm->scope_desc_at(ret_pc);
   // determine handler bci, if any
@@ -1045,7 +999,7 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* current,
 #ifndef PRODUCT
           _implicit_null_throws++;
 #endif
-          target_pc = nm->continuation_for_implicit_null_exception(pc);
+          target_pc = nm->continuation_for_implicit_exception(pc);
           // If there's an unexpected fault, target_pc might be null,
           // in which case we want to fall through into the normal
           // error handling code.
@@ -1061,7 +1015,7 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* current,
 #ifndef PRODUCT
         _implicit_div0_throws++;
 #endif
-        target_pc = nm->continuation_for_implicit_div0_exception(pc);
+        target_pc = nm->continuation_for_implicit_exception(pc);
         // If there's an unexpected fault, target_pc might be null,
         // in which case we want to fall through into the normal
         // error handling code.
@@ -1119,11 +1073,6 @@ address SharedRuntime::native_method_throw_unsatisfied_link_error_entry() {
 }
 
 JRT_ENTRY_NO_ASYNC(void, SharedRuntime::register_finalizer(JavaThread* current, oopDesc* obj))
-#if INCLUDE_JVMCI
-  if (!obj->klass()->has_finalizer()) {
-    return;
-  }
-#endif // INCLUDE_JVMCI
   assert(oopDesc::is_oop(obj), "must be a valid oop");
   assert(obj->klass()->has_finalizer(), "shouldn't be here otherwise");
   InstanceKlass::register_finalizer(instanceOop(obj), CHECK);
@@ -1294,7 +1243,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
       }
     } else {
       assert(attached_method->has_scalarized_args(), "invalid use of attached method");
-      if (!attached_method->method_holder()->is_inline_klass()) {
+      if (!attached_method->method_holder()->is_inline_klass() || attached_method->is_static()) {
         // Ignore the attached method in this case to not confuse below code
         attached_method = methodHandle(current, nullptr);
       }
@@ -3746,7 +3695,7 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
           }
         }
 
-        CompilerDirectiveMatcher matcher(method, CompileBroker::compiler(CompLevel_simple));
+        CompilerDirectiveMatcher matcher(method, CompLevel_simple);
         if (matcher.directive_set()->PrintAssemblyOption) {
           nm->print_code();
         }
@@ -4291,31 +4240,42 @@ JRT_END
 // from field's values in registers.
 JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread* current, intptr_t res))
 {
+  if (!is_set_nth_bit(res, 0)) {
+    // We're not returning with inline type fields in registers (the
+    // calling convention didn't allow it for this inline klass)
+    assert(!Metaspace::contains((void*)res), "should be oop or pointer in buffer area");
+    current->set_vm_result_oop((oopDesc*)res);
+    current->set_vm_result_metadata(nullptr);
+    return;
+  }
+
+  clear_nth_bit(res, 0);
+  InlineKlass* vk = (InlineKlass*)res;
+  assert(Metaspace::contains((void*)res), "should be klass");
+
+  if (!vk->contains_oops()) {
+    // No oop fields. Initialize the fields by calling the pack handler from
+    // the stub which is much faster (see 'generate_return_value_stub').
+    // Signal this by setting the metadata result to the value klass.
+    JRT_BLOCK;
+    {
+      oop vt = vk->allocate_instance(CHECK);
+      current->set_vm_result_oop(vt);
+      current->set_vm_result_metadata(vk);
+    }
+    JRT_BLOCK_END;
+    return;
+  }
+
   ResourceMark rm;
   RegisterMap reg_map(current,
                       RegisterMap::UpdateMap::include,
                       RegisterMap::ProcessFrames::include,
                       RegisterMap::WalkContinuation::skip);
   frame stubFrame = current->last_frame();
-  frame callerFrame = stubFrame.sender(&reg_map);
+  stubFrame.sender(&reg_map);
 
-#ifdef ASSERT
-  InlineKlass* verif_vk = InlineKlass::returned_inline_klass(reg_map);
-#endif
-
-  if (!is_set_nth_bit(res, 0)) {
-    // We're not returning with inline type fields in registers (the
-    // calling convention didn't allow it for this inline klass)
-    assert(!Metaspace::contains((void*)res), "should be oop or pointer in buffer area");
-    current->set_vm_result_oop((oopDesc*)res);
-    assert(verif_vk == nullptr, "broken calling convention");
-    return;
-  }
-
-  clear_nth_bit(res, 0);
-  InlineKlass* vk = (InlineKlass*)res;
-  assert(verif_vk == vk, "broken calling convention");
-  assert(Metaspace::contains((void*)res), "should be klass");
+  assert(vk == InlineKlass::returned_inline_klass(reg_map), "broken calling convention");
 
   // Allocate handles for every oop field so they are safe in case of
   // a safepoint when allocating
@@ -4325,9 +4285,9 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
   // It's unsafe to safepoint until we are here
   JRT_BLOCK;
   {
-    JavaThread* THREAD = current;
     oop vt = vk->realloc_result(reg_map, handles, CHECK);
     current->set_vm_result_oop(vt);
+    current->set_vm_result_metadata(nullptr);
   }
   JRT_BLOCK_END;
 }

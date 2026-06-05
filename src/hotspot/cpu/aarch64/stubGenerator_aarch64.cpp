@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2025, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -12685,20 +12685,30 @@ class StubGenerator: public StubCodeGenerator {
     __ ldpd(j_farg3, j_farg2, Address(__ post(sp, 2 * wordSize)));
     __ ldpd(j_farg1, j_farg0, Address(__ post(sp, 2 * wordSize)));
 
-    __ leave();
-
     // check for pending exceptions
     Label pending;
     __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     __ cbnz(rscratch1, pending);
 
     if (has_res) {
+      // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+      // need to initialize the buffer and if so, call the inline class specific pack handler.
+      Label skip_pack;
       __ get_vm_result_oop(r0, rthread);
+      __ get_vm_result_metadata(rscratch1, rthread);
+      __ cbz(rscratch1, skip_pack);
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
+      __ blr(rscratch1);
+      __ membar(Assembler::StoreStore);
+      __ bind(skip_pack);
     }
 
+    __ leave();
     __ ret(lr);
 
     __ bind(pending);
+    __ leave();
     __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
     // -------------
@@ -12814,7 +12824,7 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   void generate_compiler_stubs() {
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
 
     if (UseSVE == 0) {
       generate_iota_indices(StubId::stubgen_vector_iota_indices_id);
@@ -12842,7 +12852,6 @@ class StubGenerator: public StubCodeGenerator {
 
     generate_string_indexof_stubs();
 
-#ifdef COMPILER2
     if (UseMultiplyToLenIntrinsic) {
       StubRoutines::_multiplyToLen = generate_multiplyToLen();
     }
@@ -12889,8 +12898,6 @@ class StubGenerator: public StubCodeGenerator {
       }
       StubRoutines::_montgomerySquare = start;
     }
-
-#endif // COMPILER2
 
     if (UseChaCha20Intrinsics) {
       StubRoutines::_chacha20Block = generate_chacha20Block_blockpar();
@@ -12973,7 +12980,7 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_updateBytesAdler32 = generate_updateBytesAdler32();
     }
 
-#endif // COMPILER2_OR_JVMCI
+#endif // COMPILER2
   }
 
  public:

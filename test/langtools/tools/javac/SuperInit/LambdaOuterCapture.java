@@ -23,10 +23,12 @@
 /*
  * @test
  * @bug 8334252
+ * @library /tools/javac/lib
  * @summary Test lambda declared in early construction context
+ * @modules jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
+ * @enablePreview
  * @run main LambdaOuterCapture
- * @build InitializationWarningTester
- * @run main InitializationWarningTester LambdaOuterCapture
  */
 
 public class LambdaOuterCapture {

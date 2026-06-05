@@ -117,10 +117,10 @@ private:
   Node* value_from_mem_phi(Node* mem, BasicType ft, const Type* ftype, const TypeOopPtr* adr_t, AllocateNode* alloc, Node_Stack* value_phis, int level);
   Node* inline_type_from_mem(ciInlineKlass* vk, const TypeAryPtr* elem_adr_type, int elem_idx, int offset_in_element, bool null_free, AllocateNode* alloc, SafePointNode* sfpt);
 
-  bool eliminate_boxing_node(CallStaticJavaNode *boxing);
+  bool eliminate_boxing_node(CallStaticJavaNode* call);
   bool eliminate_allocate_node(AllocateNode *alloc);
-  void undo_previous_scalarizations(GrowableArray <SafePointNode *> safepoints_done, AllocateNode* alloc);
-  bool scalar_replacement(AllocateNode *alloc, GrowableArray <SafePointNode *>& safepoints);
+  void undo_previous_scalarizations(Unique_Node_List& safepoints_done, AllocateNode* alloc);
+  bool scalar_replacement(AllocateNode* alloc, Unique_Node_List& safepoints);
   void process_users_of_allocation(CallNode *alloc, bool inline_alloc = false);
 
   void eliminate_gc_barrier(Node *p2x);
@@ -246,7 +246,7 @@ public:
   void eliminate_opaque_looplimit_macro_nodes();
 
   SafePointScalarObjectNode* create_scalarized_object_description(AllocateNode *alloc, SafePointNode* sfpt, Unique_Node_List* value_worklist);
-  static bool can_eliminate_allocation(PhaseIterGVN *igvn, AllocateNode *alloc, GrowableArray <SafePointNode *> *safepoints);
+  static bool can_eliminate_allocation(PhaseIterGVN* igvn, AllocateNode* alloc, Unique_Node_List* safepoints);
 
 
   PhaseIterGVN &igvn() const { return _igvn; }

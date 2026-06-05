@@ -2600,7 +2600,6 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 void MachVEPNode::emit(C2_MacroAssembler* masm, PhaseRegAlloc* ra_) const
 {
   CodeBuffer* cbuf = masm->code();
-  uint insts_size = cbuf->insts_size();
   if (!_verified) {
     __ ic_check(1);
   } else {
@@ -2624,12 +2623,14 @@ void MachVEPNode::emit(C2_MacroAssembler* masm, PhaseRegAlloc* ra_) const
       __ jmp(*_verified_entry);
     }
   }
-  /* WARNING these NOPs are critical so that verified entry point is properly
-     4 bytes aligned for patching by NativeJump::patch_verified_entry() */
-  int nops_cnt = 4 - ((cbuf->insts_size() - insts_size) & 0x3);
-  nops_cnt &= 0x3; // Do not add nops if code is aligned.
-  if (nops_cnt > 0) {
-    __ nop(nops_cnt);
+  if (ra_->C->stub_function() == nullptr) {
+    // Pad so that the next call to MachVEPNode::emit() starts out with the
+    // correct alignment.  This is needed by entry_barrier() to align the
+    // compare.  But unfortunately we need to align all 4 MachVEPNodes because
+    // entry point offsets are computed using scratch_emit_size(), so starting
+    // alignment must match the alignment of the scratch buffer, otherwise the sizes
+    // will be off.
+    __ align(4);
   }
 }
 
@@ -4623,7 +4624,7 @@ encode %{
     }
     if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic() && _method->return_type()->is_loaded()) {
       // The last return value is not set by the callee but used to pass the null marker to compiled code.
-      // Search for the corresponding projection, get the register and emit code that initialized it.
+      // Search for the corresponding projection, get the register and emit code that initializes it.
       uint con = (tf()->range_cc()->cnt() - 1);
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
         ProjNode* proj = fast_out(i)->as_Proj();
@@ -4994,7 +4995,7 @@ operand immN0() %{
 
 operand immP31()
 %{
-  predicate(n->as_Type()->type()->reloc() == relocInfo::none
+  predicate(n->as_Type()->type()->is_ptr()->reloc() == relocInfo::none
             && (n->get_ptr() >> 31) == 0);
   match(ConP);
 
@@ -16636,7 +16637,7 @@ instruct compP_rReg_mem(rFlagsRegU cr, rRegP op1, memory op2)
 // and raw pointers have no anti-dependencies.
 instruct compP_mem_rReg(rFlagsRegU cr, rRegP op1, memory op2)
 %{
-  predicate(n->in(2)->in(2)->bottom_type()->reloc() == relocInfo::none &&
+  predicate(n->in(2)->in(2)->bottom_type()->isa_rawptr() != nullptr &&
             n->in(2)->as_Load()->barrier_data() == 0);
   match(Set cr (CmpP op1 (LoadP op2)));
 

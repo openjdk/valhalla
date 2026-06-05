@@ -80,7 +80,7 @@ public:
 
   virtual bool      is_parse() const           { return true; }
   virtual JVMState* generate(JVMState* jvms);
-  int is_osr() { return _is_osr; }
+  bool              is_osr() const             { return _is_osr; }
 
 };
 
@@ -793,7 +793,8 @@ void CallGenerator::do_late_inline_helper() {
       result = (result_size == 1) ? kit.pop() : kit.pop_pair();
     }
 
-    if (call->is_CallStaticJava() && call->as_CallStaticJava()->is_boxing_method()) {
+    if (call->is_CallStaticJava() && call->as_CallStaticJava()->is_boxing_method()
+        && !call->tf()->returns_inline_type_as_fields()) {
       result = kit.must_be_not_null(result, false);
     }
 
