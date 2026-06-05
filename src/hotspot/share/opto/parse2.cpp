@@ -98,15 +98,23 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (!array_type->is_flat()) {
         assert(array_type->is_flat() || control()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
+        // Storing to a non-flat array, casting array to not flat.
+        Node* ary = adr->in(AddPNode::Base);
+        const TypeAryPtr* ary_type = _gvn.type(ary)->is_aryptr();
+        ary_type = array_type->cast_to_not_flat();
+        Node* not_flat_ary = _gvn.transform(new CheckCastPPNode(control(), ary, ary_type));
+        const TypeInt* sizetype = ary_type->size();
+        Node* ref_adr = array_element_address(not_flat_ary, array_index, bt, sizetype, control());
+        assert(ref_adr != top(), "top should go hand-in-hand with stopped");
         const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
         DecoratorSet decorator_set = IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD;
-        if (needs_range_check(array_type->size(), array_index)) {
+        if (needs_range_check(ary_type->size(), array_index)) {
           // We've emitted a RangeCheck but now insert an additional check between the range check and the actual load.
           // We cannot pin the load to two separate nodes. Instead, we pin it conservatively here such that it cannot
           // possibly float above the range check at any point.
           decorator_set |= C2_UNKNOWN_CONTROL_LOAD;
         }
-        Node* ld = access_load_at(array, adr, adr_type, element_ptr, bt, decorator_set);
+        Node* ld = access_load_at(not_flat_ary, ref_adr, adr_type, element_ptr, bt, decorator_set);
         if (element_ptr->is_inlinetypeptr()) {
           ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass());
         }
