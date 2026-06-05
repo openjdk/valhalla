@@ -5613,11 +5613,6 @@ public class Attr extends JCTree.Visitor {
                     env.info.isSerializable = true;
                 }
 
-                if (c.isValueClass()) {
-                    Assert.check(env.tree.hasTag(CLASSDEF));
-                    chk.checkConstraintsOfValueClass((JCClassDecl) env.tree, c);
-                }
-
                 attribClassBody(env, c);
 
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);

@@ -269,7 +269,6 @@ module jdk.compiler {
         jdk.jdeps,
         jdk.javadoc;
     exports com.sun.tools.javac.jvm to
-        jdk.jdeps,
         jdk.javadoc;
     exports com.sun.tools.javac.main to
         jdk.javadoc,

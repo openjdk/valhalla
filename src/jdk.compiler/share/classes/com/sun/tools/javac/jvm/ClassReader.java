@@ -590,11 +590,9 @@ public class ClassReader {
                                                          sbp - startSbp));
 
                 try {
-                    if (outer == Type.noType) {
-                        ClassType et = (ClassType) t.erasure(types);
-                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
-                    }
-                    return new ClassType(outer, List.nil(), t, List.nil());
+                    return (outer == Type.noType) ?
+                            t.erasure(types) :
+                        new ClassType(outer, List.nil(), t);
                 } finally {
                     sbp = startSbp;
                 }
@@ -616,7 +614,7 @@ public class ClassReader {
                  * could change in the future
                  */
                 final List<Type> actualsCp = actuals;
-                outer = new ClassType(outer, actuals, t, List.nil()) {
+                outer = new ClassType(outer, actuals, t) {
                         boolean completed = false;
                         boolean typeArgsSet = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -700,7 +698,7 @@ public class ClassReader {
                     t = enterClass(readName(signatureBuffer,
                                                  startSbp,
                                                  sbp - startSbp));
-                    outer = new ClassType(outer, List.nil(), t, List.nil());
+                    outer = new ClassType(outer, List.nil(), t);
                 }
                 signatureBuffer[sbp++] = (byte)'$';
                 continue;
