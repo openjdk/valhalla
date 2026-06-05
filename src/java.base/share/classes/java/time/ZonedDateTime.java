@@ -171,8 +171,7 @@ import jdk.internal.util.DateTimeHelper;
  * @since 1.8
  */
 @jdk.internal.ValueBased
-@jdk.internal.MigratedValueClass
-public final /*value*/ class ZonedDateTime
+public final @jdk.internal.PreviewValue class ZonedDateTime
         implements Temporal, ChronoZonedDateTime<LocalDate>, Serializable {
 
     /**

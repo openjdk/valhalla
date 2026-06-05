@@ -111,8 +111,7 @@ import java.util.Objects;
  * @since 1.8
  */
 @jdk.internal.ValueBased
-@jdk.internal.MigratedValueClass
-public final /*value*/ class MinguoDate
+public final @jdk.internal.PreviewValue class MinguoDate
         extends ChronoLocalDateImpl<MinguoDate>
         implements ChronoLocalDate, Serializable {
 

@@ -229,9 +229,8 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * @author  Ulf Zibis
  * @since   1.0
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final /*value*/ class Character
+public final @jdk.internal.PreviewValue class Character
         implements java.io.Serializable, Comparable<Character>, Constable {
     /**
      * The minimum radix available for conversion to and from strings.

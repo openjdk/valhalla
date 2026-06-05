@@ -430,7 +430,7 @@ public class Flags {
      * Flag to indicate the given ClassSymbol is a value based.
      */
     @Use({FlagTarget.CLASS})
-    public static final long MIGRATED_VALUE_CLASS = 1L<<57; //ClassSymbols only
+    public static final long PREVIEW_VALUE = 1L<<57; //ClassSymbols only
 
     /**
      * Flag to indicate the given symbol has a @Deprecated annotation.

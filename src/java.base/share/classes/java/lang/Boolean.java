@@ -62,9 +62,8 @@ import java.util.Optional;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final /*value*/ class Boolean
+public final @jdk.internal.PreviewValue class Boolean
         implements java.io.Serializable, Comparable<Boolean>, Constable
 {
     /**

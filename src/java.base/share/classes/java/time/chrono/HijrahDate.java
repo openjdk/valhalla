@@ -124,8 +124,7 @@ import java.time.temporal.ValueRange;
  * @since 1.8
  */
 @jdk.internal.ValueBased
-@jdk.internal.MigratedValueClass
-public final /*value*/ class HijrahDate
+public final @jdk.internal.PreviewValue class HijrahDate
         extends ChronoLocalDateImpl<HijrahDate>
         implements ChronoLocalDate, Serializable {
 

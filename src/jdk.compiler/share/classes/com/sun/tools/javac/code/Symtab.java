@@ -245,8 +245,8 @@ public class Symtab {
     // valhalla
     public final Type valueBasedType;
     public final Type valueBasedInternalType;
-    public final Type migratedValueClassType;
-    public final Type migratedValueClassInternalType;
+    public final Type previewValueType;
+    public final Type previewValueInternalType;
     /** The symbol representing the finalize method on Object */
     public final MethodSymbol objectFinalize;
     public final Type numberType;
@@ -630,8 +630,8 @@ public class Symtab {
         constantBootstrapsType = enterClass("java.lang.invoke.ConstantBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
-        migratedValueClassType = enterClass("jdk.internal.MigratedValueClass");
-        migratedValueClassInternalType = enterSyntheticAnnotation("jdk.internal.MigratedValueClass+Annotation");
+        previewValueType = enterClass("jdk.internal.PreviewValue");
+        previewValueInternalType = enterSyntheticAnnotation("jdk.internal.PreviewValue+Annotation");
         requiresIdentityType = enterClass("jdk.internal.RequiresIdentity");
         requiresIdentityInternalType = enterSyntheticAnnotation(names.requiresIdentityInternal);
         classDescType = enterClass("java.lang.constant.ClassDesc");
