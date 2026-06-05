@@ -2845,6 +2845,8 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
 }
 
 bool CompiledEntrySignature::check_supers_and_deoptimize(int arg_num) {
+  assert(JavaThread::current()->thread_state() == _thread_in_vm, "must be in vm state");
+
   bool scalar_super = false;
   bool non_scalar_super = false;
 
@@ -2897,7 +2899,7 @@ bool CompiledEntrySignature::check_supers_and_deoptimize(int arg_num) {
 
 // Iterate over arguments and compute scalarized and non-scalarized signatures
 void CompiledEntrySignature::compute_calling_conventions(bool link_time) {
-  assert(!link_time || JavaThread::current()->thread_state() == _thread_in_vm, "must be in vm state");
+  assert(JavaThread::current()->thread_state() != _thread_in_native, "must not be in native");
   bool has_scalarized = false;
   if (_method != nullptr) {
     InstanceKlass* holder = _method->method_holder();
