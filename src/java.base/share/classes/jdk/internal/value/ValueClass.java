@@ -124,7 +124,7 @@ public final class ValueClass {
     }
 
     @IntrinsicCandidate
-    public static native Object[] newNullRestrictedAtomicArray0(Class<?> componentType,
+    private static native Object[] newNullRestrictedAtomicArray0(Class<?> componentType,
                                                                 int length, Object initVal);
 
     @ForceInline
@@ -135,7 +135,7 @@ public final class ValueClass {
     }
 
     @IntrinsicCandidate
-    public static native Object[] newNullRestrictedNonAtomicArray0(Class<?> componentType,
+    private static native Object[] newNullRestrictedNonAtomicArray0(Class<?> componentType,
                                                                    int length, Object initVal);
 
     @ForceInline
@@ -146,7 +146,7 @@ public final class ValueClass {
     }
 
     @IntrinsicCandidate
-    public static native Object[] newNullableAtomicArray0(Class<?> componentType,
+    private static native Object[] newNullableAtomicArray0(Class<?> componentType,
                                                           int length);
 
     public static Object[] newReferenceArray(Class<?> componentType,
