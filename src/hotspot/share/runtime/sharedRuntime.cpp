@@ -2900,6 +2900,7 @@ bool CompiledEntrySignature::check_supers_and_deoptimize(int arg_num) {
 // Iterate over arguments and compute scalarized and non-scalarized signatures
 void CompiledEntrySignature::compute_calling_conventions(bool link_time) {
   assert(JavaThread::current()->thread_state() != _thread_in_native, "must not be in native");
+  assert(link_time || (_method != nullptr && _method->adapter() != nullptr), "invariant");
   bool has_scalarized = false;
   if (_method != nullptr) {
     InstanceKlass* holder = _method->method_holder();
@@ -2921,7 +2922,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool link_time) {
       arg_num++;
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-      BasicType bt = ss.type();
+      const BasicType bt = ss.type();
       if (InlineTypePassFieldsAsArgs && bt == T_OBJECT) {
         InlineKlass* vk = ss.as_inline_klass(holder);
         if (vk != nullptr && vk->can_be_passed_as_fields() && (link_time || _method->is_scalarized_arg(arg_num))) {
@@ -2948,7 +2949,6 @@ void CompiledEntrySignature::compute_calling_conventions(bool link_time) {
           SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
           SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
         }
-        bt = T_OBJECT;
       } else {
         SigEntry::add_entry(_sig_cc, ss.type(), ss.as_symbol());
         SigEntry::add_entry(_sig_cc_ro, ss.type(), ss.as_symbol());
