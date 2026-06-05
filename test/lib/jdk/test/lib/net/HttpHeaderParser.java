@@ -86,6 +86,7 @@ public final class HttpHeaderParser {
     public HttpHeaderParser() {
     }
 
+
     public HttpHeaderParser(InputStream is) throws IOException, ProtocolException {
         parse(is);
     }
