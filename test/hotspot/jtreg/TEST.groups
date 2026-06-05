@@ -192,7 +192,6 @@ tier1_compiler_2 = \
   compiler/inlining/ \
   compiler/integerArithmetic/ \
   compiler/interpreter/ \
-  compiler/jvmci/ \
   -compiler/classUnloading/methodUnloading/TestOverloadCompileQueues.java \
   -compiler/codecache/stress \
   -compiler/codegen/aes \
@@ -555,6 +554,7 @@ hotspot_aot_classlinking = \
  -runtime/cds/appcds/DumpClassListWithLF.java \
  -runtime/cds/appcds/dynamicArchive \
  -runtime/cds/appcds/HelloExtTest.java \
+ -runtime/cds/appcds/InlineFieldExclusionTest.java \
  -runtime/cds/appcds/jigsaw/classpathtests/EmptyClassInBootClassPath.java \
  -runtime/cds/appcds/jigsaw/ExactOptionMatch.java \
  -runtime/cds/appcds/jigsaw/JigsawOptionsCombo.java \

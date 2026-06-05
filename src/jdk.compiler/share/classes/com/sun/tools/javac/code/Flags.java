@@ -385,6 +385,11 @@ public class Flags {
     @Use({FlagTarget.CLASS})
     public static final long TYPE_TRANSLATED = 1L<<50;
 
+    /** Flag is set for the outer this field of an inner class.
+     */
+    @Use({FlagTarget.VARIABLE})
+    public static final long OUTER_THIS_FIELD = 1L<<50;
+
     /**
      * Flag to indicate class symbol is for module-info
      */

@@ -1847,7 +1847,7 @@ void SystemDictionary::update_dictionary(JavaThread* current,
 // has already been defined by a parent loader.
 // This API is used by AOTLinkedClassBulkLoader and to register boxing
 // classes from java.lang in all class loaders to enable more value
-// classes optimizations
+// classes optimizations.
 void SystemDictionary::add_to_initiating_loader(JavaThread* current,
                                                 InstanceKlass* k,
                                                 ClassLoaderData* loader_data) {

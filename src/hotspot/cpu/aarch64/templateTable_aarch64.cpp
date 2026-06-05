@@ -829,9 +829,6 @@ void TemplateTable::aaload()
     __ b(done);
     __ bind(is_flat_array);
     __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), r0, r1);
-    // Ensure the stores to copy the inline field contents are visible
-    // before any subsequent store that publishes this reference.
-    __ membar(Assembler::StoreStore);
     __ bind(done);
   } else {
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
@@ -2729,7 +2726,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (!CompilerConfig::is_c1_or_interpreter_only_no_jvmci()){
+  if (!CompilerConfig::is_c1_or_interpreter_only()){
     Label notVolatile;
     __ tbz(flags, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::AnyAny);
@@ -3390,7 +3387,7 @@ void TemplateTable::fast_accessfield(TosState state)
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (!CompilerConfig::is_c1_or_interpreter_only_no_jvmci()) {
+  if (!CompilerConfig::is_c1_or_interpreter_only()) {
     Label notVolatile;
     __ tbz(r3, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::AnyAny);
@@ -3460,7 +3457,7 @@ void TemplateTable::fast_xaccess(TosState state)
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (!CompilerConfig::is_c1_or_interpreter_only_no_jvmci()) {
+  if (!CompilerConfig::is_c1_or_interpreter_only()) {
     Label notVolatile;
     __ load_unsigned_byte(r3, Address(r2, in_bytes(ResolvedFieldEntry::flags_offset())));
     __ tbz(r3, ResolvedFieldEntry::is_volatile_shift, notVolatile);

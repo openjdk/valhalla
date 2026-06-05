@@ -900,8 +900,10 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
   }
 #endif
 
-#ifdef ASSERT
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->final_refinement(this);
+
+#ifdef ASSERT
   bs->verify_gc_barriers(this, BarrierSetC2::BeforeCodeGen);
 #endif
 
@@ -2170,8 +2172,6 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
         // Verify that inline type is buffered when replacing by oop
         else if (u->is_InlineType()) {
           // InlineType uses don't need buffering because they are about to be replaced as well
-        } else if (u->is_Phi()) {
-          // TODO 8302217 Remove this once InlineTypeNodes are reliably pushed through
         } else {
           must_be_buffered = true;
         }
