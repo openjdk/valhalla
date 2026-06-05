@@ -1119,23 +1119,18 @@ bool SystemDictionary::preload_from_required_inline_field(InstanceKlass* ik, Han
   InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
   bool check = check_shared_class_dependency(ik, k, class_loader, false, THREAD);
   if (!check) {
-    if (HAS_PENDING_EXCEPTION) {
-      if (log_is_enabled(Info, class, preload)) {
-        TempNewSymbol name = Signature::strip_envelope(sig);
-        log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                                 "(cause: archived flat/null-restricted field metadata) failed : %s",
-                                 name->as_C_string(), ik->name()->as_C_string(),
-                                 PENDING_EXCEPTION->klass()->name()->as_C_string());
-      }
+    const bool has_pending_exception = HAS_PENDING_EXCEPTION;
+    if (log_is_enabled(Info, class, preload)) {
+      TempNewSymbol name = Signature::strip_envelope(sig);
+      const char* reason = has_pending_exception ?
+                           PENDING_EXCEPTION->klass()->name()->as_C_string() :
+                           "app substituted a different version";
+      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                               "(cause: archived flat/null-restricted field metadata) failed : %s",
+                               name->as_C_string(), ik->name()->as_C_string(), reason);
+    }
+    if (has_pending_exception) {
       CLEAR_PENDING_EXCEPTION;
-    } else {
-      if (log_is_enabled(Info, class, preload)) {
-        TempNewSymbol name = Signature::strip_envelope(sig);
-        log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                                 "(cause: archived flat/null-restricted field metadata) failed : "
-                                 "app substituted a different version",
-                                 name->as_C_string(), ik->name()->as_C_string());
-      }
     }
     return false;
   }
@@ -1203,9 +1198,9 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return nullptr;
   }
 
-  if (ik->has_inlined_fields()) {
+  if (ik->has_inlined_fields() || ik->has_null_restricted_static_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (fs.access_flags().is_static()) continue;
+      if (fs.access_flags().is_static() && !fs.is_null_free_inline_type()) continue;
 
       Symbol* sig = fs.signature();
       int field_index = fs.index();
