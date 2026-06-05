@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,15 +19,25 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-// key: compiler.err.super.class.method.cannot.be.synchronized
-// key: compiler.note.preview.filename
-// key: compiler.note.preview.recompile
-// options: --enable-preview -source ${jdk.version}
+import excluded.ExcludedValueClass;
 
-public abstract class SuperClassMethodCannotBeSynchronized {
-    synchronized void foo() {}
+public class InlineFieldExclusionApp {
+
+    ExcludedValueClass v;
+
+    InlineFieldExclusionApp() {
+        v = new ExcludedValueClass();
+    }
+
+    public static void main(String args[]) {
+        InlineFieldExclusionApp h = new InlineFieldExclusionApp();
+        ExcludedValueClass test = new ExcludedValueClass();
+        if (h.v != test) {
+            throw new RuntimeException("Should be flattened");
+        }
+        System.out.println("Hello from InlineFieldExclusionApp!");
+    }
 }
-
-value class V extends SuperClassMethodCannotBeSynchronized {}

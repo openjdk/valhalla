@@ -399,6 +399,9 @@ class InstanceKlass: public Klass {
   bool has_inlined_fields() const { return _misc_flags.has_inlined_fields(); }
   void set_has_inlined_fields()   { _misc_flags.set_has_inlined_fields(true); }
 
+  bool has_null_restricted_static_fields() const { return _misc_flags.has_null_restricted_static_fields(); }
+  void set_has_null_restricted_static_fields()   { _misc_flags.set_has_null_restricted_static_fields(true); }
+
   bool is_naturally_atomic(bool null_free) const;
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 

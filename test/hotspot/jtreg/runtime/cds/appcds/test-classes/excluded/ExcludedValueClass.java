@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,19 +19,23 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-public value class Host {
-    int A;
-    long B;
-    char C;
-    public static String getID() { return "HostABC/redef/Host.java"; }
-    public int m() {
-        return 2; // redefined class
+package excluded;
+
+// This value class will be placed in a signed JAR causing it to be excluded
+// during a CDS dump. If a field of this type is flattened or null-restricted,
+// the holder classes must be excluded from the archive as well.
+public value class ExcludedValueClass {
+    int i;
+
+    public ExcludedValueClass() {
+        i = 0;
+        System.out.println("Hello from ExcludedValueClass!");
     }
-    public Host(int A, long B, char C) {
-        this.A = A;
-        this.B = B;
-        this.C = C;
+
+    public static void foo() {
+        System.out.println("Static method foo!");
     }
 }

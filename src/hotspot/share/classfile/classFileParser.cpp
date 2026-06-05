@@ -1524,6 +1524,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     if (is_null_restricted) {
       fieldFlags.update_null_free_inline_type(true);
+      if (is_static) {
+        _has_null_restricted_static_fields = true;
+      }
     }
 
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
@@ -5474,6 +5477,23 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   ik->set_static_oop_field_count(_static_oop_count);
 
+  if (_has_null_restricted_static_fields) {
+    ik->set_has_null_restricted_static_fields();
+    for (int i = 0; i < _temp_field_info->length(); i++) {
+      FieldInfo& fieldinfo = _temp_field_info->at(i);
+      if (fieldinfo.access_flags().is_static() && fieldinfo.field_flags().is_null_free_inline_type()) {
+        Symbol* sig = fieldinfo.signature(_cp);
+        assert(Signature::has_envelope(sig), "Must already have been checked");
+        TempNewSymbol name = Signature::strip_envelope(sig);
+        if (name == _class_name) {
+          // Replace the nullptr previously stored now that we have the InstanceKlass for this klass.
+          _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(ik));
+        }
+        assert(_inline_layout_info_array->adr_at(fieldinfo.index())->klass()->is_inline_klass(), "Must be");
+      }
+    }
+  }
+
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
   apply_parsed_class_metadata(ik, _java_fields_count);
@@ -5786,6 +5806,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_contended_fields(false),
   _has_aot_runtime_setup_method(false),
   _has_strict_static_fields(false),
+  _has_null_restricted_static_fields(false),
   _must_be_atomic(true),
   _has_finalizer(false),
   _has_empty_finalizer(false),
@@ -6312,7 +6333,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   // If it turned out that we didn't inline any of the fields, we deallocate
   // the array of InlineLayoutInfo since it isn't needed, and so it isn't
   // transferred to the allocated InstanceKlass.
-  if (_inline_layout_info_array != nullptr && !_layout_info->_has_inlined_fields) {
+  if (_inline_layout_info_array != nullptr && !(_layout_info->_has_inlined_fields || _has_null_restricted_static_fields)) {
     MetadataFactory::free_array<InlineLayoutInfo>(_loader_data, _inline_layout_info_array);
     _inline_layout_info_array = nullptr;
   }
@@ -6365,11 +6386,20 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
   for (int i = 0; i < _temp_field_info->length(); i++) {
     FieldInfo& fieldinfo = _temp_field_info->at(i);
-    if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
+    if (fieldinfo.access_flags().is_static() && !fieldinfo.field_flags().is_null_free_inline_type()) continue;
     Symbol* sig = fieldinfo.signature(cp);
     if (Signature::has_envelope(sig)) {
       TempNewSymbol name = Signature::strip_envelope(sig);
-      if (name == _class_name) continue;
+      if (name == _class_name) {
+        if (fieldinfo.field_flags().is_null_free_inline_type() && !is_inline_type()) {
+          fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
+        } else {
+          // Dummy setting to trigger the allocation of the inline_layout_info array -
+          // the real pointer will be set later in ::fill_instance_klass, once the InlineKlass has been allocated.
+          set_inline_layout_info_klass(fieldinfo.index(), nullptr, CHECK);
+        }
+        continue;
+      }
       if (PreloadClasses && is_class_in_loadable_descriptors_attribute(sig)) {
         ResourceMark rm(THREAD);
         log_info(class, preload)("Preloading of class %s during loading of class %s. "
