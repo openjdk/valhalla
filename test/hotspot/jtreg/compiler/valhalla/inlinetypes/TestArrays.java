@@ -802,9 +802,10 @@ public class TestArrays {
 
     // non escaping allocations
     // TODO 8252027: Make sure this is optimized with ZGC
+    // TODO 8350865: Support flat arrays in LoadNode::find_previous_arraycopy
     @Test
-    @IR(applyIf = {"UseZGC", "false"},
-        failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // @IR(applyIf = {"UseZGC", "false"},
+    //     failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test28() {
         MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         src[0] = MyValue2.createWithFieldsInline(rI, rD);
