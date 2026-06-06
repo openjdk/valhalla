@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.classfile.Attributes;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.ClassTransform;
-import java.lang.classfile.attribute.LoadableDescriptorsAttribute;
 import java.net.URI;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
@@ -600,22 +596,6 @@ public class TestCommon extends CDSTestUtils {
 
         String outputArray[] = stringList.toArray(new String[stringList.size()]);
         return outputArray;
-    }
-
-    public static void stripLoadableDescriptors(Path fromDir, Path toDir, String className) throws Exception {
-        ClassFile cf = ClassFile.of();
-        byte[] original = Files.readAllBytes(fromDir.resolve(className + ".class"));
-        var model = cf.parse(original);
-        byte[] transformed = original;
-
-        if (model.findAttribute(Attributes.loadableDescriptors()).isPresent()) {
-            transformed = cf.transformClass(model,
-                ClassTransform.dropping(e -> e instanceof LoadableDescriptorsAttribute));
-            if (cf.parse(transformed).findAttribute(Attributes.loadableDescriptors()).isPresent()) {
-                throw new RuntimeException("Failed to strip LoadableDescriptors from " + className);
-            }
-        }
-        Files.write(toDir.resolve(className + ".class"), transformed);
     }
 
 

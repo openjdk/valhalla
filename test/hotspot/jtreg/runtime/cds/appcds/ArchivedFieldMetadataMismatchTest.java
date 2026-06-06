@@ -23,30 +23,21 @@
  */
 
 /*
- * @test id=instance
- * @summary Ensure archived nullable flat field metadata is validated when the field class is substituted.
+ * @test
+ * @summary Ensure archived nullable flat field and static null-restricted field metadata are validated when the field class is substituted.
+ * @bug 8382584
  * @requires vm.cds
  * @library /test/lib
  * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
  * @compile ArchivedFieldMetadataMismatchTest.java
  * @run driver jdk.test.lib.helpers.StrictProcessor ArchivedFieldMetadataInstanceHolder
- * @run main/othervm ArchivedFieldMetadataMismatchTest instance
- */
-
-/*
- * @test id=static
- * @summary Ensure archived static null-restricted field metadata is validated when the field class is substituted.
- * @requires vm.cds
- * @library /test/lib
- * @enablePreview
- * @modules java.base/jdk.internal.vm.annotation
- * @compile ArchivedFieldMetadataMismatchTest.java
- * @run main/othervm ArchivedFieldMetadataMismatchTest static
+ * @run main/othervm ArchivedFieldMetadataMismatchTest
  */
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
+import jdk.test.lib.helpers.ClassFileInstaller;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -56,30 +47,28 @@ import jdk.test.lib.helpers.StrictInit;
 import jdk.test.lib.process.OutputAnalyzer;
 
 public class ArchivedFieldMetadataMismatchTest {
-    public static void main(String[] args) throws Exception {
-        if (args.length != 1) {
-            throw new RuntimeException("Expected test case name");
-        }
+    static final String[] appClasses = {
+        "ArchivedFieldMetadataInstanceApp",
+        "ArchivedFieldMetadataInstancePoint",
+        "ArchivedFieldMetadataInstanceHolder",
+        "ArchivedFieldMetadataStaticApp",
+        "ArchivedFieldMetadataStaticPoint",
+        "ArchivedFieldMetadataStaticHolder",
+    };
+    static String appJar;
 
-        switch (args[0]) {
-            case "instance" -> testInstanceField();
-            case "static" -> testStaticField();
-            default -> throw new RuntimeException("Unknown test case: " + args[0]);
-        }
+    public static void main(String[] args) throws Exception {
+       appJar = ClassFileInstaller.writeJar("app.jar", appClasses);
+       testInstanceField();
+       testStaticField();
     }
 
     private static void testInstanceField() throws Exception {
-        String appJar = buildJarWithStrippedLoadableDescriptors(
-                "archived_field_metadata_instance_mismatch",
-                "ArchivedFieldMetadataInstanceApp",
-                "ArchivedFieldMetadataInstancePoint",
-                "ArchivedFieldMetadataInstanceHolder");
         String pointClassFile = new File(System.getProperty("test.classes", "."),
                                          "ArchivedFieldMetadataInstancePoint.class").getPath();
 
         TestCommon.checkDump(TestCommon.dump(appJar,
-                        TestCommon.list("ArchivedFieldMetadataInstancePoint",
-                                        "ArchivedFieldMetadataInstanceHolder"),
+                        appClasses,
                         "--enable-preview",
                         "-XX:+UnlockDiagnosticVMOptions",
                         "-XX:+UseNullableNonAtomicValueFlattening"));
@@ -98,17 +87,11 @@ public class ArchivedFieldMetadataMismatchTest {
     }
 
     private static void testStaticField() throws Exception {
-        String appJar = buildJarWithStrippedLoadableDescriptors(
-                "archived_field_metadata_static_mismatch",
-                "ArchivedFieldMetadataStaticApp",
-                "ArchivedFieldMetadataStaticPoint",
-                "ArchivedFieldMetadataStaticHolder");
         String pointClassFile = new File(System.getProperty("test.classes", "."),
                                          "ArchivedFieldMetadataStaticPoint.class").getPath();
 
         TestCommon.checkDump(TestCommon.dump(appJar,
-                        TestCommon.list("ArchivedFieldMetadataStaticPoint",
-                                        "ArchivedFieldMetadataStaticHolder"),
+                        appClasses,
                         "--enable-preview"));
 
         OutputAnalyzer output = TestCommon.exec(appJar,
@@ -120,18 +103,6 @@ public class ArchivedFieldMetadataMismatchTest {
         output.shouldContain("Preloading of class ArchivedFieldMetadataStaticPoint during loading of shared class " +
                              "ArchivedFieldMetadataStaticHolder (cause: archived flat/null-restricted field metadata) " +
                              "failed : app substituted a different version");
-    }
-
-    private static String buildJarWithStrippedLoadableDescriptors(String jarName, String... classNames) throws Exception {
-        Path testClasses = Path.of(System.getProperty("test.classes", "."));
-        Path jarClasses = testClasses.resolve(jarName);
-        Files.createDirectories(jarClasses);
-
-        for (String className : classNames) {
-            TestCommon.stripLoadableDescriptors(testClasses, jarClasses, className);
-        }
-
-        return JarBuilder.build(jarName, jarClasses.toFile(), null);
     }
 }
 
