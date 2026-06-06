@@ -51,8 +51,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
 import jdk.internal.value.Deserializer;
-import jdk.internal.MigratedValueClass;
-
 
 import jdk.test.lib.hexdump.HexPrinter;
 import jdk.test.lib.hexdump.ObjectStreamPrinter;
@@ -309,7 +307,6 @@ public class SimpleValueGraphs implements Serializable {
         }
     }
 
-    @MigratedValueClass
     static value class TreeV implements Tree, Serializable {
 
         @Serial

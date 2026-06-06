@@ -52,7 +52,6 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.util.stream.Stream;
 
-import jdk.internal.MigratedValueClass;
 import jdk.internal.value.Deserializer;
 
 import jdk.test.lib.helpers.StrictInit;
@@ -179,7 +178,6 @@ public class ValueSerializationTest {
     }
 
     /* A Serializable value class Point */
-    @MigratedValueClass
     static value class SerializablePoint implements Serializable {
         public int x;
         public int y;

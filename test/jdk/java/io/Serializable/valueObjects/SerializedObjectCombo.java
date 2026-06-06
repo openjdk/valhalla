@@ -114,11 +114,9 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
             import java.io.*;
             import java.util.*;
             import jdk.internal.value.Deserializer;
-            import jdk.internal.MigratedValueClass;
 
             #{TOP_FRAGMENTS}
 
-            @MigratedValueClass
             #{CLASSACCESS} #{VALUE} class #{TESTNAME} #{TESTNAME_EXTENDS} #{KIND.IMPLEMENTS} {
                 #{FIELD[0]} f1;
                 #{FIELD[1]} f2;
@@ -885,13 +883,11 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
     enum TopFragments implements ComboParameter, CodeShapePredicate {
         NONE(""),
         ABSTRACT_NO_FIELDS("""
-                @MigratedValueClass
                 abstract #{VALUE} class TOP_#{TESTNAME} implements Serializable {
                     #{CLASSACCESS} TOP_#{TESTNAME}() {}
                 }
                 """),
         ABSTRACT_ONE_FIELD("""
-                @MigratedValueClass
                 abstract #{VALUE} class TOP_#{TESTNAME} implements Serializable {
                     private int t1;
                     #{CLASSACCESS} TOP_#{TESTNAME}() {
@@ -900,13 +896,11 @@ public final class SerializedObjectCombo extends ComboInstance<SerializedObjectC
                 }
                 """),
         NO_FIELDS("""
-                @MigratedValueClass
                 #{VALUE} class TOP_#{TESTNAME} implements Serializable {
                     #{CLASSACCESS} TOP_#{TESTNAME}() {}
                 }
                 """),
         ONE_FIELD("""
-                @MigratedValueClass
                 #{VALUE} class TOP_#{TESTNAME} implements Serializable {
                     private int t1;
                     #{CLASSACCESS} TOP_#{TESTNAME}() {

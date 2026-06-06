@@ -2555,7 +2555,7 @@ public class Check {
 
         Type identitySuper = null;
         Type superType = types.supertype(c);
-        if (superType.isIdentityClass() && (superType.tsym.flags() & MIGRATED_VALUE_CLASS) == 0)
+        if (superType.isIdentityClass())
             identitySuper = superType;
         if (c.isValueClass() && identitySuper != null && identitySuper.tsym != syms.objectType.tsym) { // Object is special
             log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));
