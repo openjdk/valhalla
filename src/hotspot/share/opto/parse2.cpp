@@ -99,9 +99,10 @@ void Parse::array_load(BasicType bt) {
       if (!array_type->is_flat()) {
         assert(array_type->is_flat() || control()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
         // Storing to a non-flat array, casting array to not flat.
+        assert(adr->is_AddP(), "must be");
         Node* ary = adr->in(AddPNode::Base);
         const TypeAryPtr* ary_type = _gvn.type(ary)->is_aryptr();
-        ary_type = array_type->cast_to_not_flat();
+        ary_type = ary_type->cast_to_not_flat();
         Node* not_flat_ary = _gvn.transform(new CheckCastPPNode(control(), ary, ary_type));
         const TypeInt* sizetype = ary_type->size();
         Node* ref_adr = array_element_address(not_flat_ary, array_index, bt, sizetype, control());
