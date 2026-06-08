@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 import java.lang.constant.Constable;
@@ -111,7 +111,7 @@ public final class Boolean implements java.io.Serializable,
      * if possible.
      */
     @Deprecated(since="9")
-    @DeserializeConstructor
+    @Deserializer("value")
     public Boolean(boolean value) {
         this.value = value;
     }
