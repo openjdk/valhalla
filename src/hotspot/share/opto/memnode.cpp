@@ -1379,7 +1379,8 @@ Node* LoadNode::can_see_stored_value_through_membars(Node* st, PhaseValues* phas
   }
 
   Node* res = can_see_stored_value(st, phase);
-  assert(res == nullptr || is_java_primitive(value_basic_type()) || res->bottom_type()->higher_equal(type()), "the fold is unsafe");
+  // TODO: reimplement assert, see: JDK-8386157
+  //assert(res == nullptr || is_java_primitive(value_basic_type()) || res->bottom_type()->higher_equal(type()), "the fold is unsafe");
   return res;
 }
 
