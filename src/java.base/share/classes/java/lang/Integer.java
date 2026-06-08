@@ -83,7 +83,7 @@ import static java.lang.String.COMPACT_STRINGS;
  */
 @jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Integer extends Number
+public final /*value*/ class Integer extends Number
         implements Comparable<Integer>, Constable, ConstantDesc {
     /**
      * A constant holding the minimum value an {@code int} can

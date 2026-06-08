@@ -83,7 +83,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  */
 @jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Float extends Number
+public final /*value*/ class Float extends Number
         implements Comparable<Float>, Constable, ConstantDesc {
     /**
      * A constant holding the positive infinity of type

@@ -231,7 +231,8 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  */
 @jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Character implements java.io.Serializable, Comparable<Character>, Constable {
+public final /*value*/ class Character
+        implements java.io.Serializable, Comparable<Character>, Constable {
     /**
      * The minimum radix available for conversion to and from strings.
      * The constant value of this field is the smallest value permitted
