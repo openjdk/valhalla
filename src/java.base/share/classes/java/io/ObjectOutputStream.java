@@ -328,7 +328,7 @@ public class ObjectOutputStream
      *          {@linkplain Class#isValue value class}, or that extends a
      *          Serializable abstract value class that declares instance fields,
      *          can only be serialized if it is a record, or it implements
-     *          {@code writeReplace}, or it is a boxed primitive value. 
+     *          {@code writeReplace}, or it is a boxed primitive value.
      *          Otherwise, {@code writeObject} throws an
      *          {@code InvalidClassException}.
      *      </div>

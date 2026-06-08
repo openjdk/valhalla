@@ -53,7 +53,7 @@ import java.io.ObjectInput;
  * When an {@code Externalizable} object is reconstructed, an instance is
  * created using the public no-arg constructor, then the
  * {@code readExternal} method called.
-* <p>
+ * <p>
  * An {@code Externalizable} instance can designate a substitution object via
  * the {@code writeReplace} and {@code readResolve} methods documented in the
  * {@link Serializable} interface.
