@@ -443,10 +443,12 @@ public class ObjectInputStream
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          <p>An object in the stream that instantiates or extends a Serializable
-     *          {@linkplain Class#isValue value class} can only be deserialized if
-     *          it is a record or a boxed primitive value.  Otherwise,
-     *          {@code readObject} throws an {@code InvalidClassException}.
+     *          <p>An object in the stream that instantiates a concrete
+     *          {@linkplain Class#isValue value class}, or that extends a
+     *          Serializable abstract value class that declares instance fields,
+     *          can only be deserialized if it is a record or a boxed primitive
+     *          value. Otherwise, {@code readObject} throws an
+     *          {@code InvalidClassException}.
      *      </div>
      * </div>
      *
