@@ -1553,9 +1553,6 @@ public class ClassReader {
             } else if (proxy.type.tsym.flatName() == syms.valueBasedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == TYP);
                 sym.flags_field |= VALUE_BASED;
-            } else if (proxy.type.tsym.flatName() == syms.migratedValueClassInternalType.tsym.flatName()) {
-                Assert.check(sym.kind == TYP);
-                sym.flags_field |= MIGRATED_VALUE_CLASS;
             } else if (proxy.type.tsym.flatName() == syms.restrictedInternalType.tsym.flatName()) {
                 Assert.check(sym.kind == MTH);
                 sym.flags_field |= RESTRICTED;
@@ -1575,8 +1572,6 @@ public class ClassReader {
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
                 } else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
-                } else if (proxy.type.tsym == syms.migratedValueClassType.tsym && sym.kind == TYP) {
-                    sym.flags_field |= MIGRATED_VALUE_CLASS;
                 } else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
@@ -3351,7 +3346,7 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags))
+        if (((flags & ACC_IDENTITY) != 0)
                 || (majorVersion <= Version.MAX().major && minorVersion != PREVIEW_MINOR_VERSION && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
         } else if (needsValueFlag(c, flags)) {
@@ -3365,16 +3360,11 @@ public class ClassReader {
     private boolean needsValueFlag(Symbol c, long flags) {
         boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if (allowValueClasses) {
-            if (previewClassFile && majorVersion >= Version.MAX().major && (flags & INTERFACE) == 0 ||
-                    majorVersion >= Version.MAX().major && isMigratedValueClass(flags)) {
+            if (previewClassFile && majorVersion >= Version.MAX().major && (flags & INTERFACE) == 0) {
                 return true;
             }
         }
         return false;
-    }
-
-    private boolean isMigratedValueClass(long flags) {
-        return allowValueClasses && ((flags & MIGRATED_VALUE_CLASS) != 0);
     }
 
     /**
