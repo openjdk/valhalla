@@ -1106,7 +1106,7 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   return true;
 }
 
-// Pre-load class referred to in non-static fields with archived inline field metadata. These fields
+// Pre-load class referred to in fields with archived inline field metadata. These fields
 // must be checked against the resolved runtime class before the shared class can be used.
 bool SystemDictionary::preload_from_required_inline_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   if (log_is_enabled(Info, class, preload)) {
@@ -1145,32 +1145,41 @@ bool SystemDictionary::preload_from_required_inline_field(InstanceKlass* ik, Han
   return true;
 }
 
-// Tries to pre-load classes referred to in non-static instance fields if they are found in the
-// loadable descriptors attribute. If loading fails, we can fail silently.
+// Optionally pre-load classes referred to in instance fields if they are found in the
+// LoadableDescriptors attribute. This mirrors the speculative preloading in
+// ClassFileParser::fetch_field_classes() when loading a class outside the archive.
+// Failures are ignored and do not fail shared class loading.
 void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
-  if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(sig)) {
-    log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
-                             "Cause: field type in LoadableDescriptors attribute",
-                             name->as_C_string(), ik->name()->as_C_string());
-    InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
-                                                                                 class_loader, false, THREAD);
+  if (name == ik->name() || !ik->is_class_in_loadable_descriptors_attribute(sig)) {
+    return;
+  }
+
+  log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
+                           "Cause: field type in LoadableDescriptors attribute",
+                           name->as_C_string(), ik->name()->as_C_string());
+  InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
+  if (k == nullptr) {
+    SystemDictionary::resolve_with_circularity_detection(ik->name(), name, class_loader, false, THREAD);
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
     }
+    return;
+  }
 
-    InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
-    if (real_k != k) {
-      // oops, the app has substituted a different version of k!
-      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                               "(cause: field type in LoadableDescriptors attribute) failed : "
-                               "app substituted a different version",
-                               name->as_C_string(), ik->name()->as_C_string());
-    } else if (real_k != nullptr) {
-      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                               "(cause: field type in LoadableDescriptors attribute) succeeded",
-                                name->as_C_string(), ik->name()->as_C_string());
-    }
+  bool check = check_shared_class_dependency(ik, k, class_loader, false, THREAD);
+  if (HAS_PENDING_EXCEPTION) {
+    CLEAR_PENDING_EXCEPTION;
+  }
+  if (check) {
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                             "(cause: field type in LoadableDescriptors attribute) succeeded",
+                             name->as_C_string(), ik->name()->as_C_string());
+  } else {
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                             "(cause: field type in LoadableDescriptors attribute) failed : "
+                             "app substituted a different version",
+                             name->as_C_string(), ik->name()->as_C_string());
   }
 }
 
@@ -1200,7 +1209,9 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
 
   if (ik->has_inlined_fields() || ik->has_null_restricted_static_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (fs.access_flags().is_static() && !fs.is_null_free_inline_type()) continue;
+      if (fs.access_flags().is_static() && !fs.is_null_free_inline_type()) {
+        continue;
+      }
 
       Symbol* sig = fs.signature();
       int field_index = fs.index();
@@ -1216,7 +1227,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
           return nullptr;
         }
       } else {
-        // Pending exceptions are cleared so we can fail silently.
+        // Optional LoadableDescriptors preloading. Failures are ignored.
         try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
