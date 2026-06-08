@@ -62,7 +62,8 @@ package java.lang;
  * @jls 5.1.3 Narrowing Primitive Conversion
  * @since   1.0
  */
-public abstract @jdk.internal.PreviewValue class Number implements java.io.Serializable {
+@jdk.internal.MigratedValueClass
+public abstract /*value*/ class Number implements java.io.Serializable {
     /**
      * Constructor for subclasses to call.
      */

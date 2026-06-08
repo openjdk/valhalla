@@ -132,7 +132,8 @@ import jdk.internal.util.DateTimeHelper;
  * @since 1.8
  */
 @jdk.internal.ValueBased
-public final @jdk.internal.PreviewValue class LocalTime
+@jdk.internal.MigratedValueClass
+public final /*value*/ class LocalTime
         implements Temporal, TemporalAdjuster, Comparable<LocalTime>, Serializable {
 
     /**

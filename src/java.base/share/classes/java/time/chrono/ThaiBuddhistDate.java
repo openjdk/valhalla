@@ -111,7 +111,8 @@ import java.util.Objects;
  * @since 1.8
  */
 @jdk.internal.ValueBased
-public final @jdk.internal.PreviewValue class ThaiBuddhistDate
+@jdk.internal.MigratedValueClass
+public final /*value*/ class ThaiBuddhistDate
         extends ChronoLocalDateImpl<ThaiBuddhistDate>
         implements ChronoLocalDate, Serializable {
 

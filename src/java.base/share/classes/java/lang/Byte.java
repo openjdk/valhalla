@@ -69,8 +69,9 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * @see     java.lang.Number
  * @since   1.1
  */
+@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final @jdk.internal.PreviewValue class Byte extends Number
+public final /*value*/ class Byte extends Number
         implements Comparable<Byte>, Constable {
 
     /**

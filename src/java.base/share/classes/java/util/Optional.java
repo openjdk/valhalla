@@ -69,9 +69,10 @@ import java.util.stream.Stream;
  * @param <T> the type of value
  * @since 1.8
  */
+@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
 @TrustFinalFields
-public final @jdk.internal.PreviewValue class Optional<T> {
+public final /*value*/ class Optional<T> {
     /**
      * Common instance for {@code empty()}.
      */

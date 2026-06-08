@@ -2581,7 +2581,7 @@ public class Check {
         Type identitySuper = null;
         for (Type t : types.closure(c)) {
             if (t != c) {
-                if (t.isIdentityClass() && (t.tsym.flags() & PREVIEW_VALUE) == 0)
+                if (t.isIdentityClass() && (t.tsym.flags() & MIGRATED_VALUE_CLASS) == 0)
                     identitySuper = t;
                 if (c.isValueClass() && identitySuper != null && identitySuper.tsym != syms.objectType.tsym) { // Object is special
                     log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));

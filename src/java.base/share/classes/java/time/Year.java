@@ -140,7 +140,8 @@ import java.util.Objects;
  * @since 1.8
  */
 @jdk.internal.ValueBased
-public final @jdk.internal.PreviewValue class Year
+@jdk.internal.MigratedValueClass
+public final /*value*/ class Year
         implements Temporal, TemporalAdjuster, Comparable<Year>, Serializable {
 
     /**

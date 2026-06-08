@@ -50,7 +50,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
-import jdk.internal.PreviewValue;
+import jdk.internal.MigratedValueClass;
 import jdk.internal.event.SerializationMisdeclarationEvent;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.reflect.ReflectionFactory;
@@ -451,7 +451,7 @@ public final class ObjectStreamClass implements Serializable {
                     }
                 } else if (cl.isValue()) {
                     factoryMode = DeserializationMode.READ_OBJECT_VALUE;
-                    if (!cl.isAnnotationPresent(PreviewValue.class)) {
+                    if (!cl.isAnnotationPresent(MigratedValueClass.class)) {
                         serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
                                                                         "Value class serialization is only supported with `writeReplace`");
                     } else if (Modifier.isAbstract(cl.getModifiers())) {
@@ -460,8 +460,7 @@ public final class ObjectStreamClass implements Serializable {
                     } else {
                         // Value classes should have constructor(s) annotated with {@link DeserializeConstructor}
                         canonicalCtr = getDeserializingValueCons(cl, fields);
-                        deserializationCtrs = new DeserializationConstructorsCache();
-                        factoryMode = DeserializationMode.READ_OBJECT_VALUE;
+                        deserializationCtrs = new DeserializationConstructorsCache();                            factoryMode = DeserializationMode.READ_OBJECT_VALUE;
                         if (canonicalCtr == null) {
                             serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
                                                                             "no constructor or factory found for migrated value class");
