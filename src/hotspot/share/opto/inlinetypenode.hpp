@@ -236,6 +236,8 @@ public:
   Node* Identity(PhaseGVN* phase) override { return this; }
   const Type* Value(PhaseGVN* phase) const override;
 
+  bool is_mismatched() const;
+
 private:
   StoreFlatNode(bool null_free, DecoratorSet decorators)
     : SafePointNode(TypeFunc::Parms + 3, nullptr, TypePtr::BOTTOM), _null_free(null_free), _decorators(decorators) {

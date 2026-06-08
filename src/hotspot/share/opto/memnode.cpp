@@ -321,10 +321,12 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         }
         result = proj_in->in(TypeFunc::Memory);
       } else if (proj_in->is_LoadFlat() || proj_in->is_StoreFlat()) {
-        assert(is_strict_final_load || is_known_instance, "tested above");
-        // LoadFlat and StoreFlat cannot happen to strict final fields
-        // LoadFlat and StoreFlat to known instances are removed at the end of EA: this one is unrelated
-        result = proj_in->in(TypeFunc::Memory);
+        bool mismatched = proj_in->is_LoadFlat() ? proj_in->as_LoadFlat()->is_mismatched() : proj_in->as_StoreFlat()->is_mismatched();
+        if (is_strict_final_load || (is_known_instance && !mismatched)) {
+          // LoadFlat and StoreFlat cannot happen to strict final fields
+          // LoadFlat and StoreFlat to known instances are removed at the end of EA unless mismatched: this one is unrelated
+          result = proj_in->in(TypeFunc::Memory);
+        }
       } else if (proj_in->is_top()) {
         break; // dead code
       } else {
