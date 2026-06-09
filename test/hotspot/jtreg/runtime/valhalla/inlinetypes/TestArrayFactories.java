@@ -57,29 +57,29 @@ public class TestArrayFactories {
     static void test_0() {
         try {
             var a = ValueClass.newNullRestrictedAtomicArray(MyVal.class, -1, new MyVal());
-            throw new RuntimeException("Missing IllegalArgumentException");
-        } catch (IllegalArgumentException e) { }
+            throw new RuntimeException("Missing NegativeArraySizeException");
+        } catch (NegativeArraySizeException e) { }
     }
 
     static void test_1() {
         try {
             var a = ValueClass.newNullRestrictedNonAtomicArray(MyVal.class, Integer.MIN_VALUE , new MyVal());
-            throw new RuntimeException("Missing IllegalArgumentException");
-        } catch (IllegalArgumentException e) { }
+            throw new RuntimeException("Missing NegativeArraySizeException");
+        } catch (NegativeArraySizeException e) { }
     }
 
     static void test_2() {
         try {
             var a = ValueClass.newNullableAtomicArray(MyVal.class, -100000);
-            throw new RuntimeException("Missing IllegalArgumentException");
-        } catch (IllegalArgumentException e) { }
+            throw new RuntimeException("Missing NegativeArraySizeException");
+        } catch (NegativeArraySizeException e) { }
     }
 
     static void test_3() {
         try {
             var a = ValueClass.newReferenceArray(MyVal.class, -2);
-            throw new RuntimeException("Missing IllegalArgumentException");
-        } catch (IllegalArgumentException e) { }
+            throw new RuntimeException("Missing NegativeArraySizeException");
+        } catch (NegativeArraySizeException e) { }
     }
 
     // Testing null class argument

@@ -90,7 +90,7 @@ public final class ValueClass {
             throw new IllegalArgumentException("Component type is not a concrete value class");
         }
         if (length < 0) {
-            throw new IllegalArgumentException("Array length is negative");
+            throw new NegativeArraySizeException("Negative length: " + length);
         }
     }
 
