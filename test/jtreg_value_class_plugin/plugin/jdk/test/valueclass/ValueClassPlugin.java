@@ -141,13 +141,13 @@ public class ValueClassPlugin implements Plugin {
                 // Different annotation
                 return false;
             }
-            if (packageName.equals(PACKAGE)) {
-                // Same package
-                return true;
-            }
             if (otherClass) {
                 // Other annotation with same name
                 return false;
+            }
+            if (packageName.equals(PACKAGE)) {
+                // Same package
+                return true;
             }
 
             // Fully qualified import or package star import
