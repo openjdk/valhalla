@@ -278,6 +278,22 @@ public class TestArrayFactories {
         Asserts.assertNotNull(a);
     }
 
+    // Test array creation with a null initial value
+
+    static void test_24() {
+        try {
+            var a = ValueClass.newNullRestrictedAtomicArray(MyVal.class, 1, null);
+            throw new RuntimeException("Missing NullPointerException");
+        } catch (NullPointerException e) { }
+    }
+
+    static void test_25() {
+        try {
+            var a = ValueClass.newNullRestrictedNonAtomicArray(MyVal.class, 1, null);
+            throw new RuntimeException("Missing NullPointerException");
+        } catch (NullPointerException e) { }
+    }
+
     public static void main(String[] args) {
         var test = new TestArrayFactories();
         Class c = test.getClass();
