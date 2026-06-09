@@ -139,7 +139,7 @@ public final class ValueClass {
 
     @IntrinsicCandidate
     private static native Object[] newNullRestrictedNonAtomicArray0(Class<?> componentType,
-                                                                   int length, Object initVal);
+                                                                    int length, Object initVal);
 
     @ForceInline
     public static Object[] newNullableAtomicArray(Class<?> componentType,
@@ -154,8 +154,8 @@ public final class ValueClass {
 
     public static Object[] newReferenceArray(Class<?> componentType,
                                              int length) {
-      validateArrayArguments(componentType, length);
-      return newReferenceArray0(componentType, length);
+        validateArrayArguments(componentType, length);
+        return newReferenceArray0(componentType, length);
     }
 
     private static native Object[] newReferenceArray0(Class<?> componentType,
@@ -165,7 +165,7 @@ public final class ValueClass {
      * {@return true if the given array is a flat array}
      */
     @ForceInline
-    public static  boolean isFlatArray(Object[] array) {
+    public static boolean isFlatArray(Object[] array) {
         return isFlatArray0(Objects.requireNonNull(array));
     }
 
