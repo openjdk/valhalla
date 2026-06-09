@@ -4344,21 +4344,22 @@ instruct vstringL_indexof_char(iRegP_R11 str1, iRegI_R12 cnt1, iRegI_R13 ch,
 %}
 
 // clearing of an array
-//instruct vclearArray_reg_reg(iRegL_R29 cnt, iRegP_R28 base, Universe dummy,
-//                             vReg_V4 v4, vReg_V5 v5, vReg_V6 v6, vReg_V7 v7)
-//%{
-//  predicate(!UseBlockZeroing && UseRVV);
-//  match(Set dummy (ClearArray cnt base));
-//  effect(USE_KILL cnt, USE_KILL base, TEMP v4, TEMP v5, TEMP v6, TEMP v7);
-//
-//  format %{ "ClearArray $cnt, $base\t#@clearArray_reg_reg" %}
+instruct vclearArray_reg_reg(iRegL_R29 cnt, iRegP_R28 base, immL0 zero,
+                             vReg_V4 v4, vReg_V5 v5, vReg_V6 v6, vReg_V7 v7,
+                             Universe dummy)
+%{
+  predicate(!UseBlockZeroing && UseRVV);
+  match(Set dummy (ClearArray (Binary cnt base) zero));
+  effect(USE_KILL cnt, USE_KILL base, TEMP v4, TEMP v5, TEMP v6, TEMP v7);
 
-//  ins_encode %{
-//    __ clear_array_v($base$$Register, $cnt$$Register);
-//  %}
-//
-//  ins_pipe(pipe_class_memory);
-//%}
+  format %{ "ClearArray $cnt, $base\t#@vclearArray_reg_reg" %}
+
+  ins_encode %{
+    __ clear_array_v($base$$Register, $cnt$$Register);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
 
 // Vector Load Const
 instruct vloadcon(vReg dst, immI0 src) %{
