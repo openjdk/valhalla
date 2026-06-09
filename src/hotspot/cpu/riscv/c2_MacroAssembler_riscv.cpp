@@ -45,6 +45,29 @@
 
 #define BIND(label) bind(label); BLOCK_COMMENT(#label ":")
 
+void C2_MacroAssembler::entry_barrier() {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  // Dummy labels for just measuring the code size
+  Label dummy_slow_path;
+  Label dummy_continuation;
+  Label dummy_guard;
+  Label* slow_path = &dummy_slow_path;
+  Label* continuation = &dummy_continuation;
+  Label* guard = &dummy_guard;
+
+  if (!Compile::current()->output()->in_scratch_emit_size()) {
+    // Use real labels from actual stub when not emitting code for the purpose of measuring its size
+    C2EntryBarrierStub* stub = new (Compile::current()->comp_arena()) C2EntryBarrierStub();
+    Compile::current()->output()->add_stub(stub);
+    slow_path = &stub->entry();
+    continuation = &stub->continuation();
+    guard = &stub->guard();
+  }
+
+  // In the C2 code, we move the non-hot part of nmethod entry barriers out-of-line to a stub.
+  bs->nmethod_entry_barrier(this, slow_path, continuation, guard);
+}
+
 void C2_MacroAssembler::fast_lock(Register obj, Register box,
                                   Register tmp1, Register tmp2, Register tmp3, Register tmp4) {
   // Flag register, zero for success; non-zero for failure.
