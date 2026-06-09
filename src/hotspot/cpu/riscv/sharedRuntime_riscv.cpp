@@ -782,7 +782,7 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
     assert(AdapterHandlerEntry::ENTRIES_COUNT == 7, "sanity");
     AdapterHandlerLibrary::address_to_offset(entry_address, entry_offset);
     new_adapter = AdapterBlob::create(masm->code(), entry_offset, frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
-  }  
+  }
 }
 
 int SharedRuntime::vector_calling_convention(VMRegPair *regs,

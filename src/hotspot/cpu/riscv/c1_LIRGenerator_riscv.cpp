@@ -1163,7 +1163,7 @@ void LIRGenerator::do_If(If* x) {
   } else {
     __ cmp(lir_cond(cond), left, right);
   }
-  
+ 
   // Generate branch profiling. Profiling code doesn't kill flags.
   profile_branch(x, cond);
   move_to_phi(x->state());
