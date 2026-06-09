@@ -7362,8 +7362,8 @@ class C2 extends C1 implements I2 {
       <synopsis>Get Class Modifiers</synopsis>
       <description>
         For the class indicated by <code>klass</code>, return the Java language
-        modifiers and class/interface properties for the corresponding
-        <code>java.lang.Class</code>, via <code>modifiers_ptr</code>.
+        modifiers and class/interface properties of the corresponding
+        <code>java.lang.Class</code> object, via <code>modifiers_ptr</code>.
         <p/>
         The modifiers are encoded as a mask of access-flag bit values defined in
         <vmspec chapter="4"/>. The returned value is not necessarily the value of the
@@ -7376,7 +7376,7 @@ class C2 extends C1 implements I2 {
         public, private, protected, final, static, abstract, and interface, as well as
         access-flag bit values for other class/interface properties encoded in the
         result of invoking <code>java.lang.Class.getModifiers()</code> on the
-        corresponding <code>java.lang.Class</code>.
+        corresponding <code>java.lang.Class</code> object.
         <p/>
         If <code>klass</code> is an array class, then its public, private, and
         protected modifiers are the same as those of its component type. For arrays of
@@ -7384,15 +7384,15 @@ class C2 extends C1 implements I2 {
         classes, such as <code>java.lang.Integer.TYPE</code>. For array classes, the
         abstract and final modifiers are set, and the interface modifier is not set.
         <p/>
-        If <code>klass</code> is a primitive type or void, then its public,
-        abstract, and final modifiers are always true, and its protected, private, and
-        interface modifiers are always false.
+        If <code>klass</code> is a primitive type or void, then its public, abstract,
+        and final modifiers are always set, and its protected, private, and interface
+        modifiers are never set.
         <p/>
         When preview features are enabled, the <code>ACC_IDENTITY</code> access flag
-        is set if <code>klass</code> is an identity class or an array class.
+        is set if and only if <code>klass</code> is an identity class or an array class.
         <p/>
-        When preview features are disabled, the <code>ACC_SUPER</code> access flag may
-        be set if <code>klass</code> is not a primitive type or void. The flag has no
+        When preview features are disabled, the <code>ACC_SUPER</code> access flag may be
+        set only if <code>klass</code> is not a primitive type or void. The flag has no
         effective meaning.
       </description>
       <origin>jvmdi</origin>
