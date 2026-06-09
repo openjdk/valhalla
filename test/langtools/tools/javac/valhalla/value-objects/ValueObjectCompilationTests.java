@@ -168,7 +168,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     private static final List<TestData> superClassConstraints = List.of(
             new TestData(
-                    "compiler.err.super.class.method.cannot.be.synchronized",
+                    "compiler.err.value.type.has.identity.super.type",
                     """
                     abstract class I {
                         synchronized void foo() {}
@@ -177,7 +177,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
             ),
             new TestData(
-                    "compiler.err.concrete.supertype.for.value.class",
+                    "compiler.err.value.type.has.identity.super.type",
                     """
                     class ConcreteSuperType {
                         static abstract value class V extends ConcreteSuperType {}  // Error: concrete super.

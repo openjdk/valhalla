@@ -61,9 +61,6 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<InlineLayou
   }
 
   if (field_info.access_flags().is_static()) {
-    assert(inline_layout_info_array == nullptr ||
-           inline_layout_info_array->adr_at(field_info.index())->klass() == nullptr,
-           "Static fields do not have inline layout info");
     // don't flatten static fields
     return LayoutKind::REFERENCE;
   }

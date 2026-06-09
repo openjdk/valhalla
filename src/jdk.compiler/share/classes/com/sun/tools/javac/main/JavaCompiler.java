@@ -1623,8 +1623,8 @@ public class JavaCompiler {
         ScanNested scanner = new ScanNested();
         scanner.scan(env.tree);
         for (Env<AttrContext> dep: scanner.dependencies) {
-            if (!compileStates.isDone(dep, CompileState.WARN))
-                desugaredEnvs.put(dep, desugar(warn(flow(attribute(dep)))));
+        if (!compileStates.isDone(dep, CompileState.WARN))
+            desugaredEnvs.put(dep, desugar(warn(flow(attribute(dep)))));
         }
 
         //We need to check for error another time as more classes might
