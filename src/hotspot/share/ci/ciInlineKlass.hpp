@@ -27,7 +27,6 @@
 
 #include "ci/ciInstanceKlass.hpp"
 #include "oops/inlineKlass.hpp"
-#include "opto/compile.hpp"
 
 // ciInlineKlass
 //

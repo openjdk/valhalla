@@ -1929,11 +1929,6 @@ void GraphKit::access_clone(Node* src, Node* dst, Node* size, bool is_array) {
 //-------------------------array_element_address-------------------------
 Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
-  const Type* ary_t = _gvn.type(ary);
-  if (ary_t->base() != Type::AryPtr) {
-    tty->print_cr("##### ary_t->base()=%d", ary_t->base());
-    guarantee(false, "");
-  }
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   uint shift;
   uint header;
