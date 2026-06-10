@@ -26,6 +26,7 @@
 #include "ci/ciFlatArray.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciInstanceKlass.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeFlow.hpp"
@@ -56,9 +57,6 @@
 #include "utilities/ostream.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stringUtils.hpp"
-#if INCLUDE_SHENANDOAHGC
-#include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
-#endif // INCLUDE_SHENANDOAHGC
 
 // Portions of code courtesy of Clifford Click
 
@@ -824,10 +822,6 @@ void Type::Initialize_shared(Compile* current) {
   mreg2type[Op_VecX] = TypeVect::VECTX;
   mreg2type[Op_VecY] = TypeVect::VECTY;
   mreg2type[Op_VecZ] = TypeVect::VECTZ;
-
-#if INCLUDE_SHENANDOAHGC
-  ShenandoahBarrierSetC2::init();
-#endif //INCLUDE_SHENANDOAHGC
 
   BarrierSetC2::make_clone_type();
   LockNode::initialize_lock_Type();
@@ -2587,7 +2581,16 @@ bool TypeAry::singleton(void) const {
 }
 
 bool TypeAry::empty(void) const {
-  return _elem->empty() || _size->empty();
+  assert(!_size->empty(), "TypeInt is never empty");
+  // TODO 8385426 This should be simplified at construction time once we get rid of dual
+  // Doing it with the dual-based join is annoying. TypeAry::empty tests whether the
+  // element type is empty. When computing the dual of an array that can be flat or not,
+  // we will get an element type that is empty, and doesn't need more. We even shouldn't
+  // do more otherwise, we can't make the dual involutive. But if we compute the
+  // intersection of a flat and a non-flat array, we could change the element type to an
+  // empty type to reduce the abstract value. And we must be careful not to do that in
+  // the dual world.
+  return _elem->empty() || (_flat && _not_flat);
 }
 
 //--------------------------ary_must_be_exact----------------------------------
@@ -2941,7 +2944,7 @@ const TypePtr *TypePtr::with_offset(intptr_t offset) const {
 // Structural equality check for Type representations
 bool TypePtr::eq( const Type *t ) const {
   const TypePtr *a = (const TypePtr*)t;
-  return _ptr == a->ptr() && _offset == a->_offset && _reloc == a->reloc() &&
+  return _ptr == a->ptr() && offset() == a->offset() && _reloc == a->reloc() &&
          eq_speculative(a) && _inline_depth == a->_inline_depth;
 }
 
@@ -3524,6 +3527,17 @@ bool TypeInterfaces::eq(ciInstanceKlass* k) const {
   return true;
 }
 
+// Check whether an instance of type k will satisfy this
+bool TypeInterfaces::is_subset(ciInstanceKlass* k) const {
+  assert(k->is_loaded(), "should be loaded");
+  GrowableArray<ciInstanceKlass*>* k_interfaces = k->transitive_interfaces();
+  for (int i = 0; i < _interfaces.length(); i++) {
+    if (!k_interfaces->contains(_interfaces.at(i))) {
+      return false;
+    }
+  }
+  return true;
+}
 
 uint TypeInterfaces::hash() const {
   assert(_initialized, "must be");
@@ -5710,10 +5724,6 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
 
 bool TypeAryPtr::empty(void) const {
   if (_ary->empty())       return true;
-  // TODO 8350865 This should go to the meet implementation
-  if (is_flat() && is_not_flat()) {
-    return true;
-  }
   return TypeOopPtr::empty();
 }
 
@@ -6640,7 +6650,7 @@ const TypeKlassPtr* TypeInstKlassPtr::try_improve() const {
       if (sub != nullptr) {
         bool improve_to_exact = sub->is_final() && _ptr == NotNull;
         const TypeInstKlassPtr* improved = TypeInstKlassPtr::make(improve_to_exact ? Constant : _ptr, sub, _offset);
-        if (improved->_interfaces->contains(_interfaces)) {
+        if (_interfaces->is_subset(sub)) {
           deps->assert_abstract_with_unique_concrete_subtype(ik, sub);
           return improved;
         }
