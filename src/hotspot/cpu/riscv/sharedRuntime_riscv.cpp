@@ -26,6 +26,7 @@
 
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "classfile/symbolTable.hpp"
 #include "code/compiledIC.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/vtableStubs.hpp"
