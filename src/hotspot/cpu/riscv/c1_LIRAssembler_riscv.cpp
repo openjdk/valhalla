@@ -1183,21 +1183,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
 
   if (op->need_null_check()) {
     if (should_profile) {
-      Register mdo = klass_RInfo;
-      __ mov_metadata(mdo, md->constant_encoding());
-      Label not_null;
-      __ bnez(obj, not_null);
-      // Object is null, update MDO and exit
-      Address data_addr = __ form_address(t1, mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
-      __ lbu(t0, data_addr);
-      __ ori(t0, t0, BitData::null_seen_byte_constant());
-      __ sb(t0, data_addr);
-      __ j(*obj_is_null);
-      __ bind(not_null);
-
-      Register recv = k_RInfo;
-      __ load_klass(recv, obj);
-      type_profile_helper(mdo, md, data, recv);
+      profile_object(md, data, obj, k_RInfo, klass_RInfo, obj_is_null);
     } else {
       __ beqz(obj, *obj_is_null);
     }
