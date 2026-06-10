@@ -1088,6 +1088,10 @@ void LIR_Assembler::typecheck_helper_slowcheck(ciKlass *k, Register obj, Registe
       if (k->is_loaded() && k->is_obj_array_klass()) {
         // For a direct pointer comparison, we need the refined array klass pointer
         ciKlass* k_refined = ciObjArrayKlass::make(k->as_obj_array_klass()->element_klass());
+        if (!k_refined->is_loaded()) {
+          bailout("encountered unloaded_ciobjarrayklass due to out of memory error");
+          return;
+        }
         __ mov_metadata(t0, k_refined->constant_encoding());
         __ beq(klass_RInfo, t0, *success_target);
       } else {
