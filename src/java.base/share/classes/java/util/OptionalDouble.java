@@ -66,7 +66,7 @@ import java.util.stream.DoubleStream;
 @jdk.internal.ValueBased
 public final /*value*/ class OptionalDouble {
     /**
-     * Common instance f`or {@code empty()}.
+     * Common instance for {@code empty()}.
      */
     private static final OptionalDouble EMPTY = new OptionalDouble();
 
