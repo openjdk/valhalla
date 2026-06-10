@@ -267,7 +267,7 @@ void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
     __ ld(t0, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
     __ mv(t1, markWord::inline_type_pattern);
     __ andr(t0, t0, t1);
-    __ beq(t0, t1, *_throw_ie_stub->entry(), true);
+    __ beq(t0, t1, *_throw_ie_stub->entry(), /* is_far */ true);
   }
   ce->store_parameter(_obj_reg->as_register(),  1);
   ce->store_parameter(_lock_reg->as_register(), 0);

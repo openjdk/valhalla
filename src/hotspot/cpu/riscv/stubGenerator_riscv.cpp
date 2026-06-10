@@ -6006,7 +6006,7 @@ class StubGenerator: public StubCodeGenerator {
       int64_t block_bytes = 16 * 4;
       __ addi(buf, buf, block_bytes);
 
-      __ bge(limit, buf, L_sha1_loop, true);
+      __ bge(limit, buf, L_sha1_loop, /* is_far */ true);
     }
 
     // store back the state.

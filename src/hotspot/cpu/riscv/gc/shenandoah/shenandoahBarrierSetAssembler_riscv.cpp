@@ -522,7 +522,7 @@ void ShenandoahBarrierSetAssembler::gen_load_reference_barrier_stub(LIR_Assemble
     __ srli(tmp1, res, ShenandoahHeapRegion::region_size_bytes_shift_jint());
     __ add(tmp2, tmp2, tmp1);
     __ lbu(tmp2, Address(tmp2));
-    __ beqz(tmp2, *stub->continuation(), true /* is_far */);
+    __ beqz(tmp2, *stub->continuation(), /* is_far */ true);
   }
 
   ce->store_parameter(res, 0);

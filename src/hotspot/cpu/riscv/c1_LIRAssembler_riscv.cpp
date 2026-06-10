@@ -401,7 +401,8 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
 }
 
 int LIR_Assembler::store_inline_type_fields_to_buf(ciInlineKlass* vk) {
-  return (__ store_inline_type_fields_to_buf(vk, false));
+  Unimplemented();
+  return 0;
 }
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
@@ -1314,7 +1315,7 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
       __ lwu(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
       __ lwu(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
     }
-    __ beq(left_klass_op, right_klass_op, *op->stub()->entry(), true); // same klass -> do slow check
+    __ beq(left_klass_op, right_klass_op, *op->stub()->entry(), /* is_far */ true); // same klass -> do slow check
     // fall through to L_oops_not_equal
   }
 

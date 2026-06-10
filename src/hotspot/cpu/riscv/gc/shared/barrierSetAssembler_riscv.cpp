@@ -319,9 +319,9 @@ void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm, Label* slo
 
   Label& barrier_target = slow_path == nullptr ? skip_barrier : *slow_path;
   if (slow_path == nullptr) {
-    __ beq(t0, t1, barrier_target, true /* is_far */);
+    __ beq(t0, t1, barrier_target, /* is_far */ true);
   } else {
-    __ bne(t0, t1, barrier_target, true /* is_far */);
+    __ bne(t0, t1, barrier_target, /* is_far */ true);
   }
 
   if (slow_path == nullptr) {

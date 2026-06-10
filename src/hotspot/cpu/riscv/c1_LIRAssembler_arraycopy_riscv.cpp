@@ -242,7 +242,7 @@ void LIR_Assembler::arraycopy_type_check(Register src, Register src_pos, Registe
 
 void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest, bool null_check) {
   if (null_check) {
-    __ beqz(obj, *slow_path->entry(), true);
+    __ beqz(obj, *slow_path->entry(), /* is_far */ true);
   }
   if (is_dest) {
     __ test_null_free_array_oop(obj, tmp, *slow_path->entry());

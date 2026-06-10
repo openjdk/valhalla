@@ -3775,9 +3775,9 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
   bind(test_mark_word);
   andi(temp_reg, temp_reg, tst_bit);
   if (jmp_set) {
-    bnez(temp_reg, jmp_label, true);
+    bnez(temp_reg, jmp_label, /* is_far */ true);
   } else {
-    beqz(temp_reg, jmp_label, true);
+    beqz(temp_reg, jmp_label, /* is_far */ true);
   }
 }
 
@@ -5423,102 +5423,6 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   assert(!C->needs_stack_repair(), "unimplemented");
 }
 #endif // COMPILER2
-
-int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
-  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
-  // An inline type might be returned. If fields are in registers we
-  // need to allocate an inline type instance and initialize it with
-  // the value of the fields.
-  Label skip;
-  // We only need a new buffered inline type if a new one is not returned
-  test_bit(t0, x10, exact_log2(0));
-  beqz(t0, skip, true);
-  int call_offset = -1;
-
-  // Be careful not to clobber x11-x17 which hold returned fields
-  // Also do not use callee-saved registers as these may be live in the interpreter
-  Register tmp1 = x28, tmp2 = x29, klass = x30, x10_preserved = x7;
-
-  // The following code is similar to the instance allocation code in TemplateTable::_new
-  //  but has some slight differences,
-  // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
-  // allocating is not necessary if vk != nullptr, etc.
-  Label slow_case;
-  // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
-  mv(x10_preserved, x10); // save x10 for slow_case since *_allocate may corrupt it when allocation failed
-
-  if (vk != nullptr) {
-    // Called from C1, where the return type is statically known.
-    movptr(klass, (address)vk->get_InlineKlass());
-    jint lh = vk->layout_helper();
-    assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
-    if (UseTLAB && !Klass::layout_helper_needs_slow_path(lh)) {
-      tlab_allocate(x10, noreg, lh, tmp1, tmp2, slow_case);
-    } else {
-      j(slow_case);
-    }
-  } else {
-    // Call from interpreter. x10 contains ((the InlineKlass* of the return type) | 0x01)
-    andi(klass, x10, -2);
-    if (UseTLAB) {
-      lwu(tmp2, Address(klass, Klass::layout_helper_offset()));
-      test_bit(t0, tmp2, exact_log2(Klass::_lh_instance_slow_path_bit));
-      bnez(t0, slow_case);
-      tlab_allocate(x10, tmp2, 0, tmp1, tmp2, slow_case);
-    } else {
-      j(slow_case);
-    }
-  }
-  if (UseTLAB) {
-    // 2. Initialize buffered inline instance header
-    Register buffer_obj = x10;
-    if (UseCompactObjectHeaders) {
-      ld(t0, Address(klass, Klass::prototype_header_offset()));
-      sd(t0, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
-    } else {
-      mv(t0, (intptr_t)markWord::inline_type_prototype().value());
-      sd(t0, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
-      store_klass_gap(buffer_obj, zr);
-      if (vk == nullptr) {
-        // store_klass corrupts klass, so save it for later use (interpreter case only).
-        mv(tmp1, klass);
-      }
-      store_klass(buffer_obj, klass);
-      klass = tmp1;
-    }
-    // 3. Initialize its fields with an inline class specific handler
-    if (vk != nullptr) {
-      far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
-    } else {
-      ld(tmp1, Address(klass, InlineKlass::adr_members_offset()));
-      ld(tmp1, Address(tmp1, InlineKlass::pack_handler_offset()));
-      jalr(tmp1);
-    }
-
-    membar(MacroAssembler::StoreStore);
-    j(skip);
-  } else {
-    // Must have already branched to slow_case above.
-    DEBUG_ONLY(should_not_reach_here());
-  }
-  bind(slow_case);
-  // We failed to allocate a new inline type, fall back to a runtime
-  // call. Some oop field may be live in some registers but we can't
-  // tell. That runtime call will take care of preserving them
-  // across a GC if there's one.
-  mv(x10, x10_preserved);
-
-  if (from_interpreter) {
-    super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
-  } else {
-    far_call(RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
-    call_offset = offset();
-  }
-  membar(MacroAssembler::StoreStore);
-
-  bind(skip);
-  return call_offset;
-}
 
 // Move a value between registers/stack slots and update the reg_state
 bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {

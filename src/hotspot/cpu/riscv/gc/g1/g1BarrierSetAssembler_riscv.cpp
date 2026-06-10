@@ -177,7 +177,7 @@ static void generate_pre_barrier_slow_path(MacroAssembler* masm,
     __ load_heap_oop(pre_val, Address(obj, 0), noreg, noreg, AS_RAW);
   }
   // Is the previous value null?
-  __ beqz(pre_val, done, true);
+  __ beqz(pre_val, done, /* is_far */ true);
   generate_queue_test_and_insertion(masm,
                                     G1ThreadLocalData::satb_mark_queue_index_offset(),
                                     G1ThreadLocalData::satb_mark_queue_buffer_offset(),
@@ -314,7 +314,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre_c2(MacroAssembler* masm,
 
   generate_pre_barrier_fast_path(masm, thread, tmp1);
   // If marking is active (*(mark queue active address) != 0), jump to stub (slow path)
-  __ bnez(tmp1, *stub->entry(), true);
+  __ bnez(tmp1, *stub->entry(), /* is_far */ true);
 
   __ bind(*stub->continuation());
 }
