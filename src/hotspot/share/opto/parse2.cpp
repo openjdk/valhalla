@@ -98,7 +98,7 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (!array_type->is_flat()) {
         assert(array_type->is_flat() || control()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
-        // Loading fron a non-flat array, casting array to not flat.
+        // Loading from a non-flat array, casting array to not flat.
         const TypeAryPtr* ary_type = _gvn.type(prep_array)->is_aryptr();
         ary_type = ary_type->cast_to_not_flat();
         Node* not_flat_ary = _gvn.transform(new CheckCastPPNode(control(), prep_array, ary_type));
