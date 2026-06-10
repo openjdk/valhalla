@@ -220,7 +220,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   // that checks that the *(fp+frame::interpreter_frame_last_sp) == nullptr.
   //
   // If we care generating the pre-barrier without a frame (e.g. in the
-  // intrinsified Reference.get() routine) then rfp might be pointing to
+  // intrinsified Reference.get() routine) then fp might be pointing to
   // the caller frame and so this check will most likely fail at runtime.
   //
   // Expanding the call directly bypasses the generation of the check.
