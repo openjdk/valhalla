@@ -90,7 +90,6 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   switch (type) {
     case T_OBJECT: // fall through
     case T_ARRAY: {
-      val = val == noreg ? zr : val;
       if (in_heap) {
         if (val == noreg) {
           assert(!is_not_null, "inconsistent access");
