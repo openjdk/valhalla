@@ -5166,7 +5166,6 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   bind(L_found_recv);
   addptr(offset, receiver_to_count_step);
 
-  // Finally, update the counter
   bind(L_count_update);
   addptr(Address(mdp, offset, Address::times_ptr), DataLayout::counter_increment);
 }
