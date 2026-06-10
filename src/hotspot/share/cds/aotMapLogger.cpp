@@ -636,7 +636,7 @@ public:
       value_addr,                                         // _buffered_addr
       requested_addr() + (value_addr - buffered_addr()),  // _requested_addr
       target_location() + (value_addr - buffered_addr()), // _target_location
-      0,                                                  // _narrow_location
+      0,                                                  // _narrow_location, narrow oop not used
       cast_to_oop(value_addr),                            // _raw_oop
       k,                                                  // _klass
       0,                                                  // _size
@@ -708,7 +708,7 @@ public:
     return raw_flatArrayOop()->length();
   }
 
-  // Create a wrapper for an archivd flat array element
+  // Create a wrapper for an archived flat array element
   FakeOop element_at(int i) {
     InlineKlass* elem_k = ((FlatArrayKlass*)real_klass())->element_klass();
     address value_addr = (address)raw_flatArrayOop()->value_at_addr(i, real_klass()->layout_helper()) - elem_k->payload_offset();
@@ -859,7 +859,7 @@ class AOTMapLogger::ArchivedFieldPrinter : public FieldClosure {
   int _indent;
   int _base_offset;
 public:
-  ArchivedFieldPrinter(FakeOop fake_oop, outputStream* st, int indent = 0, int base_offset = 0) :
+  ArchivedFieldPrinter(FakeOop fake_oop, outputStream* st, int indent = 1, int base_offset = 0) :
                        _fake_oop(fake_oop), _st(st), _indent(indent), _base_offset(base_offset) {}
 
   void do_field(fieldDescriptor* fd) {
@@ -1055,11 +1055,17 @@ void AOTMapLogger::print_oop_details(FakeOop fake_oop, outputStream* st) {
     InlineKlass* elem_k = ((FlatArrayKlass*)real_klass)->element_klass();
     for (int i = 0; i < fake_flat_array.length(); i++) {
       int off = fake_flat_array.element_offset_at(i);
+      st->print(" - Flat inline type field '%s':", elem_k->name()->as_C_string());
       st->print_cr(" - Index %3d offset %3d: ", i, off);
 
       FakeOop elm = fake_flat_array.element_at(i);
       ArchivedFieldPrinter print_field(elm, st);
       elem_k->do_nonstatic_fields(&print_field);
+      if (!real_klass->is_null_free_array_klass()) {
+        st->print_cr(" - [null_marker] @%d %s",
+                  elem_k->null_marker_offset(),
+                  fake_oop.raw_oop()->bool_field(elem_k->null_marker_offset()) ? "Field marked as non-null" : "Field marked as null");
+      }
     }
   } else if (real_klass->is_refArray_klass()) {
     FakeRefArray fake_obj_array = fake_oop.as_ref_array();

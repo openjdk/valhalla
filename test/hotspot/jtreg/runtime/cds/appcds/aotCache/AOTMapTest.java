@@ -57,7 +57,7 @@
  * @modules java.base/jdk.internal.value java.base/jdk.internal.misc
  * @build Hello
  * @compile test-classes/AOTMapTestApp.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar app.jar AOTMapTestApp AOTMapTestApp$Wrapper
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar app.jar AOTMapTestApp AOTMapTestApp$Wrapper AOTMapTestApp$WrapperWrapper
  *                                                                  AOTMapTestApp$ArchivedData Hello
  * @run main/othervm/timeout=240 AOTMapTest STATIC
  */
@@ -138,7 +138,7 @@ public class AOTMapTest {
             }
 
             // filesize=0 ensures that a large map file not broken up in multiple files.
-            String logMapPrefix = "-Xlog:aot+map=debug,aot+map+oops=trace:file=";
+            String logMapPrefix = "-Xlog:aot+map=trace,aot+map+oops=trace:file=";
             String logSuffix = ":none:filesize=0";
 
             if (runMode == RunMode.ASSEMBLY || runMode == RunMode.DUMP_DYNAMIC || runMode == RunMode.DUMP_STATIC) {
