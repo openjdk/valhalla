@@ -172,7 +172,7 @@ public enum Modifier {
      * The modifier {@code value}
      *
      * @jls value-objects-8.1.1.5 {@code value} Classes
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature=PreviewFeature.Feature.LANGUAGE_MODEL, reflective=true)
     VALUE;

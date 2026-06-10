@@ -289,7 +289,7 @@ class Field extends AccessibleObject implements Member {
      * @return true if and only if this field is a strictly
      * initialized field as defined by the Java Virtual Machine Specification
      * @jvms strict-fields-4.5 Field access and property flags
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
     public boolean isStrictInit() {
