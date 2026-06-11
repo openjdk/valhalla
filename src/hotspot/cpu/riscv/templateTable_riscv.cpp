@@ -777,7 +777,7 @@ void TemplateTable::aaload() {
   if (UseArrayFlattening) {
     Label is_flat_array, done;
 
-    __ test_flat_array_oop(x10, t1, is_flat_array);
+    __ test_flat_array_oop(x10, x28, is_flat_array);
     __ addi(x11, x11, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
     __ shadd(x10, x11, x10, t0, LogBytesPerHeapOop);
     __ load_heap_oop(x10, Address(x10), x28, x29, IS_ARRAY);
@@ -1125,7 +1125,7 @@ void TemplateTable::aastore() {
     Label is_null_into_value_array_npe, store_null;
 
     if (UseArrayFlattening) {
-      __ test_flat_array_oop(x13, t1, is_flat_array);
+      __ test_flat_array_oop(x13, x28, is_flat_array);
     }
 
     // No way to store null in a null-free array
@@ -1912,7 +1912,7 @@ void TemplateTable::if_acmp(Condition cc) {
 
   __ profile_acmp(x12, x11, x10, x14);
 
-  Register is_inline_type_mask = t0;
+  Register is_inline_type_mask = t1;
   __ mv(is_inline_type_mask, markWord::inline_type_pattern);
 
   if (Arguments::is_valhalla_enabled()) {
@@ -1956,7 +1956,7 @@ void TemplateTable::if_acmp(Condition cc) {
     // Know both are the same type, let's test for substitutability ...
     if (cc == equal) {
       invoke_is_substitutable(x10, x11, taken, not_taken);
-    } else {
+    } else if (cc == not_equal) {
       invoke_is_substitutable(x10, x11, not_taken, taken);
     }
     __ stop("Not reachable");
@@ -2697,7 +2697,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ j(Done);
     } else {
       Label is_flat;
-      __ test_field_is_flat(flags, t0, is_flat);
+      __ test_field_is_flat(flags, x28, is_flat);
       __ load_heap_oop(x10, field, x28, x29);
       __ push(atos);
       if (rc == may_rewrite) {
@@ -3252,7 +3252,7 @@ void TemplateTable::fast_storefield(TosState state) {
     case Bytecodes::_fast_vputfield:
       {
         Label is_flat, done;
-        __ test_field_is_flat(x13, t0, is_flat);
+        __ test_field_is_flat(x13, x28, is_flat);
         __ null_check(x10);
         __ store_heap_oop(field, x10, x28, x29, x15, IN_HEAP);
         __ j(done);

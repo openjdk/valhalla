@@ -847,7 +847,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
           CAST_FROM_FN_PTR(address, buffer_inline_args_no_receiver);
         // This is called from a C1 method's scalarized entry point
         // where x10-x17 may be holding live argument values so we can't
-        // return the result in x10 as the other stubs do. LR is used as
+        // return the result in x10 as the other stubs do. RA is used as
         // a temporary below to avoid the result being clobbered by
         // restore_live_registers. It's saved and restored by
         // StubAssembler::prologue and epilogue anyway.
