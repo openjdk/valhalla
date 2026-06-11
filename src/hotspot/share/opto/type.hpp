@@ -1547,6 +1547,7 @@ public:
   bool is_known_instance()       const { return _instance_id > 0; }
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
+  bool same_instance_as(const TypeOopPtr* t) const { return instance_id() == t->instance_id(); }
 
   virtual bool can_be_inline_type() const { return (_klass == nullptr || _klass->can_be_inline_klass(_klass_is_exact)); }
   virtual bool can_be_inline_array() const { ShouldNotReachHere(); return false; }
