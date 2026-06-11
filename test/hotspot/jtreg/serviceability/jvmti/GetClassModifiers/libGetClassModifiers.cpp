@@ -24,28 +24,32 @@
 #include "jni.h"
 #include "jvmti.h"
 
+extern "C" {
+
 static jvmtiEnv *jvmti;
 
 JNIEXPORT void JNICALL Java_GetClassModifiers_init(JNIEnv *env, jclass clazz) {
-    JavaVM* vm;
-    jint res;
-    res = (*env)->GetJavaVM(env, &vm);
-    if (res != 0) {
-        (*env)->FatalError(env, "GetJavaVM failed");
-    } else {
-        res = (*vm)->GetEnv(vm, (void**)&jvmti, JVMTI_VERSION);
-        if (res != JNI_OK) {
-            (*env)->FatalError(env, "GetEnv failed");
-        }
+  JavaVM* vm;
+  jint res;
+  res = env->GetJavaVM(&vm);
+  if (res != 0) {
+    env->FatalError("GetJavaVM failed");
+  } else {
+    res = vm->GetEnv((void**)&jvmti, JVMTI_VERSION);
+    if (res != JNI_OK) {
+      env->FatalError("GetEnv failed");
     }
+  }
 }
 
 JNIEXPORT jint JNICALL Java_GetClassModifiers_getClassModifiers(JNIEnv *env, jclass ignore, jclass target) {
-    jvmtiError err;
-    jint modifiers;
-    err = (*jvmti)->GetClassModifiers(jvmti, target, &modifiers);
-    if (err != JVMTI_ERROR_NONE) {
-        (*env)->FatalError(env, "GetClassModifiers failed");
-    }
-    return modifiers;
+  jvmtiError err;
+  jint modifiers;
+  err = jvmti->GetClassModifiers(target, &modifiers);
+  if (err != JVMTI_ERROR_NONE) {
+    env->FatalError("GetClassModifiers failed");
+  }
+  return modifiers;
+}
+
 }
