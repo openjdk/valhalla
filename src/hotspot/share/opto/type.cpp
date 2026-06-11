@@ -3209,7 +3209,7 @@ bool TypePtr::would_improve_ptr(ProfilePtrKind ptr_kind) const {
 }
 
 TypePtr::FlatInArray TypePtr::compute_flat_in_array(ciInstanceKlass* instance_klass, bool is_exact) {
-  if (!instance_klass->can_be_inline_klass(is_exact)) {
+  if (!instance_klass->can_be_inline_klass(is_exact) || !UseArrayFlattening) {
     // Definitely not a value class and thus never flat in an array.
     return NotFlat;
   }
@@ -5632,7 +5632,6 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
         // Even though MyValue is final, [LMyValue is only exact if the array
         // is (not) null-free due to null-free [LMyValue <: null-able [LMyValue.
         if (res_xk && !res_null_free && !res_not_null_free) {
-          ptr = NotNull;
           res_xk = false;
         }
       }
@@ -6970,11 +6969,32 @@ const TypeOopPtr* TypeAryKlassPtr::as_instance_type(bool klass_change) const {
   } else {
     el = elem();
   }
-  bool null_free = _null_free;
-  if (null_free && el->isa_ptr()) {
+  if (!UseNewCode) {
+    bool null_free = _null_free;
+    if (null_free && el->isa_ptr()) {
+      el = el->is_ptr()->join_speculative(TypePtr::NOTNULL);
+    }
+    return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, is_flat(), is_not_flat(), is_not_null_free(), is_atomic()), k, xk, Offset(0));
+  }
+  if (_refined_type && _null_free && el->isa_ptr()) {
     el = el->is_ptr()->join_speculative(TypePtr::NOTNULL);
   }
-  return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, is_flat(), is_not_flat(), is_not_null_free(), is_atomic()), k, xk, Offset(0));
+  bool flat, not_flat, not_null_free, atomic;
+  if (_refined_type) {
+    flat = is_flat();
+    not_flat = is_not_flat();
+    not_null_free = is_not_null_free();
+    atomic = is_atomic();
+  } else {
+    // Unrefined types aren't trustworthy! Let's not mistake their ignorance for information.
+    flat = false;
+    // There are asserts that expect us to not be entirely naive about flatness.
+    bool must_be_ref_or_prim_array = !elem()->isa_ptr() || (elem()->is_ptr()->flat_in_array() == TypePtr::NotFlat);
+    not_flat = must_be_ref_or_prim_array;
+    not_null_free = must_be_ref_or_prim_array;
+    atomic = must_be_ref_or_prim_array;
+  }
+  return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, flat, not_flat, not_null_free, atomic), k, xk, Offset(0));
 }
 
 
