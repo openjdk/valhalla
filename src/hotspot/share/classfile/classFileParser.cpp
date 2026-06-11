@@ -157,6 +157,8 @@
 
 #define JAVA_27_VERSION                   71
 
+#define JAVA_28_VERSION                   72
+
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
           bad_constant == JVM_CONSTANT_Package) && _major_version >= JAVA_9_VERSION,
@@ -1524,6 +1526,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     if (is_null_restricted) {
       fieldFlags.update_null_free_inline_type(true);
+      if (is_static) {
+        _has_null_restricted_static_fields = true;
+      }
     }
 
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
@@ -4194,8 +4199,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 
 bool ClassFileParser::supports_inline_types() const {
   // Inline types are only supported by class file version 71.65535 and later
-  return _major_version > JAVA_27_VERSION ||
-         (_major_version == JAVA_27_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  return _major_version > JAVA_28_VERSION ||
+         (_major_version == JAVA_28_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -5474,6 +5479,23 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   ik->set_static_oop_field_count(_static_oop_count);
 
+  if (_has_null_restricted_static_fields) {
+    ik->set_has_null_restricted_static_fields();
+    for (int i = 0; i < _temp_field_info->length(); i++) {
+      FieldInfo& fieldinfo = _temp_field_info->at(i);
+      if (fieldinfo.access_flags().is_static() && fieldinfo.field_flags().is_null_free_inline_type()) {
+        Symbol* sig = fieldinfo.signature(_cp);
+        assert(Signature::has_envelope(sig), "Must already have been checked");
+        TempNewSymbol name = Signature::strip_envelope(sig);
+        if (name == _class_name) {
+          // Replace the nullptr previously stored now that we have the InstanceKlass for this klass.
+          _inline_layout_info_array->adr_at(fieldinfo.index())->set_klass(InlineKlass::cast(ik));
+        }
+        assert(_inline_layout_info_array->adr_at(fieldinfo.index())->klass()->is_inline_klass(), "Must be");
+      }
+    }
+  }
+
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
   apply_parsed_class_metadata(ik, _java_fields_count);
@@ -5786,6 +5808,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_contended_fields(false),
   _has_aot_runtime_setup_method(false),
   _has_strict_static_fields(false),
+  _has_null_restricted_static_fields(false),
   _must_be_atomic(true),
   _has_finalizer(false),
   _has_empty_finalizer(false),
@@ -6241,17 +6264,17 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   if (_parsed_annotations->has_annotation(AnnotationCollector::_jdk_internal_LooselyConsistentValue) && _access_flags.is_identity_class()) {
     THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
-          err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
-                  _class_name->as_klass_external_name()));
+              err_msg("class %s cannot have annotation jdk.internal.vm.annotation.LooselyConsistentValue, because it is not a value class",
+                      _class_name->as_klass_external_name()));
   }
 
   // Determining if the class allows tearing or not (default is not)
   if (Arguments::is_valhalla_enabled() && !_access_flags.is_identity_class()) {
     if (_parsed_annotations->has_annotation(ClassAnnotationCollector::_jdk_internal_LooselyConsistentValue)
         && (_super_klass == vmClasses::Object_klass() || !_super_klass->must_be_atomic())) {
-      // Conditions above are not sufficient to determine atomicity requirements,
-      // the presence of fields with atomic requirements could force the current class to have atomicity requirements too
-      // Marking as not needing atomicity for now, can be updated when computing the fields layout
+      // Conditions above are not sufficient to determine atomicity requirements.
+      // Fields with atomicity requirements could force the current class to have atomicity requirements too.
+      // Mark as not needing atomicity for now - can be updated when computing the fields layout.
       // The InstanceKlass must be filled with the value from the FieldLayoutInfo returned by
       // the FieldLayoutBuilder, not with this _must_be_atomic field.
       _must_be_atomic = false;
@@ -6312,7 +6335,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   // If it turned out that we didn't inline any of the fields, we deallocate
   // the array of InlineLayoutInfo since it isn't needed, and so it isn't
   // transferred to the allocated InstanceKlass.
-  if (_inline_layout_info_array != nullptr && !_layout_info->_has_inlined_fields) {
+  if (_inline_layout_info_array != nullptr && !(_layout_info->_has_inlined_fields || _has_null_restricted_static_fields)) {
     MetadataFactory::free_array<InlineLayoutInfo>(_loader_data, _inline_layout_info_array);
     _inline_layout_info_array = nullptr;
   }
@@ -6365,11 +6388,20 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
   for (int i = 0; i < _temp_field_info->length(); i++) {
     FieldInfo& fieldinfo = _temp_field_info->at(i);
-    if (fieldinfo.access_flags().is_static()) continue;  // Only non-static fields are processed at load time
+    if (fieldinfo.access_flags().is_static() && !fieldinfo.field_flags().is_null_free_inline_type()) continue;
     Symbol* sig = fieldinfo.signature(cp);
     if (Signature::has_envelope(sig)) {
       TempNewSymbol name = Signature::strip_envelope(sig);
-      if (name == _class_name) continue;
+      if (name == _class_name) {
+        if (fieldinfo.field_flags().is_null_free_inline_type() && !is_inline_type()) {
+          fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
+        } else {
+          // Dummy setting to trigger the allocation of the inline_layout_info array -
+          // the real pointer will be set later in ::fill_instance_klass, once the InlineKlass has been allocated.
+          set_inline_layout_info_klass(fieldinfo.index(), nullptr, CHECK);
+        }
+        continue;
+      }
       if (PreloadClasses && is_class_in_loadable_descriptors_attribute(sig)) {
         ResourceMark rm(THREAD);
         log_info(class, preload)("Preloading of class %s during loading of class %s. "
@@ -6395,9 +6427,9 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                      name->as_C_string(), _class_name->as_C_string());
             if (fieldinfo.field_flags().is_null_free_inline_type()) {
               log_warning(class, preload)("After preloading of class %s during loading of class %s "
-                                     "field was annotated with @NullRestricted but loaded class is not a value class, "
-                                     "the annotation is ignored",
-                                     name->as_C_string(), _class_name->as_C_string());
+                                          "field was annotated with @NullRestricted but loaded class is not a value class, "
+                                          "the annotation is ignored",
+                                          name->as_C_string(), _class_name->as_C_string());
               fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
             }
           }
@@ -6408,9 +6440,9 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
                                    PENDING_EXCEPTION->klass()->name()->as_C_string());
           if (fieldinfo.field_flags().is_null_free_inline_type()) {
             log_warning(class, preload)("After preloading of class %s during loading of class %s failed,"
-                                   "field was annotated with @NullRestricted but class is unknown, "
-                                   "the annotation is ignored",
-                                   name->as_C_string(), _class_name->as_C_string());
+                                        "field was annotated with @NullRestricted but class is unknown, "
+                                        "the annotation is ignored",
+                                        name->as_C_string(), _class_name->as_C_string());
             fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
           }
 
@@ -6431,14 +6463,14 @@ void ClassFileParser::fetch_field_classes(ConstantPool* cp, TRAPS) {
           ResourceMark rm(THREAD);
           if (klass == nullptr) {
             log_warning(class, preload)("During loading of class %s, class %s is unknown, "
-                                 "but a field of this type was annotated with @NullRestricted, "
-                                 "the annotation is ignored",
-                                 _class_name->as_C_string(), name->as_C_string());
+                                        "but a field of this type was annotated with @NullRestricted, "
+                                        "the annotation is ignored",
+                                        _class_name->as_C_string(), name->as_C_string());
           } else {
             log_warning(class, preload)("During loading of class %s, class %s was found in the local system dictionary "
-                                 "and is not a concrete value class, but a field of this type was annotated with "
-                                 "@NullRestricted, the annotation is ignored",
-                                 _class_name->as_C_string(), name->as_C_string());
+                                        "and is not a concrete value class, but a field of this type was annotated with "
+                                        "@NullRestricted, the annotation is ignored",
+                                        _class_name->as_C_string(), name->as_C_string());
           }
           fieldinfo.field_flags_addr()->update_null_free_inline_type(false);
         }

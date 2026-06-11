@@ -138,8 +138,7 @@ import java.util.regex.Pattern;
  * @since 1.8
  */
 @jdk.internal.ValueBased
-@jdk.internal.MigratedValueClass
-public final class Period
+public final /*value*/ class Period
         implements ChronoPeriod, Serializable {
 
     /**
