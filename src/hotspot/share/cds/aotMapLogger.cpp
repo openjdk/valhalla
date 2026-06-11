@@ -1054,17 +1054,28 @@ void AOTMapLogger::print_oop_details(FakeOop fake_oop, outputStream* st) {
     FakeFlatArray fake_flat_array = fake_oop.as_flat_array();
     InlineKlass* elem_k = ((FlatArrayKlass*)real_klass)->element_klass();
     for (int i = 0; i < fake_flat_array.length(); i++) {
-      int off = fake_flat_array.element_offset_at(i);
       st->print(" - Flat inline type field '%s':", elem_k->name()->as_C_string());
-      st->print_cr(" - Index %3d offset %3d: ", i, off);
 
+      int nm_offset;
+      int off = fake_flat_array.element_offset_at(i);
       FakeOop elm = fake_flat_array.element_at(i);
+
+      if (!real_klass->is_null_free_array_klass()) {
+        nm_offset = elem_k->null_marker_offset();
+        if (!elm.raw_oop()->bool_field(nm_offset)) {
+          st->print_cr(" null");
+          continue;
+        }
+      }
+
+      st->print_cr(" - Index %3d offset %3d: ", i, off);
       ArchivedFieldPrinter print_field(elm, st);
       elem_k->do_nonstatic_fields(&print_field);
+
       if (!real_klass->is_null_free_array_klass()) {
         st->print_cr(" - [null_marker] @%d %s",
-                  elem_k->null_marker_offset(),
-                  fake_oop.raw_oop()->bool_field(elem_k->null_marker_offset()) ? "Field marked as non-null" : "Field marked as null");
+                     nm_offset,
+                     elm.raw_oop()->bool_field(nm_offset) ? "Field marked as non-null" : "Field marked as null");
       }
     }
   } else if (real_klass->is_refArray_klass()) {

@@ -67,7 +67,7 @@ public class AOTMapTestApp {
             boxArray = new Integer[3];  // flattened
             boxArray[0] = new Integer(0xaaaa);
             boxArray[1] = new Integer(0xbbbb);
-            boxArray[2] = new Integer(0xcccc);
+            boxArray[2] = null;
 
             wrapperArray = new Wrapper[3]; // flattened
             wrapperArray[0] = new Wrapper(0xaaaa);
