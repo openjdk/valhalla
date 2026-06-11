@@ -37,6 +37,8 @@ package runtime.valhalla.inlinetypes;
 import jdk.internal.value.ValueClass;
 
 public class FlatArrayLargeOverlapCopyTest {
+    // Value[] is flattened with 8-byte elements.
+    // Copying 290M elements makes length * elementSize exceed Integer.MAX_VALUE.
     private static final int LENGTH = 290_000_000;
 
     public static value record Value(int value) {}
