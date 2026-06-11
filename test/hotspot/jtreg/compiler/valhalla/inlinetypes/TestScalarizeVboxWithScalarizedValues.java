@@ -39,6 +39,7 @@
  *                   -XX:CompileCommand=compileonly,${test.main.class}::test
  *                   -XX:CompileCommand=dontinline,${test.main.class}::dontcompile
  *                   ${test.main.class}
+ * @run main ${test.main.class}
  */
 
 package compiler.valhalla.inlinetypes;
