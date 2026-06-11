@@ -24,19 +24,14 @@
  */
 package java.lang.classfile.attribute;
 
+import java.lang.classfile.Attribute;
 import java.lang.classfile.AttributeMapper;
 import java.lang.classfile.Attributes;
-import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassElement;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.constant.ClassDesc;
-import java.util.Arrays;
 import java.util.List;
 
-import java.lang.classfile.Attribute;
-import java.lang.classfile.ClassElement;
-import java.lang.classfile.constantpool.ClassEntry;
-
-import jdk.internal.classfile.impl.AbstractPoolEntry;
 import jdk.internal.classfile.impl.BoundAttribute;
 import jdk.internal.classfile.impl.UnboundAttribute;
 import jdk.internal.classfile.impl.Util;
