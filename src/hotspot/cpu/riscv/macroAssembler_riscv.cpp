@@ -5413,8 +5413,9 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   }
 
   int bangsize = C->output()->bang_size_in_bytes();
-  if (C->output()->need_stack_bang(bangsize))
+  if (C->output()->need_stack_bang(bangsize)) {
     generate_stack_overflow_check(bangsize);
+  }
 
   // n.b. frame size includes space for return pc and fp
   const long framesize = C->output()->frame_size_in_bytes();
