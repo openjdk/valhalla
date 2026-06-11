@@ -135,6 +135,7 @@ public class CDSTestUtils {
         private final CDSOptions options;
         private final boolean hasNormalExit;
         private final String CDS_DISABLED = "warning: CDS is disabled when the";
+
         public Result(CDSOptions opts, OutputAnalyzer out) throws Exception {
             checkMappingFailure(out);
             this.options = opts;

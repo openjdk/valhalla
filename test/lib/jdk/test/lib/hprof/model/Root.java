@@ -66,6 +66,7 @@ public class Root {
         this(id, referrerId, type, description, null);
     }
 
+
     public Root(long id, long referrerId, int type, String description,
                 StackTrace stackTrace) {
         this.id = id;

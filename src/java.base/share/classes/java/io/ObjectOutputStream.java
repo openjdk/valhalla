@@ -324,10 +324,12 @@ public class ObjectOutputStream
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          <p>An object that instantiates or extends a Serializable
-     *          {@linkplain Class#isValue value class} can only be serialized if
-     *          it is a record, or it implements {@code writeReplace}, or it is
-     *          a boxed primitive value. Otherwise, {@code writeObject} throws an
+     *          <p>An object that instantiates a concrete
+     *          {@linkplain Class#isValue value class}, or that extends a
+     *          Serializable abstract value class that declares instance fields,
+     *          can only be serialized if it is a record, or it implements
+     *          {@code writeReplace}, or it is a boxed primitive value.
+     *          Otherwise, {@code writeObject} throws an
      *          {@code InvalidClassException}.
      *      </div>
      * </div>

@@ -157,6 +157,8 @@
 
 #define JAVA_27_VERSION                   71
 
+#define JAVA_28_VERSION                   72
+
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
           bad_constant == JVM_CONSTANT_Package) && _major_version >= JAVA_9_VERSION,
@@ -4197,8 +4199,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 
 bool ClassFileParser::supports_inline_types() const {
   // Inline types are only supported by class file version 71.65535 and later
-  return _major_version > JAVA_27_VERSION ||
-         (_major_version == JAVA_27_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  return _major_version > JAVA_28_VERSION ||
+         (_major_version == JAVA_28_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
