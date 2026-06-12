@@ -1919,7 +1919,7 @@ void TemplateTable::if_acmp(Condition cc) {
     // The substitutability test is only necessary if x11 and x10 are not the same...
     if (cc == equal) {
       __ beq(x11, x10, taken);
-    } else if (cc == not_equal) {
+    } else {
       __ beq(x11, x10, not_taken);
     }
 
@@ -1927,7 +1927,7 @@ void TemplateTable::if_acmp(Condition cc) {
     if (cc == equal) {
       __ beqz(x11, not_taken);
       __ beqz(x10, not_taken);
-    } else if (cc == not_equal) {
+    } else {
       __ beqz(x11, taken);
       __ beqz(x10, taken);
     }
@@ -1940,7 +1940,7 @@ void TemplateTable::if_acmp(Condition cc) {
     __ andr(x12, x12, x14);
     if (cc == equal) {
       __ bne(x12, is_inline_type_mask, not_taken);
-    } else if (cc == not_equal) {
+    } else {
       __ bne(x12, is_inline_type_mask, taken);
     }
 
@@ -1949,14 +1949,14 @@ void TemplateTable::if_acmp(Condition cc) {
     __ load_metadata(x14, x10);
     if (cc == equal) {
       __ bne(x12, x14, not_taken);
-    } else if (cc == not_equal) {
+    } else {
       __ bne(x12, x14, taken);
     }
 
     // Know both are the same type, let's test for substitutability ...
     if (cc == equal) {
       invoke_is_substitutable(x10, x11, taken, not_taken);
-    } else if (cc == not_equal) {
+    } else {
       invoke_is_substitutable(x10, x11, not_taken, taken);
     }
     __ stop("Not reachable");
@@ -1964,7 +1964,7 @@ void TemplateTable::if_acmp(Condition cc) {
 
   if (cc == equal) {
     __ bne(x11, x10, not_taken);
-  } else if (cc == not_equal) {
+  } else {
     __ beq(x11, x10, not_taken);
   }
   __ bind(taken);
