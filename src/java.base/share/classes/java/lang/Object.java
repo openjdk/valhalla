@@ -500,6 +500,13 @@ public class Object {
      * this exception is thrown. This exception is not thrown until the lock status of
      * this object has been restored as described above.
      *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          If this object is a {@linkplain java.util.Objects#hasIdentity value object},
+     *          it does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *      </div>
+     * </div>
+     *
      * @apiNote
      * The recommended approach to waiting is to check the condition being awaited in
      * a {@code while} loop around the call to {@code wait}, as shown in the example
@@ -517,12 +524,6 @@ public class Object {
      *     }
      * }
      *
-     * <div class="preview-block">
-     *      <div class="preview-comment">
-     *          If this object is a {@linkplain java.util.Objects#hasIdentity value object},
-     *          it does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
-     *      </div>
-     * </div>
      * @param  timeoutMillis the maximum time to wait, in milliseconds
      * @param  nanos   additional time, in nanoseconds, in the range 0-999999 inclusive
      * @throws IllegalArgumentException if {@code timeoutMillis} is negative,
