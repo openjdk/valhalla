@@ -794,9 +794,7 @@ class InterpreterFrameClosure : public OffsetClosure {
     if (offset < _max_locals) {
       addr = (oop*) _fr->interpreter_frame_local_at(offset);
       assert((intptr_t*)addr >= _fr->sp(), "must be inside the frame");
-      if (_f != nullptr) {
-        _f->do_oop(addr);
-      }
+      _f->do_oop(addr);
     } else {
       addr = (oop*) _fr->interpreter_frame_expression_stack_at((offset - _max_locals));
       // In case of exceptions, the expression stack is invalid and the esp will be reset to express
@@ -808,9 +806,7 @@ class InterpreterFrameClosure : public OffsetClosure {
         in_stack = (intptr_t*)addr >= _fr->interpreter_frame_tos_address();
       }
       if (in_stack) {
-        if (_f != nullptr) {
-          _f->do_oop(addr);
-        }
+        _f->do_oop(addr);
       }
     }
   }

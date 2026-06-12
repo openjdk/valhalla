@@ -854,6 +854,7 @@ static MyValue1 tmp = null;
         return copy;
     }
 
+    @Warmup(value=10000)
     @Run(test = "test32")
     public void test32_verifier() {
         MyValue3 vt = MyValue3.create();
