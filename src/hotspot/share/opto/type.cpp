@@ -6989,7 +6989,10 @@ const TypeOopPtr* TypeAryKlassPtr::as_instance_type(bool klass_change) const {
     // Unrefined types aren't trustworthy! Let's not mistake their ignorance for information.
     flat = false;
     // There are asserts that expect us to not be entirely naive about flatness.
-    bool must_be_ref_or_prim_array = !elem()->isa_ptr() || (elem()->is_ptr()->flat_in_array() == TypePtr::NotFlat);
+    bool must_be_ref_or_prim_array =
+        !elem()->isa_ptr() ||
+        (elem()->is_ptr()->flat_in_array() == TypePtr::NotFlat) ||
+        !(elem()->is_inlinetypeptr() && elem()->inline_klass()->maybe_flat_in_array());
     not_flat = must_be_ref_or_prim_array;
     not_null_free = must_be_ref_or_prim_array;
     atomic = must_be_ref_or_prim_array;
