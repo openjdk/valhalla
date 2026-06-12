@@ -311,7 +311,7 @@ public class Object {
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          If this object is a {@linkplain java.util.Objects#hasIdentity value object},
-     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *          it does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
      *      </div>
      * </div>
      *
@@ -344,7 +344,7 @@ public class Object {
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          If this object is a {@linkplain java.util.Objects#hasIdentity value object},
-     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *          it does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
      *      </div>
      * </div>
      *
@@ -368,7 +368,7 @@ public class Object {
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          If this object is a {@linkplain java.util.Objects#hasIdentity value object},
-     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *          it does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
      *      </div>
      * </div>
      *
@@ -399,7 +399,7 @@ public class Object {
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          If this object is a {@linkplain java.util.Objects#hasIdentity value object},
-     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *          it does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
      *      </div>
      * </div>
      *
@@ -520,7 +520,7 @@ public class Object {
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          If this object is a {@linkplain java.util.Objects#hasIdentity value object},
-     *          it does does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
+     *          it does not have a monitor, an {@code IllegalMonitorStateException} is thrown.
      *      </div>
      * </div>
      * @param  timeoutMillis the maximum time to wait, in milliseconds
