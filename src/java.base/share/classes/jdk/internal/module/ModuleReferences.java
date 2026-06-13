@@ -471,7 +471,7 @@ class ModuleReferences {
                                            Predicate<String> matcher,
                                            Set<String> names) throws IOException {
             try (Stream<Path> files = Files.walk(root, Integer.MAX_VALUE)) {
-                files.skip(1)
+                files.skip(1) // skip root
                         .map(f -> Resources.toResourceName(root, f))
                         .filter(matcher)
                         .forEach(names::add);
