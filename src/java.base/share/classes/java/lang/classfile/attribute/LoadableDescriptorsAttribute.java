@@ -52,7 +52,7 @@ import jdk.internal.javac.PreviewFeature;
  *
  * @see Attributes#loadableDescriptors()
  * @jvms value-objects-4.7.32 The {@code LoadableDescriptors} Attribute
- * @since Valhalla
+ * @since 28
  */
 @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
 public sealed interface LoadableDescriptorsAttribute
