@@ -34,7 +34,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=default
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -48,7 +48,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=no-flattening
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -64,7 +64,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=nAVF
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -80,7 +80,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=AVF
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -96,7 +96,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=AVF-nAVF
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -112,7 +112,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=NVF
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -128,7 +128,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=NVF-nAVF
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -144,7 +144,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=NVF-AVF
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -160,7 +160,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=all-flattening
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -176,7 +176,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=all-flattening-di
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -193,7 +193,7 @@ import jdk.test.whitebox.WhiteBox;
  * @test id=all-flattening-restrict-profiling
  * @summary Test support for null markers in (flat) arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
