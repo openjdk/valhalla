@@ -132,12 +132,43 @@ final class VarHandles {
             Class<?> decl = f.getDeclaringClass();
             var vh = makeStaticFieldVarHandle(decl, f, isWriteAllowedOnFinalFields);
             return maybeAdapt((UNSAFE.shouldBeInitialized(decl) || CDS.needsClassInitBarrier(decl))
-                    ? new LazyInitializingVarHandle(vh, decl)
+                    ? new LazyInitializingVarHandle(vh, f.isStrictInit())
                     : vh);
         }
     }
 
-    static VarHandle makeStaticFieldVarHandle(Class<?> decl, MemberName f, boolean isWriteAllowedOnFinalFields) {
+    /// A root class for static field var handles. Allows [LazyInitializingVarHandle]
+    /// to access the declaring class and field offsets.
+    sealed static abstract class StaticFieldVarHandle extends VarHandle permits
+            VarHandleBooleans.FieldStaticReadOnly,
+            VarHandleBytes.FieldStaticReadOnly,
+            VarHandleChars.FieldStaticReadOnly,
+            VarHandleShorts.FieldStaticReadOnly,
+            VarHandleInts.FieldStaticReadOnly,
+            VarHandleLongs.FieldStaticReadOnly,
+            VarHandleFloats.FieldStaticReadOnly,
+            VarHandleDoubles.FieldStaticReadOnly,
+            VarHandleReferences.FieldStaticReadOnly,
+            VarHandleNonAtomicReferences.FieldStaticReadOnly {
+        final Class<?> declaringClass;
+        final Object base;
+        final long fieldOffset;
+
+        StaticFieldVarHandle(VarForm vform, boolean exact, Class<?> declaringClass, Object base, long fieldOffset) {
+            this.declaringClass = declaringClass;
+            this.base = base;
+            this.fieldOffset = fieldOffset;
+            super(vform, exact);
+        }
+
+        @Override
+        public abstract StaticFieldVarHandle withInvokeBehavior();
+
+        @Override
+        public abstract StaticFieldVarHandle withInvokeExactBehavior();
+    }
+
+    static StaticFieldVarHandle makeStaticFieldVarHandle(Class<?> decl, MemberName f, boolean isWriteAllowedOnFinalFields) {
         Object base = MethodHandleNatives.staticFieldBase(f);
         long foffset = MethodHandleNatives.staticFieldOffset(f);
         Class<?> type = f.getFieldType();
@@ -149,9 +180,9 @@ final class VarHandles {
                             ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
                             : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted());
                 } else {
-                    return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                    return f.isFinal() && !isWriteAllowedOnFinalFields
                             ? new VarHandleNonAtomicReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
-                            : new VarHandleNonAtomicReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted()));
+                            : new VarHandleNonAtomicReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted());
                 }
             } else {
                 return f.isFinal() && !isWriteAllowedOnFinalFields
@@ -160,44 +191,44 @@ final class VarHandles {
             }
         }
         else if (type == boolean.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return f.isFinal() && !isWriteAllowedOnFinalFields
                     ? new VarHandleBooleans.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleBooleans.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleBooleans.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == byte.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return f.isFinal() && !isWriteAllowedOnFinalFields
                     ? new VarHandleBytes.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleBytes.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleBytes.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == short.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return f.isFinal() && !isWriteAllowedOnFinalFields
                     ? new VarHandleShorts.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleShorts.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleShorts.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == char.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return f.isFinal() && !isWriteAllowedOnFinalFields
                     ? new VarHandleChars.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleChars.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleChars.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == int.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return f.isFinal() && !isWriteAllowedOnFinalFields
                     ? new VarHandleInts.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleInts.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleInts.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == long.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return f.isFinal() && !isWriteAllowedOnFinalFields
                     ? new VarHandleLongs.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleLongs.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleLongs.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == float.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return f.isFinal() && !isWriteAllowedOnFinalFields
                     ? new VarHandleFloats.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleFloats.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleFloats.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == double.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return f.isFinal() && !isWriteAllowedOnFinalFields
                     ? new VarHandleDoubles.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleDoubles.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleDoubles.FieldStaticReadWrite(decl, base, foffset);
         }
         else {
             throw new UnsupportedOperationException();
