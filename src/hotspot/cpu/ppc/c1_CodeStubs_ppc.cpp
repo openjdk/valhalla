@@ -181,7 +181,19 @@ StoreFlattenedArrayStub::StoreFlattenedArrayStub(LIR_Opr array, LIR_Opr index, L
 }
 
 void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
-  Unimplemented();
+  __ bind(_entry);
+  // Pass arguments on stack.
+  __ std(_array->as_register(), -24, R1_SP);
+  __ std(_index->as_register(), -16, R1_SP);
+  __ std(_value->as_register(), -8, R1_SP);
+  address stub = Runtime1::entry_for(StubId::c1_store_flat_array_id);
+  //__ load_const_optimized(R0, stub);
+  __ add_const_optimized(R0, R29_TOC, MacroAssembler::offset_to_global_toc(stub));
+  __ mtctr(R0);
+  __ bctr();
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  __ b(_continuation);
 }
 
 
