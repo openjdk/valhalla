@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
  */
 package jdk.internal.jrtfs;
 
-import jdk.internal.jimage.ImageReader.Node;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
@@ -41,9 +39,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
-import static java.util.stream.Collectors.toList;
+import jdk.internal.jimage.ImageReader.Node;
 
 /**
  * A jrt file system built on $JAVA_HOME/modules directory ('exploded modules
@@ -59,56 +60,65 @@ class ExplodedImage extends SystemImage {
 
     private static final String MODULES = "/modules/";
     private static final String PACKAGES = "/packages/";
+    // This directory cannot be preview overridden.
     private static final Path META_INF_DIR = Paths.get("META-INF");
+    // Root of the preview override of a module relative to root of that module.
+    // This directory never appears in either non-preview or preview images.
     private static final Path PREVIEW_DIR = META_INF_DIR.resolve("preview");
 
     private final Path modulesDir;
     private final boolean isPreviewMode;
-    private final String separator;
     private final Map<String, PathNode> nodes = new HashMap<>();
     private final BasicFileAttributes modulesDirAttrs;
 
     ExplodedImage(Path modulesDir, boolean isPreviewMode) throws IOException {
         this.modulesDir = modulesDir;
         this.isPreviewMode = isPreviewMode;
-        String str = modulesDir.getFileSystem().getSeparator();
-        separator = str.equals("/") ? null : str;
         modulesDirAttrs = Files.readAttributes(modulesDir, BasicFileAttributes.class);
         initNodes();
     }
 
     // A Node that is backed by actual default file system Path
+    // This is thread-safe, guaranteed by synchronized findNode
     private final class PathNode extends Node {
-        // Path in underlying default file system relative to modulesDir.
-        // In preview mode this need not correspond to the node's name.
-        private Path relPath;
-        private PathNode link;
-        private List<String> childNames;
+        private final PathResolution resolution;
+        private final PathNode link;
+        // Sorted and has no duplicates
+        private volatile List<String> childNames;
 
         /**
          * Creates a file based node with the given file attributes.
+         * Used for all /modules/... directories and files.
          *
          * <p>If the underlying path is a directory, then it is created in an
          * "incomplete" state, and its child names will be determined lazily.
          */
-        private PathNode(String name, Path path, BasicFileAttributes attrs) {  // path
+        private PathNode(String name, PathResolution resolution, BasicFileAttributes attrs) {
             super(name, attrs);
-            this.relPath = modulesDir.relativize(path);
-            if (relPath.isAbsolute() || relPath.getNameCount() == 0) {
-                throw new IllegalArgumentException("Invalid node path (must be relative): " + path);
-            }
+            this.resolution = Objects.requireNonNull(resolution);
+            this.link = null;
         }
 
-        /** Creates a symbolic link node to the specified target. */
-        private PathNode(String name, Node link) {              // link
+        /**
+         * Creates a symbolic link node to the specified target.
+         * Used for each module-named directory that are leafs of /packages/...
+         */
+        private PathNode(String name, PathNode link) {
             super(name, link.getFileAttributes());
-            this.link = (PathNode)link;
+            this.resolution = null;
+            this.link = link;
         }
 
-        /** Creates a completed directory node based a list of child nodes. */
-        private PathNode(String name, List<PathNode> children) {    // dir
+        /**
+         * Creates a completed directory node based a list of child nodes.
+         * Used for the root, /modules, /packages, and /packages/... non-leaf
+         * directories, all created in initNodes().
+         */
+        private PathNode(String name, List<PathNode> children) {
             super(name, modulesDirAttrs);
-            this.childNames = children.stream().map(Node::getName).collect(toList());
+            this.resolution = null;
+            this.childNames = children.stream().map(Node::getName).sorted().collect(Collectors.toList());
+            this.link = null;
         }
 
         @Override
@@ -136,8 +146,8 @@ class ExplodedImage extends SystemImage {
 
         private byte[] getContent() throws IOException {
             if (!getFileAttributes().isRegularFile())
-                throw new FileSystemException(getName() + " is not file");
-            return Files.readAllBytes(modulesDir.resolve(relPath));
+                throw new FileSystemException(getName() + " is not a resource");
+            return Files.readAllBytes(resolution.selected);
         }
 
         @Override
@@ -158,20 +168,15 @@ class ExplodedImage extends SystemImage {
             // Process preview nodes first, so if nodes are created they take
             // precedence in the cache.
             Set<String> childNameSet = new HashSet<>();
-            if (isPreviewMode && relPath.getNameCount() > 1 && !relPath.getName(1).equals(META_INF_DIR)) {
-                Path absPreviewDir = modulesDir
-                        .resolve(relPath.getName(0))
-                        .resolve(PREVIEW_DIR)
-                        .resolve(relPath.subpath(1, relPath.getNameCount()));
-                if (Files.exists(absPreviewDir)) {
-                    collectChildNodeNames(absPreviewDir, childNameSet);
-                }
-            }
-            collectChildNodeNames(modulesDir.resolve(relPath), childNameSet);
-            return childNames = childNameSet.stream().sorted().collect(toList());
+            collectChildNodeNames(resolution.regularPath, childNameSet);
+            collectChildNodeNames(resolution.previewPath, childNameSet);
+            return childNames = childNameSet.stream().sorted().collect(Collectors.toList());
         }
 
         private void collectChildNodeNames(Path absPath, Set<String> childNameSet) {
+            if (absPath == null) {
+                return;
+            }
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(absPath)) {
                 for (Path p : stream) {
                     PathNode node = (PathNode) findNode(getName() + "/" + p.getFileName().toString());
@@ -187,7 +192,7 @@ class ExplodedImage extends SystemImage {
         @Override
         public long size() {
             try {
-                return isDirectory() ? 0 : Files.size(modulesDir.resolve(relPath));
+                return isDirectory() ? 0 : Files.size(resolution.selected);
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
             }
@@ -210,51 +215,82 @@ class ExplodedImage extends SystemImage {
         if (node != null) {
             return node;
         }
-        // If null, this was not the name of "/modules/..." node, and since all
-        // "/packages/..." nodes were created and cached in advance, the name
-        // cannot reference a valid node.
-        Path path = underlyingModulesPath(name);
-        if (path == null) {
+        // We anticipate the name of a "/modules/..." node for lazy creation.
+        // All "/packages/..." nodes are created by initNodes() instead.
+        PathResolution resolution = resolveModulesPath(name);
+        if (resolution == null) {
             return null;
         }
         // This can still return null for hidden files.
-        return createModulesNode(name, path);
+        return createModulesNode(name, resolution);
+    }
+
+    static final class PathResolution {
+        // All three are OS absolute paths
+        // At least one of regular and preview is non-null
+        // "selected" is used mainly by regular file; used by directories
+        // only for basic file attributes.
+        final Path regularPath, previewPath, selected;
+
+        PathResolution(Path regularPath, Path previewPath, Path selected) {
+            this.regularPath = regularPath;
+            this.previewPath = previewPath;
+            this.selected = selected;
+        }
     }
 
     /**
-     * Returns the expected file path for name in the "/modules/..." namespace,
+     * Returns the expected file paths for name in the "/modules/..." namespace,
      * or {@code null} if the name is not in the "/modules/..." namespace or the
      * path does not reference a file.
      */
-    private Path underlyingModulesPath(String name) {
+    private PathResolution resolveModulesPath(String name) {
         if (!isNonEmptyModulesName(name)) {
             return null;
         }
         String relName = name.substring(MODULES.length());
-        Path relPath = Paths.get(frontSlashToNativeSlash(relName));
-        // The first path segment must exist due to check above.
-        Path modDir = relPath.getName(0);
-        Path previewDir = modDir.resolve(PREVIEW_DIR);
-        if (relPath.startsWith(previewDir)) {
+        Path relPath = Paths.get("", relName.split("/"));
+
+        Path modName = relPath.getName(0);
+        int nameCount = relPath.getNameCount();
+        Path rest = nameCount > 1 ? relPath.subpath(1, nameCount) : null;
+
+        // Filter any path to in META-INF/preview consistently
+        if (rest != null && rest.startsWith(PREVIEW_DIR)) {
             return null;
         }
-        Path path = modulesDir.resolve(relPath);
-        // Non-preview directories take precedence.
-        if (Files.isDirectory(path)) {
-            return path;
+
+        Path regularPath = candidatePath(modName, rest, false);
+        Path previewPath = isPreviewMode ? candidatePath(modName, rest, true) : null;
+
+        if (regularPath == null && previewPath == null) {
+            return null;
         }
-        // Otherwise prefer preview resources over non-preview ones.
-        if (isPreviewMode
-                && relPath.getNameCount() > 1
-                && !modDir.equals(META_INF_DIR)) {
-            Path previewPath = modulesDir
-                    .resolve(previewDir)
-                    .resolve(relPath.subpath(1, relPath.getNameCount()));
-            if (Files.exists(previewPath)) {
-                return previewPath;
-            }
+        Path resolved;
+        if (regularPath != null && Files.isDirectory(regularPath)) {
+            // Non-preview directories take precedence.
+            resolved = regularPath;
+        } else {
+            // Otherwise prefer preview resources over non-preview ones.
+            resolved = previewPath == null ? regularPath : previewPath;
         }
-        return Files.exists(path) ? path : null;
+        return new PathResolution(regularPath, previewPath, resolved);
+    }
+
+    // `rest` nullable means name points to the root of a module
+    private Path candidatePath(Path module, Path rest, boolean preview) {
+        if (preview && rest != null && rest.startsWith(META_INF_DIR)) {
+            // Nothing in META-INF has a preview override
+            return null;
+        }
+        Path now = modulesDir.resolve(module);
+        if (preview) {
+            now = now.resolve(PREVIEW_DIR);
+        }
+        if (rest != null) {
+            now = now.resolve(rest);
+        }
+        return Files.exists(now) ? now : null;
     }
 
     /**
@@ -262,11 +298,11 @@ class ExplodedImage extends SystemImage {
      * and corresponding path to a file or directory.
      *
      * @param name a resource or directory node name, of the form "/modules/...".
-     * @param path the path of a file for a resource or directory.
+     * @param resolution the paths for a resource or directory.
      * @return the newly created and cached node, or {@code null} if the given
      *     path references a file which must be hidden in the node hierarchy.
      */
-    private PathNode createModulesNode(String name, Path path) {
+    private PathNode createModulesNode(String name, PathResolution resolution) {
         assert !nodes.containsKey(name) : "Node must not already exist: " + name;
         assert isNonEmptyModulesName(name) : "Invalid modules name: " + name;
 
@@ -275,20 +311,20 @@ class ExplodedImage extends SystemImage {
             // look up file attributes, and we only do that once. Thus, we can
             // only reject "marker files" here, rather than by inspecting the
             // given name string, since it doesn't apply to directories.
-            BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+            BasicFileAttributes attrs = Files.readAttributes(resolution.selected, BasicFileAttributes.class);
             if (attrs.isRegularFile()) {
-                Path f = path.getFileName();
+                Path f = resolution.selected.getFileName();
                 if (f.toString().startsWith("_the.")) {
                     return null;
                 }
             } else if (!attrs.isDirectory()) {
                 return null;
             }
-            PathNode node = new PathNode(name, path, attrs);
+            PathNode node = new PathNode(name, resolution, attrs);
             nodes.put(name, node);
             return node;
         } catch (IOException x) {
-            // Since the path references a file errors should not be ignored.
+            // Since the path references a file, errors should not be ignored.
             throw new UncheckedIOException(x);
         }
     }
@@ -307,16 +343,6 @@ class ExplodedImage extends SystemImage {
                 && !name.endsWith("/")
                 && !name.endsWith("/.")
                 && !name.endsWith("/..");
-    }
-
-    // convert "/" to platform path separator
-    private String frontSlashToNativeSlash(String str) {
-        return separator == null ? str : str.replace("/", separator);
-    }
-
-    // convert "/"s to "."s
-    private String slashesToDots(String str) {
-        return str.replace(separator != null ? separator : "/", ".");
     }
 
     // initialize file system Nodes
@@ -343,7 +369,7 @@ class ExplodedImage extends SystemImage {
             List<String> moduleNameList = entry.getValue();
             List<PathNode> moduleLinkNodes = new ArrayList<>(moduleNameList.size());
             for (String moduleName : moduleNameList) {
-                Node moduleNode = Objects.requireNonNull(nodes.get(MODULES + moduleName));
+                PathNode moduleNode = Objects.requireNonNull(nodes.get(MODULES + moduleName));
                 PathNode linkNode = new PathNode(PACKAGES + pkgName + "/" + moduleName, moduleNode);
                 nodes.put(linkNode.getName(), linkNode);
                 moduleLinkNodes.add(linkNode);
@@ -368,29 +394,32 @@ class ExplodedImage extends SystemImage {
             throws IOException {
         String moduleName = moduleDir.getFileName().toString();
         // Make sure "/modules/<moduleName>" is created
-        Objects.requireNonNull(createModulesNode(MODULES + moduleName, moduleDir));
-        // Skip the first path (it's always the given root directory).
-        try (Stream<Path> contentsStream = Files.walk(moduleDir).skip(1)) {
+        Objects.requireNonNull(findNode(MODULES + moduleName));
+        UnaryOperator<Path> previewExtractor = isPreviewMode
+                ? (p -> p.startsWith(PREVIEW_DIR) ? PREVIEW_DIR.relativize(p) : p)
+                : UnaryOperator.identity();
+        try (Stream<Path> contentsStream = Files.walk(moduleDir)) {
             contentsStream
                     // Non-empty relative directory paths inside each module.
                     .filter(Files::isDirectory)
                     .map(moduleDir::relativize)
-                    // Map paths inside preview directory to non-preview versions.
-                    .filter(p -> isPreviewMode || !p.startsWith(PREVIEW_DIR))
-                    .map(p -> isPreviewSubpath(p) ? PREVIEW_DIR.relativize(p) : p)
-                    // Ignore special META-INF directory (including preview directory itself).
+                    // When in preview mode, map paths inside preview directory
+                    // to non-preview versions.
+                    .map(previewExtractor)
+                    // Ignore the special META-INF directory (including
+                    // unextracted preview).
                     .filter(p -> !p.startsWith(META_INF_DIR))
                     // Extract unique package names.
-                    .map(p -> slashesToDots(p.toString()))
+                    .map(str -> StreamSupport.stream(str.spliterator(), false)
+                            .map(Path::toString)
+                            .collect(Collectors.joining(".")))
+                    // Ignore the root directories, regular or preview
+                    .filter(st -> !st.isEmpty())
                     .distinct()
                     .forEach(pkgName ->
                             packageToModules
                                     .computeIfAbsent(pkgName, k -> new ArrayList<>())
                                     .add(moduleName));
         }
-    }
-
-    private static boolean isPreviewSubpath(Path p) {
-        return p.startsWith(PREVIEW_DIR) && p.getNameCount() > PREVIEW_DIR.getNameCount();
     }
 }
