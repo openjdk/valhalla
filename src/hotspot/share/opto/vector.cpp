@@ -207,19 +207,9 @@ void PhaseVector::scalarize_vbox_node(VectorBoxNode* vec_box) {
       uint in_idx = TypeFunc::Parms;
       for (uint parm_idx = 0; parm_idx < nargs; parm_idx++) {
         if (call->method()->is_scalarized_arg(static_cast<int>(parm_idx))) {
-          bool nullable = call->tf()->domain_sig()->field_at(in_idx)->maybe_null();
-          ciInlineKlass* vk = call->tf()->domain_sig()->field_at(in_idx)->inline_klass();
-          InlineTypeNode* it = InlineTypeNode::make_uninitialized(gvn, vk, !nullable);
-          it->set_oop(gvn, call->in(in_idx));
-          in_idx++;
-          if (nullable) {
-            it->set_null_marker(gvn, call->in(in_idx));
-            in_idx++;
-          }
-          for (int field_idx = 0; field_idx < vk->nof_nonstatic_fields(); field_idx++) {
-            it->set_field_value(field_idx, call->in(in_idx));
-            in_idx++;
-          }
+          bool nullable = call->tf()->domain_sig()->field_at(TypeFunc::Parms + parm_idx)->maybe_null();
+          ciInlineKlass* vk = call->tf()->domain_sig()->field_at(TypeFunc::Parms + parm_idx)->inline_klass();
+          InlineTypeNode* it = InlineTypeNode::make_from_multi(&kit, call, vk, in_idx, true, !nullable);
           kit.push(gvn.transform(it));
         } else {
           kit.push(call->in(in_idx));
