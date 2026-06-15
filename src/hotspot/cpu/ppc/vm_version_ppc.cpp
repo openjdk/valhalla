@@ -342,7 +342,16 @@ void VM_Version::initialize() {
     FLAG_SET_DEFAULT(UseUnalignedAccesses, true);
   }
 
-  // TODO: Valhalla stuff
+  if (InlineTypePassFieldsAsArgs) {
+    warning("InlineTypePassFieldsAsArgs is not supported on this CPU");
+    FLAG_SET_DEFAULT(InlineTypePassFieldsAsArgs, false);
+  }
+  if (InlineTypeReturnedAsFields) {
+    warning("InlineTypeReturnedAsFields is not supported on this CPU");
+    FLAG_SET_DEFAULT(InlineTypeReturnedAsFields, false);
+  }
+
+  // TODO: Valhalla optimizations
   if (FLAG_IS_DEFAULT(UseArrayFlattening                 )) FLAG_SET_DEFAULT(UseArrayFlattening                 , false);
   if (FLAG_IS_DEFAULT(UseFieldFlattening                 )) FLAG_SET_DEFAULT(UseFieldFlattening                 , false);
   if (FLAG_IS_DEFAULT(UseNullFreeNonAtomicValueFlattening)) FLAG_SET_DEFAULT(UseNullFreeNonAtomicValueFlattening, false);
