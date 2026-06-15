@@ -6976,26 +6976,31 @@ const TypeOopPtr* TypeAryKlassPtr::as_instance_type(bool klass_change) const {
     }
     return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, is_flat(), is_not_flat(), is_not_null_free(), is_atomic()), k, xk, Offset(0));
   }
-  if (_refined_type && _null_free && el->isa_ptr()) {
-    el = el->is_ptr()->join_speculative(TypePtr::NOTNULL);
-  }
   bool flat, not_flat, not_null_free, atomic;
   if (_refined_type) {
+    if (_null_free && el->isa_ptr()) {
+      el = el->is_ptr()->join_speculative(TypePtr::NOTNULL);
+    }
     flat = is_flat();
     not_flat = is_not_flat();
     not_null_free = is_not_null_free();
     atomic = is_atomic();
-  } else {
-    // Unrefined types aren't trustworthy! Let's not mistake their ignorance for information.
+  } else {  // Unrefined types aren't trustworthy! Let's not mistake their ignorance for information.
+    // We can always have arrays of references. Flatness is not guaranteed.
     flat = false;
-    // There are asserts that expect us to not be entirely naive about flatness.
+    // There are asserts that expect us to not be entirely naive about properties.
+    // Only arrays of value classes can be null free. Otherwise, not_null_free == true. That is if the element type
+    // is not an instance class, or this instance class cannot be an inline type, it's surely not null-restricted.
+    not_null_free = !elem()->isa_instklassptr() || !elem()->is_instklassptr()->can_be_inline_type();
     bool array_can_be_flat =
-        UseArrayFlattening &&
-        elem()->isa_instklassptr() &&
-        elem()->is_instklassptr()->can_be_inline_type() &&
-        (!elem()->is_instklassptr()->klass()->is_inlinetype() || elem()->is_instklassptr()->klass()->maybe_flat_in_array());
+        UseArrayFlattening &&  // Obviously
+        elem()->isa_instklassptr() &&  // Arrays of arrays or primitives are not flat
+        elem()->is_instklassptr()->can_be_inline_type() &&  // The element type is a value class or can be derived into one (like Object[] or AbstractValue[])
+        (
+          !elem()->is_instklassptr()->klass()->is_inlinetype() ||  // The element type is not a value class itself, maybe a child class is flattenable. Who knows?
+          elem()->is_instklassptr()->klass()->maybe_flat_in_array()  // The element type is an value class, let's ask whether it can be flat.
+        );
     not_flat = !array_can_be_flat;
-    not_null_free = !array_can_be_flat;
     atomic = !array_can_be_flat;
   }
   return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, flat, not_flat, not_null_free, atomic), k, xk, Offset(0));
