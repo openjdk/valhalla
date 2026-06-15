@@ -3716,7 +3716,7 @@ void LIRGenerator::do_ProfileACmpTypes(ProfileACmpTypes* x) {
     __ metadata2reg(md->constant_encoding(), mdp);
     LIRItem value(x->right(), this);
     value.load_item();
-    __ profile_inline_type(new LIR_Address(mdp, flags_offset, T_INT), value.result(), ACmpData::right_inline_type_byte_constant(), new_register(T_INT), !x->left_maybe_null());
+    __ profile_inline_type(new LIR_Address(mdp, flags_offset, T_INT), value.result(), ACmpData::right_inline_type_byte_constant(), new_register(T_INT), !x->right_maybe_null());
   }
 }
 
