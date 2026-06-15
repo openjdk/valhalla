@@ -1378,11 +1378,6 @@ InlineTypeNode* InlineTypeNode::make_from_flat_impl(GraphKit* kit, ciInlineKlass
   if (vk->is_naturally_atomic(null_free)) {
     do_atomic = false;
   }
-  if (do_atomic && UseShenandoahGC && vk->contains_oops()) {
-    // Atomic handling hides oops from concurrent GC, breaking it, fall back to non-atomic.
-    // FIXME: Figure out how to do this properly.
-    do_atomic = false;
-  }
 
   if (!do_atomic) {
     InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
@@ -1951,13 +1946,6 @@ void LoadFlatNode::expand_atomic(PhaseIterGVN& igvn) const {
   Node* ptr = this->ptr();
 
   BasicType payload_bt = _vk->atomic_size_to_basic_type(_null_free);
-  if (UseShenandoahGC && _vk->contains_oops()) {
-    // Expanding to mismatched T_LONG loads would miss the barriers, expand non-atomically.
-    // FIXME: Figure out how to do this properly.
-    expand_non_atomic(igvn);
-    return;
-  }
-
   kit.insert_mem_bar(Op_MemBarCPUOrder);
   Node* payload = kit.access_load_at(base, ptr, TypeRawPtr::BOTTOM, Type::get_const_basic_type(payload_bt), payload_bt,
                                      _decorators | C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD | C2_UNKNOWN_CONTROL_LOAD, kit.control());
@@ -2170,12 +2158,6 @@ void StoreFlatNode::expand_atomic(PhaseIterGVN& igvn) const {
   assert(oop_off_1 == -1 || oop_off_1 == 0 || oop_off_1 == 4, "invalid layout for %s, first oop at offset %d", vk->name()->as_utf8(), oop_off_1);
   assert(oop_off_2 == -1 || oop_off_2 == 4, "invalid layout for %s, second oop at offset %d", vk->name()->as_utf8(), oop_off_2);
   BasicType payload_bt = vk->atomic_size_to_basic_type(_null_free);
-  if (UseShenandoahGC && vk->contains_oops()) {
-    // Expanding to mismatched T_LONG store would miss the barriers, expand non-atomically.
-    // FIXME: Implement StoreLSpecial in shenandoah*.ad to regain atomicity.
-    expand_non_atomic(igvn);
-    return;
-  }
   kit.insert_mem_bar(Op_MemBarCPUOrder);
   if (!UseG1GC || oop_off_1 == -1) {
     // No oop fields or no late barrier expansion. Emit an atomic store of the payload and add GC barriers if needed.
