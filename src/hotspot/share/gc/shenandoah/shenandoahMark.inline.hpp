@@ -92,7 +92,7 @@ void ShenandoahMark::do_task(ShenandoahObjToScanQueue* q, T* cl, ShenandoahLiveD
       count_liveness<GENERATION>(live_data, obj, klass, worker_id);
     }
   } else {
-    // Case 4: Array chunk, has sensible chunk id. Process it.
+    // Case 5: Array chunk, has sensible chunk id. Process it.
     do_chunked_array<T>(q, cl, obj, task->chunk(), task->pow(), weak);
   }
 }
