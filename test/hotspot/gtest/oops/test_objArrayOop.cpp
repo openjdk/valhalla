@@ -63,7 +63,7 @@ TEST_VM(objArrayOop, osize_refarray) {
   }
 }
 
-static int make_lh(int payload_size_bytes, bool null_free) {
+static int make_flat_array_layout_helper(int payload_size_bytes, bool null_free) {
   BasicType etype = T_FLAT_ELEMENT;
   int esize = log2i_exact(round_up_power_of_2(payload_size_bytes));
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
@@ -97,7 +97,7 @@ TEST_VM(objArrayOop, osize_flatarray) {
 
   for (const FlatArraySizeCase c : flatCases) {
     if (c.objal == (int)ObjectAlignmentInBytes) {
-      int lh = make_lh(c.payload_size, c.null_free);
+      int lh = make_flat_array_layout_helper(c.payload_size, c.null_free);
       EXPECT_EQ(flatArrayOopDesc::object_size(lh, 1), c.result);
     }
   }
