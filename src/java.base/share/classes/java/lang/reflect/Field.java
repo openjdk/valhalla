@@ -1523,12 +1523,6 @@ class Field extends AccessibleObject implements Member {
     private void preSetFinal(Class<?> caller, boolean unreflect) throws IllegalAccessException {
         assert isFinalInstanceInNormalClass();
 
-        // strictly-initialized final fields cannot be mutated
-        if (isStrictInit()) {
-            throw new IllegalAccessException(cannotSetFieldMessage("Can not", unreflect)
-                    + " (strictly-initialized field)");
-        }
-
         if (caller != null) {
             // check if declaring class in package that is open to caller, or public field
             // and declaring class is public in package exported to caller

@@ -75,12 +75,17 @@ class StrictInitFinalFields {
     void testStaticField() throws Throwable {
         Field field = TestClass.class.getDeclaredField("DEFAULT_VALUE");
         assertTrue(field.isStrictInit());
-        field.setAccessible(true);
 
         int initialValue = TestClass.DEFAULT_VALUE;
         int newValue = initialValue + 100;
 
-        // Field.get/set
+        // Field.get/set before setAccessible
+        assertEquals(initialValue, field.get(null));
+        assertThrows(IllegalAccessException.class, () -> field.set(null, newValue));
+
+        field.setAccessible(true);
+
+        // Field.get/set after setAccessible
         assertEquals(initialValue, field.get(null));
         assertThrows(IllegalAccessException.class, () -> field.set(null, newValue));
 
@@ -109,13 +114,17 @@ class StrictInitFinalFields {
     void testInstanceField() throws Throwable {
         Field field = TestClass.class.getDeclaredField("value");
         assertTrue(field.isStrictInit());
-        field.setAccessible(true);
 
         var obj = new TestClass(150);
         int initialValue = obj.value;
         int newValue = initialValue + 100;
 
-        // Field.get/set
+        // Field.get/set before setAccessible
+        assertEquals(initialValue, field.get(obj));
+        assertThrows(IllegalAccessException.class, () -> field.set(obj, newValue));
+
+        // Field.get/set after setAccessible
+        field.setAccessible(true);
         assertEquals(initialValue, field.get(obj));
         assertThrows(IllegalAccessException.class, () -> field.set(obj, newValue));
 
