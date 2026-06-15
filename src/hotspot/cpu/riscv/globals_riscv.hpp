@@ -36,7 +36,7 @@ define_pd_global(bool, ImplicitNullChecks,       true);  // Generate code for im
 define_pd_global(bool, TrapBasedNullChecks,      false);
 define_pd_global(bool, UncommonNullCast,         true);  // Uncommon-trap nulls past to check cast
 
-define_pd_global(bool, DelayCompilerStubsGeneration, COMPILER2_OR_JVMCI);
+define_pd_global(bool, DelayCompilerStubsGeneration, COMPILER2_PRESENT(true) NOT_COMPILER2(false));
 
 define_pd_global(size_t, CodeCacheSegmentSize,   64 COMPILER1_AND_COMPILER2_PRESENT(+64)); // Tiered compilation has large code-entry alignment.
 define_pd_global(uint, CodeEntryAlignment,       64);
@@ -75,6 +75,9 @@ define_pd_global(bool, CompactStrings, true);
 define_pd_global(intx, InitArrayShortSize, BytesPerLong);
 
 define_pd_global(intx, InlineSmallCode,          1000);
+
+define_pd_global(bool, InlineTypePassFieldsAsArgs, false);
+define_pd_global(bool, InlineTypeReturnedAsFields, false);
 
 #define ARCH_FLAGS(develop,                                                      \
                    product,                                                      \

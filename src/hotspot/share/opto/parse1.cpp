@@ -393,7 +393,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // Keep all oop locals alive until the method returns as if there are
       // reachability fences for them at the end of the method.
       Node* loc = local(index);
-      if (loc->bottom_type() != TypePtr::NULL_PTR) {
+      if (!loc->is_InlineType() && loc->bottom_type() != TypePtr::NULL_PTR) {
         assert(loc->bottom_type()->isa_oopptr() != nullptr, "%s", Type::str(loc->bottom_type()));
         _stress_rf_hook->add_req(loc);
       }
@@ -410,7 +410,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // Keep all oops on stack alive until the method returns as if there are
       // reachability fences for them at the end of the method.
       Node* stk = stack(index);
-      if (stk->bottom_type() != TypePtr::NULL_PTR) {
+      if (!stk->is_InlineType() && stk->bottom_type() != TypePtr::NULL_PTR) {
         assert(stk->bottom_type()->isa_oopptr() != nullptr, "%s", Type::str(stk->bottom_type()));
         _stress_rf_hook->add_req(stk);
       }
@@ -910,6 +910,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       // Use immutable memory for inline type loads and restore it below
       kit.set_all_memory(C->immutable_memory());
       parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
+      assert(map == kit.map(), "broken if map changes");
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {
@@ -1345,7 +1346,8 @@ void Parse::do_method_entry() {
     int max_locals = jvms()->loc_size();
     for (int idx = 0; idx < max_locals; idx++) {
       Node* loc = local(idx);
-      if (loc->bottom_type()->isa_oopptr() != nullptr &&
+      if (!loc->is_InlineType() &&
+          loc->bottom_type()->isa_oopptr() != nullptr &&
           !is_auto_boxed_primitive(loc)) { // ignore auto-boxed primitives
         _stress_rf_hook->add_req(loc);
       }
@@ -1424,7 +1426,7 @@ void Parse::do_method_entry() {
         Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
         replace_in_map(parm, vt);
       }
-    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && depth() == 1 && method()->has_vararg() && t->isa_aryptr()) {
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && depth() == 1 && method()->is_varargs() && t->isa_aryptr()) {
       // Speculate on varargs Object array being the default array refined type. The assumption is
       // that a vararg method test(Object... o) is often called as test(o1, o2, o3). javac will
       // translate the call so that the caller will create a new default array of Object, put o1,

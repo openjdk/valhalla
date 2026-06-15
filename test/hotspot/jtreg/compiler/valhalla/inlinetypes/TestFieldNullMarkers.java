@@ -35,6 +35,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -50,6 +51,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -69,6 +71,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -88,6 +91,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -107,6 +111,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -126,6 +131,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -145,6 +151,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -164,6 +171,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -183,6 +191,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -202,6 +211,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -222,6 +232,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -242,6 +253,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -262,6 +274,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -282,6 +295,7 @@ import jdk.test.lib.helpers.StrictInit;
  * @summary Test support for null markers in flat fields.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (vm.opt.PreloadClasses == null | vm.opt.PreloadClasses == "true")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -1236,7 +1250,7 @@ public class TestFieldNullMarkers {
             t.field5 = VAL7;
             Asserts.assertEQ(t.field5.val, VAL7.val);
 
-            // Some more values classes with different flavors of primitive fields
+            // Some more value classes with different flavors of primitive fields
             t.field6 = null;
             Asserts.assertEQ(t.field6, null);
             t.field6 = new MyValue8((byte)i);
@@ -1454,4 +1468,3 @@ public class TestFieldNullMarkers {
         t.testDeopt5(val8, val9, val10, val11, false);
     }
 }
-

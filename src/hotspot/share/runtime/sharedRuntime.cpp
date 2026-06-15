@@ -166,15 +166,15 @@ void SharedRuntime::generate_stubs() {
     generate_throw_exception(StubId::shared_throw_NullPointerException_at_call_id,
                              CAST_FROM_FN_PTR(address, SharedRuntime::throw_NullPointerException_at_call));
 
-#if COMPILER2_OR_JVMCI
-  // Vectors are generated only by C2 and JVMCI.
+#ifdef COMPILER2
+  // Vectors are generated only by C2.
   bool support_wide = is_wide_vector(MaxVectorSize);
   if (support_wide) {
     _polling_page_vectors_safepoint_handler_blob =
       generate_handler_blob(StubId::shared_polling_page_vectors_safepoint_handler_id,
                             CAST_FROM_FN_PTR(address, SafepointSynchronize::handle_polling_page_exception));
   }
-#endif // COMPILER2_OR_JVMCI
+#endif // COMPILER2
   _polling_page_safepoint_handler_blob =
     generate_handler_blob(StubId::shared_polling_page_safepoint_handler_id,
                           CAST_FROM_FN_PTR(address, SafepointSynchronize::handle_polling_page_exception));
@@ -583,12 +583,6 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* curr
   assert(frame::verify_return_pc(return_address), "must be a return address: " INTPTR_FORMAT, p2i(return_address));
   assert(current->frames_to_pop_failed_realloc() == 0 || Interpreter::contains(return_address), "missed frames to pop?");
 
-#if INCLUDE_JVMCI
-  // JVMCI's ExceptionHandlerStub expects the thread local exception PC to be clear
-  // and other exception handler continuations do not read it
-  current->set_exception_pc(nullptr);
-#endif // INCLUDE_JVMCI
-
   if (Continuation::is_return_barrier_entry(return_address)) {
     return StubRoutines::cont_returnBarrierExc();
   }
@@ -718,31 +712,6 @@ void SharedRuntime::throw_and_post_jvmti_exception(JavaThread* current, Handle h
     JvmtiExport::post_exception_throw(current, method(), bcp, h_exception());
   }
 
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    vframeStream vfst(current, true);
-    methodHandle method = methodHandle(current, vfst.method());
-    int bci = vfst.bci();
-    MethodData* trap_mdo = method->method_data();
-    if (trap_mdo != nullptr) {
-      // Set exception_seen if the exceptional bytecode is an invoke
-      Bytecode_invoke call = Bytecode_invoke_check(method, bci);
-      if (call.is_valid()) {
-        ResourceMark rm(current);
-
-        // Lock to read ProfileData, and ensure lock is not broken by a safepoint
-        MutexLocker ml(trap_mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
-
-        ProfileData* pdata = trap_mdo->allocate_bci_to_data(bci, nullptr);
-        if (pdata != nullptr && pdata->is_BitData()) {
-          BitData* bit_data = (BitData*) pdata;
-          bit_data->set_exception_seen();
-        }
-      }
-    }
-  }
-#endif
-
   Exceptions::_throw(current, __FILE__, __LINE__, h_exception);
 }
 
@@ -775,21 +744,6 @@ address SharedRuntime::compute_compiled_exc_handler(nmethod* nm, address ret_pc,
                                                     bool force_unwind, bool top_frame_only, bool& recursive_exception_occurred) {
   assert(nm != nullptr, "must exist");
   ResourceMark rm;
-
-#if INCLUDE_JVMCI
-  if (nm->is_compiled_by_jvmci()) {
-    // lookup exception handler for this pc
-    int catch_pco = pointer_delta_as_int(ret_pc, nm->code_begin());
-    ExceptionHandlerTable table(nm);
-    HandlerTableEntry *t = table.entry_for(catch_pco, -1, 0);
-    if (t != nullptr) {
-      return nm->code_begin() + t->pco();
-    } else {
-      bool make_not_entrant = true;
-      return Deoptimization::deoptimize_for_missing_exception_handler(nm, make_not_entrant);
-    }
-  }
-#endif // INCLUDE_JVMCI
 
   ScopeDesc* sd = nm->scope_desc_at(ret_pc);
   // determine handler bci, if any
@@ -1045,7 +999,7 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* current,
 #ifndef PRODUCT
           _implicit_null_throws++;
 #endif
-          target_pc = nm->continuation_for_implicit_null_exception(pc);
+          target_pc = nm->continuation_for_implicit_exception(pc);
           // If there's an unexpected fault, target_pc might be null,
           // in which case we want to fall through into the normal
           // error handling code.
@@ -1061,7 +1015,7 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* current,
 #ifndef PRODUCT
         _implicit_div0_throws++;
 #endif
-        target_pc = nm->continuation_for_implicit_div0_exception(pc);
+        target_pc = nm->continuation_for_implicit_exception(pc);
         // If there's an unexpected fault, target_pc might be null,
         // in which case we want to fall through into the normal
         // error handling code.
@@ -1119,11 +1073,6 @@ address SharedRuntime::native_method_throw_unsatisfied_link_error_entry() {
 }
 
 JRT_ENTRY_NO_ASYNC(void, SharedRuntime::register_finalizer(JavaThread* current, oopDesc* obj))
-#if INCLUDE_JVMCI
-  if (!obj->klass()->has_finalizer()) {
-    return;
-  }
-#endif // INCLUDE_JVMCI
   assert(oopDesc::is_oop(obj), "must be a valid oop");
   assert(obj->klass()->has_finalizer(), "shouldn't be here otherwise");
   InstanceKlass::register_finalizer(instanceOop(obj), CHECK);
@@ -1294,7 +1243,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
       }
     } else {
       assert(attached_method->has_scalarized_args(), "invalid use of attached method");
-      if (!attached_method->method_holder()->is_inline_klass()) {
+      if (!attached_method->method_holder()->is_inline_klass() || attached_method->is_static()) {
         // Ignore the attached method in this case to not confuse below code
         attached_method = methodHandle(current, nullptr);
       }
@@ -2867,7 +2816,6 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   Symbol* signature = _method->signature();
   const Klass* holder = _method->method_holder()->super();
   Symbol* holder_name = holder->name();
-  ThreadInVMfromUnknown tiv;
   JavaThread* current = JavaThread::current();
   HandleMark hm(current);
   Handle loader(current, _method->method_holder()->class_loader());
@@ -2896,8 +2844,63 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   return _supers;
 }
 
+bool CompiledEntrySignature::check_supers_and_deoptimize(int arg_num) {
+  assert(JavaThread::current()->thread_state() == _thread_in_vm, "must be in vm state");
+
+  bool scalar_super = false;
+  bool non_scalar_super = false;
+
+  GrowableArray<Method*>* supers = get_supers();
+  for (int i = 0; i < supers->length(); ++i) {
+    Method* super_method = supers->at(i);
+    if (super_method->is_scalarized_arg(arg_num)) {
+      scalar_super = true;
+    } else {
+      non_scalar_super = true;
+    }
+  }
+#ifdef ASSERT
+  // Randomly enable below code paths for stress testing
+  bool stress = StressCallingConvention;
+  if (stress && (os::random() & 1) == 1) {
+    non_scalar_super = true;
+    if ((os::random() & 1) == 1) {
+      scalar_super = true;
+    }
+  }
+#endif
+  if (non_scalar_super) {
+    // Found a super method with a non-scalarized argument. Fall back to the non-scalarized calling convention.
+    if (scalar_super) {
+      // Found non-scalar *and* scalar super methods. We can't handle both.
+      // Mark the scalar method as mismatch and re-compile call sites to use non-scalarized calling convention.
+      for (int i = 0; i < supers->length(); ++i) {
+        Method* super_method = supers->at(i);
+        if (super_method->is_scalarized_arg(arg_num) DEBUG_ONLY(|| (stress && (os::random() & 1) == 1))) {
+          JavaThread* thread = JavaThread::current();
+          HandleMark hm(thread);
+          methodHandle mh(thread, super_method);
+          DeoptimizationScope deopt_scope;
+          {
+            // Keep the lock scope minimal. Prevent interference with other
+            // dependency checks by setting mismatch and marking within the lock.
+            MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
+            super_method->set_mismatch();
+            CodeCache::mark_for_deoptimization(&deopt_scope, mh());
+          }
+          deopt_scope.deoptimize_marked();
+        }
+      }
+    }
+  }
+
+  return non_scalar_super;
+}
+
 // Iterate over arguments and compute scalarized and non-scalarized signatures
-void CompiledEntrySignature::compute_calling_conventions(bool init) {
+void CompiledEntrySignature::compute_calling_conventions(bool link_time) {
+  assert(JavaThread::current()->thread_state() != _thread_in_native, "must not be in native");
+  assert(link_time || (_method != nullptr && _method->adapter() != nullptr), "invariant");
   bool has_scalarized = false;
   if (_method != nullptr) {
     InstanceKlass* holder = _method->method_holder();
@@ -2905,7 +2908,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     if (!_method->is_static()) {
       // We shouldn't scalarize 'this' in a value class constructor
       if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() &&
-          !_method->is_object_constructor() && (init || _method->is_scalarized_arg(arg_num))) {
+          !_method->is_object_constructor() && (link_time || _method->is_scalarized_arg(arg_num))) {
         _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
         _sig_cc->insert_before(1, SigEntry(T_OBJECT, 0, nullptr, false, true)); // buffer argument
         has_scalarized = true;
@@ -2919,58 +2922,15 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
       arg_num++;
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-      BasicType bt = ss.type();
+      const BasicType bt = ss.type();
       if (InlineTypePassFieldsAsArgs && bt == T_OBJECT) {
         InlineKlass* vk = ss.as_inline_klass(holder);
-        if (vk != nullptr && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
+        if (vk != nullptr && vk->can_be_passed_as_fields() && (link_time || _method->is_scalarized_arg(arg_num))) {
           // Check for a calling convention mismatch with super method(s)
-          bool scalar_super = false;
-          bool non_scalar_super = false;
-          GrowableArray<Method*>* supers = get_supers();
-          for (int i = 0; i < supers->length(); ++i) {
-            Method* super_method = supers->at(i);
-            if (super_method->is_scalarized_arg(arg_num)) {
-              scalar_super = true;
-            } else {
-              non_scalar_super = true;
-            }
-          }
-#ifdef ASSERT
-          // Randomly enable below code paths for stress testing
-          bool stress = init && StressCallingConvention;
-          if (stress && (os::random() & 1) == 1) {
-            non_scalar_super = true;
-            if ((os::random() & 1) == 1) {
-              scalar_super = true;
-            }
-          }
-#endif
-          if (non_scalar_super) {
-            // Found a super method with a non-scalarized argument. Fall back to the non-scalarized calling convention.
-            if (scalar_super) {
-              // Found non-scalar *and* scalar super methods. We can't handle both.
-              // Mark the scalar method as mismatch and re-compile call sites to use non-scalarized calling convention.
-              for (int i = 0; i < supers->length(); ++i) {
-                Method* super_method = supers->at(i);
-                if (super_method->is_scalarized_arg(arg_num) DEBUG_ONLY(|| (stress && (os::random() & 1) == 1))) {
-                  JavaThread* thread = JavaThread::current();
-                  HandleMark hm(thread);
-                  methodHandle mh(thread, super_method);
-                  DeoptimizationScope deopt_scope;
-                  {
-                    // Keep the lock scope minimal. Prevent interference with other
-                    // dependency checks by setting mismatch and marking within the lock.
-                    MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
-                    super_method->set_mismatch();
-                    CodeCache::mark_for_deoptimization(&deopt_scope, mh());
-                  }
-                  deopt_scope.deoptimize_marked();
-                }
-              }
-            }
-            // Fall back to non-scalarized calling convention
-            SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
-            SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
+          if (link_time && check_supers_and_deoptimize(arg_num)) {
+             // Fall back to non-scalarized calling convention
+             SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
+             SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
           } else {
             _num_inline_args++;
             has_scalarized = true;
@@ -2989,7 +2949,6 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
           SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
           SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
         }
-        bt = T_OBJECT;
       } else {
         SigEntry::add_entry(_sig_cc, ss.type(), ss.as_symbol());
         SigEntry::add_entry(_sig_cc_ro, ss.type(), ss.as_symbol());
@@ -3746,11 +3705,10 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
           }
         }
 
-        DirectiveSet* directive = DirectivesStack::getMatchingDirective(method, CompileBroker::compiler(CompLevel_simple));
-        if (directive->PrintAssemblyOption) {
+        CompilerDirectiveMatcher matcher(method, CompLevel_simple);
+        if (matcher.directive_set()->PrintAssemblyOption) {
           nm->print_code();
         }
-        DirectivesStack::release(directive);
       }
     }
   } // Unlock AdapterHandlerLibrary_lock
@@ -4292,31 +4250,42 @@ JRT_END
 // from field's values in registers.
 JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread* current, intptr_t res))
 {
+  if (!is_set_nth_bit(res, 0)) {
+    // We're not returning with inline type fields in registers (the
+    // calling convention didn't allow it for this inline klass)
+    assert(!Metaspace::contains((void*)res), "should be oop or pointer in buffer area");
+    current->set_vm_result_oop((oopDesc*)res);
+    current->set_vm_result_metadata(nullptr);
+    return;
+  }
+
+  clear_nth_bit(res, 0);
+  InlineKlass* vk = (InlineKlass*)res;
+  assert(Metaspace::contains((void*)res), "should be klass");
+
+  if (!vk->contains_oops()) {
+    // No oop fields. Initialize the fields by calling the pack handler from
+    // the stub which is much faster (see 'generate_return_value_stub').
+    // Signal this by setting the metadata result to the value klass.
+    JRT_BLOCK;
+    {
+      oop vt = vk->allocate_instance(CHECK);
+      current->set_vm_result_oop(vt);
+      current->set_vm_result_metadata(vk);
+    }
+    JRT_BLOCK_END;
+    return;
+  }
+
   ResourceMark rm;
   RegisterMap reg_map(current,
                       RegisterMap::UpdateMap::include,
                       RegisterMap::ProcessFrames::include,
                       RegisterMap::WalkContinuation::skip);
   frame stubFrame = current->last_frame();
-  frame callerFrame = stubFrame.sender(&reg_map);
+  stubFrame.sender(&reg_map);
 
-#ifdef ASSERT
-  InlineKlass* verif_vk = InlineKlass::returned_inline_klass(reg_map);
-#endif
-
-  if (!is_set_nth_bit(res, 0)) {
-    // We're not returning with inline type fields in registers (the
-    // calling convention didn't allow it for this inline klass)
-    assert(!Metaspace::contains((void*)res), "should be oop or pointer in buffer area");
-    current->set_vm_result_oop((oopDesc*)res);
-    assert(verif_vk == nullptr, "broken calling convention");
-    return;
-  }
-
-  clear_nth_bit(res, 0);
-  InlineKlass* vk = (InlineKlass*)res;
-  assert(verif_vk == vk, "broken calling convention");
-  assert(Metaspace::contains((void*)res), "should be klass");
+  assert(vk == InlineKlass::returned_inline_klass(reg_map), "broken calling convention");
 
   // Allocate handles for every oop field so they are safe in case of
   // a safepoint when allocating
@@ -4326,9 +4295,9 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
   // It's unsafe to safepoint until we are here
   JRT_BLOCK;
   {
-    JavaThread* THREAD = current;
     oop vt = vk->realloc_result(reg_map, handles, CHECK);
     current->set_vm_result_oop(vt);
+    current->set_vm_result_metadata(nullptr);
   }
   JRT_BLOCK_END;
 }

@@ -50,7 +50,6 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
-
   switch (type) {
   case T_OBJECT:
   case T_ARRAY: {
@@ -138,7 +137,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
 }
 
 void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
-                                     Register src, Register dst, Register inline_layout_info) {
+                                          Register src, Register dst, Register inline_layout_info) {
   // flat_field_copy implementation is fairly complex, and there are not any
   // "short-cuts" to be made from asm. What there is, appears to have the same
   // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
@@ -421,6 +420,11 @@ void BarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Register
   __ cbz(obj, error);      // if klass is null it is broken
 }
 
+void BarrierSetAssembler::try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj, Register tmp, Label& slow_path) {
+  // Load the oop from the weak handle without barriers.
+  __ ldr(obj, Address(weak_handle));
+}
+
 #ifdef COMPILER2
 
 OptoReg::Name BarrierSetAssembler::encode_float_vector_register_size(const Node* node, OptoReg::Name opto_reg) {
@@ -468,12 +472,6 @@ OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Na
 
   return opto_reg;
 }
-
-void BarrierSetAssembler::try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path) {
-  // Load the oop from the weak handle.
-  __ ldr(obj, Address(obj));
-}
-
 #undef __
 #define __ _masm->
 

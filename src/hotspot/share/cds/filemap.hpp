@@ -111,7 +111,8 @@ public:
   f(UseNullFreeNonAtomicValueFlattening) \
   f(UseNullFreeAtomicValueFlattening) \
   f(UseNullableAtomicValueFlattening) \
-  f(UseNullableNonAtomicValueFlattening)
+  f(UseNullableNonAtomicValueFlattening) \
+  f(FlatteningBudget)
 
 
 class CDSMustMatchFlags {
@@ -123,6 +124,7 @@ private:
 #undef DECLARE_CDS_MUST_MATCH_FLAG
 
   inline static void do_print(outputStream* st, bool v);
+  LP64_ONLY(inline static void do_print(outputStream* st, uint v);)
   inline static void do_print(outputStream* st, intx v);
   inline static void do_print(outputStream* st, uintx v);
   inline static void do_print(outputStream* st, double v);
@@ -152,6 +154,7 @@ private:
   CompressedOops::Mode _narrow_oop_mode;          // compressed oop encoding mode
   bool    _object_streaming_mode;                 // dump was created for object streaming
   bool    _compressed_oops;                       // save the flag UseCompressedOops
+  bool    _compatible_oop_compression;            // value of AOTCompatibleOopCompression at dump time
   int     _narrow_klass_pointer_bits;             // save number of bits in narrowKlass
   int     _narrow_klass_shift;                    // save shift width used to pre-compute narrowKlass IDs in archived heap objects
   narrowPtr _cloned_vtables;                      // The address of the first cloned vtable
@@ -184,7 +187,6 @@ private:
   AOTStreamedHeapHeader _streamed_heap_header;
 
   // The following are parameters that affect MethodData layout.
-  u1      _compiler_type;
   uint    _type_profile_level;
   int     _type_profile_args_limit;
   int     _type_profile_parms_limit;
@@ -233,6 +235,7 @@ public:
   bool has_platform_or_app_classes()       const { return _has_platform_or_app_classes; }
   bool has_aot_linked_classes()            const { return _has_aot_linked_classes; }
   bool compressed_oops()                   const { return _compressed_oops; }
+  bool compatible_oop_compression()        const { return _compatible_oop_compression; }
   int narrow_klass_pointer_bits()          const { return _narrow_klass_pointer_bits; }
   int narrow_klass_shift()                 const { return _narrow_klass_shift; }
   bool has_full_module_graph()             const { return _has_full_module_graph; }

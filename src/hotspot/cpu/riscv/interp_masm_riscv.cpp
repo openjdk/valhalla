@@ -1220,7 +1220,7 @@ void InterpreterMacroAssembler::notify_method_exit(
   // Whenever JVMTI is interp_only_mode, method entry/exit events are sent to
   // track stack depth.  If it is possible to enter interp_only_mode we add
   // the code to check if the event should be sent.
-  if (mode == NotifyJVMTI && JvmtiExport::can_post_interpreter_events()) {
+  if (mode == NotifyJVMTI && (JvmtiExport::can_post_interpreter_events() || JvmtiExport::can_post_frame_pop())) {
     Label L;
     // Note: frame::interpreter_frame_result has a dependency on how the
     // method result is saved across the call to post_method_exit. If this
@@ -1229,8 +1229,15 @@ void InterpreterMacroAssembler::notify_method_exit(
 
     // template interpreter will leave the result on the top of the stack.
     push(state);
-    lwu(x13, Address(xthread, JavaThread::interp_only_mode_offset()));
-    beqz(x13, L);
+
+    ld(t1, Address(xthread, JavaThread::jvmti_thread_state_offset()));
+    beqz(t1, L);  // if (thread->jvmti_thread_state() == nullptr) exit;
+
+    lwu(t1, Address(t1, JvmtiThreadState::frame_pop_cnt_offset()));
+    lwu(t0, Address(xthread, JavaThread::interp_only_mode_offset()));
+    orr(t0, t0, t1);
+    beqz(t0, L);
+
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
     bind(L);
@@ -1593,7 +1600,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
         // argument. tmp is the number of cells left in the
         // CallTypeData/VirtualCallTypeData to reach its end. Non null
         // if there's a return to profile.
-        assert(ReturnTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
+        assert(SingleTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
         shadd(mdp, tmp, mdp, tmp, exact_log2(DataLayout::cell_size));
       }
       sd(mdp, Address(fp, frame::interpreter_frame_mdp_offset * wordSize));
@@ -1638,7 +1645,7 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
       bind(do_profile);
     }
 
-    Address mdo_ret_addr(mdp, -in_bytes(ReturnTypeEntry::size()));
+    Address mdo_ret_addr(mdp, -in_bytes(SingleTypeEntry::size()));
     mv(tmp, ret);
     profile_obj_type(tmp, mdo_ret_addr, t1);
 

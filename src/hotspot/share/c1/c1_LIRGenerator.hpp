@@ -216,7 +216,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   LIR_Opr load_constant(Constant* x);
   LIR_Opr load_constant(LIR_Const* constant);
 
-  bool in_conditional_code() { return _in_conditional_code; }
+  bool in_conditional_code() const { return _in_conditional_code; }
   // Given an immediate value, return an operand usable in logical ops.
   LIR_Opr load_immediate(jlong x, BasicType type);
 
@@ -275,11 +275,11 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_vectorizedMismatch(Intrinsic* x);
   void do_blackhole(Intrinsic* x);
 
-  void access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, size_t offset = 0);
+  LIR_Opr access_flat_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = nullptr, size_t offset = 0);
   void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, size_t sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
   static bool needs_flat_array_store_check(StoreIndexed* x);
-  void check_flat_array(LIR_Opr array, LIR_Opr value, CodeStub* slow_path);
+  void check_flat_array(LIR_Opr array, CodeStub* slow_path);
   static bool needs_null_free_array_store_check(StoreIndexed* x);
   void check_null_free_array(LIRItem& array, LIRItem& value,  CodeEmitInfo* info);
   void substitutability_check(IfOp* x, LIRItem& left, LIRItem& right, LIRItem& t_val, LIRItem& f_val);
@@ -377,7 +377,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   void logic_op   (Bytecodes::Code code, LIR_Opr dst_reg, LIR_Opr left, LIR_Opr right);
 
-  void monitor_enter (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no, CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_ie_stub);
+  void monitor_enter (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no, CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_ie_stub = nullptr);
   void monitor_exit  (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no);
 
   void new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unresolved, bool allow_inline, LIR_Opr scratch1, LIR_Opr scratch2, LIR_Opr scratch3, LIR_Opr scratch4, LIR_Opr klass_reg, CodeEmitInfo* info);

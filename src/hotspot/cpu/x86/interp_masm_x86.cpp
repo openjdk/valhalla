@@ -292,7 +292,7 @@ void InterpreterMacroAssembler::call_VM_leaf_base(address entry_point,
   // super call
   MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments);
   // interpreter specific
-  // LP64: Used to ASSERT that r13/r14 were equal to frame's bcp/locals
+  // Used to ASSERT that r13/r14 were equal to frame's bcp/locals
   // but since they may not have been saved (and we don't want to
   // save them here (see note above) the assert is invalid.
 }
@@ -430,7 +430,7 @@ void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result,
                                          Register arg_1,
                                          Register arg_2,
                                          bool check_exceptions) {
-  LP64_ONLY(assert_different_registers(arg_1, c_rarg2));
+  assert_different_registers(arg_1, c_rarg2);
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
   call_VM_preemptable_helper(oop_result, entry_point, 2, check_exceptions);
@@ -1071,12 +1071,9 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     jmp(skip);
     bind(not_null);
 
-    // Check if we are returning an non-null inline type and load its fields into registers
+    // Check if we are returning a non-null inline type and load its fields into registers
     test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
-#ifndef _LP64
-    super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
-#else
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rdi, rax, rscratch1);
     movptr(rdi, Address(rdi, InlineKlass::adr_members_offset()));
@@ -1085,7 +1082,6 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     testptr(rdi, rdi);
     jcc(Assembler::zero, skip);
     call(rdi);
-#endif
     // call above kills the value in rbx. Reload it.
     movptr(rbx, Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
     bind(skip);
@@ -1125,18 +1121,6 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
   testptr(mcs, mcs);
   jcc(Assembler::zero, skip); // No MethodCounters allocated, OutOfMemory
   bind(has_counters);
-}
-
-void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_obj,
-                                                  Register t1, Register t2,
-                                                  bool clear_fields, Label& alloc_failed) {
-  MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  if (DTraceAllocProbes) {
-    // Trigger dtrace event for fastpath
-    push(atos);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
-    pop(atos);
-  }
 }
 
 void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
@@ -1807,7 +1791,7 @@ void InterpreterMacroAssembler::notify_method_exit(
   // the code to check if the event should be sent.
   Register rthread = r15_thread;
   Register rarg = c_rarg1;
-  if (mode == NotifyJVMTI && JvmtiExport::can_post_interpreter_events()) {
+  if (mode == NotifyJVMTI && (JvmtiExport::can_post_interpreter_events() || JvmtiExport::can_post_frame_pop())) {
     Label L;
     // Note: frame::interpreter_frame_result has a dependency on how the
     // method result is saved across the call to post_method_exit. If this
@@ -1816,9 +1800,18 @@ void InterpreterMacroAssembler::notify_method_exit(
 
     // template interpreter will leave the result on the top of the stack.
     push(state);
-    movl(rdx, Address(rthread, JavaThread::interp_only_mode_offset()));
-    testl(rdx, rdx);
+
+    movptr(rdx, Address(rthread, JavaThread::jvmti_thread_state_offset()));
+    testptr(rdx, rdx);
+    jcc(Assembler::zero, L); // if (thread->jvmti_thread_state() == nullptr) exit;
+
+    movl(rdx, Address(rdx, JvmtiThreadState::frame_pop_cnt_offset()));
+    movl(rcx, Address(rthread, JavaThread::interp_only_mode_offset()));
+
+    orl(rdx, rcx);
+    testl(rdx,rdx);
     jcc(Assembler::zero, L);
+
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
     bind(L);

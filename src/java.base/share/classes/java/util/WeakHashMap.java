@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,22 @@ import java.util.function.Consumer;
  * performance characteristics similar to those of the {@code HashMap}
  * class, and has the same efficiency parameters of <em>initial capacity</em>
  * and <em>load factor</em>.
+ *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          Objects that are {@linkplain java.util.Objects#hasIdentity value objects}
+ *          do not have identity and can not be used as keys in a
+ *          {@code WeakHashMap}. {@linkplain java.lang.ref.Reference References}
+ *          such as {@linkplain WeakReference WeakReference} used by {@code WeakhashMap}
+ *          to hold the key cannot refer to a value object.
+ *          Methods such as {@linkplain #get get} or {@linkplain #containsKey containsKey}
+ *          will always return {@code null} or {@code false} respectively.
+ *          The methods such as {@linkplain #put put}, {@linkplain #putAll putAll},
+ *          {@linkplain #compute(Object, BiFunction) compute}, and
+ *          {@linkplain #computeIfAbsent(Object, Function) computeIfAbsent} or any method putting
+ *          a value object, as a key, throw {@link IdentityException}.
+ *      </div>
+ * </div>
  *
  * <p> Like most collection classes, this class is not synchronized.
  * A synchronized {@code WeakHashMap} may be constructed using the
@@ -121,22 +137,6 @@ import java.util.function.Consumer;
  * <p>This class is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
- *
- * @apiNote
- * <div class="preview-block">
- *      <div class="preview-comment">
- *          Objects that are {@linkplain Class#isValue() value objects} do not have identity
- *          and can not be used as keys in a {@code WeakHashMap}. {@linkplain java.lang.ref.Reference References}
- *          such as {@linkplain WeakReference WeakReference} used by {@code WeakhashMap}
- *          to hold the key cannot refer to a value object.
- *          Methods such as {@linkplain #get get} or {@linkplain #containsKey containsKey}
- *          will always return {@code null} or {@code false} respectively.
- *          The methods such as {@linkplain #put put}, {@linkplain #putAll putAll},
- *          {@linkplain #compute(Object, BiFunction) compute}, and
- *          {@linkplain #computeIfAbsent(Object, Function) computeIfAbsent} or any method putting
- *          a value object, as a key, throw {@link IdentityException}.
- *      </div>
- * </div>
  *
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
@@ -270,6 +270,8 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
      *
      * @param   m the map whose mappings are to be placed in this map
      * @throws  NullPointerException if the specified map is null
+     * @throws  IdentityException if any of the keys in the specified map
+     *          is a value object
      * @since   1.3
      */
     @SuppressWarnings("this-escape")
@@ -475,7 +477,7 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
      * @throws IdentityException if {@code key} is a {@link
-     *         java.util.Objects#isValueObject(Object) value object}
+     *         java.util.Objects#hasIdentity(Object) value object}
      */
     public V put(@jdk.internal.RequiresIdentity K key, V value) {
         Object k = maskNull(key);
@@ -567,9 +569,11 @@ public class WeakHashMap<@jdk.internal.RequiresIdentity K,V>
      * These mappings will replace any mappings that this map had for any
      * of the keys currently in the specified map.
      *
-     * @apiNote If the specified map contains keys that are {@linkplain Objects#isValueObject value objects}
-     * an {@linkplain IdentityException} is thrown when the first value object key is encountered.
-     * Zero or more mappings may have already been copied to this map.
+     * @apiNote If the specified map contains keys that are
+     * {@linkplain java.util.Objects#hasIdentity value objects},
+     * an {@linkplain IdentityException} is thrown when the first value object
+     * key is encountered. Zero or more mappings may have already been copied to
+     * this map.
      *
      * @param m mappings to be stored in this map.
      * @throws  NullPointerException if the specified map is null.

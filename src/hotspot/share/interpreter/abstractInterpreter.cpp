@@ -154,7 +154,7 @@ AbstractInterpreter::MethodKind AbstractInterpreter::method_kind(const methodHan
           // We need to execute the special return bytecode to check for
           // finalizer registration so create a normal frame.
           // No need to use the method kind with a memory barrier on entry
-          // because the method is empty and already has a memory barrier on return
+          // because the method is empty and already has a memory barrier on return.
           return zerolocals;
         } else if (Arguments::is_valhalla_enabled()) {
           // For non-empty Object constructors, we need a memory barrier
@@ -432,11 +432,11 @@ address AbstractInterpreter::deopt_continue_after_entry(Method* method, address 
 address AbstractInterpreter::deopt_reexecute_entry(Method* method, address bcp) {
   assert(method->contains(bcp), "just checkin'");
   Bytecodes::Code code   = Bytecodes::java_code_at(method, bcp);
-#if defined(COMPILER1) || INCLUDE_JVMCI
+#if defined(COMPILER1)
   if(code == Bytecodes::_athrow ) {
     return Interpreter::rethrow_exception_entry();
   }
-#endif /* COMPILER1 || INCLUDE_JVMCI */
+#endif // COMPILER1
   return Interpreter::deopt_entry(vtos, 0);
 }
 

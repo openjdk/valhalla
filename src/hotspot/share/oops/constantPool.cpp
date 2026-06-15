@@ -48,6 +48,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/array.hpp"
+#include "oops/bsmAttribute.inline.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -680,7 +681,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
     verify_constant_pool_resolve(this_cp, k, THREAD);
   }
 
-#ifdef DEBUG
+#ifdef ASSERT
   if (!HAS_PENDING_EXCEPTION && k->is_objArray_klass()) {
     Klass* bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
     assert(bottom_klass != nullptr, "Should be set");

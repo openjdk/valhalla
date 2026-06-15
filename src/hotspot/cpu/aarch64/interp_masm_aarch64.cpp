@@ -210,18 +210,6 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
   bind(has_counters);
 }
 
-void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_obj,
-                                                  Register t1, Register t2,
-                                                  bool clear_fields, Label& alloc_failed) {
-  MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  if (DTraceAllocProbes) {
-    // Trigger dtrace event for fastpath
-    push(atos);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
-    pop(atos);
-  }
-}
-
 void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
   call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field), obj, entry);
   membar(Assembler::StoreStore);
@@ -723,7 +711,7 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     b(skip);
     bind(not_null);
 
-    // Check if we are returning an non-null inline type and load its fields into registers
+    // Check if we are returning a non-null inline type and load its fields into registers
     test_oop_is_not_inline_type(r0, rscratch2, skip, /* can_be_null= */ false);
 
     // Load fields from a buffered value with an inline class specific handler
@@ -1369,7 +1357,7 @@ void InterpreterMacroAssembler::notify_method_exit(
   // Whenever JVMTI is interp_only_mode, method entry/exit events are sent to
   // track stack depth.  If it is possible to enter interp_only_mode we add
   // the code to check if the event should be sent.
-  if (mode == NotifyJVMTI && JvmtiExport::can_post_interpreter_events()) {
+  if (mode == NotifyJVMTI && (JvmtiExport::can_post_interpreter_events() || JvmtiExport::can_post_frame_pop())) {
     Label L;
     // Note: frame::interpreter_frame_result has a dependency on how the
     // method result is saved across the call to post_method_exit. If this
@@ -1378,8 +1366,15 @@ void InterpreterMacroAssembler::notify_method_exit(
 
     // template interpreter will leave the result on the top of the stack.
     push(state);
-    ldrw(r3, Address(rthread, JavaThread::interp_only_mode_offset()));
-    cbz(r3, L);
+
+    ldr(rscratch1, Address(rthread, JavaThread::jvmti_thread_state_offset()));
+    cbz(rscratch1, L); // if (thread->jvmti_thread_state() == nullptr) exit;
+
+    ldrw(rscratch1, Address(rscratch1, JvmtiThreadState::frame_pop_cnt_offset()));
+    ldrw(rscratch2, Address(rthread, JavaThread::interp_only_mode_offset()));
+    orrw(rscratch1, rscratch1, rscratch2);
+    cbzw(rscratch1, L);
+
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
     bind(L);

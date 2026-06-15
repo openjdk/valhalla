@@ -360,7 +360,7 @@ OopMap* RegisterSaver::push_frame_reg_args_and_save_live_registers(MacroAssemble
       assert(RegisterSaver_LiveVecRegs[i + 1].reg_num == reg_num + 1, "or use other instructions!");
 
       __ stxvp(as_VectorRegister(reg_num).to_vsr(), offset, R1_SP);
-      // Note: The contents were read in the same order (see loadV16_Power9 node in ppc.ad).
+      // Note: The contents were read in the same order (see loadV16 node in ppc.ad).
       // RegisterMap::pd_location only uses the first VMReg for each VectorRegister.
       if (generate_oop_map) {
         map->set_callee_saved(VMRegImpl::stack2reg(offset >> 2),
@@ -374,13 +374,8 @@ OopMap* RegisterSaver::push_frame_reg_args_and_save_live_registers(MacroAssemble
     for (int i = 0; i < vecregstosave_num; i++) {
       int reg_num = RegisterSaver_LiveVecRegs[i].reg_num;
 
-      if (PowerArchitecturePPC64 >= 9) {
-        __ stxv(as_VectorRegister(reg_num)->to_vsr(), offset, R1_SP);
-      } else {
-        __ li(R31, offset);
-        __ stxvd2x(as_VectorRegister(reg_num)->to_vsr(), R31, R1_SP);
-      }
-      // Note: The contents were read in the same order (see loadV16_Power8 / loadV16_Power9 node in ppc.ad).
+      __ stxv(as_VectorRegister(reg_num)->to_vsr(), offset, R1_SP);
+      // Note: The contents were read in the same order (see loadV16 node in ppc.ad).
       // RegisterMap::pd_location only uses the first VMReg for each VectorRegister.
       if (generate_oop_map) {
         VMReg vsr = RegisterSaver_LiveVecRegs[i].vmreg;
@@ -464,12 +459,7 @@ void RegisterSaver::restore_live_registers_and_pop_frame(MacroAssembler* masm,
     for (int i = 0; i < vecregstosave_num; i++) {
       int reg_num  = RegisterSaver_LiveVecRegs[i].reg_num;
 
-      if (PowerArchitecturePPC64 >= 9) {
-        __ lxv(as_VectorRegister(reg_num).to_vsr(), offset, R1_SP);
-      } else {
-        __ li(R31, offset);
-        __ lxvd2x(as_VectorRegister(reg_num).to_vsr(), R31, R1_SP);
-      }
+      __ lxv(as_VectorRegister(reg_num).to_vsr(), offset, R1_SP);
 
       offset += vec_reg_size;
     }
@@ -927,12 +917,11 @@ int SharedRuntime::vector_calling_convention(VMRegPair *regs,
 }
 
 static address gen_c2i_adapter(MacroAssembler *masm,
-                            int total_args_passed,
-                            int comp_args_on_stack,
-                            const BasicType *sig_bt,
-                            const VMRegPair *regs,
-                            Label& call_interpreter,
-                            const Register& ientry) {
+                               int comp_args_on_stack,
+                               const GrowableArray<SigEntry>* sig,
+                               const VMRegPair *regs,
+                               Label& call_interpreter,
+                               const Register& ientry) {
 
   address c2i_entrypoint;
 
@@ -942,6 +931,7 @@ static address gen_c2i_adapter(MacroAssembler *masm,
   const Register value_regs[] = { R24_tmp4, R25_tmp5, R26_tmp6 };
   const int num_value_regs = sizeof(value_regs) / sizeof(Register);
   int value_regs_index = 0;
+  int total_args_passed = sig->length();
 
   const Register return_pc = R27_tmp7;
   const Register tmp       = R28_tmp8;
@@ -990,6 +980,8 @@ static address gen_c2i_adapter(MacroAssembler *masm,
 
   // Write the args into the outgoing interpreter space.
   for (int i = 0; i < total_args_passed; i++) {
+    BasicType bt = sig->at(i)._bt;
+
     VMReg r_1 = regs[i].first();
     VMReg r_2 = regs[i].second();
     if (!r_1->is_valid()) {
@@ -1019,7 +1011,7 @@ static address gen_c2i_adapter(MacroAssembler *masm,
       } else {
         // Longs are given 2 64-bit slots in the interpreter, but the
         // data is passed in only 1 slot.
-        if (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+        if (bt == T_LONG || bt == T_DOUBLE) {
           DEBUG_ONLY( __ li(tmp, 0); __ std(tmp, st_off, R1_SP); )
           st_off-=wordSize;
         }
@@ -1058,11 +1050,7 @@ static address gen_c2i_adapter(MacroAssembler *masm,
   return c2i_entrypoint;
 }
 
-void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
-                                    int total_args_passed,
-                                    int comp_args_on_stack,
-                                    const BasicType *sig_bt,
-                                    const VMRegPair *regs) {
+void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack, const GrowableArray<SigEntry>* sig, const VMRegPair *regs) {
 
   // Load method's entry-point from method.
   __ ld(R12_scratch2, in_bytes(Method::from_compiled_offset()), R19_method);
@@ -1088,6 +1076,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   const int num_value_regs = sizeof(value_regs) / sizeof(Register);
   int value_regs_index = 0;
 
+  int total_args_passed = sig->length();
   int ld_offset = total_args_passed*wordSize;
 
   // Cut-out for having no stack args. Since up to 2 int/oop args are passed
@@ -1108,9 +1097,11 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // Now generate the shuffle code.  Pick up all register args and move the
   // rest through register value=Z_R12.
   BLOCK_COMMENT("Shuffle arguments");
+
   for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      assert(i > 0 && (sig_bt[i-1] == T_LONG || sig_bt[i-1] == T_DOUBLE), "missing half");
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_VOID) {
+      assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
     }
 
@@ -1143,7 +1134,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       }
       if (!r_2->is_valid()) {
         // Not sure we need to do this but it shouldn't hurt.
-        if (is_reference_type(sig_bt[i]) || sig_bt[i] == T_ADDRESS) {
+        if (is_reference_type(bt) || bt == T_ADDRESS) {
           __ ld(r, ld_offset, ld_ptr);
           ld_offset-=wordSize;
         } else {
@@ -1153,7 +1144,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       } else {
         // In 64bit, longs are given 2 64-bit slots in the interpreter, but the
         // data is passed in only 1 slot.
-        if (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+        if (bt == T_LONG || bt == T_DOUBLE) {
           ld_offset-=wordSize;
         }
         __ ld(r, ld_offset, ld_ptr);
@@ -1164,8 +1155,8 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         // Now store value where the compiler expects it
         int st_off = (r_1->reg2stack() + SharedRuntime::out_preserve_stack_slots())*VMRegImpl::stack_slot_size;
 
-        if (sig_bt[i] == T_INT   || sig_bt[i] == T_FLOAT ||sig_bt[i] == T_BOOLEAN ||
-            sig_bt[i] == T_SHORT || sig_bt[i] == T_CHAR  || sig_bt[i] == T_BYTE) {
+        if (bt == T_INT   || bt == T_FLOAT || bt == T_BOOLEAN ||
+            bt == T_SHORT || bt == T_CHAR  || bt == T_BYTE) {
           __ stw(r, st_off, R1_SP);
         } else {
           __ std(r, st_off, R1_SP);
@@ -1192,17 +1183,22 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   __ bctr();
 }
 
-void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
-                                            int total_args_passed,
+void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                             int comp_args_on_stack,
-                                            const BasicType *sig_bt,
-                                            const VMRegPair *regs,
-                                            address entry_address[AdapterBlob::ENTRY_COUNT]) {
+                                            const GrowableArray<SigEntry>* sig,
+                                            const VMRegPair* regs,
+                                            const GrowableArray<SigEntry>* sig_cc,
+                                            const VMRegPair* regs_cc,
+                                            const GrowableArray<SigEntry>* sig_cc_ro,
+                                            const VMRegPair* regs_cc_ro,
+                                            address entry_address[AdapterBlob::ENTRY_COUNT],
+                                            AdapterBlob*& new_adapter,
+                                            bool allocate_code_blob) {
   // entry: i2c
 
   __ align(CodeEntryAlignment);
   entry_address[AdapterBlob::I2C] = __ pc();
-  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
+  gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
 
   // entry: c2i unverified
@@ -1263,7 +1259,7 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->c2i_entry_barrier(masm, /* tmp register*/ ic_klass, /* tmp register*/ receiver_klass, /* tmp register*/ code);
 
-  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, call_interpreter, ientry);
+  gen_c2i_adapter(masm, comp_args_on_stack, sig, regs, call_interpreter, ientry);
   return;
 }
 
@@ -1723,10 +1719,8 @@ static void gen_continuation_enter(MacroAssembler* masm,
   check_continuation_enter_argument(regs[pos_is_cont].first(),    reg_is_cont,    "isContinue");
   check_continuation_enter_argument(regs[pos_is_virtual].first(), reg_is_virtual, "isVirtualThread");
 
-  address resolve_static_call = SharedRuntime::get_resolve_static_call_stub();
-
+  AddressLiteral resolve(SharedRuntime::get_resolve_static_call_stub(), relocInfo::static_call_type);
   address start = __ pc();
-
   Label L_thaw, L_exit;
 
   // i2i entry used at interp_only_mode only
@@ -1763,33 +1757,17 @@ static void gen_continuation_enter(MacroAssembler* masm,
 
     // Emit compiled static call. The call will be always resolved to the c2i
     // entry of Continuation.enter(Continuation c, boolean isContinue).
-    // There are special cases in SharedRuntime::resolve_static_call_C() and
-    // SharedRuntime::resolve_sub_helper_internal() to achieve this
-    // See also corresponding call below.
-    address c2i_call_pc = __ pc();
-    int start_offset = __ offset();
-    // Put the entry point as a constant into the constant pool.
-    const address entry_point_toc_addr   = __ address_constant(resolve_static_call, RelocationHolder::none);
-    const int     entry_point_toc_offset = __ offset_to_method_toc(entry_point_toc_addr);
-    guarantee(entry_point_toc_addr != nullptr, "const section overflow");
+    address c2i_call_pc = __ trampoline_call(resolve);
+    guarantee(c2i_call_pc != nullptr, "CodeCache is full at gen_continuation_enter");
 
-    // Emit the trampoline stub which will be related to the branch-and-link below.
-    address stub = __ emit_trampoline_stub(entry_point_toc_offset, start_offset);
-    guarantee(stub != nullptr, "no space for trampoline stub");
+    // Emit stub for static call
+    address stub = CompiledDirectCall::emit_to_interp_stub(masm, c2i_call_pc);
+    guarantee(stub != nullptr, "CodeCache is full at gen_continuation_enter");
 
-    __ relocate(relocInfo::static_call_type);
-    // Note: At this point we do not have the address of the trampoline
-    // stub, and the entry point might be too far away for bl, so __ pc()
-    // serves as dummy and the bl will be patched later.
-    __ bl(__ pc());
     oop_maps->add_gc_map(__ pc() - start, map);
     __ post_call_nop();
 
     __ b(L_exit);
-
-    // static stub for the call above
-    stub = CompiledDirectCall::emit_to_interp_stub(masm, c2i_call_pc);
-    guarantee(stub != nullptr, "no space for static stub");
   }
 
   // compiled entry
@@ -1814,22 +1792,9 @@ static void gen_continuation_enter(MacroAssembler* masm,
   // SharedRuntime::find_callee_info_helper() which calls
   // LinkResolver::resolve_continuation_enter() which resolves the call to
   // Continuation.enter(Continuation c, boolean isContinue).
-  address call_pc = __ pc();
-  int start_offset = __ offset();
-  // Put the entry point as a constant into the constant pool.
-  const address entry_point_toc_addr   = __ address_constant(resolve_static_call, RelocationHolder::none);
-  const int     entry_point_toc_offset = __ offset_to_method_toc(entry_point_toc_addr);
-  guarantee(entry_point_toc_addr != nullptr, "const section overflow");
+  address call_pc = __ trampoline_call(resolve);
+  guarantee(call_pc != nullptr, "CodeCache is full at gen_continuation_enter");
 
-  // Emit the trampoline stub which will be related to the branch-and-link below.
-  address stub = __ emit_trampoline_stub(entry_point_toc_offset, start_offset);
-  guarantee(stub != nullptr, "no space for trampoline stub");
-
-  __ relocate(relocInfo::static_call_type);
-  // Note: At this point we do not have the address of the trampoline
-  // stub, and the entry point might be too far away for bl, so __ pc()
-  // serves as dummy and the bl will be patched later.
-  __ bl(__ pc());
   oop_maps->add_gc_map(__ pc() - start, map);
   __ post_call_nop();
 
@@ -1882,8 +1847,8 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ blr();
 
   // static stub for the call above
-  stub = CompiledDirectCall::emit_to_interp_stub(masm, call_pc);
-  guarantee(stub != nullptr, "no space for static stub");
+  address stub = CompiledDirectCall::emit_to_interp_stub(masm, call_pc);
+  guarantee(stub != nullptr, "CodeCache is full at gen_continuation_enter");
 }
 
 static void gen_continuation_yield(MacroAssembler* masm,
@@ -3833,5 +3798,18 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
                                   oop_maps, false);
   return stub;
 }
-
 #endif // INCLUDE_JFR
+
+const uint SharedRuntime::java_return_convention_max_int = Argument::n_int_register_parameters_j;
+const uint SharedRuntime::java_return_convention_max_float = Argument::n_float_register_parameters_j;
+
+int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *regs, int total_args_passed) {
+  Unimplemented();
+  return 0;
+}
+
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
+  Unimplemented();
+  return nullptr;
+}
+

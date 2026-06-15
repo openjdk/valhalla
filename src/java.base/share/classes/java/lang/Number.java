@@ -50,8 +50,8 @@ package java.lang;
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code Number} is
  *          an abstract {@linkplain Class#isValue value class}.
- *          Subclasses of {@code Number} can be either an {@linkplain Class#isIdentity identity class}
- *          or a {@linkplain Class#isValue value class}.
+ *          Subclasses of {@code Number} can be either value classes
+ *          or identity classes.
  *          See The Java Language Specification {@jls value-objects-8.1.1.5 Value Classes}.
  *      </div>
  * </div>
@@ -63,7 +63,7 @@ package java.lang;
  * @since   1.0
  */
 @jdk.internal.MigratedValueClass
-public abstract class Number implements java.io.Serializable {
+public abstract /*value*/ class Number implements java.io.Serializable {
     /**
      * Constructor for subclasses to call.
      */

@@ -173,7 +173,7 @@ class MacroAssembler: public Assembler {
 
   void bind(Label& L) {
     Assembler::bind(L);
-    code()->clear_last_insn();
+    code()->clear_last_merge_candidate();
     code()->set_last_label(pc());
   }
 
@@ -692,7 +692,6 @@ public:
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
-  void test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker);
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
@@ -703,7 +702,6 @@ public:
 
   // Check array klass layout helper for flat or null-free arrays...
   void test_flat_array_layout(Register lh, Label& is_flat_array);
-  void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
 
   static address target_addr_for_insn(address insn_addr);
 
@@ -721,7 +719,6 @@ public:
 #endif
 
   static int patch_oop(address insn_addr, address o);
-  static int patch_narrow_klass(address insn_addr, narrowKlass n);
 
   // Return whether code is emitted to a scratch blob.
   virtual bool in_scratch_emit_size() {
@@ -955,9 +952,6 @@ public:
   // inline type data payload offsets...
   void payload_offset(Register inline_klass, Register offset);
   void payload_address(Register oop, Register data, Register inline_klass);
-  // get data payload ptr a flat value array at index, kills rcx and index
-  void data_for_value_array_index(Register array, Register array_klass,
-                                  Register index, Register data);
 
   void load_heap_oop(Register dst, Address src, Register tmp1,
                      Register tmp2, DecoratorSet decorators = 0);
@@ -1023,14 +1017,6 @@ public:
   void java_round_float(Register dst, FloatRegister src, FloatRegister ftmp);
 
   // allocation
-
-  // Object / value buffer allocation...
-  // Allocate instance of klass, assumes klass initialized by caller
-  // new_obj prefers to be rax
-  // Kills t1 and t2, perserves klass, return allocation in new_obj (rsi on LP64)
-  void allocate_instance(Register klass, Register new_obj,
-                         Register t1, Register t2,
-                         bool clear_fields, Label& alloc_failed);
 
   void tlab_allocate(
     Register obj,                      // result: pointer to object after successful allocation
@@ -1506,17 +1492,6 @@ public:
   // Inline type specific methods
   #include "asm/macroAssembler_common.hpp"
 
-  int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
-  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
-  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
-                            VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
-                            RegState reg_state[]);
-  bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                          VMRegPair* from, int from_count, int& from_index, VMReg to,
-                          RegState reg_state[], Register val_array);
-  int extend_stack_for_inline_args(int args_on_stack);
-  void remove_frame(int initial_framesize, bool needs_stack_repair);
-  VMReg spill_reg_for(VMReg reg);
   void save_stack_increment(int sp_inc, int frame_size);
 
   void tableswitch(Register index, jint lowbound, jint highbound,
@@ -1699,6 +1674,10 @@ public:
           const FloatRegister (&stateVectors)[16], int idx1, int idx2,
           int idx3, int idx4);
 
+  // Rotate using ORR (for identity) or USHR + SLI.
+  void neon_vector_rotate(FloatRegister dst, SIMD_Arrangement T,
+                          FloatRegister src, int shift_amount);
+
   // Place an ISB after code may have been modified due to a safepoint.
   void safepoint_isb();
 
@@ -1803,7 +1782,103 @@ public:
 private:
   // Check the current thread doesn't need a cross modify fence.
   void verify_cross_modify_fence_not_required() PRODUCT_RETURN;
+  void try_to_replace_prev_vector_copy_with_movprfx(FloatRegister dst);
 
+public:
+  void maybe_movprfx(FloatRegister dst, FloatRegister src) {
+    if (dst != src) {
+      sve_movprfx(dst, src);
+    }
+  }
+
+// Wrappers for SVE explicit destructive instructions, overriding the
+// same-signature Assembler entry points to enable movprfx fusion optimization.
+//
+// Implicit destructive instructions (e.g. predicated unary ops like sve_abs/
+// sve_neg/sve_not, whose ISA encoding allows Zd != Zn but whose use as a Java
+// Vector API masked operation requires pass-through of the first source) are
+// not covered here. For those, the .ad file is responsible for emitting
+// movprfx explicitly via maybe_movprfx() before the destructive op.
+#define SVE_DESTRUCTIVE_BINARY_INS(NAME)                                       \
+  using Assembler::NAME;                                                       \
+  void NAME(FloatRegister Zd, SIMD_RegVariant T, PRegister Pg,                 \
+            FloatRegister Zm) {                                                \
+    if (Zd != Zm) {                                                            \
+      try_to_replace_prev_vector_copy_with_movprfx(Zd);                        \
+    }                                                                          \
+    Assembler::NAME(Zd, T, Pg, Zm);                                            \
+  }
+
+#define SVE_DESTRUCTIVE_BINARY_5(I1, I2, I3, I4, I5)                           \
+  SVE_DESTRUCTIVE_BINARY_INS(I1); SVE_DESTRUCTIVE_BINARY_INS(I2);              \
+  SVE_DESTRUCTIVE_BINARY_INS(I3); SVE_DESTRUCTIVE_BINARY_INS(I4);              \
+  SVE_DESTRUCTIVE_BINARY_INS(I5);
+
+  SVE_DESTRUCTIVE_BINARY_5(sve_add,  sve_and,   sve_asr,   sve_bic,   sve_eor)
+  SVE_DESTRUCTIVE_BINARY_5(sve_fabd, sve_fadd,  sve_fdiv,  sve_fmax,  sve_fmin)
+  SVE_DESTRUCTIVE_BINARY_5(sve_fmul, sve_fsub,  sve_lsl,   sve_lsr,   sve_mul)
+  SVE_DESTRUCTIVE_BINARY_5(sve_orr,  sve_smax,  sve_smin,  sve_sqadd, sve_sqsub)
+  SVE_DESTRUCTIVE_BINARY_5(sve_sub,  sve_uqadd, sve_uqsub, sve_umax,  sve_umin)
+
+#undef SVE_DESTRUCTIVE_BINARY_INS
+#undef SVE_DESTRUCTIVE_BINARY_5
+
+#define SVE_DESTRUCTIVE_SHIFT_IMM_INS(NAME)                                    \
+  void NAME(FloatRegister Zd, SIMD_RegVariant T, PRegister Pg, int shift) {    \
+    try_to_replace_prev_vector_copy_with_movprfx(Zd);                          \
+    Assembler::NAME(Zd, T, Pg, shift);                                         \
+  }
+
+  SVE_DESTRUCTIVE_SHIFT_IMM_INS(sve_asr);
+  SVE_DESTRUCTIVE_SHIFT_IMM_INS(sve_lsl);
+  SVE_DESTRUCTIVE_SHIFT_IMM_INS(sve_lsr);
+
+#undef SVE_DESTRUCTIVE_SHIFT_IMM_INS
+
+#define SVE_DESTRUCTIVE_UNPRED_IMM_INS(NAME, IMM_TYPE)                         \
+  void NAME(FloatRegister Zd, SIMD_RegVariant T, IMM_TYPE imm) {               \
+    try_to_replace_prev_vector_copy_with_movprfx(Zd);                          \
+    Assembler::NAME(Zd, T, imm);                                               \
+  }
+
+  SVE_DESTRUCTIVE_UNPRED_IMM_INS(sve_add, unsigned);
+  SVE_DESTRUCTIVE_UNPRED_IMM_INS(sve_sub, unsigned);
+  SVE_DESTRUCTIVE_UNPRED_IMM_INS(sve_and, uint64_t);
+  SVE_DESTRUCTIVE_UNPRED_IMM_INS(sve_eor, uint64_t);
+  SVE_DESTRUCTIVE_UNPRED_IMM_INS(sve_orr, uint64_t);
+
+#undef SVE_DESTRUCTIVE_UNPRED_IMM_INS
+
+#define SVE_DESTRUCTIVE_TERNARY_INS(NAME)                                      \
+  using Assembler::NAME;                                                       \
+  void NAME(FloatRegister Zd, SIMD_RegVariant T, PRegister Pg,                 \
+            FloatRegister Zn, FloatRegister Zm) {                              \
+    if (Zd != Zn && Zd != Zm) {                                                \
+      try_to_replace_prev_vector_copy_with_movprfx(Zd);                        \
+    }                                                                          \
+    Assembler::NAME(Zd, T, Pg, Zn, Zm);                                        \
+  }
+
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_fmad);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_fmla);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_fmls);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_fmsb);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_fnmad);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_fnmla);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_fnmls);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_fnmsb);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_mla);
+  SVE_DESTRUCTIVE_TERNARY_INS(sve_mls);
+
+#undef SVE_DESTRUCTIVE_TERNARY_INS
+
+  using Assembler::sve_eor3;
+  void sve_eor3(FloatRegister Zd, FloatRegister Zm, FloatRegister Zk) {
+    if (Zd != Zm && Zd != Zk) {
+      try_to_replace_prev_vector_copy_with_movprfx(Zd);
+    }
+    Assembler::sve_eor3(Zd, Zm, Zk);
+  }
 };
 
 #ifdef ASSERT

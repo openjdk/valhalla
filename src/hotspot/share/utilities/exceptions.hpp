@@ -61,7 +61,6 @@ class methodHandle;
 
 class ThreadShadow: public CHeapObj<mtThread> {
   friend class VMStructs;
-  friend class JVMCIVMStructs;
 
  protected:
   oop  _pending_exception;                       // Thread has gc actions.
@@ -181,6 +180,8 @@ class Exceptions {
                               ExceptionMsgToUtf8Mode to_utf8_safe = safe_to_utf8);
 
   static void throw_stack_overflow_exception(JavaThread* thread, const char* file, int line, const methodHandle& method);
+
+  static void wrap_exception_in_internal_error(const char* message, JavaThread* thread);
 
   static void wrap_dynamic_exception(bool is_indy, JavaThread* thread);
 

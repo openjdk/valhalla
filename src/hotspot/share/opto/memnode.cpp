@@ -25,6 +25,7 @@
 
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "ci/ciInstanceKlass.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmIntrinsics.hpp"
@@ -305,8 +306,8 @@ Node* MemNode::optimize_simple_memory_chain(Node* mchain, const TypeOopPtr* t_oo
         } else if (is_strict_final_load) {
           Node* klass = alloc->in(AllocateNode::KlassNode);
           const TypeKlassPtr* tklass = phase->type(klass)->is_klassptr();
-          if (tklass->klass_is_exact() && !tklass->exact_klass()->equals(t_oop->is_instptr()->exact_klass())) {
-            // Allocation of another type, must be another object
+          if (tklass->klass_is_exact() && !tklass->exact_klass()->is_subclass_of(t_oop->is_instptr()->instance_klass())) {
+            // Allocation of an unrelated type, must be another object
             result = proj_in->in(TypeFunc::Memory);
           } else if (base_local != nullptr && (base_local->is_Parm() || base_local->in(0) != alloc)) {
             // Allocation of another object
@@ -698,7 +699,7 @@ bool MemNode::detect_ptr_independence(Node* p1, AllocateNode* a1,
   // TypePtr::NULL_PTR, so we exclude that case.
   const Type* p1_type = p1->bottom_type();
   const Type* p2_type = p2->bottom_type();
-  if (p1_type->isa_oopptr() && p2_type->isa_oopptr() &&
+  if (p1_type != p2_type && p1_type->isa_oopptr() && p2_type->isa_oopptr() &&
       (!p1_type->maybe_null() || !p2_type->maybe_null()) &&
       p1_type->join(p2_type)->empty()) {
     return true;
@@ -714,9 +715,9 @@ bool MemNode::detect_ptr_independence(Node* p1, AllocateNode* a1,
     return (a1 != a2);
   } else if (a1 != nullptr) {                  // one allocation a1
     // (Note:  p2->is_Con implies p2->in(0)->is_Root, which dominates.)
-    return all_controls_dominate(p2, a1, phase);
+    return all_controls_dominate(p2->uncast(), a1, phase);
   } else { //(a2 != null)                   // one allocation a2
-    return all_controls_dominate(p1, a2, phase);
+    return all_controls_dominate(p1->uncast(), a2, phase);
   }
   return false;
 }
@@ -1022,14 +1023,14 @@ AccessAnalyzer::AccessIndependence AccessAnalyzer::detect_access_independence(No
       known_identical = true;
     } else if (_alloc != nullptr) {
       known_independent = true;
-    } else if (MemNode::all_controls_dominate(_n, st_alloc, _phase)) {
+    } else if (MemNode::all_controls_dominate(_base->uncast(), st_alloc, _phase)) {
       known_independent = true;
     }
 
     if (known_independent) {
       // The bases are provably independent: Either they are
       // manifestly distinct allocations, or else the control
-      // of _n dominates the store's allocation.
+      // of _base dominates the store's allocation.
       if (_alias_idx == Compile::AliasIdxRaw) {
         other = st_alloc->in(TypeFunc::Memory);
       } else {
@@ -1295,15 +1296,19 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
   return nullptr;
 }
 
-static Node* see_through_inline_type(PhaseValues* phase, const MemNode* load, Node* base, int offset) {
-  if (!load->is_mismatched_access() && base != nullptr && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
-    InlineTypeNode* vt = base->as_InlineType();
-    Node* value = vt->field_value_by_offset(offset, true);
-    assert(value != nullptr, "must see some value");
-    return value;
+static Node* see_through_inline_type(PhaseValues* phase, const LoadNode* load, Node* base, int offset) {
+  if (load->is_mismatched_access() || base == nullptr) {
+    return nullptr;
   }
 
-  return nullptr;
+  InlineTypeNode* vt = base->isa_InlineType();
+  if (vt == nullptr || offset < vt->type()->inline_klass()->payload_offset()) {
+    return nullptr;
+  }
+
+  Node* value = vt->field_value_by_offset(offset, true);
+  assert(value != nullptr, "must see some value");
+  return value;
 }
 
 // This routine exists to make sure this set of tests is done the same
@@ -1318,12 +1323,9 @@ Node* LoadNode::can_see_stored_value_through_membars(Node* st, PhaseValues* phas
   intptr_t ld_off = 0;
   Node* ld_base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ld_off);
   // Try to see through an InlineTypeNode
-  // LoadN is special because the input is not compressed
-  if (Opcode() != Op_LoadN) {
-    Node* value = see_through_inline_type(phase, this, ld_base, ld_off);
-    if (value != nullptr) {
-      return value;
-    }
+  Node* value = see_through_inline_type(phase, this, ld_base, ld_off);
+  if (value != nullptr) {
+    return value;
   }
 
   const TypeInstPtr* tp = phase->type(ld_adr)->isa_instptr();
@@ -1376,7 +1378,10 @@ Node* LoadNode::can_see_stored_value_through_membars(Node* st, PhaseValues* phas
     }
   }
 
-  return can_see_stored_value(st, phase);
+  Node* res = can_see_stored_value(st, phase);
+  // TODO: reimplement assert, see: JDK-8386157
+  //assert(res == nullptr || is_java_primitive(value_basic_type()) || res->bottom_type()->higher_equal(type()), "the fold is unsafe");
+  return res;
 }
 
 // If st is a store to the same location as this, return the stored value
@@ -1432,7 +1437,22 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
           return nullptr;
         }
       }
-      return st->in(MemNode::ValueIn);
+
+      // Even if we can see the store, we cannot fold the load if the store is not type safe (e.g.
+      // store a j.l.Object into an array of j.l.String) because folding makes the compiler lose the
+      // type information that the uses of this node may need. This is only necessary for pointers, we
+      // can see the stored value of a LoadS even if it is an int because LoadSNode::Ideal will do the
+      // necessary truncation.
+      // The same phenomenon is not an issue for StoreNodes because they don't use res.
+      Node* res = st->in(MemNode::ValueIn);
+      if (is_Store() || is_java_primitive(value_basic_type()) || res->bottom_type()->higher_equal(bottom_type())) {
+        return res;
+      }
+
+      // Type-unsafe stores must be due to array polymorphism
+      const TypePtr* adr_type = this->adr_type();
+      assert(adr_type == nullptr || adr_type->isa_aryptr() != nullptr, "unexpected type-unsafe store");
+      return nullptr;
     }
 
     // A load from a freshly-created object always returns zero.
@@ -2403,7 +2423,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
             // Default value load
             tp->is_instptr()->instance_klass() == ciEnv::current()->Class_klass() ||
             // unsafe field access may not have a constant offset
-            C->has_unsafe_access(),
+            is_unsafe_access(),
             "Field accesses must be precise" );
     // For oop loads, we expect the _type to be precise.
 
@@ -2743,17 +2763,8 @@ const Type* LoadSNode::Value(PhaseGVN* phase) const {
 }
 
 Node* LoadNNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  // Loading from an InlineType, find the input and make an EncodeP
-  Node* addr = in(Address);
-  intptr_t offset;
-  Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-  Node* value = see_through_inline_type(phase, this, base, offset);
-  if (value != nullptr) {
-    return new EncodePNode(value, type());
-  }
-
   // Can see the corresponding value, may need to add an EncodeP
-  value = can_see_stored_value(in(Memory), phase);
+  Node* value = can_see_stored_value_through_membars(in(Memory), phase);
   if (value != nullptr && phase->type(value)->isa_ptr() && type()->isa_narrowoop()) {
     return new EncodePNode(value, type());
   }
@@ -2926,7 +2937,7 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   // introducing a new debug info operator for Klass.java_mirror).
   //
   // This optimization does not apply to arrays because if k is not a
-  // constant, it was obtained via load_klass which returns the VM type
+  // constant, it was obtained via load_klass which returns the refined type
   // and '.java_mirror.as_klass' should return the Java type instead.
 
   if (toop->isa_instptr() && toop->is_instptr()->instance_klass() == phase->C->env()->Class_klass()
@@ -6136,6 +6147,11 @@ Node* MergeMemNode::Identity(PhaseGVN* phase) {
 //------------------------------Ideal------------------------------------------
 // This method is invoked recursively on chains of MergeMem nodes
 Node *MergeMemNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  if (Identity(phase) != this) {
+    // Let Identity handle this case
+    return nullptr;
+  }
+
   // Remove chain'd MergeMems
   //
   // This is delicate, because the each "in(i)" (i >= Raw) is interpreted

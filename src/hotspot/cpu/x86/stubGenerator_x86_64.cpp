@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/upcallLinker.hpp"
 #include "runtime/arguments.hpp"
@@ -45,9 +46,6 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #include "opto/c2_globals.hpp"
-#endif
-#if INCLUDE_JVMCI
-#include "jvmci/jvmci_globals.hpp"
 #endif
 
 // For a more detailed description of the stub routine structure
@@ -5002,7 +5000,18 @@ address StubGenerator::generate_return_value_stub(address destination, const cha
   __ jcc(Assembler::notEqual, pending);
 
   if (has_res) {
+    // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+    // need to initialize the buffer and if so, call the inline class specific pack handler.
+    Label skip_pack;
     __ get_vm_result_oop(rax);
+    __ get_vm_result_metadata(rscratch1);
+    __ testptr(rscratch1, rscratch1);
+    __ jcc(Assembler::zero, skip_pack);
+    __ movptr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
+    __ movptr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
+    __ call(rscratch1);
+    __ membar(Assembler::StoreStore);
+    __ bind(skip_pack);
   }
 
   __ ret(0);
@@ -5059,7 +5068,7 @@ void StubGenerator::generate_final_stubs() {
 }
 
 void StubGenerator::generate_compiler_stubs() {
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
 
   // Entry points that are C2 compiler specific.
 
@@ -5117,11 +5126,9 @@ void StubGenerator::generate_compiler_stubs() {
   StubRoutines::_data_cache_writeback = generate_data_cache_writeback();
   StubRoutines::_data_cache_writeback_sync = generate_data_cache_writeback_sync();
 
-#ifdef COMPILER2
-  if ((UseAVX == 2) && EnableX86ECoreOpts) {
+  if ((UseAVX == 2) && EnableX86ECoreOpts && UseCountTrailingZerosInstruction) {
     generate_string_indexof(StubRoutines::_string_indexof_array);
   }
-#endif
 
   if (UseAdler32Intrinsics) {
      StubRoutines::_updateBytesAdler32 = generate_updateBytesAdler32();
@@ -5200,7 +5207,6 @@ void StubGenerator::generate_compiler_stubs() {
     StubRoutines::_base64_decodeBlock = generate_base64_decodeBlock();
   }
 
-#ifdef COMPILER2
   if (UseMultiplyToLenIntrinsic) {
     StubRoutines::_multiplyToLen = generate_multiplyToLen();
   }
@@ -5245,7 +5251,6 @@ void StubGenerator::generate_compiler_stubs() {
   }
 
 #endif // COMPILER2
-#endif // COMPILER2_OR_JVMCI
 }
 
 StubGenerator::StubGenerator(CodeBuffer* code, BlobId blob_id, AOTStubData* stub_data) : StubCodeGenerator(code, blob_id, stub_data) {

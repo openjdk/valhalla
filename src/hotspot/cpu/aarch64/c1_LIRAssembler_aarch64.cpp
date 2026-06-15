@@ -469,7 +469,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
   if (InlineTypeReturnedAsFields) {
-    // Check if we are returning an non-null inline type and load its fields into registers
+    // Check if we are returning a non-null inline type and load its fields into registers
     ciType* return_type = compilation()->method()->return_type();
     if (return_type->is_inlinetype()) {
       ciInlineKlass* vk = return_type->as_inline_klass();
@@ -493,7 +493,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
       __ b(skip);
       __ bind(not_null);
 
-      // Check if we are returning an non-null inline type and load its fields into registers
+      // Check if we are returning a non-null inline type and load its fields into registers
       __ test_oop_is_not_inline_type(r0, rscratch2, skip, /* can_be_null= */ false);
 
       // Load fields from a buffered value with an inline class specific handler
@@ -1440,6 +1440,10 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
         if (k->is_loaded() && k->is_obj_array_klass()) {
           // For a direct pointer comparison, we need the refined array klass pointer
           ciKlass* k_refined = ciObjArrayKlass::make(k->as_obj_array_klass()->element_klass());
+          if (!k_refined->is_loaded()) {
+            bailout("encountered unloaded_ciobjarrayklass due to out of memory error");
+            return;
+          }
           __ mov_metadata(rscratch1, k_refined->constant_encoding());
           __ cmp(klass_RInfo, rscratch1);
         } else {
@@ -1570,14 +1574,6 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
   // declared type is Object[], abstract[], interface[] or VT.ref[]).
   // If this array is a flat array, take the slow path.
   __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
-  if (!op->value()->is_illegal()) {
-    // The array is not a flat array, but it might be null-free. If we are storing
-    // a null into a null-free array, take the slow path (which will throw NPE).
-    Label skip;
-    __ cbnz(op->value()->as_register(), skip);
-    __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
-    __ bind(skip);
-  }
 }
 
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
@@ -1612,7 +1608,7 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   ciKlass* left_klass = op->left_klass();
   ciKlass* right_klass = op->right_klass();
 
-  // (2) Inline type check -- if either of the operands is not a inline type,
+  // (2) Inline type check -- if either of the operands is not an inline type,
   //     they are not substitutable. We do this only if we are not sure that the
   //     operands are inline type
   if ((left_klass == nullptr || right_klass == nullptr) ||// The klass is still unloaded, or came from a Phi node.
@@ -1662,13 +1658,11 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
 void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
   __ cmpxchg(addr, cmpval, newval, Assembler::word, /* acquire*/ true, /* release*/ true, /* weak*/ false, rscratch1);
   __ cset(rscratch1, Assembler::NE);
-  __ membar(__ AnyAny);
 }
 
 void LIR_Assembler::casl(Register addr, Register newval, Register cmpval) {
   __ cmpxchg(addr, cmpval, newval, Assembler::xword, /* acquire*/ true, /* release*/ true, /* weak*/ false, rscratch1);
   __ cset(rscratch1, Assembler::NE);
-  __ membar(__ AnyAny);
 }
 
 
@@ -2352,7 +2346,6 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
   }
   if (is_dest) {
     __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
-    // TODO 8350865 Flat no longer implies null-free, so we need to check for flat dest. Can we do better here?
     __ test_flat_array_oop(obj, tmp, *slow_path->entry());
   } else {
     __ test_flat_array_oop(obj, tmp, *slow_path->entry());
@@ -3324,9 +3317,6 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
     break;
   default:
     ShouldNotReachHere();
-  }
-  if(!UseLSE) {
-    __ membar(__ AnyAny);
   }
 }
 

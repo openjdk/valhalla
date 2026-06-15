@@ -32,7 +32,6 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/typeArrayOop.hpp"
 #include "utilities/accessFlags.hpp"
-#include "utilities/pair.hpp"
 
 class Annotations;
 template <typename T>
@@ -193,7 +192,6 @@ class ClassFileParser {
 
   int _num_miranda_methods;
 
-
   Handle _protection_domain;
   AccessFlags _access_flags;
 
@@ -232,10 +230,9 @@ class ClassFileParser {
   bool _has_contended_fields;
   bool _has_aot_runtime_setup_method;
   bool _has_strict_static_fields;
+  bool _has_null_restricted_static_fields;
 
-  bool _is_naturally_atomic;
   bool _must_be_atomic;
-  bool _has_loosely_consistent_annotation;
 
   // precomputed flags
   bool _has_finalizer;
@@ -544,6 +541,7 @@ class ClassFileParser {
   bool supports_inline_types() const;
 
   void create_acmp_maps(InstanceKlass* ik, TRAPS);
+  void set_fast_acmp_members(InlineKlass* vk) const;
 
  public:
   ClassFileParser(ClassFileStream* stream,

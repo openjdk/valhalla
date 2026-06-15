@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2025, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -6297,6 +6297,24 @@ class StubGenerator: public StubCodeGenerator {
   // Implements
   // static int implKyberNttMult(
   //              short[] result, short[] ntta, short[] nttb, short[] zetas) {}
+  //
+  // The actual algorithm that is used here differs from the one in the Java
+  // implementation, it uses Montgomery multiplications instead of Barrett
+  // reduction, but the end result modulo MLKEM_Q is the same. This is the
+  // Java equivalent of this intrinsic implementation:
+  // static void implKyberNttMultJava(short[] result, short[] ntta, short[] nttb) {
+  //         for (int m = 0; m < ML_KEM_N / 2; m++) {
+  //             int a0 = ntta[2 * m];
+  //             int a1 = ntta[2 * m + 1];
+  //             int b0 = nttb[2 * m];
+  //             int b1 = nttb[2 * m + 1];
+  //             int r = montMul(a0, b0) +
+  //                     montMul(montMul(a1, b1), MONT_ZETAS_FOR_NTT_MULT[m]);
+  //             result[2 * m] = (short) montMul(r, MONT_R_SQUARE_MOD_Q);
+  //             result[2 * m + 1] = (short) montMul(
+  //                     (montMul(a0, b1) + montMul(a1, b0)), MONT_R_SQUARE_MOD_Q);
+  //          }
+  // }
   //
   // result (short[256]) = c_rarg0
   // ntta (short[256]) = c_rarg1
@@ -12685,20 +12703,30 @@ class StubGenerator: public StubCodeGenerator {
     __ ldpd(j_farg3, j_farg2, Address(__ post(sp, 2 * wordSize)));
     __ ldpd(j_farg1, j_farg0, Address(__ post(sp, 2 * wordSize)));
 
-    __ leave();
-
     // check for pending exceptions
     Label pending;
     __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     __ cbnz(rscratch1, pending);
 
     if (has_res) {
+      // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+      // need to initialize the buffer and if so, call the inline class specific pack handler.
+      Label skip_pack;
       __ get_vm_result_oop(r0, rthread);
+      __ get_vm_result_metadata(rscratch1, rthread);
+      __ cbz(rscratch1, skip_pack);
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
+      __ blr(rscratch1);
+      __ membar(Assembler::StoreStore);
+      __ bind(skip_pack);
     }
 
+    __ leave();
     __ ret(lr);
 
     __ bind(pending);
+    __ leave();
     __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
     // -------------
@@ -12814,7 +12842,7 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   void generate_compiler_stubs() {
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
 
     if (UseSVE == 0) {
       generate_iota_indices(StubId::stubgen_vector_iota_indices_id);
@@ -12842,7 +12870,6 @@ class StubGenerator: public StubCodeGenerator {
 
     generate_string_indexof_stubs();
 
-#ifdef COMPILER2
     if (UseMultiplyToLenIntrinsic) {
       StubRoutines::_multiplyToLen = generate_multiplyToLen();
     }
@@ -12889,8 +12916,6 @@ class StubGenerator: public StubCodeGenerator {
       }
       StubRoutines::_montgomerySquare = start;
     }
-
-#endif // COMPILER2
 
     if (UseChaCha20Intrinsics) {
       StubRoutines::_chacha20Block = generate_chacha20Block_blockpar();
@@ -12973,7 +12998,7 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_updateBytesAdler32 = generate_updateBytesAdler32();
     }
 
-#endif // COMPILER2_OR_JVMCI
+#endif // COMPILER2
   }
 
  public:

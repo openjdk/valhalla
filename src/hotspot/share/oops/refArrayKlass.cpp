@@ -70,7 +70,6 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
   if (!Universe::is_bootstrapping() || vmClasses::Object_klass_is_loaded()) {
     assert(MultiArray_lock->holds_lock(THREAD),
            "must hold lock after bootstrapping");
-    Klass* element_super = element_klass->super();
     super_klass = element_klass->array_klass(CHECK_NULL);
   }
 
@@ -84,7 +83,7 @@ RefArrayKlass* RefArrayKlass::allocate_refArray_klass(ClassLoaderData* loader_da
   ModuleEntry* module = oak->module();
   assert(module != nullptr, "No module entry for array");
 
-  // Call complete_create_array_klass after all instance variables has been
+  // Call complete_create_array_klass after all instance variables have been
   // initialized.
   ArrayKlass::complete_create_array_klass(oak, super_klass, module, CHECK_NULL);
 
@@ -225,7 +224,7 @@ void RefArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos,
     THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
   }
 
-  // Check is all offsets and lengths are non negative
+  // Check if all offsets and lengths are non negative
   if (src_pos < 0 || dst_pos < 0 || length < 0) {
     // Pass specific exception reason.
     ResourceMark rm(THREAD);

@@ -132,12 +132,6 @@ import static jdk.internal.util.ModifiedUtf.utfLen;
  * implemented by a class they can write and read their own state using all of
  * the methods of ObjectOutput and ObjectInput.  It is the responsibility of
  * the objects to handle any versioning that occurs.
- * Value classes implementing {@link Externalizable} cannot be serialized
- * or deserialized, the value object is immutable and the state cannot be restored.
- * Use {@link Serializable} {@code writeReplace} to delegate to another serializable
- * object such as a record.
- *
- * Value objects cannot be {@code java.io.Externalizable}.
  *
  * <p>Enum constants are serialized differently than ordinary serializable or
  * externalizable objects.  The serialized form of an enum constant consists
@@ -163,35 +157,19 @@ import static jdk.internal.util.ModifiedUtf.utfLen;
  * defaultWriteObject and writeFields initially terminate any existing
  * block-data record.
  *
- * <a id="record-serialization"></a>
  * <p>Records are serialized differently than ordinary serializable or externalizable
  * objects, see <a href="ObjectInputStream.html#record-serialization">record serialization</a>.
  *
- * <a id="valueclass-serialization"></a>
- * <p>Value classes are {@linkplain Serializable} through the use of the serialization proxy pattern.
- * The serialization protocol does not support a standard serialized form for value classes.
- * The value class delegates to a serialization proxy by supplying an alternate
- * record or object to be serialized instead of the value class.
- * When the proxy is deserialized it re-constructs the value object and returns the value object.
- * For example,
- * {@snippet lang="java" :
- * value class ZipCode implements Serializable {    // @highlight substring="value class"
- *     private static final long serialVersionUID = 1L;
- *     private int zipCode;
- *     public ZipCode(int zip) { this.zipCode = zip; }
- *     public int zipCode() { return zipCode; }
- *
- *     public Object writeReplace() {    // @highlight substring="writeReplace"
- *         return new ZipCodeProxy(zipCode);
- *     }
- *
- *     private record ZipCodeProxy(int zipCode) implements Serializable {
- *         public Object readResolve() {    // @highlight substring="readResolve"
- *             return new ZipCode(zipCode);
- *         }
- *     }
- * }
- * }
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ *          <p>{@linkplain Class#isValue Value classes} that are not records cannot be
+ *          serialized directly. To serialize an instance of a value class, the
+ *          <a href="{@docRoot}/../specs/serialization/output.html#the-writereplace-method">
+ *          {@code writeReplace}</a> method can provide a proxy object instead. That
+ *          object can then be serialized, and used to reconstruct the expected value
+ *          class instance at deserialization time.
+ *      </div>
+ * </div>
  *
  * @spec serialization/index.html Java Object Serialization Specification
  * @author      Mike Warres
@@ -339,13 +317,22 @@ public class ObjectOutputStream
      * object are written transitively so that a complete equivalent graph of
      * objects can be reconstructed by an ObjectInputStream.
      *
-     * <p>Serialization and deserialization of value classes is described in
-     * {@linkplain ObjectOutputStream##valueclass-serialization value class serialization}.
-     *
      * <p>Exceptions are thrown for problems with the OutputStream and for
      * classes that should not be serialized.  All exceptions are fatal to the
      * OutputStream, which is left in an indeterminate state, and it is up to
      * the caller to ignore or recover the stream state.
+     *
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>An object that instantiates a concrete
+     *          {@linkplain Class#isValue value class}, or that extends a
+     *          Serializable abstract value class that declares instance fields,
+     *          can only be serialized if it is a record, or it implements
+     *          {@code writeReplace}, or it is a boxed primitive value.
+     *          Otherwise, {@code writeObject} throws an
+     *          {@code InvalidClassException}.
+     *      </div>
+     * </div>
      *
      * @throws  InvalidClassException Something is wrong with a class used by
      *          serialization.
@@ -1350,9 +1337,7 @@ public class ObjectOutputStream
             if (desc.isRecord()) {
                 writeRecordData(obj, desc);
             } else if (desc.isExternalizable() && !desc.isProxy()) {
-                if (desc.isValue())
-                    throw new InvalidClassException("Externalizable not valid for value class "
-                            + desc.forClass().getName());
+                assert !desc.requiresDeserializer() : "Should be caught in checkSerialize";
                 writeExternalData((Externalizable) obj);
             } else {
                 writeSerialData(obj, desc);
@@ -1401,10 +1386,10 @@ public class ObjectOutputStream
         throws IOException
     {
         assert obj.getClass().isRecord();
-        List<ObjectStreamClass.ClassDataSlot> slots = desc.getClassDataLayout();
-        if (slots.size() != 1) {
+        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
+        if (slots.length != 1) {
             throw new InvalidClassException(
-                    "expected a single record slot length, but found: " + slots.size());
+                    "expected a single record slot length, but found: " + slots.length);
         }
 
         defaultWriteFields(obj, desc);  // #### seems unnecessary to use the accessors
@@ -1417,9 +1402,9 @@ public class ObjectOutputStream
     private void writeSerialData(Object obj, ObjectStreamClass desc)
         throws IOException
     {
-       List<ObjectStreamClass.ClassDataSlot> slots = desc.getClassDataLayout();
-        for (int i = 0; i < slots.size(); i++) {
-            ObjectStreamClass slotDesc = slots.get(i).desc;
+        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
+        for (int i = 0; i < slots.length; i++) {
+            ObjectStreamClass slotDesc = slots[i].desc;
             if (slotDesc.hasWriteObjectMethod()) {
                 PutFieldImpl oldPut = curPut;
                 curPut = null;

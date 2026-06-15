@@ -34,6 +34,9 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+import static java.lang.classfile.ClassFile.ACC_STATIC;
+import static java.lang.classfile.ClassFile.ACC_STRICT_INIT;
+
 /**
  * Utilities to access package private methods of java.lang.Class and related reflection classes.
  */
@@ -43,13 +46,14 @@ public final class ValueClass {
     /// {@return whether this field type may store value objects}
     /// This excludes primitives and includes Object.
     public static boolean isValueObjectCompatible(Class<?> fieldType) {
-        return PreviewFeatures.isEnabled()
-                && !fieldType.isPrimitive() // non-primitive
-                && (!fieldType.isIdentity() || fieldType == Object.class); // AVC or Object
+        return PreviewFeatures.isEnabled() &&
+                (fieldType.isValue() ||
+                 fieldType.isInterface() ||
+                 fieldType == Object.class);
     }
 
     /// {@return whether an object of this exact class is a value object}
-    /// This excludes abstract value classes and primitives.
+    /// This excludes abstract value classes.
     public static boolean isConcreteValueClass(Class<?> clazz) {
         return clazz.isValue() && !Modifier.isAbstract(clazz.getModifiers());
     }
@@ -138,4 +142,44 @@ public final class ValueClass {
      */
     @IntrinsicCandidate
     public static native boolean isAtomicArray(Object[] array);
+
+    // This class also serves as a lazy holder of its singleton instance
+    private static final class StrictInstanceFieldClassValue extends ClassValue<Boolean> {
+        private static final StrictInstanceFieldClassValue INSTANCE = new StrictInstanceFieldClassValue();
+
+        private StrictInstanceFieldClassValue() {}
+
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            if (!isClassOrInterface(type)) {
+                return false;
+            }
+            for (var field : type.getDeclaredFields()) {
+                // Reflection filters fields, hope the filtered classes don't declare strict fields
+                if ((field.getModifiers() & (ACC_STATIC | ACC_STRICT_INIT)) == ACC_STRICT_INIT) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    /// Returns whether a class or interface declares strict instance fields.
+    /// This does not include inherited instance fields.
+    public static boolean hasStrictInstanceField(Class<?> cl) {
+        if (!isClassOrInterface(cl)) {
+            // Not class or interface
+            return false;
+        }
+        return StrictInstanceFieldClassValue.INSTANCE.get(cl);
+    }
+
+    // Only primitive and array types have both ABSTRACT and FINAL flags set
+    private static final int NON_CLASS_COMMON_MODIFIERS = Modifier.ABSTRACT | Modifier.FINAL;
+
+    /// Returns if a Class object represents a class or interface instead of a
+    /// primitive type or an array type.
+    private static boolean isClassOrInterface(Class<?> cl) {
+        return (cl.getModifiers() & NON_CLASS_COMMON_MODIFIERS) != NON_CLASS_COMMON_MODIFIERS;
+    }
 }

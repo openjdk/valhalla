@@ -59,9 +59,6 @@
 #include "adfiles/ad_riscv.hpp"
 #include "opto/runtime.hpp"
 #endif
-#if INCLUDE_JVMCI
-#include "jvmci/jvmciJavaClasses.hpp"
-#endif
 
 #define __ masm->
 
@@ -202,11 +199,9 @@ void RegisterSaver::restore_live_registers(MacroAssembler* masm) {
 #ifdef COMPILER2
   __ pop_CPU_state(_save_vectors, Matcher::scalable_vector_reg_size(T_BYTE));
 #else
-#if !INCLUDE_JVMCI
-  assert(!_save_vectors, "vectors are generated only by C2 and JVMCI");
-#endif
+  assert(!_save_vectors, "vectors are generated only by C2");
   __ pop_CPU_state(_save_vectors);
-#endif
+#endif // COMPILER2
   __ leave();
 }
 
@@ -343,9 +338,8 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 }
 
 static void gen_c2i_adapter(MacroAssembler *masm,
-                            int total_args_passed,
                             int comp_args_on_stack,
-                            const BasicType *sig_bt,
+                            const GrowableArray<SigEntry>* sig,
                             const VMRegPair *regs,
                             Label& skip_fixup) {
   // Before we get into the guts of the C2I adapter, see if we should be here
@@ -362,6 +356,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // Since all args are passed on the stack, total_args_passed *
   // Interpreter::stackElementSize is the space we need.
 
+  int total_args_passed = sig->length();
   int extraspace = total_args_passed * Interpreter::stackElementSize;
 
   __ mv(x19_sender_sp, sp);
@@ -375,8 +370,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   // Now write the args into the outgoing interpreter space
   for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      assert(i > 0 && (sig_bt[i - 1] == T_LONG || sig_bt[i - 1] == T_DOUBLE), "missing half");
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_VOID) {
+      assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
     }
 
@@ -416,7 +412,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
         // Two VMREgs|OptoRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
         // T_DOUBLE and T_LONG use two slots in the interpreter
-        if (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+        if (bt == T_LONG || bt == T_DOUBLE) {
           // ld_off == LSW, ld_off+wordSize == MSW
           // st_off == MSW, next_off == LSW
           __ sd(t0, Address(sp, next_off), /*temp register*/esp);
@@ -437,7 +433,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       } else {
         // Two VMREgs|OptoRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
         // T_DOUBLE and T_LONG use two slots in the interpreter
-        if ( sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+        if (bt == T_LONG || bt == T_DOUBLE) {
           // long/double in gpr
 #ifdef ASSERT
           // Overwrite the unused slot with known junk
@@ -472,9 +468,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 }
 
 void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
-                                    int total_args_passed,
                                     int comp_args_on_stack,
-                                    const BasicType *sig_bt,
+                                    const GrowableArray<SigEntry>* sig,
                                     const VMRegPair *regs) {
   // Note: x19_sender_sp contains the senderSP on entry. We must
   // preserve it since we may do a i2c -> c2i transition if we lose a
@@ -492,22 +487,12 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // Pre-load the register-jump target early, to schedule it better.
   __ ld(t1, Address(xmethod, in_bytes(Method::from_compiled_offset())));
 
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    // check if this call should be routed towards a specific entry point
-    __ ld(t0, Address(xthread, in_bytes(JavaThread::jvmci_alternate_call_target_offset())));
-    Label no_alternative_target;
-    __ beqz(t0, no_alternative_target);
-    __ mv(t1, t0);
-    __ sd(zr, Address(xthread, in_bytes(JavaThread::jvmci_alternate_call_target_offset())));
-    __ bind(no_alternative_target);
-  }
-#endif // INCLUDE_JVMCI
-
   // Now generate the shuffle code.
+  int total_args_passed = sig->length();
   for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      assert(i > 0 && (sig_bt[i - 1] == T_LONG || sig_bt[i - 1] == T_DOUBLE), "missing half");
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_VOID) {
+      assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
     }
 
@@ -544,7 +529,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         // are accessed as negative so LSW is at LOW address
 
         // ld_off is MSW so get LSW
-        const int offset = (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) ?
+        const int offset = (bt == T_LONG || bt == T_DOUBLE) ?
                            next_off : ld_off;
         __ ld(t0, Address(esp, offset));
         // st_off is LSW (i.e. reg.first())
@@ -560,7 +545,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         // So we must adjust where to pick up the data to match the
         // interpreter.
 
-        const int offset = (sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) ?
+        const int offset = (bt == T_LONG || bt == T_DOUBLE) ?
                            next_off : ld_off;
 
         // this can be a misaligned move
@@ -597,14 +582,19 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
 // ---------------------------------------------------------------
 
-void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
-                                            int total_args_passed,
+void SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                             int comp_args_on_stack,
-                                            const BasicType *sig_bt,
-                                            const VMRegPair *regs,
-                                            address entry_address[AdapterBlob::ENTRY_COUNT]) {
+                                            const GrowableArray<SigEntry>* sig,
+                                            const VMRegPair* regs,
+                                            const GrowableArray<SigEntry>* sig_cc,
+                                            const VMRegPair* regs_cc,
+                                            const GrowableArray<SigEntry>* sig_cc_ro,
+                                            const VMRegPair* regs_cc_ro,
+                                            address entry_address[AdapterBlob::ENTRY_COUNT],
+                                            AdapterBlob*& new_adapter,
+                                            bool allocate_code_blob) {
   entry_address[AdapterBlob::I2C] = __ pc();
-  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
+  gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
   entry_address[AdapterBlob::C2I_Unverified] = __ pc();
   Label skip_fixup;
@@ -655,7 +645,7 @@ void SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->c2i_entry_barrier(masm);
 
-  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  gen_c2i_adapter(masm, comp_args_on_stack, sig, regs, skip_fixup);
   return;
 }
 
@@ -1995,11 +1985,6 @@ void SharedRuntime::generate_deopt_blob() {
   ResourceMark rm;
   // Setup code generation tools
   int pad = 0;
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    pad += 512; // Increase the buffer size when compiling for JVMCI
-  }
-#endif
   const char* name = SharedRuntime::stub_name(StubId::shared_deopt_id);
   CodeBuffer buffer(name, 2048 + pad, 1024);
   MacroAssembler* masm = new MacroAssembler(&buffer);
@@ -2007,7 +1992,7 @@ void SharedRuntime::generate_deopt_blob() {
   OopMap* map = nullptr;
   OopMapSet *oop_maps = new OopMapSet();
   assert_cond(masm != nullptr && oop_maps != nullptr);
-  RegisterSaver reg_saver(COMPILER2_OR_JVMCI != 0);
+  RegisterSaver reg_saver(COMPILER2_PRESENT(true) NOT_COMPILER2(false));
 
   // -------------
   // This code enters when returning to a de-optimized nmethod.  A return
@@ -2052,13 +2037,6 @@ void SharedRuntime::generate_deopt_blob() {
   __ j(cont);
 
   int reexecute_offset = __ pc() - start;
-#if INCLUDE_JVMCI && !defined(COMPILER1)
-  if (UseJVMCICompiler) {
-    // JVMCI does not use this kind of deoptimization
-    __ should_not_reach_here();
-  }
-#endif
-
   // Reexecute case
   // return address is the pc describes what bci to do re-execute at
 
@@ -2067,42 +2045,6 @@ void SharedRuntime::generate_deopt_blob() {
 
   __ mv(xcpool, Deoptimization::Unpack_reexecute); // callee-saved
   __ j(cont);
-
-#if INCLUDE_JVMCI
-  Label after_fetch_unroll_info_call;
-  int implicit_exception_uncommon_trap_offset = 0;
-  int uncommon_trap_offset = 0;
-
-  if (EnableJVMCI) {
-    implicit_exception_uncommon_trap_offset = __ pc() - start;
-
-    __ ld(ra, Address(xthread, in_bytes(JavaThread::jvmci_implicit_exception_pc_offset())));
-    __ sd(zr, Address(xthread, in_bytes(JavaThread::jvmci_implicit_exception_pc_offset())));
-
-    uncommon_trap_offset = __ pc() - start;
-
-    // Save everything in sight.
-    reg_saver.save_live_registers(masm, 0, &frame_size_in_words);
-    // fetch_unroll_info needs to call last_java_frame()
-    Label retaddr;
-    __ set_last_Java_frame(sp, noreg, retaddr, t0);
-
-    __ lw(c_rarg1, Address(xthread, in_bytes(JavaThread::pending_deoptimization_offset())));
-    __ mv(t0, -1);
-    __ sw(t0, Address(xthread, in_bytes(JavaThread::pending_deoptimization_offset())));
-
-    __ mv(xcpool, Deoptimization::Unpack_reexecute);
-    __ mv(c_rarg0, xthread);
-    __ orrw(c_rarg2, zr, xcpool); // exec mode
-    __ rt_call(CAST_FROM_FN_PTR(address, Deoptimization::uncommon_trap));
-    __ bind(retaddr);
-    oop_maps->add_gc_map( __ pc()-start, map->deep_copy());
-
-    __ reset_last_Java_frame(false);
-
-    __ j(after_fetch_unroll_info_call);
-  } // EnableJVMCI
-#endif // INCLUDE_JVMCI
 
   int exception_offset = __ pc() - start;
 
@@ -2194,12 +2136,6 @@ void SharedRuntime::generate_deopt_blob() {
   oop_maps->add_gc_map(__ pc() - start, map);
 
   __ reset_last_Java_frame(false);
-
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    __ bind(after_fetch_unroll_info_call);
-  }
-#endif
 
   // Load UnrollBlock* into x15
   __ mv(x15, x10);
@@ -2354,12 +2290,6 @@ void SharedRuntime::generate_deopt_blob() {
   _deopt_blob = DeoptimizationBlob::create(&buffer, oop_maps, 0, exception_offset, reexecute_offset, frame_size_in_words);
   assert(_deopt_blob != nullptr, "create deoptimization blob fail!");
   _deopt_blob->set_unpack_with_exception_in_tls_offset(exception_in_tls_offset);
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    _deopt_blob->set_uncommon_trap_offset(uncommon_trap_offset);
-    _deopt_blob->set_implicit_exception_uncommon_trap_offset(implicit_exception_uncommon_trap_offset);
-  }
-#endif
 }
 
 // Number of stack slots between incoming argument block and the start of
@@ -2782,3 +2712,16 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
+
+const uint SharedRuntime::java_return_convention_max_int = Argument::n_int_register_parameters_j;
+const uint SharedRuntime::java_return_convention_max_float = Argument::n_float_register_parameters_j;
+
+int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *regs, int total_args_passed) {
+  Unimplemented();
+  return 0;
+}
+
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
+  Unimplemented();
+  return nullptr;
+}

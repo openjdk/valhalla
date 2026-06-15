@@ -297,6 +297,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_native_getEventWriter();
   bool inline_native_jvm_commit();
   void extend_setCurrentThread(Node* jt, Node* thread);
+  bool inline_native_try_update_epoch();
 #endif
   bool inline_native_Class_query(vmIntrinsics::ID id);
   bool inline_primitive_Class_conversion(vmIntrinsics::ID id);
@@ -376,7 +377,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_intpoly_montgomeryMult_P256();
   bool inline_intpoly_assign();
   bool inline_digestBase_implCompress(vmIntrinsics::ID id);
-  bool inline_double_keccak();
+  bool inline_keccak(vmIntrinsics::ID id);
   bool inline_digestBase_implCompressMB(int predicate);
   bool inline_digestBase_implCompressMB(Node* digestBaseObj, ciInstanceKlass* instklass,
                                         BasicType elem_type, address stubAddr, const char *stubName,

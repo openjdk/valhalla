@@ -238,7 +238,7 @@ JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, o
 
   FlatFieldPayload payload(instanceOop(obj), entry);
   if (payload.is_payload_null()) {
-    // If the payload is null return before entring the JRT_BLOCK.
+    // If the payload is null return before entering the JRT_BLOCK.
     current->set_vm_result_oop(nullptr);
     return;
   }
@@ -327,16 +327,8 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* current, oo
   methodHandle method(current, Universe::is_substitutable_method());
   method->method_holder()->initialize(CHECK_false); // Ensure class ValueObjectMethods is initialized
   JavaCalls::call(&result, method, &args, THREAD);
-  if (HAS_PENDING_EXCEPTION) {
-    // Something really bad happened because isSubstitutable() should not throw exceptions
-    // If it is an error, just let it propagate
-    // If it is an exception, wrap it into an InternalError
-    if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
-      Handle e(THREAD, PENDING_EXCEPTION);
-      CLEAR_PENDING_EXCEPTION;
-      THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);
-    }
-  }
+  Exceptions::wrap_exception_in_internal_error("Internal error in substitutability test", CHECK_false);
+
   return result.get_jboolean();
 JRT_END
 
@@ -598,22 +590,6 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     }
   } while (should_repeat == true);
 
-#if INCLUDE_JVMCI
-  if (EnableJVMCI && h_method->method_data() != nullptr) {
-    ResourceMark rm(current);
-    MethodData* mdo = h_method->method_data();
-
-    // Lock to read ProfileData, and ensure lock is not broken by a safepoint
-    MutexLocker ml(mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
-
-    ProfileData* pdata = mdo->allocate_bci_to_data(current_bci, nullptr);
-    if (pdata != nullptr && pdata->is_BitData()) {
-      BitData* bit_data = (BitData*) pdata;
-      bit_data->set_exception_seen();
-    }
-  }
-#endif
-
   // notify JVMTI of an exception throw; JVMTI will detect if this is a first
   // time throw or a stack unwinding throw and accordingly notify the debugger
   if (JvmtiExport::can_post_on_exceptions()) {
@@ -627,10 +603,10 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     // handler in this method, or (b) after a stack overflow there is not yet
     // enough stack space available to reprotect the stack.
     continuation = Interpreter::remove_activation_entry();
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
     // Count this for compilation purposes
     h_method->interpreter_throwout_increment(THREAD);
-#endif
+#endif // COMPILER2
   } else {
     // handler in this method => change bci/bcp to handler bci/bcp and continue there
     handler_pc = h_method->code_base() + handler_bci;
@@ -1166,6 +1142,10 @@ JRT_ENTRY(nmethod*,
 
   LastFrameAccessor last_frame(current);
   assert(last_frame.is_interpreted_frame(), "must come from interpreter");
+
+  if (JvmtiExport::can_post_frame_pop() && JvmtiExport::has_frame_pop_for_top_frame(current)) {
+    return nullptr; // no OSR if there is a FramePop event request for top frame
+  }
   methodHandle method(current, last_frame.method());
   const int branch_bci = branch_bcp != nullptr ? method->bci_from(branch_bcp) : InvocationEntryBci;
   const int bci = branch_bcp != nullptr ? method->bci_from(last_frame.bcp()) : InvocationEntryBci;
@@ -1583,23 +1563,32 @@ JRT_ENTRY(void, InterpreterRuntime::member_name_arg_or_null(JavaThread* current,
                                                             Method* method, address bcp))
   Bytecodes::Code code = Bytecodes::code_at(method, bcp);
   if (code != Bytecodes::_invokestatic) {
+    current->set_vm_result_oop(nullptr);
     return;
   }
+
   ConstantPool* cpool = method->constants();
   int cp_index = Bytes::get_native_u2(bcp + 1);
   Symbol* cname = cpool->klass_name_at(cpool->klass_ref_index_at(cp_index, code));
   Symbol* mname = cpool->name_ref_at(cp_index, code);
 
-  if (MethodHandles::has_member_arg(cname, mname)) {
-    oop member_name_oop = cast_to_oop(member_name);
-    if (java_lang_invoke_DirectMethodHandle::is_instance(member_name_oop)) {
-      // FIXME: remove after j.l.i.InvokerBytecodeGenerator code shape is updated.
-      member_name_oop = java_lang_invoke_DirectMethodHandle::member(member_name_oop);
-    }
-    current->set_vm_result_oop(member_name_oop);
-  } else {
+  if (!MethodHandles::has_member_arg(cname, mname)) {
     current->set_vm_result_oop(nullptr);
+    return;
   }
+
+  oop member_name_oop = cast_to_oop(member_name);
+
+  guarantee(member_name_oop != nullptr, "member_name_oop should not be nullptr");
+  guarantee(oopDesc::is_oop(member_name_oop), "member_name_oop should be an oop");
+  guarantee(java_lang_invoke_MemberName::is_instance(member_name_oop) ||
+    java_lang_invoke_DirectMethodHandle::is_instance(member_name_oop),
+    "member_name_oop is not MemberName or DMH");
+
+  if (java_lang_invoke_DirectMethodHandle::is_instance(member_name_oop)) {
+    member_name_oop = java_lang_invoke_DirectMethodHandle::member(member_name_oop);
+  }
+  current->set_vm_result_oop(member_name_oop);
 JRT_END
 #endif // INCLUDE_JVMTI
 

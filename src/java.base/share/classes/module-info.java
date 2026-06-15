@@ -60,6 +60,7 @@
  * @uses java.text.spi.NumberFormatProvider
  * @uses java.time.chrono.AbstractChronology
  * @uses java.time.chrono.Chronology
+ * @uses java.time.format.DateTimeFormatterPatternProvider
  * @uses java.time.zone.ZoneRulesProvider
  * @uses java.util.spi.CalendarDataProvider
  * @uses java.util.spi.CalendarNameProvider
@@ -212,9 +213,7 @@ module java.base {
         jdk.jfr,
         jdk.jshell,
         jdk.nio.mapmode,
-        jdk.unsupported,
-        jdk.internal.vm.ci,
-        jdk.graal.compiler;
+        jdk.unsupported;
     exports jdk.internal.module to
         java.instrument,
         java.management.rmi,
@@ -239,7 +238,6 @@ module java.base {
         java.sql,
         java.sql.rowset,
         jdk.dynalink,
-        jdk.internal.vm.ci,
         jdk.jdeps,
         jdk.unsupported;
     exports jdk.internal.vm to
@@ -247,11 +245,9 @@ module java.base {
         jdk.internal.jvmstat,
         jdk.management,
         jdk.management.agent,
-        jdk.internal.vm.ci,
         jdk.jfr;
     exports jdk.internal.vm.annotation to
         java.instrument,
-        jdk.internal.vm.ci,
         jdk.incubator.vector,
         jdk.jfr,
         jdk.unsupported;
@@ -273,7 +269,6 @@ module java.base {
         java.net.http,
         jdk.charsets,
         jdk.incubator.vector,
-        jdk.internal.vm.ci,
         jdk.httpserver,
         jdk.jlink,
         jdk.jpackage,
@@ -384,6 +379,7 @@ module java.base {
     uses java.text.spi.NumberFormatProvider;
     uses java.time.chrono.AbstractChronology;
     uses java.time.chrono.Chronology;
+    uses java.time.format.DateTimeFormatterPatternProvider;
     uses java.time.zone.ZoneRulesProvider;
     uses java.util.spi.CalendarDataProvider;
     uses java.util.spi.CalendarNameProvider;
@@ -399,7 +395,6 @@ module java.base {
 
     uses jdk.internal.io.JdkConsoleProvider;
     uses jdk.internal.logger.DefaultLoggerFinder;
-    uses sun.text.spi.JavaTimeDateTimePatternProvider;
     uses sun.util.spi.CalendarProvider;
     uses sun.util.locale.provider.LocaleDataMetaInfo;
     uses sun.util.resources.LocaleData.LocaleDataResourceBundleProvider;

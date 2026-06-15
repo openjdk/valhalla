@@ -2136,6 +2136,26 @@ void MacroAssembler::vmovdqa(XMMRegister dst, AddressLiteral src, int vector_len
   }
 }
 
+void MacroAssembler::vmovdqa(XMMRegister dst, Address src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    Assembler::evmovdqaq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    Assembler::vmovdqa(dst, src);
+  } else {
+    Assembler::movdqa(dst, src);
+  }
+}
+
+void MacroAssembler::vmovdqa(Address dst, XMMRegister src, int vector_len) {
+  if (vector_len == AVX_512bit) {
+    Assembler::evmovdqaq(dst, src, AVX_512bit);
+  } else if (vector_len == AVX_256bit) {
+    Assembler::vmovdqa(dst, src);
+  } else {
+    Assembler::movdqa(dst, src);
+  }
+}
+
 void MacroAssembler::kmov(KRegister dst, Address src) {
   if (VM_Version::supports_avx512bw()) {
     kmovql(dst, src);
@@ -2421,12 +2441,6 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
   jcc(Assembler::notEqual, is_flat);
 }
 
-void MacroAssembler::test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker) {
-  movl(temp_reg, flags);
-  testl(temp_reg, 1 << ResolvedFieldEntry::has_null_marker_shift);
-  jcc(Assembler::notEqual, has_null_marker);
-}
-
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
   Label test_mark_word;
   // load mark word
@@ -2446,50 +2460,25 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
 
 void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
                                          Label& is_flat_array) {
-#ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
-#else
-  load_klass(temp_reg, oop, noreg);
-  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
-  test_flat_array_layout(temp_reg, is_flat_array);
-#endif
 }
 
 void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg,
                                              Label& is_non_flat_array) {
-#ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
-#else
-  load_klass(temp_reg, oop, noreg);
-  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
-  test_non_flat_array_layout(temp_reg, is_non_flat_array);
-#endif
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
-#ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
-#else
-  Unimplemented();
-#endif
 }
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
-#ifdef _LP64
   test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
-#else
-  Unimplemented();
-#endif
 }
 
 void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
   testl(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   jcc(Assembler::notZero, is_flat_array);
-}
-
-void MacroAssembler::test_non_flat_array_layout(Register lh, Label& is_non_flat_array) {
-  testl(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
-  jcc(Assembler::zero, is_non_flat_array);
 }
 
 void MacroAssembler::os_breakpoint() {
@@ -3627,124 +3616,6 @@ void MacroAssembler::testbool(Register dst) {
 
 void MacroAssembler::testptr(Register dst, Register src) {
   testq(dst, src);
-}
-
-// Object / value buffer allocation...
-//
-// Kills klass and rsi on LP64
-void MacroAssembler::allocate_instance(Register klass, Register new_obj,
-                                       Register t1, Register t2,
-                                       bool clear_fields, Label& alloc_failed)
-{
-  Label done, initialize_header, initialize_object, slow_case, slow_case_no_pop;
-  Register layout_size = t1;
-  assert(new_obj == rax, "needs to be rax");
-  assert_different_registers(klass, new_obj, t1, t2);
-
-  // get instance_size in InstanceKlass (scaled to a count of bytes)
-  movl(layout_size, Address(klass, Klass::layout_helper_offset()));
-  // test to see if it is malformed in some way
-  testl(layout_size, Klass::_lh_instance_slow_path_bit);
-  jcc(Assembler::notZero, slow_case_no_pop);
-
-  // Allocate the instance:
-  //  If TLAB is enabled:
-  //    Try to allocate in the TLAB.
-  //    If fails, go to the slow path.
-  //  Else If inline contiguous allocations are enabled:
-  //    Try to allocate in eden.
-  //    If fails due to heap end, go to slow path.
-  //
-  //  If TLAB is enabled OR inline contiguous is enabled:
-  //    Initialize the allocation.
-  //    Exit.
-  //
-  //  Go to slow path.
-
-  push(klass);
-  if (UseTLAB) {
-    tlab_allocate(new_obj, layout_size, 0, klass, t2, slow_case);
-    if (ZeroTLAB || (!clear_fields)) {
-      // the fields have been already cleared
-      jmp(initialize_header);
-    } else {
-      // initialize both the header and fields
-      jmp(initialize_object);
-    }
-  } else {
-    jmp(slow_case);
-  }
-
-  // If UseTLAB is true, the object is created above and there is an initialize need.
-  // Otherwise, skip and go to the slow path.
-  if (UseTLAB) {
-    if (clear_fields) {
-      // The object is initialized before the header.  If the object size is
-      // zero, go directly to the header initialization.
-      bind(initialize_object);
-      if (UseCompactObjectHeaders) {
-        assert(is_aligned(oopDesc::base_offset_in_bytes(), BytesPerLong), "oop base offset must be 8-byte-aligned");
-        decrement(layout_size, oopDesc::base_offset_in_bytes());
-      } else {
-        decrement(layout_size, sizeof(oopDesc));
-      }
-      jcc(Assembler::zero, initialize_header);
-
-      // Initialize topmost object field, divide size by 8, check if odd and
-      // test if zero.
-      Register zero = klass;
-      xorl(zero, zero);    // use zero reg to clear memory (shorter code)
-      shrl(layout_size, LogBytesPerLong); // divide by 2*oopSize and set carry flag if odd
-
-  #ifdef ASSERT
-      // make sure instance_size was multiple of 8
-      Label L;
-      // Ignore partial flag stall after shrl() since it is debug VM
-      jcc(Assembler::carryClear, L);
-      stop("object size is not multiple of 2 - adjust this code");
-      bind(L);
-      // must be > 0, no extra check needed here
-  #endif
-
-      // initialize remaining object fields: instance_size was a multiple of 8
-      {
-        Label loop;
-        bind(loop);
-        int header_size_bytes = oopDesc::header_size() * HeapWordSize;
-        assert(is_aligned(header_size_bytes, BytesPerLong), "oop header size must be 8-byte-aligned");
-        movptr(Address(new_obj, layout_size, Address::times_8, header_size_bytes - 1*oopSize), zero);
-        decrement(layout_size);
-        jcc(Assembler::notZero, loop);
-      }
-    } // clear_fields
-
-    // initialize object header only.
-    bind(initialize_header);
-    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
-      pop(klass);
-      Register mark_word = t2;
-      movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
-      movptr(Address(new_obj, oopDesc::mark_offset_in_bytes ()), mark_word);
-    } else {
-     movptr(Address(new_obj, oopDesc::mark_offset_in_bytes()),
-            (intptr_t)markWord::prototype().value()); // header
-     pop(klass);   // get saved klass back in the register.
-    }
-    if (!UseCompactObjectHeaders) {
-      xorl(rsi, rsi);                 // use zero reg to clear memory (shorter code)
-      store_klass_gap(new_obj, rsi);  // zero klass gap for compressed oops
-      movptr(t2, klass);         // preserve klass
-      store_klass(new_obj, t2, rscratch1);  // src klass reg is potentially compressed
-    }
-    jmp(done);
-  }
-
-  bind(slow_case);
-  pop(klass);
-  bind(slow_case_no_pop);
-  jmp(alloc_failed);
-
-  bind(done);
 }
 
 // Defines obj, preserves var_size_in_bytes, okay for t2 == var_size_in_bytes.
@@ -5144,7 +5015,7 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   Register offset = rscratch1;
 
   Label L_loop_search_receiver, L_loop_search_empty;
-  Label L_restart, L_found_recv, L_found_empty, L_polymorphic, L_count_update;
+  Label L_restart, L_found_recv, L_found_empty, L_count_update;
 
   // The code here recognizes three major cases:
   //   A. Fastest: receiver found in the table
@@ -5174,20 +5045,19 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   //     if (receiver(i) == recv) goto found_recv(i);
   //   }
   //
-  //   // Fast: no receiver, but profile is full
+  //   // Fast: no receiver, but profile is not full
   //   for (i = 0; i < receiver_count(); i++) {
   //     if (receiver(i) == null) goto found_null(i);
   //   }
-  //   goto polymorphic
+  //
+  //   // Slow: profile is full, polymorphic case
+  //   count++;
+  //   return
   //
   //   // Slow: try to install receiver
   // found_null(i):
   //   CAS(&receiver(i), null, recv);
   //   goto restart
-  //
-  // polymorphic:
-  //   count++;
-  //   return
   //
   // found_recv(i):
   //   *receiver_count(i)++
@@ -5204,7 +5074,7 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   cmpptr(offset, end_receiver_offset);
   jccb(Assembler::notEqual, L_loop_search_receiver);
 
-  // Fast: no receiver, but profile is full
+  // Fast: no receiver, but profile is not full
   movptr(offset, base_receiver_offset);
   bind(L_loop_search_empty);
     cmpptr(Address(mdp, offset, Address::times_ptr), NULL_WORD);
@@ -5212,9 +5082,13 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   addptr(offset, receiver_step);
   cmpptr(offset, end_receiver_offset);
   jccb(Assembler::notEqual, L_loop_search_empty);
-  jmpb(L_polymorphic);
 
-  // Slow: try to install receiver
+  // Slow: Receiver is not found and table is full.
+  // Increment polymorphic counter instead of receiver slot.
+  movptr(offset, poly_count_offset);
+  jmpb(L_count_update);
+
+  // Slowest: try to install receiver
   bind(L_found_empty);
 
   // Atomically swing receiver slot: null -> recv.
@@ -5266,17 +5140,11 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
   // and just restart the search from the beginning.
   jmpb(L_restart);
 
-  // Counter updates:
-
-  // Increment polymorphic counter instead of receiver slot.
-  bind(L_polymorphic);
-  movptr(offset, poly_count_offset);
-  jmpb(L_count_update);
-
   // Found a receiver, convert its slot offset to corresponding count offset.
   bind(L_found_recv);
   addptr(offset, receiver_to_count_step);
 
+  // Finally, update the counter
   bind(L_count_update);
   addptr(Address(mdp, offset, Address::times_ptr), DataLayout::counter_increment);
 }
@@ -5622,12 +5490,10 @@ void MacroAssembler::print_CPU_state() {
 void MacroAssembler::restore_cpu_control_state_after_jni(Register rscratch) {
   // Either restore the MXCSR register after returning from the JNI Call
   // or verify that it wasn't changed (with -Xcheck:jni flag).
-  if (VM_Version::supports_sse()) {
-    if (RestoreMXCSROnJNICalls) {
-      ldmxcsr(ExternalAddress(StubRoutines::x86::addr_mxcsr_std()), rscratch);
-    } else if (CheckJNICalls) {
-      call(RuntimeAddress(StubRoutines::x86::verify_mxcsr_entry()));
-    }
+  if (RestoreMXCSROnJNICalls) {
+    ldmxcsr(ExternalAddress(StubRoutines::x86::addr_mxcsr_std()), rscratch);
+  } else if (CheckJNICalls) {
+    call(RuntimeAddress(StubRoutines::x86::verify_mxcsr_entry()));
   }
   // Clear upper bits of YMM registers to avoid SSE <-> AVX transition penalty.
   vzeroupper();
@@ -5788,24 +5654,6 @@ void MacroAssembler::payload_addr(Register oop, Register data, Register inline_k
   } else {
     lea(data, Address(oop, offset));
   }
-}
-
-void MacroAssembler::data_for_value_array_index(Register array, Register array_klass,
-                                                Register index, Register data) {
-  assert(index != rcx, "index needs to shift by rcx");
-  assert_different_registers(array, array_klass, index);
-  assert_different_registers(rcx, array, index);
-
-  // array->base() + (index << Klass::layout_helper_log2_element_size(lh));
-  movl(rcx, Address(array_klass, Klass::layout_helper_offset()));
-
-  // Klass::layout_helper_log2_element_size(lh)
-  // (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-  shrl(rcx, Klass::_lh_log2_element_size_shift);
-  andl(rcx, Klass::_lh_log2_element_size_mask);
-  shlptr(index); // index << rcx
-
-  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_FLAT_ELEMENT)));
 }
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1, DecoratorSet decorators) {
@@ -6181,10 +6029,9 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   jcc(Assembler::zero, skip);
   int call_offset = -1;
 
-#ifdef _LP64
-  // The following code is similar to allocate_instance but has some slight differences,
+  // The following code is similar to allocation code in TemplateTable::_new but has some slight differences,
   // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
-  // allocating is not necessary if vk != nullptr, etc. allocate_instance is not aware of these.
+  // allocating is not necessary if vk != nullptr, etc.
   Label slow_case;
   // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
   mov(rscratch1, rax); // save rax for slow_case since *_allocate may corrupt it when allocation failed
@@ -6246,7 +6093,6 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   // tell. That runtime call will take care of preserving them
   // across a GC if there's one.
   mov(rax, rscratch1);
-#endif
 
   if (from_interpreter) {
     super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
@@ -6582,7 +6428,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 
   assert(reg_state[to->value()] == reg_writable, "must have already been read");
   bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state);
-  assert(success, "to register must be writeable");
+  assert(success, "to register must be writable");
   return true;
 }
 
@@ -6654,7 +6500,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
   }
 }
 
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
 
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
 void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
@@ -6858,7 +6704,7 @@ void MacroAssembler::clear_mem(Register base, Register cnt, Register val, XMMReg
   BIND(DONE);
 }
 
-#endif //COMPILER2_OR_JVMCI
+#endif //COMPILER2
 
 
 void MacroAssembler::generate_fill(BasicType t, bool aligned,
@@ -7771,7 +7617,7 @@ void MacroAssembler::vectorized_mismatch(Register obja, Register objb, Register 
   xorq(result, result);
 
   if ((AVX3Threshold == 0) && (UseAVX > 2) &&
-      VM_Version::supports_avx512vlbw()) {
+      VM_Version::supports_avx512vlbw() && UseCountTrailingZerosInstruction) {
     Label VECTOR64_LOOP, VECTOR64_NOT_EQUAL, VECTOR32_TAIL;
 
     cmpq(length, 64);
@@ -10250,7 +10096,7 @@ void MacroAssembler::vpternlogq(XMMRegister dst, int imm8, XMMRegister src2, Add
   }
 }
 
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
 
 void MacroAssembler::fill_masked(BasicType bt, Address dst, XMMRegister xmm, KRegister mask,
                                  Register length, Register temp, int vec_enc) {
@@ -10485,7 +10331,7 @@ void MacroAssembler::generate_fill_avx3(BasicType type, Register to, Register va
   }
   bind(L_exit);
 }
-#endif //COMPILER2_OR_JVMCI
+#endif //COMPILER2
 
 
 void MacroAssembler::convert_f2i(Register dst, XMMRegister src) {
@@ -10615,7 +10461,6 @@ void MacroAssembler::convert_d2l(Register dst, XMMRegister src) {
 void MacroAssembler::cache_wb(Address line)
 {
   // 64 bit cpus always support clflush
-  assert(VM_Version::supports_clflush(), "clflush should be available");
   bool optimized = VM_Version::supports_clflushopt();
   bool no_evict = VM_Version::supports_clwb();
 
@@ -10637,7 +10482,6 @@ void MacroAssembler::cache_wb(Address line)
 
 void MacroAssembler::cache_wbsync(bool is_pre)
 {
-  assert(VM_Version::supports_clflush(), "clflush should be available");
   bool optimized = VM_Version::supports_clflushopt();
   bool no_evict = VM_Version::supports_clwb();
 

@@ -49,7 +49,7 @@ public:
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
 
   virtual void flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
-                          Register src, Register dst, Register inline_layout_info);
+                               Register src, Register dst, Register inline_layout_info);
 
   // The copy_[load/store]_at functions are used by arraycopy stubs. Be careful to only use
   // r10 (aka rscratch1) in a context where restore_arg_regs_using_thread has been used instead
@@ -109,11 +109,13 @@ public:
 
   virtual void check_oop(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, Label& error);
 
+  // See AS_NO_KEEPALIVE for peek semantics
+  // weak_handle and obj may alias
+  virtual void try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj, Label& slowpath);
+
 #ifdef COMPILER2
   OptoReg::Name refine_register(const Node* node,
                                 OptoReg::Name opto_reg);
-
-  virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Label& slowpath);
 #endif // COMPILER2
 };
 
