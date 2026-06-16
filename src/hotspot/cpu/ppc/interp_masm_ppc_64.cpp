@@ -2445,7 +2445,6 @@ void InterpreterMacroAssembler::write_flat_field(Register entry, Register tmp1, 
 
   null_check_throw(value, -1, tmp1);
 
-  untested("write_flat_field null free");
   add(obj, obj, field_offset);
 
   load_klass(tmp1, value);

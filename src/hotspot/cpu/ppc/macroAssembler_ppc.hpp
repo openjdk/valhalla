@@ -833,10 +833,10 @@ class MacroAssembler: public Assembler {
   void test_field_is_flat(Register flags, Label& is_flat);
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
-  void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
-  void test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array);
+  void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label, bool maybe_far = false);
+  void test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array, bool maybe_far = false);
   void test_non_flat_array_oop(Register oop, Register temp_reg, Label& is_non_flat_array);
-  void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array);
+  void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array, bool maybe_far = false);
   void test_non_null_free_array_oop(Register oop, Register temp_reg, Label& is_non_null_free_array);
 
   // Check array klass layout helper for flat or null-free arrays...

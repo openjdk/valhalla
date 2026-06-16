@@ -3352,7 +3352,8 @@ void MacroAssembler::test_field_is_flat(Register flags, Label& is_flat) {
   bne(CR0, is_flat);
 }
 
-void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
+void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set,
+                                            Label& jmp_label, bool maybe_far) {
   Label test_mark_word;
   // load mark word
   ld(temp_reg, oopDesc::mark_offset_in_bytes(), oop);
@@ -3364,23 +3365,28 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
 
   bind(test_mark_word);
   andi_(R0, temp_reg, test_bit);
-  if (jmp_set) {
-    bne(CR0, jmp_label);
+  if (maybe_far) {
+    bc_far_optimized(jmp_set ? Assembler::bcondCRbiIs0 : Assembler::bcondCRbiIs1,
+                     bi0(CR0, Assembler::equal), jmp_label);
   } else {
-    beq(CR0, jmp_label);
+    if (jmp_set) {
+      bne(CR0, jmp_label);
+    } else {
+      beq(CR0, jmp_label);
+    }
   }
 }
 
-void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
+void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array, bool maybe_far) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array, maybe_far);
 }
 
 void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg, Label& is_non_flat_array) {
   test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
 }
 
-void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
+void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array, bool maybe_far) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array, maybe_far);
 }
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label& is_non_null_free_array) {

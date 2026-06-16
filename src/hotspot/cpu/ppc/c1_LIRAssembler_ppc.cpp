@@ -1767,10 +1767,10 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
     __ beq(CR0, *slow_path->entry());
   }
   if (is_dest) {
-    __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
-    __ test_flat_array_oop(obj, tmp, *slow_path->entry());
+    __ test_null_free_array_oop(obj, tmp, *slow_path->entry(), true);
+    __ test_flat_array_oop(obj, tmp, *slow_path->entry(), true);
   } else {
-    __ test_flat_array_oop(obj, tmp, *slow_path->entry());
+    __ test_flat_array_oop(obj, tmp, *slow_path->entry(), true);
   }
 }
 
@@ -3099,7 +3099,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
   // We are loading/storing from/to an array that *may* be a flat array (the
   // declared type is Object[], abstract[], interface[] or VT.ref[]).
   // If this array is a flat array, take the slow path.
-  __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
+  __ test_flat_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry(), true);
 }
 
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
