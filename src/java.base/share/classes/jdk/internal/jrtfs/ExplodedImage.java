@@ -83,7 +83,7 @@ class ExplodedImage extends SystemImage {
     private final class PathNode extends Node {
         private final PathResolution resolution;
         private final PathNode link;
-        // Sorted and has no duplicates
+        // Has no duplicates
         private volatile List<String> childNames;
 
         /**
@@ -117,7 +117,7 @@ class ExplodedImage extends SystemImage {
         private PathNode(String name, List<PathNode> children) {
             super(name, modulesDirAttrs);
             this.resolution = null;
-            this.childNames = children.stream().map(Node::getName).sorted().collect(Collectors.toList());
+            this.childNames = children.stream().map(Node::getName).collect(Collectors.toList());
             this.link = null;
         }
 
@@ -146,7 +146,7 @@ class ExplodedImage extends SystemImage {
 
         private byte[] getContent() throws IOException {
             if (!getFileAttributes().isRegularFile())
-                throw new FileSystemException(getName() + " is not a resource");
+                throw new FileSystemException(getName() + " is not file");
             return Files.readAllBytes(resolution.selected);
         }
 
@@ -170,7 +170,7 @@ class ExplodedImage extends SystemImage {
             Set<String> childNameSet = new HashSet<>();
             collectChildNodeNames(resolution.regularPath, childNameSet);
             collectChildNodeNames(resolution.previewPath, childNameSet);
-            return childNames = childNameSet.stream().sorted().collect(Collectors.toList());
+            return childNames = new ArrayList<>(childNameSet);
         }
 
         private void collectChildNodeNames(Path absPath, Set<String> childNameSet) {
@@ -217,12 +217,12 @@ class ExplodedImage extends SystemImage {
         }
         // We anticipate the name of a "/modules/..." node for lazy creation.
         // All "/packages/..." nodes are created by initNodes() instead.
-        PathResolution resolution = resolveModulesPath(name);
+        PathResolution resolution = resolveRealPath(name);
         if (resolution == null) {
             return null;
         }
         // This can still return null for hidden files.
-        return createModulesNode(name, resolution);
+        return createRealPathNode(name, resolution);
     }
 
     static final class PathResolution {
@@ -244,8 +244,8 @@ class ExplodedImage extends SystemImage {
      * or {@code null} if the name is not in the "/modules/..." namespace or the
      * path does not reference a file.
      */
-    private PathResolution resolveModulesPath(String name) {
-        if (!isNonEmptyModulesName(name)) {
+    private PathResolution resolveRealPath(String name) {
+        if (!isRealPathName(name)) {
             return null;
         }
         String relName = name.substring(MODULES.length());
@@ -302,9 +302,9 @@ class ExplodedImage extends SystemImage {
      * @return the newly created and cached node, or {@code null} if the given
      *     path references a file which must be hidden in the node hierarchy.
      */
-    private PathNode createModulesNode(String name, PathResolution resolution) {
+    private PathNode createRealPathNode(String name, PathResolution resolution) {
         assert !nodes.containsKey(name) : "Node must not already exist: " + name;
-        assert isNonEmptyModulesName(name) : "Invalid modules name: " + name;
+        assert isRealPathName(name) : "Invalid path name in /modules: " + name;
 
         try {
             // We only know if we're creating a resource of directory when we
@@ -329,7 +329,8 @@ class ExplodedImage extends SystemImage {
         }
     }
 
-    private static boolean isNonEmptyModulesName(String name) {
+    // Ensures this is a name taking form /modules/... with no trailing slash.
+    private static boolean isRealPathName(String name) {
         // Don't just check the prefix, there must be something after it too
         // (otherwise you end up with an empty string after trimming).
         // Also make sure we can't be tricked by "/modules//absolute/path" or
@@ -345,7 +346,7 @@ class ExplodedImage extends SystemImage {
                 && !name.endsWith("/..");
     }
 
-    // initialize file system Nodes
+    // initialize the root /modules, /packages, and the symbolic link Nodes
     private void initNodes() throws IOException {
         // same package prefix may exist in multiple modules. This Map
         // is filled by walking "jdk modules" directory recursively!
@@ -353,7 +354,7 @@ class ExplodedImage extends SystemImage {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(modulesDir)) {
             for (Path moduleDir : stream) {
                 if (Files.isDirectory(moduleDir)) {
-                    processModuleDirectory(moduleDir, packageToModules);
+                    findPackagesInModule(moduleDir, packageToModules);
                 }
             }
         }
@@ -390,7 +391,7 @@ class ExplodedImage extends SystemImage {
         nodes.put(root.getName(), root);
     }
 
-    private void processModuleDirectory(Path moduleDir, Map<String, List<String>> packageToModules)
+    private void findPackagesInModule(Path moduleDir, Map<String, List<String>> packageToModules)
             throws IOException {
         String moduleName = moduleDir.getFileName().toString();
         // Make sure "/modules/<moduleName>" is created
@@ -398,10 +399,8 @@ class ExplodedImage extends SystemImage {
         UnaryOperator<Path> previewExtractor = isPreviewMode
                 ? (p -> p.startsWith(PREVIEW_DIR) ? PREVIEW_DIR.relativize(p) : p)
                 : UnaryOperator.identity();
-        try (Stream<Path> contentsStream = Files.walk(moduleDir)) {
+        try (Stream<Path> contentsStream = Files.find(moduleDir, Integer.MAX_VALUE, (path, attr) -> attr.isDirectory())) {
             contentsStream
-                    // Non-empty relative directory paths inside each module.
-                    .filter(Files::isDirectory)
                     .map(moduleDir::relativize)
                     // When in preview mode, map paths inside preview directory
                     // to non-preview versions.
