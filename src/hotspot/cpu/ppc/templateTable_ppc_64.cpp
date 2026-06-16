@@ -687,16 +687,17 @@ void TemplateTable::aaload() {
   __ index_check(Rarray, R17_tos /* index */, UseCompressedOops ? 2 : LogBytesPerWord, Rtemp, Rload_addr);
   __ profile_array_type<ArrayLoadData>(Rarray, R11_scratch1, R12_scratch2);
   if (UseArrayFlattening) {
-    Label is_flat_array;
+    Label is_flat_array, cont;
 
     __ test_flat_array_oop(Rarray, Rtemp, is_flat_array);
     do_oop_load(_masm, Rload_addr, arrayOopDesc::base_offset_in_bytes(T_OBJECT), R17_tos, Rtemp, Rtemp2,
                 IS_ARRAY);
     __ verify_oop(R17_tos);
-    __ dispatch_epilog(atos, Bytecodes::length_for(bytecode()));
+    __ b(cont);
 
     __ bind(is_flat_array);
     __ call_VM(R17_tos, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), Rarray, R17_tos);
+    __ bind(cont);
   } else {
     do_oop_load(_masm, Rload_addr, arrayOopDesc::base_offset_in_bytes(T_OBJECT), R17_tos, Rtemp, Rtemp2,
                 IS_ARRAY);
