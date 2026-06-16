@@ -27,9 +27,10 @@
  * @summary Checks interaction of static field VarHandle with class
  *          initialization mechanism.
  * @enablePreview
- * @library /test/lib
- * @build LazyInitializingTest ${test.main.class}
- * @run driver jdk.test.lib.helpers.StrictProcessor StrictInitializingSample
+ * @library java.base /test/lib
+ * @build java.base/java.lang.invoke.*
+ *        LazyInitializingTest ${test.main.class}
+ * @run driver jdk.test.lib.helpers.StrictProcessor StrictInitializingSample StrictStaticFinalHolder
  * @run junit ${test.main.class}
  * @run junit/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true ${test.main.class}
  * @run junit/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false ${test.main.class}
@@ -39,6 +40,7 @@
 
 import java.io.IOException;
 import java.lang.constant.ConstantDescs;
+import java.lang.invoke.LookupHelper;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -107,6 +109,13 @@ public class StrictInitializingTest {
         assertTrue(executed[0]);
     }
 
+
+    @Test
+    public void testSetAccessOnStaticStrictFinal() throws Throwable {
+        var vh = LookupHelper.IMPL_LOOKUP.findStaticVarHandle(StrictStaticFinalHolder.class, "f", Object.class);
+        assertFalse(vh.isAccessModeSupported(VarHandle.AccessMode.SET));
+    }
+
     static LazyInitializingTest.ClassInfo createSampleClass(LazyInitializingTest.SampleData sampleData) {
         try {
             var lookup = LOOKUP.defineHiddenClassWithClassData(sampleClassBytes(), sampleData, false);
@@ -152,4 +161,9 @@ class StrictInitializingSample {
             throw new ExceptionInInitializerError(e);
         }
     }
+}
+
+class StrictStaticFinalHolder {
+    @StrictInit
+    static final Object f = 5;
 }
