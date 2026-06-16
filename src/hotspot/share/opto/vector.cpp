@@ -205,18 +205,24 @@ void PhaseVector::scalarize_vbox_node(VectorBoxNode* vec_box) {
       uint nargs = call->method()->arg_size();
       kit.ensure_stack(kit.sp() + nargs);
       uint in_idx = TypeFunc::Parms;
-      for (uint parm_idx = 0; parm_idx < nargs; parm_idx++) {
-        if (call->method()->is_scalarized_arg(static_cast<int>(parm_idx))) {
-          bool nullable = call->tf()->domain_sig()->field_at(TypeFunc::Parms + parm_idx)->maybe_null();
-          ciInlineKlass* vk = call->tf()->domain_sig()->field_at(TypeFunc::Parms + parm_idx)->inline_klass();
+      int parm_idx = 0;
+      for (uint i = 0; i < nargs; i++) {
+        const Type* arg_type = call->tf()->domain_sig()->field_at(TypeFunc::Parms + i);
+        if (arg_type->is_inlinetypeptr() && !call->method()->mismatch() && call->method()->is_scalarized_arg(parm_idx)) {
+          bool nullable = arg_type->maybe_null();
+          ciInlineKlass* vk = arg_type->inline_klass();
           InlineTypeNode* it = InlineTypeNode::make_from_multi(&kit, call, vk, in_idx, true, !nullable);
           kit.push(gvn.transform(it));
         } else {
           kit.push(call->in(in_idx));
           in_idx++;
         }
+        if (arg_type != Type::HALF) {
+          parm_idx++;
+        }
       }
       assert(in_idx == call->tf()->domain_cc()->cnt(), "should have processed exactly as many input as the scalarized calling convention; %d vs %d", in_idx, call->tf()->domain_cc()->cnt());
+      assert(parm_idx == (call->method()->is_static() ? 0 : 1) + call->method()->signature()->count(), "should have processed all the parameters; %d vs %d", parm_idx, (call->method()->is_static() ? 0 : 1) + call->method()->signature()->count());
       jvms = kit.sync_jvms();
 
       Node* new_vbox = nullptr;
