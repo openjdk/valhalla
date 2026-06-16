@@ -2867,7 +2867,6 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ dispatch_epilog(vtos, Bytecodes::length_for(bytecode()));
 
       __ bind(is_flat);
-      __ untested("getfield flat");
       // field is flat (null-free or nullable with a null-marker)
       __ mr(R17_tos, Rclass_or_obj);
       __ read_flat_field(Rcache, R17_tos);
