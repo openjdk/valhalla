@@ -6975,13 +6975,6 @@ const TypeOopPtr* TypeAryKlassPtr::as_instance_type(bool klass_change) const {
   } else {
     el = elem();
   }
-  if (!UseNewCode) {
-    bool null_free = _null_free;
-    if (null_free && el->isa_ptr()) {
-      el = el->is_ptr()->join_speculative(TypePtr::NOTNULL);
-    }
-    return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, is_flat(), is_not_flat(), is_not_null_free(), is_atomic()), k, xk, Offset(0));
-  }
   bool flat, not_flat, not_null_free, atomic;
   if (_refined_type) {
     if (_null_free && el->isa_ptr()) {
