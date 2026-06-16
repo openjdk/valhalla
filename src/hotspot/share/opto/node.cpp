@@ -3201,7 +3201,7 @@ void TypeNode::create_halt_path(PhaseIterGVN* igvn, Node* c, PhaseIdealLoop* loo
   }
 
   stringStream ss;
-  ss.print("dead path discovered by TypeNode during %s: this:%d; c:%d  method:%s", phase_str, this->_idx, c->_idx, igvn->C->method()->name()->as_quoted_ascii());
+  ss.print("dead path discovered by TypeNode during %s", phase_str);
 
   Node* halt = new HaltNode(c, frame, ss.as_string(igvn->C->comp_arena()));
   if (loop == nullptr) {
