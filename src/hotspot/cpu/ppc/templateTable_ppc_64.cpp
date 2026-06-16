@@ -4054,11 +4054,11 @@ void TemplateTable::_new() {
     // Init mark.
     if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
       __ ld(Rscratch, in_bytes(Klass::prototype_header_offset()), RinstanceKlass);
-      __ std(Rscratch, oopDesc::mark_offset_in_bytes(), RallocatedObject);
     } else {
       __ load_const_optimized(Rscratch, markWord::prototype().value(), R0);
-      __ std(Rscratch, oopDesc::mark_offset_in_bytes(), RallocatedObject);
     }
+    __ std(Rscratch, oopDesc::mark_offset_in_bytes(), RallocatedObject);
+
     if (!UseCompactObjectHeaders) {
       __ store_klass_gap(RallocatedObject);
       __ store_klass(RallocatedObject, RinstanceKlass, Rscratch);

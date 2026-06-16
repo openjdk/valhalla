@@ -159,16 +159,16 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     // Valhalla: Could have value class which has a different prototype header to a normal object.
     // In both cases, we need to fetch dynamically.
     ld(t1, in_bytes(Klass::prototype_header_offset()), klass);
-    std(t1, oopDesc::mark_offset_in_bytes(), obj);
   } else {
     // Otherwise: Can use the statically computed prototype header which is the same for every object.
     load_const_optimized(t1, (intx)markWord::prototype().value());
-    std(t1, oopDesc::mark_offset_in_bytes(), obj);
-    if (!UseCompactObjectHeaders) {
-      // COH: Markword already contains class pointer. Nothing else to do.
-      // Otherwise: Store encoded klass pointer following the markword
-      store_klass(obj, klass);
-    }
+  }
+  std(t1, oopDesc::mark_offset_in_bytes(), obj);
+
+  if (!UseCompactObjectHeaders) {
+    // COH: Markword already contains class pointer. Nothing else to do.
+    // Otherwise: Store encoded klass pointer following the markword
+    store_klass(obj, klass);
   }
 
   if (len->is_valid()) {
