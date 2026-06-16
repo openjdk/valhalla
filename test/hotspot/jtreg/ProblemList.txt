@@ -205,6 +205,7 @@ compiler/valhalla/inlinetypes/TestIntrinsics.java#id1 8386237 generic-all
 compiler/valhalla/inlinetypes/TestIntrinsics.java#id5 8386237 generic-all
 compiler/valhalla/inlinetypes/TestIntrinsics.java#id6 8386237 generic-all
 
+serviceability/sa/TestJhsdbJstackMixedWithXComp.java#xcomp 8386674 linux-aarch64
 serviceability/sa/TestJhsdbJstackMixedWithXComp.java#xcomp-disable-tiered-compilation 8386674 linux-aarch64
 
 vmTestbase/nsk/jvmti/IterateOverReachableObjects/iterreachobj002/TestDescription.java 8384882 linux-all
