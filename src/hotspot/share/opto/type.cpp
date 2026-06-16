@@ -3210,13 +3210,19 @@ bool TypePtr::would_improve_ptr(ProfilePtrKind ptr_kind) const {
 
 TypePtr::FlatInArray TypePtr::compute_flat_in_array(ciInstanceKlass* instance_klass, bool is_exact) {
   if (!instance_klass->can_be_inline_klass(is_exact) || !UseArrayFlattening) {
-    // Definitely not a value class and thus never flat in an array.
+    // Definitely not a value class, or flattening is not even enabled, and thus never flat in an array.
     return NotFlat;
   }
-  if (instance_klass->is_inlinetype() && instance_klass->as_inline_klass()->is_always_flat_in_array()) {
-    return Flat;
+  if (instance_klass->is_inlinetype()) {
+    if (instance_klass->as_inline_klass()->is_always_flat_in_array()) {
+      return Flat;
+    }
+    if (instance_klass->as_inline_klass()->maybe_flat_in_array()) {
+      return MaybeFlat;
+    }
+    return NotFlat;
   }
-  // We don't know.
+  // It's not an inline class, but can still be, so we don't know.
   return MaybeFlat;
 }
 
@@ -6992,14 +6998,13 @@ const TypeOopPtr* TypeAryKlassPtr::as_instance_type(bool klass_change) const {
     // Only arrays of value classes can be null free. Otherwise, not_null_free == true. That is if the element type
     // is not an instance class, or this instance class cannot be an inline type, it's surely not null-restricted.
     not_null_free = !elem()->isa_instklassptr() || !elem()->is_instklassptr()->can_be_inline_type();
-    bool array_can_be_flat =
-        UseArrayFlattening &&  // Obviously
-        elem()->isa_instklassptr() &&  // Arrays of arrays or primitives are not flat
-        elem()->is_instklassptr()->can_be_inline_type() &&  // The element type is a value class or can be derived into one (like Object[] or AbstractValue[])
-        (
-          !elem()->is_instklassptr()->klass()->is_inlinetype() ||  // The element type is not a value class itself, maybe a child class is flattenable. Who knows?
-          elem()->is_instklassptr()->klass()->maybe_flat_in_array()  // The element type is an value class, let's ask whether it can be flat.
-        );
+    bool array_can_be_flat;
+    if (elem()->isa_instklassptr()) {
+      FlatInArray elem_flat_in_array = elem()->is_instklassptr()->flat_in_array();
+      array_can_be_flat = elem_flat_in_array == MaybeFlat || elem_flat_in_array == Flat;
+    } else {
+      array_can_be_flat = false;
+    }
     not_flat = !array_can_be_flat;
     atomic = !array_can_be_flat;
   }
