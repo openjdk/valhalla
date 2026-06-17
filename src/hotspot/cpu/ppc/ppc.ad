@@ -9690,6 +9690,17 @@ instruct castP2X(iRegLdst dst, iRegP_N2P src) %{
   ins_pipe(pipe_class_default);
 %}
 
+instruct castN2X(iRegLdst dst, iRegNsrc src) %{
+  match(Set dst (CastP2X src));
+
+  format %{ "MR      $dst, $src \t// Ptr->Long" %}
+  // variable size, 0 or 4.
+  ins_encode %{
+    __ mr_if_needed($dst$$Register, $src$$Register);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
 instruct castPP(iRegPdst dst) %{
   match(Set dst (CastPP dst));
   format %{ " -- \t// castPP of $dst" %}
@@ -11440,6 +11451,20 @@ instruct inlineCallClearArray(rarg1RegL cnt, rarg2RegP base, immL_0 zero, Univer
   format %{ "ClearArray $cnt, $base" %}
   ins_encode %{
     __ clear_memory_doubleword($base$$Register, $cnt$$Register, R0); // kills cnt, base, R0
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// Clear-array with dynamic array length and non-zero value.
+instruct inlineCallClearArrayWordCopy(rarg1RegL cnt, rarg2RegP base, iRegLdst val, Universe dummy, regCTR ctr) %{
+  predicate(((ClearArrayNode*)n)->word_copy_only());
+  match(Set dummy (ClearArray (Binary cnt base) val));
+  effect(USE_KILL base, KILL ctr);
+  ins_cost(8 * MEMORY_REF_COST);
+
+  format %{ "ClearArray $cnt, $base, $val" %}
+  ins_encode %{
+    __ fill_words($base$$Register, $cnt$$Register, $val$$Register);
   %}
   ins_pipe(pipe_class_default);
 %}

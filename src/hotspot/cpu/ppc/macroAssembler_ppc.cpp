@@ -3537,6 +3537,31 @@ void MacroAssembler::clear_memory_doubleword(Register base_ptr, Register cnt_dwo
   bind(done);
 }
 
+// base:   Address of a buffer to be filled, 8 bytes aligned. Killed.
+// cnt:    Count in 8-byte unit.
+// value:  Value to be filled with.
+void MacroAssembler::fill_words(Register base, Register cnt, Register value) {
+  Label loop, loop_end, done;
+
+  // 2x unrolled loop
+  srdi_(R0, cnt, 1);
+  beq(CR0, loop_end); // less than 2 elements
+  mtctr(R0);
+
+  bind(loop);
+  std(value, 0, base);
+  std(value, 8, base);
+  addi(base, base, 16);
+  bdnz(loop);
+
+  bind(loop_end);
+  andi_(R0, cnt, 1);
+  beq(CR0, done);
+  std(value, 0, base); // last element
+
+  bind(done);
+}
+
 /////////////////////////////////////////// String intrinsics ////////////////////////////////////////////
 
 // Helpers for Intrinsic Emitters

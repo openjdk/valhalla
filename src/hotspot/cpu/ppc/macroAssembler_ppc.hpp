@@ -883,6 +883,7 @@ class MacroAssembler: public Assembler {
   void clear_memory_unrolled(Register base_ptr, int cnt_dwords, Register tmp = R0, int offset = 0);
   void clear_memory_constlen(Register base_ptr, int cnt_dwords, Register tmp = R0);
   void clear_memory_doubleword(Register base_ptr, Register cnt_dwords, Register tmp = R0, long const_cnt = -1);
+  void fill_words(Register base, Register cnt, Register value);
 
   // Emitters for BigInteger.multiplyToLen intrinsic.
   inline void multiply64(Register dest_hi, Register dest_lo,
