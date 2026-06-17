@@ -81,7 +81,7 @@ class ExplodedImage extends SystemImage {
     // A Node that is backed by actual default file system Path
     // This is thread-safe, guaranteed by synchronized findNode
     private final class PathNode extends Node {
-        private final PathResolution resolution;
+        private final ResolvedPaths paths;
         private final PathNode link;
         // Has no duplicates
         private volatile List<String> childNames;
@@ -93,9 +93,9 @@ class ExplodedImage extends SystemImage {
          * <p>If the underlying path is a directory, then it is created in an
          * "incomplete" state, and its child names will be determined lazily.
          */
-        private PathNode(String name, PathResolution resolution, BasicFileAttributes attrs) {
+        private PathNode(String name, ResolvedPaths paths, BasicFileAttributes attrs) {
             super(name, attrs);
-            this.resolution = Objects.requireNonNull(resolution);
+            this.paths = Objects.requireNonNull(paths);
             this.link = null;
         }
 
@@ -105,7 +105,7 @@ class ExplodedImage extends SystemImage {
          */
         private PathNode(String name, PathNode link) {
             super(name, link.getFileAttributes());
-            this.resolution = null;
+            this.paths = null;
             this.link = link;
         }
 
@@ -116,7 +116,7 @@ class ExplodedImage extends SystemImage {
          */
         private PathNode(String name, List<PathNode> children) {
             super(name, modulesDirAttrs);
-            this.resolution = null;
+            this.paths = null;
             this.childNames = children.stream().map(Node::getName).collect(Collectors.toList());
             this.link = null;
         }
@@ -147,7 +147,7 @@ class ExplodedImage extends SystemImage {
         private byte[] getContent() throws IOException {
             if (!getFileAttributes().isRegularFile())
                 throw new FileSystemException(getName() + " is not file");
-            return Files.readAllBytes(resolution.selected);
+            return Files.readAllBytes(paths.selected);
         }
 
         @Override
@@ -165,11 +165,10 @@ class ExplodedImage extends SystemImage {
             if (childNames != null) {
                 return childNames;
             }
-            // Process preview nodes first, so if nodes are created they take
-            // precedence in the cache.
+
             Set<String> childNameSet = new HashSet<>();
-            collectChildNodeNames(resolution.regularPath, childNameSet);
-            collectChildNodeNames(resolution.previewPath, childNameSet);
+            collectChildNodeNames(paths.regular, childNameSet);
+            collectChildNodeNames(paths.preview, childNameSet);
             return childNames = new ArrayList<>(childNameSet);
         }
 
@@ -192,7 +191,7 @@ class ExplodedImage extends SystemImage {
         @Override
         public long size() {
             try {
-                return isDirectory() ? 0 : Files.size(resolution.selected);
+                return isDirectory() ? 0 : Files.size(paths.selected);
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
             }
@@ -215,26 +214,20 @@ class ExplodedImage extends SystemImage {
         if (node != null) {
             return node;
         }
-        // We anticipate the name of a "/modules/..." node for lazy creation.
-        // All "/packages/..." nodes are created by initNodes() instead.
-        PathResolution resolution = resolveRealPath(name);
-        if (resolution == null) {
-            return null;
-        }
-        // This can still return null for hidden files.
-        return createRealPathNode(name, resolution);
+
+        return createPathInModulesNodeIfValid(name);
     }
 
-    static final class PathResolution {
+    static final class ResolvedPaths {
         // All three are OS absolute paths
         // At least one of regular and preview is non-null
         // "selected" is used mainly by regular file; used by directories
         // only for basic file attributes.
-        final Path regularPath, previewPath, selected;
+        final Path regular, preview, selected;
 
-        PathResolution(Path regularPath, Path previewPath, Path selected) {
-            this.regularPath = regularPath;
-            this.previewPath = previewPath;
+        ResolvedPaths(Path regular, Path preview, Path selected) {
+            this.regular = regular;
+            this.preview = preview;
             this.selected = selected;
         }
     }
@@ -244,8 +237,8 @@ class ExplodedImage extends SystemImage {
      * or {@code null} if the name is not in the "/modules/..." namespace or the
      * path does not reference a file.
      */
-    private PathResolution resolveRealPath(String name) {
-        if (!isRealPathName(name)) {
+    private ResolvedPaths resolvePathInModules(String name) {
+        if (!isPathInModulesName(name)) {
             return null;
         }
         String relName = name.substring(MODULES.length());
@@ -274,7 +267,7 @@ class ExplodedImage extends SystemImage {
             // Otherwise prefer preview resources over non-preview ones.
             resolved = previewPath == null ? regularPath : previewPath;
         }
-        return new PathResolution(regularPath, previewPath, resolved);
+        return new ResolvedPaths(regularPath, previewPath, resolved);
     }
 
     // `rest` nullable means name points to the root of a module
@@ -298,29 +291,35 @@ class ExplodedImage extends SystemImage {
      * and corresponding path to a file or directory.
      *
      * @param name a resource or directory node name, of the form "/modules/...".
-     * @param resolution the paths for a resource or directory.
      * @return the newly created and cached node, or {@code null} if the given
      *     path references a file which must be hidden in the node hierarchy.
      */
-    private PathNode createRealPathNode(String name, PathResolution resolution) {
+    private PathNode createPathInModulesNodeIfValid(String name) {
+        // We anticipate the name of a "/modules/..." node for lazy creation.
+        // All "/packages/..." nodes are created by initNodes() instead.
+        ResolvedPaths paths = resolvePathInModules(name);
+        if (paths == null) {
+            return null;
+        }
+
         assert !nodes.containsKey(name) : "Node must not already exist: " + name;
-        assert isRealPathName(name) : "Invalid path name in /modules: " + name;
+        assert isPathInModulesName(name) : "Invalid path name in /modules: " + name;
 
         try {
             // We only know if we're creating a resource of directory when we
             // look up file attributes, and we only do that once. Thus, we can
             // only reject "marker files" here, rather than by inspecting the
             // given name string, since it doesn't apply to directories.
-            BasicFileAttributes attrs = Files.readAttributes(resolution.selected, BasicFileAttributes.class);
+            BasicFileAttributes attrs = Files.readAttributes(paths.selected, BasicFileAttributes.class);
             if (attrs.isRegularFile()) {
-                Path f = resolution.selected.getFileName();
+                Path f = paths.selected.getFileName();
                 if (f.toString().startsWith("_the.")) {
                     return null;
                 }
             } else if (!attrs.isDirectory()) {
                 return null;
             }
-            PathNode node = new PathNode(name, resolution, attrs);
+            PathNode node = new PathNode(name, paths, attrs);
             nodes.put(name, node);
             return node;
         } catch (IOException x) {
@@ -330,7 +329,7 @@ class ExplodedImage extends SystemImage {
     }
 
     // Ensures this is a name taking form /modules/... with no trailing slash.
-    private static boolean isRealPathName(String name) {
+    private static boolean isPathInModulesName(String name) {
         // Don't just check the prefix, there must be something after it too
         // (otherwise you end up with an empty string after trimming).
         // Also make sure we can't be tricked by "/modules//absolute/path" or
@@ -351,16 +350,14 @@ class ExplodedImage extends SystemImage {
         // same package prefix may exist in multiple modules. This Map
         // is filled by walking "jdk modules" directory recursively!
         Map<String, List<String>> packageToModules = new HashMap<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(modulesDir)) {
+        List<PathNode> modules = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(modulesDir, Files::isDirectory)) {
             for (Path moduleDir : stream) {
-                if (Files.isDirectory(moduleDir)) {
-                    findPackagesInModule(moduleDir, packageToModules);
-                }
+                modules.add(findPackagesAndCreateModuleNode(moduleDir, packageToModules));
             }
         }
         // create "/modules" directory
-        // "nodes" map contains only /modules/<foo> nodes only so far and so add all as children of /modules
-        PathNode modulesRootNode = new PathNode("/modules", new ArrayList<>(nodes.values()));
+        PathNode modulesRootNode = new PathNode("/modules", modules);
         nodes.put(modulesRootNode.getName(), modulesRootNode);
 
         // create children under "/packages"
@@ -391,11 +388,9 @@ class ExplodedImage extends SystemImage {
         nodes.put(root.getName(), root);
     }
 
-    private void findPackagesInModule(Path moduleDir, Map<String, List<String>> packageToModules)
+    private PathNode findPackagesAndCreateModuleNode(Path moduleDir, Map<String, List<String>> packageToModules)
             throws IOException {
         String moduleName = moduleDir.getFileName().toString();
-        // Make sure "/modules/<moduleName>" is created
-        Objects.requireNonNull(findNode(MODULES + moduleName));
         UnaryOperator<Path> previewExtractor = isPreviewMode
                 ? (p -> p.startsWith(PREVIEW_DIR) ? PREVIEW_DIR.relativize(p) : p)
                 : UnaryOperator.identity();
@@ -420,5 +415,6 @@ class ExplodedImage extends SystemImage {
                                     .computeIfAbsent(pkgName, k -> new ArrayList<>())
                                     .add(moduleName));
         }
+        return Objects.requireNonNull(createPathInModulesNodeIfValid(MODULES + moduleName));
     }
 }

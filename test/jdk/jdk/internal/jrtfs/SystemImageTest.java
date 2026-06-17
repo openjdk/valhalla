@@ -108,10 +108,8 @@ class SystemImageTest {
                     // File cannot be preview-overridden
                     "!META-INF/one.txt",
                     // File cannot be discovered out-of-preview
-                    // Note: somehow this doesn't work for jimage if file is in
-                    // root directory
                     "!META-INF/preview/com/two.txt",
-                    // File cannot be discovered in any scenario
+                    // File never found in jrtfs
                     "!META-INF/preview/META-INF/one.txt"),
             "modgus", Arrays.asList(
                     // A second module with a preview-only empty package (preview).
@@ -244,7 +242,7 @@ class SystemImageTest {
             assertDirContents(image, "/modules/modfoo/com/foo", "HasPreviewVersion.class", "NormalFoo.class", "bar");
             assertDirContents(image, "/modules/modfoo/com/foo/bar", "NormalBar.class");
 
-            // No preview activation
+            // No preview file visible
             assertAbsent(image, "/modules/modbar/com/two.txt");
             // No way to override
             assertResourceContents(image, "/modules/modbar/META-INF/one.txt", "!META-INF/one.txt");
@@ -267,9 +265,9 @@ class SystemImageTest {
             assertDirContents(image, "/modules/modfoo/com/foo", "HasPreviewVersion.class", "NormalFoo.class", "bar");
             assertDirContents(image, "/modules/modfoo/com/foo/bar", "NormalBar.class", "IsPreviewOnly.class");
 
-            // preview activation
+            // Visible in preview
             assertResourceContents(image, "/modules/modbar/com/two.txt", "!META-INF/preview/com/two.txt");
-            // Content should not be overridden to !META-INF/preview/META-INF/one.txt
+            // Content should not be overridden in preview to !META-INF/preview/META-INF/one.txt
             assertResourceContents(image, "/modules/modbar/META-INF/one.txt", "!META-INF/one.txt");
         }
     }
