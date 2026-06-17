@@ -162,7 +162,7 @@ void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   //__ load_const_optimized(R0, stub);
   __ add_const_optimized(R0, R29_TOC, MacroAssembler::offset_to_global_toc(stub));
   __ mtctr(R0);
-  __ bctr();
+  __ bctrl();
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ mr(_result->as_register(), R0);
@@ -190,7 +190,7 @@ void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   //__ load_const_optimized(R0, stub);
   __ add_const_optimized(R0, R29_TOC, MacroAssembler::offset_to_global_toc(stub));
   __ mtctr(R0);
-  __ bctr();
+  __ bctrl();
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ b(_continuation);
@@ -214,7 +214,7 @@ void SubstitutabilityCheckStub::emit_code(LIR_Assembler* ce) {
   //__ load_const_optimized(R0, stub);
   __ add_const_optimized(R0, R29_TOC, MacroAssembler::offset_to_global_toc(stub));
   __ mtctr(R0);
-  __ bctr();
+  __ bctrl();
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ b(_continuation);
