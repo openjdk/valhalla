@@ -57,6 +57,9 @@ inline frame FreezeBase::sender(const frame& f) {
     return frame(f.sender_sp(), f.sender_pc(), f.interpreter_frame_sender_sp());
   }
 
+  assert(f.cb() == nullptr || !f.cb()->is_nmethod() || !f.cb()->as_nmethod()->needs_stack_repair(),
+         "unsupported");
+
   intptr_t* sender_sp = f.sender_sp();
   address sender_pc = f.sender_pc();
   assert(sender_sp != f.sp(), "must have changed");

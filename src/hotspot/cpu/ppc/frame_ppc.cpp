@@ -120,6 +120,9 @@ bool frame::safe_for_sender(JavaThread *thread) {
     intptr_t* sender_sp = (intptr_t*) fp;
     address   sender_pc = (address) sender_abi->lr;
 
+    DEBUG_ONLY(nmethod* nm = _cb->as_nmethod_or_null());
+    assert(nm == nullptr || !nm->needs_stack_repair(), "unsupported");
+
     if (Continuation::is_return_barrier_entry(sender_pc)) {
       // sender_pc might be invalid so check that the frame
       // actually belongs to a Continuation.
@@ -458,6 +461,8 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
   }
 
   if (is_java_frame() || Continuation::is_continuation_enterSpecial(*this)) {
+    DEBUG_ONLY(nmethod* nm = _cb->as_nmethod_or_null());
+    assert(nm == nullptr || !nm->needs_stack_repair(), "unsupported");
     intptr_t* ret_pc_loc = (intptr_t*)&own_abi()->lr;
     address ret_pc = *(address*)ret_pc_loc;
     values.describe(frame_no, ret_pc_loc,
