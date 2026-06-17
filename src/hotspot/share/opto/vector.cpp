@@ -205,8 +205,8 @@ void PhaseVector::scalarize_vbox_node(VectorBoxNode* vec_box) {
       uint nargs = call->method()->arg_size();
       kit.ensure_stack(kit.sp() + nargs);
       uint in_idx = TypeFunc::Parms;  // The index of the call input, using scalarized calling convention.
-      int parm_idx = 0;  // The index of the Java parameter (no notion of HALF).
-      for (uint i = 0; i < nargs; i++) {  // The index of the argument on the JVM stack (including HALF).
+      int parm_idx = 0;  // The index of the Java parameter: double/long take one slot
+      for (uint i = 0; i < nargs; i++) {  // The index of the argument on the JVM stack: double/long take two slots
         const Type* arg_type = call->tf()->domain_sig()->field_at(TypeFunc::Parms + i);
         if (arg_type->is_inlinetypeptr() && !call->method()->mismatch() && call->method()->is_scalarized_arg(parm_idx)) {
           bool nullable = arg_type->maybe_null();
