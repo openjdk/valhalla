@@ -48,7 +48,11 @@ public final class IdentityException extends RuntimeException {
     /**
      * Create an {@code IdentityException} with the class name and default message.
      *
-     * @param clazz the class of the object
+     * @apiNote
+     * This constructor does not verify that the given {@code clazz} is a value class.
+     *
+     * @param clazz the class whose name will be included in the exception message
+     * @throws NullPointerException if {@code clazz} is null
      */
     public IdentityException(Class<?> clazz) {
         super(clazz.getName() + " is not an identity class");
