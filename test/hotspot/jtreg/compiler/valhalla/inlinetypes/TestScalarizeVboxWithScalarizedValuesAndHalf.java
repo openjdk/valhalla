@@ -24,7 +24,7 @@
 /**
  * @test
  * @summary Test that scalarize_vbox_node treats correctly scalarized value class locals
- * @bug 8385886
+ * @bug 8385886 8386720
  * @enablePreview
  * @modules jdk.incubator.vector
  * @run main/othervm -XX:+UnlockExperimentalVMOptions
