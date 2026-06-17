@@ -104,7 +104,7 @@ import java.util.function.Consumer;
  * should be taken to ensure that values do not strongly refer to their
  * own keys, either directly or indirectly, since that will prevent the keys
  * from being discarded.  Note that a value may refer indirectly to its
- * key via the {@code WeakHashMap} itself; that is, a value obect may
+ * key via the {@code WeakHashMap} itself; that is, a value may
  * strongly refer to some other key object whose associated value, in
  * turn, strongly refers to the key of the first value.  If the values
  * in the map do not rely on the map holding strong references to them, one way
