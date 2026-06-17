@@ -48,8 +48,9 @@ import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
 
 final class VarHandles {
 
-    static VarHandle makeFieldHandle(MemberName f, Class<?> refc, boolean trusted) {
-        boolean noWriting = f.isFinal() && (!trusted || f.isStrictInit());
+    static VarHandle makeFieldHandle(MemberName f, Class<?> refc, boolean trustedLookup) {
+        // No strict final or trusted final writes: we don't know the lifecycle of such a field.
+        boolean noWriting = f.isFinal() && (!trustedLookup || f.isStrictInit() || f.isTrustedFinalField());
         if (!f.isStatic()) {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
             Class<?> type = f.getFieldType();

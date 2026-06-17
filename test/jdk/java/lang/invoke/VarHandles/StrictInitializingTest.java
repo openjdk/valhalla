@@ -48,6 +48,8 @@ import java.util.Objects;
 
 import jdk.test.lib.helpers.StrictInit;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -109,11 +111,22 @@ public class StrictInitializingTest {
         assertTrue(executed[0]);
     }
 
+    private static MethodHandles.Lookup[] lookups() {
+        return new MethodHandles.Lookup[] {
+                LookupHelper.IMPL_LOOKUP,
+                LOOKUP,
+        };
+    }
 
-    @Test
-    public void testSetAccessOnStaticStrictFinal() throws Throwable {
-        var vh = LookupHelper.IMPL_LOOKUP.findStaticVarHandle(StrictStaticFinalHolder.class, "f", Object.class);
-        assertFalse(vh.isAccessModeSupported(VarHandle.AccessMode.SET));
+    @ParameterizedTest
+    @MethodSource("lookups")
+    public void testSetAccessOnStaticFinal(MethodHandles.Lookup lookup) throws Throwable {
+        var strictStaticFinal = lookup.findStaticVarHandle(StrictStaticFinalHolder.class, "strictStaticFinal", Object.class);
+        assertFalse(strictStaticFinal.isAccessModeSupported(VarHandle.AccessMode.SET));
+        var trustedStaticFinal = lookup.findStaticVarHandle(StrictStaticFinalHolder.class, "trustedStaticFinal", Object.class);
+        assertFalse(trustedStaticFinal.isAccessModeSupported(VarHandle.AccessMode.SET));
+        var strictInstanceFinal = lookup.findVarHandle(StrictStaticFinalHolder.class, "strictFinal", Object.class);
+        assertFalse(strictInstanceFinal.isAccessModeSupported(VarHandle.AccessMode.SET));
     }
 
     static LazyInitializingTest.ClassInfo createSampleClass(LazyInitializingTest.SampleData sampleData) {
@@ -163,7 +176,16 @@ class StrictInitializingSample {
     }
 }
 
-class StrictStaticFinalHolder {
+final class StrictStaticFinalHolder {
     @StrictInit
-    static final Object f = 5;
+    static final Object strictStaticFinal = 5;
+    static final Object trustedStaticFinal = new Object();
+
+    @StrictInit
+    final Object strictFinal;
+
+    StrictStaticFinalHolder(Object strictFinal) {
+        this.strictFinal = strictFinal;
+        super();
+    }
 }
