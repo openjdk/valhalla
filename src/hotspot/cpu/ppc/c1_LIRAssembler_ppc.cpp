@@ -1246,6 +1246,8 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   const Register return_pc = R31;  // Must survive C-call to enable_stack_reserved_zone().
   const Register temp      = R12;
 
+  assert(!InlineTypeReturnedAsFields, "unimplemented");
+
   // Pop the stack before the safepoint code.
   int frame_size = initial_frame_size_in_bytes();
   if (Assembler::is_simm(frame_size, 16)) {
@@ -1764,7 +1766,7 @@ void LIR_Assembler::unwind_op(LIR_Opr exceptionOop) {
 void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest, bool null_check) {
   if (null_check) {
     __ cmpdi(CR0, obj, 0);
-    __ beq(CR0, *slow_path->entry());
+    __ bc_far_optimized(Assembler::bcondCRbiIs1, __ bi0(CR0, Assembler::equal), *slow_path->entry());
   }
   if (is_dest) {
     __ test_null_free_array_oop(obj, tmp, *slow_path->entry(), true);
