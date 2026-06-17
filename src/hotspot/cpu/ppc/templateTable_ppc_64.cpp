@@ -3409,14 +3409,12 @@ void TemplateTable::fast_accessfield(TosState state) {
     case Bytecodes::_fast_vgetfield:
     {
       // field is flat
-      __ untested("_fast_vgetfield 1");
       __ read_flat_field(Rcache, R17_tos);
       __ verify_oop(R17_tos);
       __ dispatch_epilog(state, Bytecodes::length_for(bytecode()));
 
       __ bind(LisVolatile);
       if (support_IRIW_for_not_multiple_copy_atomic_cpu) { __ fence(); }
-      __ untested("_fast_vgetfield 2");
       __ read_flat_field(Rcache, R17_tos);
       __ verify_oop(R17_tos);
       // memory barrier in read_flat_field
