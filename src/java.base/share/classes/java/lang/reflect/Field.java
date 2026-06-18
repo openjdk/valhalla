@@ -190,11 +190,12 @@ class Field extends AccessibleObject implements Member {
      * <li>static final fields declared in any class or interface</li>
      * <li>final fields declared in a {@linkplain Class#isRecord() record}</li>
      * <li>final fields declared in a {@linkplain Class#isHidden() hidden class}</li>
+     * <li>fields declared in a {@linkplain Class#isValue() value class}</li>
+     * <li>{@linkplain #isStrictInit() strictly-initialized} final fields</li>
      * </ul>
-     * <p>If this reflected object represents a non-static final field in a class that
-     * is not a record class or hidden class, then enabling access will enable read
-     * access. Whether write access is allowed or not is checked when attempting to
-     * {@linkplain #set(Object, Object) set} the field value.
+     * <p>Final fields that are not covered by this list may be <em>modifiable</em>.
+     * Enabling access will enable read access. Whether write access is allowed is
+     * checked when attempting to {@linkplain #set(Object, Object) set} the field value.
      *
      * @throws InaccessibleObjectException {@inheritDoc}
      */
@@ -243,8 +244,6 @@ class Field extends AccessibleObject implements Member {
     /**
      * {@return an unmodifiable set of the {@linkplain AccessFlag
      * access flags} for this field, possibly empty}
-     * The {@code AccessFlags} may depend on the class file format version of the class.
-     *
      * @see #getModifiers()
      * @jvms 4.5 Fields
      * @since 20
@@ -289,7 +288,7 @@ class Field extends AccessibleObject implements Member {
      * @return true if and only if this field is a strictly
      * initialized field as defined by the Java Virtual Machine Specification
      * @jvms strict-fields-4.5 Field access and property flags
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
     public boolean isStrictInit() {
@@ -843,6 +842,7 @@ class Field extends AccessibleObject implements Member {
      * <li>{@code D} is not a {@linkplain Class#isHidden() hidden class}.</li>
      * <li>{@code D} is not a {@linkplain Class#isValue() value class}.</li>
      * <li>The field is non-static.</li>
+     * <li>The field is not a {@linkplain #isStrictInit() strictly-initialized} field. </li>
      * </ul>
      *
      * <p>If any of the above conditions is not met, this method throws an
@@ -871,7 +871,9 @@ class Field extends AccessibleObject implements Member {
      *     is {@linkplain Module#isExported(String) exported} to all modules.</li>
      * <li>{@code D} is not a {@linkplain Class#isRecord() record class}.</li>
      * <li>{@code D} is not a {@linkplain Class#isHidden() hidden class}.</li>
+     * <li>{@code D} is not a {@linkplain Class#isValue() value class}.</li>
      * <li>The field is non-static.</li>
+     * <li>The field is not a {@linkplain #isStrictInit() strictly-initialized} field. </li>
      * </ul>
      *
      * <p>If any of the above conditions is not met, this method throws an

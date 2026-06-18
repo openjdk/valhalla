@@ -4,7 +4,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -37,7 +39,7 @@ import static java.lang.annotation.ElementType.METHOD;
  * This is a temporary measure for legacy serialization migration compatibility;
  * future value object persistence would be handled by other mechanisms.
  *
- * @since Valhalla
+ * @since 28
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(value={CONSTRUCTOR, METHOD})

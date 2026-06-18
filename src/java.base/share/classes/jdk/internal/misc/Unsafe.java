@@ -1349,7 +1349,7 @@ public final class Unsafe {
     }
 
     /**
-     * Detects if the given class may need to be initialized. This is often
+     * Detects if the given class is not yet fully initialized. This is often
      * needed in conjunction with obtaining the static field base of a
      * class.
      * @return false only if a call to {@code ensureClassInitialized} would have no effect
@@ -1528,7 +1528,6 @@ public final class Unsafe {
      * Return the size of the object in the heap.
      * @param o an object
      * @return the objects's size
-     * @since Valhalla
      */
     public long getObjectSize(Object o) {
         if (o == null)
