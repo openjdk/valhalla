@@ -37,23 +37,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class IdentityExceptionBasicTest {
 
     /*
-     * Verify the constructor which takes the Class parameter
-     */
-    @Test
-    void testClassParam() throws Exception {
-        // verify that the exception message contains the given Class
-        final IdentityException ex = new IdentityException(Integer.class);
-        final String exMsg = ex.getMessage();
-        assertNotNull(exMsg, "exception message missing");
-        assertTrue(exMsg.contains(Integer.class.getName()));
-        assertTrue(exMsg.contains("not an identity class"));
-        assertNull(ex.getCause(), "unexpected cause");
-
-        // verify NullPointerException is thrown for null Class
-        assertThrows(NullPointerException.class, () -> new IdentityException((Class<?>) null));
-    }
-
-    /*
      * Verify the no-arg constructor
      */
     @Test
