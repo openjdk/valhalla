@@ -3966,7 +3966,7 @@ return mh1;
                 refc = lookupClass();
             }
             return VarHandles.makeFieldHandle(getField, refc,
-                                              this.allowedModes == TRUSTED && !getField.isTrustedFinalField());
+                                              this.allowedModes == TRUSTED);
         }
         /** Check access and get the requested constructor. */
         private MethodHandle getDirectConstructor(Class<?> refc, MemberName ctor) throws IllegalAccessException {
