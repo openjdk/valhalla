@@ -34,7 +34,7 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -78,25 +78,41 @@ class ExplodedImage extends SystemImage {
         initNodes();
     }
 
-    // A Node that is backed by actual default file system Path
+    // A Node that is backed by absolute Paths on the default FS
     // This is thread-safe, guaranteed by synchronized findNode
     private final class PathNode extends Node {
-        private final ResolvedPaths paths;
+        // Regular file
+        private final Path file;
+        // Symbolic link
         private final PathNode link;
-        // Has no duplicates
-        private volatile List<String> childNames;
+        // Directories
+        // `directories` is written before and read after `childNames`
+        private List<Path> directories;
+        private volatile List<String> childNames; // Has no duplicates
 
         /**
          * Creates a file based node with the given file attributes.
-         * Used for all /modules/... directories and files.
-         *
-         * <p>If the underlying path is a directory, then it is created in an
-         * "incomplete" state, and its child names will be determined lazily.
+         * Used for all /modules/... files.
          */
-        private PathNode(String name, ResolvedPaths paths, BasicFileAttributes attrs) {
+        private PathNode(String name, Path file, BasicFileAttributes attrs) {
             super(name, attrs);
-            this.paths = Objects.requireNonNull(paths);
+            this.file = Objects.requireNonNull(file);
             this.link = null;
+            this.directories = null;
+            this.childNames = null;
+        }
+
+        /**
+         * Creates a directory based node with the given file attributes.
+         * Used for all /modules/... directories.  It is created in an
+         * "incomplete" state, and its child names are determined lazily.
+         */
+        private PathNode(String name, List<Path> directories, BasicFileAttributes attrs) {
+            super(name, attrs);
+            this.file = null;
+            this.link = null;
+            this.directories = Objects.requireNonNull(directories);
+            this.childNames = null;
         }
 
         /**
@@ -105,8 +121,10 @@ class ExplodedImage extends SystemImage {
          */
         private PathNode(String name, PathNode link) {
             super(name, link.getFileAttributes());
-            this.paths = null;
-            this.link = link;
+            this.file = null;
+            this.link = Objects.requireNonNull(link);
+            this.directories = null;
+            this.childNames = null;
         }
 
         /**
@@ -116,20 +134,20 @@ class ExplodedImage extends SystemImage {
          */
         private PathNode(String name, List<PathNode> children) {
             super(name, modulesDirAttrs);
-            this.paths = null;
-            this.childNames = children.stream().map(Node::getName).collect(Collectors.toList());
+            this.file = null;
             this.link = null;
+            this.directories = null;
+            this.childNames = children.stream().map(Node::getName).collect(Collectors.toList());
         }
 
         @Override
         public boolean isResource() {
-            return link == null && !getFileAttributes().isDirectory();
+            return file != null;
         }
 
         @Override
         public boolean isDirectory() {
-            return childNames != null ||
-                    (link == null && getFileAttributes().isDirectory());
+            return childNames != null || directories != null;
         }
 
         @Override
@@ -145,9 +163,9 @@ class ExplodedImage extends SystemImage {
         }
 
         private byte[] getContent() throws IOException {
-            if (!getFileAttributes().isRegularFile())
+            if (!isResource())
                 throw new FileSystemException(getName() + " is not file");
-            return Files.readAllBytes(paths.selected);
+            return Files.readAllBytes(file);
         }
 
         @Override
@@ -166,16 +184,15 @@ class ExplodedImage extends SystemImage {
                 return childNames;
             }
 
-            Set<String> childNameSet = new HashSet<>();
-            collectChildNodeNames(paths.regular, childNameSet);
-            collectChildNodeNames(paths.preview, childNameSet);
+            Set<String> childNameSet = new LinkedHashSet<>();
+            for (Path path : directories) {
+                collectChildNodeNames(path, childNameSet);
+            }
+            directories = null;
             return childNames = new ArrayList<>(childNameSet);
         }
 
         private void collectChildNodeNames(Path absPath, Set<String> childNameSet) {
-            if (absPath == null) {
-                return;
-            }
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(absPath)) {
                 for (Path p : stream) {
                     PathNode node = (PathNode) findNode(getName() + "/" + p.getFileName().toString());
@@ -191,7 +208,7 @@ class ExplodedImage extends SystemImage {
         @Override
         public long size() {
             try {
-                return isDirectory() ? 0 : Files.size(paths.selected);
+                return !isResource() ? 0 : Files.size(file);
             } catch (IOException ex) {
                 throw new UncheckedIOException(ex);
             }
@@ -216,58 +233,6 @@ class ExplodedImage extends SystemImage {
         }
 
         return createPathInModulesNodeIfValid(name);
-    }
-
-    static final class ResolvedPaths {
-        // All three are OS absolute paths
-        // At least one of regular and preview is non-null
-        // "selected" is used mainly by regular file; used by directories
-        // only for basic file attributes.
-        final Path regular, preview, selected;
-
-        ResolvedPaths(Path regular, Path preview, Path selected) {
-            this.regular = regular;
-            this.preview = preview;
-            this.selected = selected;
-        }
-    }
-
-    /**
-     * Returns the expected file paths for name in the "/modules/..." namespace,
-     * or {@code null} if the name is not in the "/modules/..." namespace or the
-     * path does not reference a file.
-     */
-    private ResolvedPaths resolvePathInModules(String name) {
-        if (!isPathInModulesName(name)) {
-            return null;
-        }
-        String relName = name.substring(MODULES.length());
-        Path relPath = Paths.get("", relName.split("/"));
-
-        Path modName = relPath.getName(0);
-        int nameCount = relPath.getNameCount();
-        Path rest = nameCount > 1 ? relPath.subpath(1, nameCount) : null;
-
-        // Filter any path to in META-INF/preview consistently
-        if (rest != null && rest.startsWith(PREVIEW_DIR)) {
-            return null;
-        }
-
-        Path regularPath = candidatePath(modName, rest, false);
-        Path previewPath = isPreviewMode ? candidatePath(modName, rest, true) : null;
-
-        if (regularPath == null && previewPath == null) {
-            return null;
-        }
-        Path resolved;
-        if (regularPath != null && Files.isDirectory(regularPath)) {
-            // Non-preview directories take precedence.
-            resolved = regularPath;
-        } else {
-            // Otherwise prefer preview resources over non-preview ones.
-            resolved = previewPath == null ? regularPath : previewPath;
-        }
-        return new ResolvedPaths(regularPath, previewPath, resolved);
     }
 
     // `rest` nullable means name points to the root of a module
@@ -297,35 +262,74 @@ class ExplodedImage extends SystemImage {
     private PathNode createPathInModulesNodeIfValid(String name) {
         // We anticipate the name of a "/modules/..." node for lazy creation.
         // All "/packages/..." nodes are created by initNodes() instead.
-        ResolvedPaths paths = resolvePathInModules(name);
-        if (paths == null) {
+        if (!isPathInModulesName(name)) {
             return null;
         }
 
         assert !nodes.containsKey(name) : "Node must not already exist: " + name;
-        assert isPathInModulesName(name) : "Invalid path name in /modules: " + name;
 
+        // Extract the module name and the remaining parts of the path
+        Path moduleName; // Exactly a single name element
+        Path remainderPath; // May be null
+        {
+            String relativeName = name.substring(MODULES.length());
+            Path relativePath = Paths.get("", relativeName.split("/"));
+
+            moduleName = relativePath.getName(0);
+            int nameCount = relativePath.getNameCount();
+            remainderPath = nameCount > 1 ? relativePath.subpath(1, nameCount) : null;
+        }
+
+        // Filter any path to in META-INF/preview consistently
+        if (remainderPath != null && remainderPath.startsWith(PREVIEW_DIR)) {
+            return null;
+        }
+
+        // Find valid regular and preview paths
+        Path regularPath = candidatePath(moduleName, remainderPath, false);
+        Path previewPath = isPreviewMode ? candidatePath(moduleName, remainderPath, true) : null;
+        if (regularPath == null && previewPath == null) {
+            return null;
+        }
+
+        // Select a path for source of attributes
+        Path selected;
+        if (regularPath != null && Files.isDirectory(regularPath)) {
+            // Non-preview directories take precedence.
+            selected = regularPath;
+        } else {
+            // Otherwise prefer preview resources over non-preview ones.
+            selected = previewPath == null ? regularPath : previewPath;
+        }
+
+        // Read the file attributes
+        BasicFileAttributes attrs;
         try {
-            // We only know if we're creating a resource of directory when we
-            // look up file attributes, and we only do that once. Thus, we can
-            // only reject "marker files" here, rather than by inspecting the
-            // given name string, since it doesn't apply to directories.
-            BasicFileAttributes attrs = Files.readAttributes(paths.selected, BasicFileAttributes.class);
-            if (attrs.isRegularFile()) {
-                Path f = paths.selected.getFileName();
-                if (f.toString().startsWith("_the.")) {
-                    return null;
-                }
-            } else if (!attrs.isDirectory()) {
-                return null;
-            }
-            PathNode node = new PathNode(name, paths, attrs);
-            nodes.put(name, node);
-            return node;
+            attrs = Files.readAttributes(selected, BasicFileAttributes.class);
         } catch (IOException x) {
             // Since the path references a file, errors should not be ignored.
             throw new UncheckedIOException(x);
         }
+
+        // Create the right PathNode
+        PathNode node;
+        if (attrs.isRegularFile()) {
+            Path f = selected.getFileName();
+            // Only reject "marker files", doesn't apply to directories
+            if (f.toString().startsWith("_the.")) {
+                return null;
+            }
+            node = new PathNode(name, selected, attrs);
+        } else if (attrs.isDirectory()) {
+            List<Path> directories = Stream.of(regularPath, previewPath)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            node = new PathNode(name, directories, attrs);
+        } else {
+            return null;
+        }
+        nodes.put(name, node);
+        return node;
     }
 
     // Ensures this is a name taking form /modules/... with no trailing slash.
