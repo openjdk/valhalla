@@ -5246,6 +5246,10 @@ int TypeAryPtr::flat_log_elem_size() const {
   return exact_klass()->as_flat_array_klass()->log2_element_size();
 }
 
+jint TypeAryPtr::max_flat_elements() const {
+  return exact_klass()->as_flat_array_klass()->max_elements();
+}
+
 //------------------------------cast_to_stable---------------------------------
 const TypeAryPtr* TypeAryPtr::cast_to_stable(bool stable, int stable_dimension) const {
   if (stable_dimension <= 0 || (stable_dimension == 1 && stable == this->is_stable()))
