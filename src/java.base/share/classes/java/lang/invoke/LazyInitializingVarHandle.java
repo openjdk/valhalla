@@ -57,33 +57,31 @@ final class LazyInitializingVarHandle extends VarHandle {
 
     @Override
     @ForceInline
-    VarHandle onStaticFieldAccess(boolean read, boolean write) {
+    VarHandle onStaticFieldAccess(boolean reading) {
         if (!fullyInitialized) {
-            initialize(read, write);
+            initialize(reading);
         }
         return target;
     }
 
     @DontInline
-    private void initialize(boolean read, boolean write) {
+    private void initialize(boolean reading) {
         var declaringClass = target.declaringClass;
         UNSAFE.ensureClassInitialized(declaringClass);
         boolean fullyInitialized = !UNSAFE.shouldBeInitialized(declaringClass);
         if (fullyInitialized) {
             this.fullyInitialized = true;
-            this.methodHandleTable = target.methodHandleTable;
             return;
         }
 
         // Not fully initialized - strict static checking
         if (strictInit) {
             long offset = target.fieldOffset;
-            if (read) {
-                UNSAFE.notifyStrictStaticAccess(declaringClass, offset, false);
-            }
-            if (write) {
-                UNSAFE.notifyStrictStaticAccess(declaringClass, offset, true);
-            }
+            // We only check for reading for CAS because they always access
+            // reads first. We don't need the extra write check for CAS because
+            // that check is only to avoid double writing final fields, and we
+            // never allow creating VarHandle that CAS on final fields.
+            UNSAFE.notifyStrictStaticAccess(declaringClass, offset, !reading);
         }
     }
 

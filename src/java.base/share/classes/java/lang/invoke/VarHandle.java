@@ -516,9 +516,11 @@ public abstract sealed class VarHandle implements Constable
      * A barrier for accessing a target var handle used by static var handle
      * implementation methods.  This allows initialization barriers and strict
      * field initialization checks.
+     *
+     * @param reading whether this access performs any read
      */
     @ForceInline
-    VarHandle onStaticFieldAccess(boolean read, boolean write) {
+    VarHandle onStaticFieldAccess(boolean reading) {
         return this;
     }
 
