@@ -23,6 +23,7 @@
 
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.ValueClass;
+import jdk.internal.vm.annotation.NullRestricted;
 
 // Test app for flat arrays in the AOT map
 public class AOTMapTestApp {
@@ -55,10 +56,12 @@ public class AOTMapTestApp {
     // classes and custom value classes are archived
     public static class ArchivedData {
         Integer[] boxArray;
+        Integer[] nullFreeBoxArray;
         Wrapper[] wrapperArray;
         WrapperWrapper[] wrapperWrapperArray;
         Object[] objArray;
         Wrapper wrapper;
+        @NullRestricted
         WrapperWrapper wrapperWrapper;
         int a;
         Object b;
@@ -68,6 +71,11 @@ public class AOTMapTestApp {
             boxArray[0] = new Integer(0xaaaa);
             boxArray[1] = new Integer(0xbbbb);
             boxArray[2] = null;
+
+            nullFreeBoxArray = (Integer[])ValueClass.newNullRestrictedAtomicArray(Integer.class, 3, new Integer(0));
+            nullFreeBoxArray[0] = new Integer(0xaaaa);
+            nullFreeBoxArray[1] = new Integer(0xbbbb);
+            nullFreeBoxArray[2] = new Integer(0xcccc);
 
             wrapperArray = new Wrapper[3]; // flattened
             wrapperArray[0] = new Wrapper(0xaaaa);
@@ -114,6 +122,11 @@ public class AOTMapTestApp {
 
         if (PreviewFeatures.isEnabled() && !ValueClass.isFlatArray(archivedObjects.boxArray)) {
             throw new RuntimeException("Boxing class array should be flat");
+        }
+
+        if (PreviewFeatures.isEnabled() && (!ValueClass.isNullRestrictedArray(archivedObjects.nullFreeBoxArray) ||
+            !ValueClass.isFlatArray(archivedObjects.nullFreeBoxArray))) {
+            throw new RuntimeException("Boxing class array should be null-free and flat");
         }
 
         if (PreviewFeatures.isEnabled() && !ValueClass.isFlatArray(archivedObjects.wrapperArray)) {

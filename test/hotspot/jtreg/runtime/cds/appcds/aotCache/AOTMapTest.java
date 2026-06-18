@@ -54,7 +54,7 @@
  * @enablePreview
  * @requires vm.cds.supports.aot.class.linking & vm.debug & vm.cds.write.archived.java.heap
  * @library /test/lib /test/hotspot/jtreg/runtime/cds /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @modules java.base/jdk.internal.value java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.value java.base/jdk.internal.misc java.base/jdk.internal.vm.annotation
  * @build Hello
  * @compile test-classes/AOTMapTestApp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar app.jar AOTMapTestApp AOTMapTestApp$Wrapper AOTMapTestApp$WrapperWrapper

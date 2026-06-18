@@ -633,7 +633,7 @@ public:
 
   FakeOop read_inline_oop_at(address value_addr, Klass* k) {
     OopData data = {
-      value_addr,                                         // _buffered_addr
+      value_addr,                                         // _buffered_addr, address of the flat value shifted by the payload offset
       requested_addr() + (value_addr - buffered_addr()),  // _requested_addr
       target_location() + (value_addr - buffered_addr()), // _target_location
       0,                                                  // _narrow_location, narrow oop not used
@@ -880,28 +880,32 @@ public:
         if (fd->is_flat()) {
           int index = fd->index();
           InlineKlass* vk = fd->field_holder()->get_inline_type_field_klass(index);
-          _st->print("Flat inline type field '%s':", vk->name()->as_C_string());
-          if (!fd->is_null_free_inline_type()) {
-            assert(fd->has_null_marker(), "should have null marker");
-            InlineLayoutInfo* li = fd->field_holder()->inline_layout_info_adr(index);
-            int nm_offset = li->null_marker_offset();
-            if (_fake_oop.raw_oop()->byte_field_acquire(nm_offset) == 0) {
-              _st->print_cr(" null");
-              return;
-            }
-          }
-          _st->cr();
-          // Print fields of flat field (recursively)
           int field_offset = fd->offset() - vk->payload_offset();
           address field_addr = (address)_fake_oop.buffered_field_addr(field_offset);
-          FakeOop obj = _fake_oop.read_inline_oop_at(field_addr, vk);
-          ArchivedFieldPrinter print_field(obj, _st, _indent + 1, _base_offset + field_offset);
-          vk->do_nonstatic_fields(&print_field);
+          bool is_null = false;
+
+          if (!fd->is_null_free_inline_type()) {
+            assert(fd->has_null_marker(), "should have null marker");
+            is_null = vk->is_payload_marked_as_null(_fake_oop.buffered_addr() + fd->offset());
+            _st->print("Flat inline type field '%s':", vk->name()->as_C_string());
+          } else {
+            _st->print("Flat inline null-free type field '%s':", vk->name()->as_C_string());
+          }
+          // Print fields of flat field (recursively)
+          if (!is_null) {
+            _st->cr();
+            FakeOop obj = _fake_oop.read_inline_oop_at(field_addr, vk);
+            ArchivedFieldPrinter print_field(obj, _st, _indent + 1, _base_offset + field_offset);
+            vk->do_nonstatic_fields(&print_field);
+          } else {
+            _st->print_cr(" null");
+          }
+
           if (fd->field_flags().has_null_marker()) {
             for (int i = 0; i < _indent + 1; i++) _st->print("  ");
             _st->print_cr(" - [null_marker] @%d %s",
-                      vk->null_marker_offset() - _base_offset + field_offset,
-                      obj.raw_oop()->bool_field(vk->null_marker_offset()) ? "Field marked as non-null" : "Field marked as null");
+                      vk->null_marker_offset() + _base_offset + field_offset,
+                      is_null ? "Field marked as null" : "Field marked as non-null");
           }
           return; // Do not print underlying representation
         } else {
@@ -1054,28 +1058,31 @@ void AOTMapLogger::print_oop_details(FakeOop fake_oop, outputStream* st) {
     FakeFlatArray fake_flat_array = fake_oop.as_flat_array();
     InlineKlass* elem_k = ((FlatArrayKlass*)real_klass)->element_klass();
     for (int i = 0; i < fake_flat_array.length(); i++) {
-      st->print(" - Flat inline type field '%s':", elem_k->name()->as_C_string());
-
-      int nm_offset;
+      bool is_null = false;
       int off = fake_flat_array.element_offset_at(i);
       FakeOop elm = fake_flat_array.element_at(i);
 
       if (!real_klass->is_null_free_array_klass()) {
-        nm_offset = elem_k->null_marker_offset();
-        if (!elm.raw_oop()->bool_field(nm_offset)) {
-          st->print_cr(" null");
-          continue;
-        }
+        is_null = elem_k->is_payload_marked_as_null(elm.buffered_addr() + elem_k->payload_offset());
+        st->print(" - Flat inline type element '%s':", elem_k->name()->as_C_string());
+      } else {
+        st->print(" - Flat inline null-free type element '%s':", elem_k->name()->as_C_string());
+      }
+      st->print(" - Index %3d offset %3d: ", i, off);
+
+      if (!is_null) {
+        st->cr();
+        ArchivedFieldPrinter print_field(elm, st);
+        elem_k->do_nonstatic_fields(&print_field);
+      } else {
+        assert(!real_klass->is_null_free_array_klass(), "must be");
+        st->print_cr(" null");
       }
 
-      st->print_cr(" - Index %3d offset %3d: ", i, off);
-      ArchivedFieldPrinter print_field(elm, st);
-      elem_k->do_nonstatic_fields(&print_field);
-
       if (!real_klass->is_null_free_array_klass()) {
-        st->print_cr(" - [null_marker] @%d %s",
-                     nm_offset,
-                     elm.raw_oop()->bool_field(nm_offset) ? "Field marked as non-null" : "Field marked as null");
+        st->print_cr("   - [null_marker] @%d %s",
+                     off + elem_k->null_marker_offset_in_payload(),
+                     is_null ? "Field marked as null" : "Field marked as non-null");
       }
     }
   } else if (real_klass->is_refArray_klass()) {
