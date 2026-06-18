@@ -2627,10 +2627,6 @@ class StubGenerator: public StubCodeGenerator {
     // Check for null-free (non-flat) inline type array -> handle as object array
     __ test_null_free_array_oop(src, temp, L_objArray);
 
-    // TODO: x86 checks this twice, looks redundant:
-    // Check for flat inline type array -> return -1
-    //__ test_flat_array_layout(lh, L_failed);
-
     __ cmpwi(CR6, lh, Klass::_lh_neutral_value); // if (!src->is_Array()) return -1;
     __ bge(CR6, L_failed);
 
