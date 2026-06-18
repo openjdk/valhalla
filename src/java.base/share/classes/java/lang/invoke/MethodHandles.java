@@ -3445,6 +3445,11 @@ return mh1;
                                                   : "final field has no write access";
                     throw field.makeAccessException(msg, this);
                 }
+                // strictly-initialized finals not trusted finals at this time
+                if (field.isStrictInit()) {
+                    throw field.makeAccessException("strictly-initialized final field has no write access", this);
+                }
+
                 // check if write access to final field allowed
                 if (!field.isStatic() && isAccessible) {
                     SharedSecrets.getJavaLangReflectAccess().checkAllowedToUnreflectFinalSetter(lookupClass, f);
