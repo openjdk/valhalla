@@ -105,12 +105,4 @@ final class LazyInitializingVarHandle extends VarHandle {
     public Optional<VarHandleDesc> describeConstable() {
         return target.describeConstable();
     }
-
-    @Override
-    public MethodHandle getMethodHandleUncached(int accessMode) {
-        if (fullyInitialized)
-            return target.getMethodHandle(accessMode);
-
-        return super.getMethodHandleUncached(accessMode);
-    }
 }

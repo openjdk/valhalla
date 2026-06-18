@@ -66,6 +66,9 @@ public class StrictInitializingTest {
                 int _ = (int) handle[0].get();
             }, "get before write");
             assertThrows(IllegalStateException.class, () -> {
+                boolean _ = (boolean) handle[0].compareAndSet(7, 3);
+            }, "compareAndSet before write");
+            assertThrows(IllegalStateException.class, () -> {
                 int _ = (int) handle[0].getAndAdd(3);
             }, "getAndAdd before write");
             handle[0].set(12);
@@ -82,30 +85,34 @@ public class StrictInitializingTest {
 
     @Test
     public void testOperationsOnMethodHandleDuringInit() throws Throwable {
-        MethodHandle[] handle = new MethodHandle[6];
+        MethodHandle[] handle = new MethodHandle[7];
         boolean[] executed = {false};
         var ci = createSampleClass(new LazyInitializingTest.SampleData(() -> {
             assertThrows(IllegalStateException.class, () -> {
                 int _ = (int) handle[0].invoke();
             }, "get before write");
             assertThrows(IllegalStateException.class, () -> {
-                int _ = (int) handle[1].invoke(3);
+                boolean _ = (boolean) handle[1].invoke(7, 3);
+            }, "compareAndSet before write");
+            assertThrows(IllegalStateException.class, () -> {
+                int _ = (int) handle[2].invoke(3);
             }, "getAndAdd before write");
             assertDoesNotThrow(() -> {
-                handle[2].invokeExact(12);
-                assertEquals(12, (int) handle[3].invokeExact());
-                assertEquals(12, (int) handle[4].invokeExact((int) 3));
-                assertEquals(15, (int) handle[5].invokeExact());
+                handle[3].invokeExact(12);
+                assertEquals(12, (int) handle[4].invokeExact());
+                assertEquals(12, (int) handle[5].invokeExact((int) 3));
+                assertEquals(15, (int) handle[6].invokeExact());
             });
             executed[0] = true;
         }, 24));
         var vh = ci.vh();
         handle[0] = vh.toMethodHandle(VarHandle.AccessMode.GET);
-        handle[1] = vh.toMethodHandle(VarHandle.AccessMode.GET_AND_ADD);
-        handle[2] = vh.toMethodHandle(VarHandle.AccessMode.SET);
-        handle[3] = vh.toMethodHandle(VarHandle.AccessMode.GET);
-        handle[4] = vh.toMethodHandle(VarHandle.AccessMode.GET_AND_ADD_ACQUIRE);
-        handle[5] = vh.toMethodHandle(VarHandle.AccessMode.GET_VOLATILE);
+        handle[1] = vh.toMethodHandle(VarHandle.AccessMode.COMPARE_AND_SET);
+        handle[2] = vh.toMethodHandle(VarHandle.AccessMode.GET_AND_ADD);
+        handle[3] = vh.toMethodHandle(VarHandle.AccessMode.SET);
+        handle[4] = vh.toMethodHandle(VarHandle.AccessMode.GET);
+        handle[5] = vh.toMethodHandle(VarHandle.AccessMode.GET_AND_ADD_ACQUIRE);
+        handle[6] = vh.toMethodHandle(VarHandle.AccessMode.GET_VOLATILE);
 
         ci.definingLookup().ensureInitialized(ci.definingLookup().lookupClass());
         assertTrue(executed[0]);
