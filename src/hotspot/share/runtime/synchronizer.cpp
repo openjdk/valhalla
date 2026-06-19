@@ -319,8 +319,6 @@ static bool _no_progress_skip_increment = false;
 // find out this inline type object cannot be locked.
 #define CHECK_THROW_NOSYNC_IMSE(obj)  \
   if ((obj)->mark().is_inline_type()) {  \
-    JavaThread* THREAD = current;           \
-    ResourceMark rm(THREAD);                \
     /*
      * A value object can never be synchronized upon. The error message we use
      * here is (accurate and) consistent with the one we use for identity objects
@@ -331,8 +329,6 @@ static bool _no_progress_skip_increment = false;
 
 #define CHECK_THROW_NOSYNC_IMSE_0(obj)  \
   if ((obj)->mark().is_inline_type()) {  \
-    JavaThread* THREAD = current;             \
-    ResourceMark rm(THREAD);                  \
     /*
      * A value object can never be synchronized upon. The error message we use
      * here is (accurate and) consistent with the one we use for identity objects
