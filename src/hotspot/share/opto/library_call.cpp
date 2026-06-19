@@ -5197,15 +5197,22 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // write barrier. Conservatively, go to slow path.
     // TODO 8251971: Optimize for the case when flat src/dst are later found
     // to not contain oops (i.e., move this check to the macro expansion phase).
-    // TODO 8382226: Revisit for flat abstract value class arrays
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
     const TypeKlassPtr* tklass = _gvn.type(klass_node)->is_klassptr();
-    bool exclude_flat = UseArrayFlattening && bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing) &&
+    const bool is_src_abstract_flat_value_array = orig_t != nullptr && !orig_t->elem()->is_inlinetypeptr() && orig_t->is_flat();
+    const bool can_dest_be_value_class_array = tklass->can_be_inline_array();
+    const bool is_dest_abstract_flat_value_class_array = can_dest_be_value_class_array && tklass->is_flat() &&
+                                                   !tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->is_inlinetype();
+    const bool is_abstract_flat_value_class_array_involved = is_src_abstract_flat_value_array || is_dest_abstract_flat_value_class_array;
+    const bool exclude_flat = UseArrayFlattening &&
+                        // We do not know the exact layout of an abstract flat value class array. Bail out.
+                        (is_abstract_flat_value_class_array_involved ||
+                         (bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing) &&
                         // Can src array be flat and contain oops?
                         (orig_t == nullptr || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
-                        tklass->can_be_inline_array() && (!tklass->is_flat() || tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops());
+                        can_dest_be_value_class_array && (!tklass->is_flat() || tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops())));
     Node* not_objArray = exclude_flat ? generate_non_refArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
 
     Node* refined_klass_node = load_default_refined_array_klass(klass_node, /* type_array_guard= */ false);
