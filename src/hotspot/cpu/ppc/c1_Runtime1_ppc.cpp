@@ -329,8 +329,8 @@ OopMapSet* Runtime1::generate_stub_call(StubAssembler* sasm, Register result, ad
   return oop_maps;
 }
 
-static OopMapSet* stub_call_with_stack_parms(StubAssembler* sasm, Register result, address target,
-                                             int stack_parms, bool do_return = true) {
+static OopMapSet* stub_call_with_stack_parms(StubAssembler* sasm, Register oop_result, address target,
+                                             int stack_parms, bool do_return = true, Register result2 = noreg) {
   // Make a frame and preserve the caller's caller-save registers.
   const int parm_size_in_bytes = align_up(stack_parms << LogBytesPerWord, frame::alignment_in_bytes);
   const int padding = parm_size_in_bytes - (stack_parms << LogBytesPerWord);
@@ -345,14 +345,14 @@ static OopMapSet* stub_call_with_stack_parms(StubAssembler* sasm, Register resul
     case 1:
     __ ld(R4_ARG2, frame_size_in_bytes + padding + 0, R1_SP);
     case 0:
-    call_offset = __ call_RT(result, noreg, target);
+    call_offset = __ call_RT(oop_result, noreg, target);
     break;
     default: Unimplemented(); break;
   }
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(call_offset, oop_map);
 
-  restore_live_registers(sasm, result, noreg);
+  restore_live_registers(sasm, oop_result, result2);
   if (do_return) __ blr();
   return oop_maps;
 }
@@ -509,7 +509,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
       break;
 
     case StubId::c1_load_flat_array_id:
-      oop_maps = stub_call_with_stack_parms(sasm, noreg, CAST_FROM_FN_PTR(address, load_flat_array), 2);
+      oop_maps = stub_call_with_stack_parms(sasm, R3_RET, CAST_FROM_FN_PTR(address, load_flat_array), 2);
       break;
 
     case StubId::c1_store_flat_array_id:
@@ -517,7 +517,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
       break;
 
     case StubId::c1_substitutability_check_id:
-      oop_maps = stub_call_with_stack_parms(sasm, R3_RET, CAST_FROM_FN_PTR(address, substitutability_check), 2);
+      oop_maps = stub_call_with_stack_parms(sasm, noreg, CAST_FROM_FN_PTR(address, substitutability_check), 2, true, R3_RET);
       break;
 
     case StubId::c1_register_finalizer_id:

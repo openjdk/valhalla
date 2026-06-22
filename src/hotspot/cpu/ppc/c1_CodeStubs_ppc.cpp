@@ -165,7 +165,7 @@ void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   __ bctrl();
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
-  __ mr(_result->as_register(), R0);
+  __ mr_if_needed(_result->as_register(), R3_RET);
   __ b(_continuation);
 }
 
@@ -176,7 +176,7 @@ StoreFlattenedArrayStub::StoreFlattenedArrayStub(LIR_Opr array, LIR_Opr index, L
   _array = array;
   _index = index;
   _value = value;
-  _scratch_reg = FrameMap::R3_oop_opr;
+  _scratch_reg = LIR_OprFact::illegalOpr;
   _info = new CodeEmitInfo(info);
 }
 
@@ -217,6 +217,7 @@ void SubstitutabilityCheckStub::emit_code(LIR_Assembler* ce) {
   __ bctrl();
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
+  // Result is in R3_RET (_scratch_reg)
   __ b(_continuation);
 }
 
