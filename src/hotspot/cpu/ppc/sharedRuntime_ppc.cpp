@@ -2507,10 +2507,6 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   // Make sure that thread is non-volatile; it crosses a bunch of VM calls below.
   assert(R16_thread->is_nonvolatile(), "thread must be in non-volatile register");
 
-# if 0
-  // DTrace method entry
-# endif
-
   // Lock a synchronized method.
   // --------------------------------------------------------------------------
 
@@ -2781,10 +2777,6 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
 
     __ bind(done);
   }
-
-# if 0
-  // DTrace method exit
-# endif
 
   // Clear "last Java frame" SP and PC.
   // --------------------------------------------------------------------------
