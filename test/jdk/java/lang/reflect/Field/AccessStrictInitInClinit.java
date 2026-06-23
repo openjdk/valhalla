@@ -107,6 +107,7 @@ class AccessStrictInitInClinit {
     @ValueSource(booleans = { false, true })
     void testFieldSetGet(boolean accessible) throws Exception {
         TestClass.executeBeforeFieldSet(f -> {
+            assertTrue(f.isStrictInit());
             f.setAccessible(accessible);
 
             // Field.get before initialized
@@ -127,6 +128,7 @@ class AccessStrictInitInClinit {
     @ValueSource(booleans = { false, true })
     void testUnreflectSetterGetter(boolean accessible) {
         TestClass.executeBeforeFieldSet(f -> {
+            assertTrue(f.isStrictInit());
             f.setAccessible(accessible);
             MethodHandle setter = MethodHandles.lookup().unreflectSetter(f);
             MethodHandle getter = MethodHandles.lookup().unreflectGetter(f);
@@ -151,6 +153,7 @@ class AccessStrictInitInClinit {
     @ValueSource(booleans = { false, true })
     void testUnreflectVarHandle(boolean accessible) {
         TestClass.executeBeforeFieldSet(f -> {
+            assertTrue(f.isStrictInit());
             f.setAccessible(accessible);
             VarHandle vh = MethodHandles.lookup().unreflectVarHandle(f);
 
