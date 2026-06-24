@@ -132,7 +132,6 @@ final class VarHandle$InputType$s {
             FieldInstanceReadOnly handle = (FieldInstanceReadOnly)ob;
             $type$ value = UNSAFE.get$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                  handle.fieldOffset{#if[FlatValue]?, handle.layout, handle.fieldType});
-
             return value;
         }
 #end[NonPlainAccess]
