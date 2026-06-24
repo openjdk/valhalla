@@ -34,9 +34,9 @@ class ClassLoaderData;
 
 class ObjArrayKlass : public ArrayKlass {
   friend class Deoptimization;
-  friend class JVMCIVMStructs;
   friend class oopFactory;
   friend class VMStructs;
+  friend class ciInlineKlass;
 
  public:
   static const KlassKind Kind = ObjArrayKlassKind;

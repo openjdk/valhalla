@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -51,9 +51,11 @@ endif
 ifeq ($(call check-jvm-feature, zero), true)
   JVM_EXCLUDES += opto libadt
   JVM_EXCLUDE_PATTERNS += c1_ c1/ c2_ runtime_ /c2/
-  JVM_EXCLUDE_FILES += templateInterpreter.cpp templateInterpreterGenerator.cpp \
-                       bcEscapeAnalyzer.cpp ciTypeFlow.cpp macroAssembler_common.cpp
-  JVM_CFLAGS_FEATURES += -DZERO -DZERO_LIBARCH='"$(OPENJDK_TARGET_CPU_LEGACY_LIB)"' $(LIBFFI_CFLAGS)
+  JVM_EXCLUDE_FILES += templateInterpreter.cpp \
+      templateInterpreterGenerator.cpp bcEscapeAnalyzer.cpp ciTypeFlow.cpp \
+      macroAssembler_common.cpp
+  JVM_CFLAGS_FEATURES += -DZERO \
+      -DZERO_LIBARCH='"$(OPENJDK_TARGET_CPU_LEGACY_LIB)"' $(LIBFFI_CFLAGS)
   JVM_LIBS_FEATURES += $(LIBFFI_LIBS)
   ifeq ($(ENABLE_LIBFFI_BUNDLING), true)
     JVM_LDFLAGS_FEATURES += $(call SetExecutableOrigin,/..)
@@ -93,12 +95,6 @@ ifneq ($(call check-jvm-feature, jvmti), true)
       evmCompat.cpp jvmtiEnter.xsl jvmtiExport.cpp \
       jvmtiClassFileReconstituter.cpp jvmtiTagMapTable.cpp jvmtiAgent.cpp \
       jvmtiAgentList.cpp jfrJvmtiAgent.cpp
-endif
-
-ifneq ($(call check-jvm-feature, jvmci), true)
-  JVM_CFLAGS_FEATURES += -DINCLUDE_JVMCI=0
-  JVM_EXCLUDES += jvmci
-  JVM_EXCLUDE_FILES += jvmciCodeInstaller_$(HOTSPOT_TARGET_CPU_ARCH).cpp
 endif
 
 ifneq ($(call check-jvm-feature, vm-structs), true)

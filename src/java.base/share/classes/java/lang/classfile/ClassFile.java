@@ -809,7 +809,7 @@ public sealed interface ClassFile
     /**
      * The bit mask of {@link AccessFlag#IDENTITY} access and property modifier.
      *
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
     int ACC_IDENTITY = 0x0020;
@@ -850,7 +850,7 @@ public sealed interface ClassFile
     /**
      * The bit mask of {@link AccessFlag#STRICT_INIT} access and property modifier.
      *
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
     int ACC_STRICT_INIT = 0x0800;
@@ -1064,6 +1064,14 @@ public sealed interface ClassFile
     int JAVA_27_VERSION = 71;
 
     /**
+     * The class major version introduced by Java SE 28, {@value}.
+     *
+     * @see ClassFileFormatVersion#RELEASE_28
+     * @since 28
+     */
+    int JAVA_28_VERSION = 72;
+
+    /**
      * A minor version number {@value} indicating a class uses preview features
      * of a Java SE release since 12, for major versions {@value
      * #JAVA_12_VERSION} and above.
@@ -1074,7 +1082,7 @@ public sealed interface ClassFile
      * {@return the latest class major version supported by the current runtime}
      */
     static int latestMajorVersion() {
-        return JAVA_27_VERSION;
+        return JAVA_28_VERSION;
     }
 
     /**

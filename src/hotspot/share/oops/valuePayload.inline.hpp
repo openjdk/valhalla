@@ -692,7 +692,7 @@ inline void FlatArrayPayload::set_index(int index) {
 }
 
 inline void FlatArrayPayload::advance_index(int delta) {
-  set_offset(this->offset() + delta * _storage._element_size);
+  set_offset(this->offset() + (ptrdiff_t)delta * (ptrdiff_t)_storage._element_size);
 }
 
 inline void FlatArrayPayload::next_element() {
@@ -717,7 +717,7 @@ inline void FlatArrayPayload::set_offset(ptrdiff_t offset) {
   const ptrdiff_t min_offset = base_offset - (length == 0 ? 0 : element_size);
   const ptrdiff_t max_offset = base_offset + length * element_size;
   assert(min_offset <= offset && offset <= max_offset,
-         "Offset out-ouf-bounds: %zd <= %zd <= %zd", min_offset, offset, max_offset);
+         "Offset out-of-bounds: %zd <= %zd <= %zd", min_offset, offset, max_offset);
 
   if (offset == min_offset || offset == max_offset) {
     // Terminal state of iteration, set a bad value.

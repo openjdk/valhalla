@@ -82,9 +82,7 @@ public:
   void print_on(outputStream* st) const override;
 
   template <class T>
-  inline void arraycopy_barrier(T* src, T* dst, size_t count);
-  inline void clone_barrier(oop src);
-  void clone_barrier_runtime(oop src);
+  inline void arraycopy_barrier(T* src, T* dst, size_t count, bool dest_uninit);
 
   // Support for optimizing compilers to call the barrier set on slow path allocations
   // that did not enter a TLAB. Used for e.g. ReduceInitialCardMarks to take any
@@ -104,7 +102,7 @@ public:
 
   inline void keep_alive_if_weak(DecoratorSet decorators, oop value);
 
-  inline void enqueue(oop obj);
+  inline void enqueue(oop obj, bool filter = true);
 
   inline oop load_reference_barrier(oop obj);
 
@@ -180,6 +178,10 @@ public:
 
     // Clone barrier support
     static void clone_in_heap(oop src, oop dst, size_t size);
+
+    // Valhalla support
+    static void value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst);
+    static void value_store_null_in_heap(const ValuePayload& dst);
 
     // Support for concurrent roots evacuation, updating and weak roots clearing
     template <typename T>

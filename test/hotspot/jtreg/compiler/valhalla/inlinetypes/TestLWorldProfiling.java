@@ -43,7 +43,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @key randomness
  * @summary Test value class specific type profiling.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
@@ -168,8 +168,6 @@ public class TestLWorldProfiling {
     private static final MyInteger[] testMyIntegerArray = new MyInteger[] { new MyInteger(42) };
     private static final MyLong[] testMyLongArray = new MyLong[] { new MyLong(42L) };
     private static final MyValue1[] testValue1NotFlatArray = new MyValue1[] { testValue1 };
-    private static final MyValue1[][] testValue1ArrayArray = new MyValue1[][] { testValue1Array };
-
     // Wrap these variables into helper class because
     // WhiteBox API needs to be initialized by TestFramework first.
     static class WBFlags {
@@ -1225,14 +1223,15 @@ public class TestLWorldProfiling {
     }
 
     @Test
-    @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
-        counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
-    )
-    @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        failOn = {LOAD_OF_CLASS, "MyValue1"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
-    )
+    // TODO 8384979
+    // @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+    //     failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+    //     counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    // )
+    // @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+    //     failOn = {LOAD_OF_CLASS, "MyValue1"},
+    //     counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    // )
     public static boolean test43(Object a, Object b) {
         return a == b;
     }
@@ -1246,14 +1245,15 @@ public class TestLWorldProfiling {
     }
 
     @Test
-    @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
-        counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
-    )
-    @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        failOn = {LOAD_OF_CLASS, "MyValue1"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
-    )
+    // TODO 8384979
+    // @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+    //     failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+    //     counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    // )
+    // @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+    //     failOn = {LOAD_OF_CLASS, "MyValue1"},
+    //     counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    // )
     public static boolean test44(Object a, Object b) {
         return a == b;
     }
@@ -1268,14 +1268,15 @@ public class TestLWorldProfiling {
     }
 
     @Test
-    @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
-        failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
-        counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
-    )
-    @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
-        failOn = {LOAD_OF_CLASS, "MyValue1"},
-        counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
-    )
+    // TODO 8384979
+    // @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+    //     failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+    //     counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    // )
+    // @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+    //     failOn = {LOAD_OF_CLASS, "MyValue1"},
+    //     counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    // )
     public static boolean test45(Object a, Object b) {
         return a == b;
     }

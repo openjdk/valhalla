@@ -748,7 +748,9 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
       }
       break;
 
-    case T_BOOLEAN: // fall through
+    case T_BOOLEAN:
+      __ movb(as_Address(addr), c->as_jint() & 1);
+      break;
     case T_BYTE:
       __ movb(as_Address(addr), c->as_jint() & 0xFF);
       break;
@@ -1427,6 +1429,10 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
         if (k->is_loaded() && k->is_obj_array_klass()) {
           // For a direct pointer comparison, we need the refined array klass pointer
           ciKlass* k_refined = ciObjArrayKlass::make(k->as_obj_array_klass()->element_klass());
+          if (!k_refined->is_loaded()) {
+            bailout("encountered unloaded_ciobjarrayklass due to out of memory error");
+            return;
+          }
           __ mov_metadata(tmp_load_klass, k_refined->constant_encoding());
           __ cmpptr(klass_RInfo, tmp_load_klass);
         } else {
@@ -1635,16 +1641,14 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   move(op->not_equal_result(), op->result_opr());
   __ jmp(L_end);
 
-  __ bind(L_oops_equal);
-  move(op->equal_result(), op->result_opr());
-  __ jmp(L_end);
-
   // We've returned from the stub. RAX contains 0x0 IFF the two
   // operands are not substitutable. (Don't compare against 0x1 in case the
   // C compiler is naughty)
   __ bind(*op->stub()->continuation());
   __ cmpl(rax, 0);
   __ jcc(Assembler::equal, L_oops_not_equal); // (call_stub() == 0x0) -> not_equal
+
+  __ bind(L_oops_equal);
   move(op->equal_result(), op->result_opr()); // (call_stub() != 0x0) -> equal
   // fall-through
   __ bind(L_end);

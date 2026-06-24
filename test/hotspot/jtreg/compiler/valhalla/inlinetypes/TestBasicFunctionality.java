@@ -49,7 +49,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -62,7 +62,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -75,7 +75,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -88,7 +88,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -101,7 +101,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -114,7 +114,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -127,7 +127,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
@@ -287,7 +287,8 @@ public class TestBasicFunctionality {
 
     // Merge value objects created from two branches
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP}, phase = CompilePhase.BEFORE_MACRO_EXPANSION)
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP}, phase = CompilePhase.BEFORE_MACRO_EXPANSION)
     public long test8(boolean b) {
         MyValue1 v;
         if (b) {
@@ -307,16 +308,13 @@ public class TestBasicFunctionality {
 static MyValue1 tmp = null;
     // Merge value objects created from two branches
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", LOAD_OF_ANY_KLASS, "= 19"},
-// TODO: JDK-8380875
-//                  STORE_OF_ANY_KLASS, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
-        failOn = {UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_OF_MYVALUE_KLASS, "= 2"},
-// TODO: JDK-8380875
-//                STORE_OF_ANY_KLASS, "= 19"},
-        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // TODO 8380875, 8384979
+    // @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    //     counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", LOAD_OF_ANY_KLASS, "= 19", STORE_OF_ANY_KLASS, "= 3"},
+    //     failOn = {UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    //     counts = {ALLOC_OF_MYVALUE_KLASS, "= 2", STORE_OF_ANY_KLASS, "= 19"},
+    //     failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
         if (b) {
@@ -856,6 +854,7 @@ static MyValue1 tmp = null;
         return copy;
     }
 
+    @Warmup(value=10000)
     @Run(test = "test32")
     public void test32_verifier() {
         MyValue3 vt = MyValue3.create();
@@ -966,7 +965,8 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test36(boolean b) {
         Object o;
         if (b) {

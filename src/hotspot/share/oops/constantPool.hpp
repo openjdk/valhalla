@@ -80,7 +80,6 @@ public:
 
 class ConstantPool : public Metadata {
   friend class VMStructs;
-  friend class JVMCIVMStructs;
   friend class BytecodeInterpreter;  // Directly extracts a klass in the pool for fast instanceof/checkcast
   friend class Universe;             // For null constructor
   friend class AOTConstantPoolResolver;
@@ -272,7 +271,7 @@ class ConstantPool : public Metadata {
 
   // Storing constants
 
-  // For temporary use while constructing constant pool. Used during a retransform/class redefinition as well.
+  // For temporary use while constructing constant pool
   void klass_index_at_put(int cp_index, int name_index) {
     tag_at_put(cp_index, JVM_CONSTANT_ClassIndex);
     *int_at_addr(cp_index) = name_index;

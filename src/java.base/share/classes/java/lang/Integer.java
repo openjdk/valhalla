@@ -29,7 +29,8 @@ import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.util.DecimalDigits;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTRuntimeSetup;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
@@ -80,9 +81,8 @@ import static java.lang.String.COMPACT_STRINGS;
  *
  * @since 1.0
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Integer extends Number
+public final /*value*/ class Integer extends Number
         implements Comparable<Integer>, Constable, ConstantDesc {
     /**
      * A constant holding the minimum value an {@code int} can
@@ -913,12 +913,7 @@ public final class Integer extends Number
         static Integer[] archivedCache;
 
         static {
-            if (!PreviewFeatures.isEnabled()) {
-                runtimeSetup();
-            } else {
-                cache = null;
-                assert archivedCache == null;
-            }
+            runtimeSetup();
         }
 
         @AOTRuntimeSetup
@@ -938,7 +933,7 @@ public final class Integer extends Number
             }
             high = h;
 
-            Integer[] precomputed = null;
+            Integer[] precomputed;
             if (cache != null) {
                 // IntegerCache has been AOT-initialized.
                 precomputed = cache;
@@ -963,7 +958,7 @@ public final class Integer extends Number
                 return precomputed;
             }
 
-            Integer[] c = new Integer[size];
+            Integer[] c = newCacheArray(size);
             int j = low;
             // If we loading a precomputed cache (from AOT cache or CDS archive),
             // we must use all instances from it.
@@ -980,6 +975,14 @@ public final class Integer extends Number
                 c[i] = new Integer(j++);
             }
             return c;
+        }
+
+        private static Integer[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
+            if (PreviewFeatures.isEnabled()) {
+                return (Integer[]) ValueClass.newReferenceArray(Integer.class, size);
+            }
+            return new Integer[size];
         }
 
         private IntegerCache() {}
@@ -1013,12 +1016,9 @@ public final class Integer extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
     public static Integer valueOf(int i) {
-        if (!PreviewFeatures.isEnabled()) {
-            if (i >= IntegerCache.low && i <= IntegerCache.high)
-                return IntegerCache.cache[i + (-IntegerCache.low)];
-        }
+        if (i >= IntegerCache.low && i <= IntegerCache.high)
+            return IntegerCache.cache[i + (-IntegerCache.low)];
         return new Integer(i);
     }
 
@@ -1042,6 +1042,7 @@ public final class Integer extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
+    @Deserializer("value")
     public Integer(int value) {
         this.value = value;
     }

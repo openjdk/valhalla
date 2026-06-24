@@ -214,6 +214,7 @@ const TypeFunc* OptoRuntime::_digestBase_implCompress_without_sha3_Type   = null
 const TypeFunc* OptoRuntime::_digestBase_implCompressMB_with_sha3_Type    = nullptr;
 const TypeFunc* OptoRuntime::_digestBase_implCompressMB_without_sha3_Type = nullptr;
 const TypeFunc* OptoRuntime::_double_keccak_Type                  = nullptr;
+const TypeFunc* OptoRuntime::_quad_keccak_Type                    = nullptr;
 const TypeFunc* OptoRuntime::_multiplyToLen_Type                  = nullptr;
 const TypeFunc* OptoRuntime::_montgomeryMultiply_Type             = nullptr;
 const TypeFunc* OptoRuntime::_montgomerySquare_Type               = nullptr;
@@ -241,6 +242,8 @@ const TypeFunc* OptoRuntime::_string_IndexOf_Type                 = nullptr;
 const TypeFunc* OptoRuntime::_poly1305_processBlocks_Type         = nullptr;
 const TypeFunc* OptoRuntime::_intpoly_montgomeryMult_P256_Type    = nullptr;
 const TypeFunc* OptoRuntime::_intpoly_assign_Type                 = nullptr;
+const TypeFunc* OptoRuntime::_intpoly_mult_25519_Type             = nullptr;
+const TypeFunc* OptoRuntime::_intpoly_square_25519_Type           = nullptr;
 const TypeFunc* OptoRuntime::_updateBytesCRC32_Type               = nullptr;
 const TypeFunc* OptoRuntime::_updateBytesCRC32C_Type              = nullptr;
 const TypeFunc* OptoRuntime::_updateBytesAdler32_Type             = nullptr;
@@ -1251,6 +1254,26 @@ static const TypeFunc* make_double_keccak_Type() {
     return TypeFunc::make(domain, range);
 }
 
+static const TypeFunc* make_quad_keccak_Type() {
+    int argcnt = 4;
+
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;      // status0
+    fields[argp++] = TypePtr::NOTNULL;      // status1
+    fields[argp++] = TypePtr::NOTNULL;      // status2
+    fields[argp++] = TypePtr::NOTNULL;      // status3
+
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+}
+
 static const TypeFunc* make_multiplyToLen_Type() {
   // create input type (domain)
   int num_args      = 5;
@@ -1785,6 +1808,41 @@ static const TypeFunc* make_intpoly_assign_Type() {
   fields[argp++] = TypePtr::NOTNULL;    // a array (result)
   fields[argp++] = TypePtr::NOTNULL;    // b array (if set is set)
   fields[argp++] = TypeInt::INT;        // array length
+  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+
+  // result type needed
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms + 0] = nullptr; // void
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+  return TypeFunc::make(domain, range);
+}
+
+static const TypeFunc* make_intpoly_mult_25519_Type() {
+  int argcnt = 3;
+
+  const Type** fields = TypeTuple::fields(argcnt);
+  int argp = TypeFunc::Parms;
+  fields[argp++] = TypePtr::NOTNULL;    // a array
+  fields[argp++] = TypePtr::NOTNULL;    // b array
+  fields[argp++] = TypePtr::NOTNULL;    // r(esult) array
+  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+
+  // result type needed
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms + 0] = nullptr; // void
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+  return TypeFunc::make(domain, range);
+}
+
+static const TypeFunc* make_intpoly_square_25519_Type() {
+  int argcnt = 2;
+
+  const Type** fields = TypeTuple::fields(argcnt);
+  int argp = TypeFunc::Parms;
+  fields[argp++] = TypePtr::NOTNULL;    // a array
+  fields[argp++] = TypePtr::NOTNULL;    // r(esult) array
   assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
   const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
 
@@ -2336,6 +2394,7 @@ void OptoRuntime::initialize_types() {
   _digestBase_implCompressMB_with_sha3_Type    = make_digestBase_implCompressMB_Type(/* is_sha3= */ true);
   _digestBase_implCompressMB_without_sha3_Type = make_digestBase_implCompressMB_Type(/* is_sha3= */ false);
   _double_keccak_Type                 = make_double_keccak_Type();
+  _quad_keccak_Type                   = make_quad_keccak_Type();
   _multiplyToLen_Type                 = make_multiplyToLen_Type();
   _montgomeryMultiply_Type            = make_montgomeryMultiply_Type();
   _montgomerySquare_Type              = make_montgomerySquare_Type();
@@ -2363,6 +2422,8 @@ void OptoRuntime::initialize_types() {
   _poly1305_processBlocks_Type        = make_poly1305_processBlocks_Type();
   _intpoly_montgomeryMult_P256_Type   = make_intpoly_montgomeryMult_P256_Type();
   _intpoly_assign_Type                = make_intpoly_assign_Type();
+  _intpoly_mult_25519_Type            = make_intpoly_mult_25519_Type();
+  _intpoly_square_25519_Type          = make_intpoly_square_25519_Type();
   _updateBytesCRC32_Type              = make_updateBytesCRC32_Type();
   _updateBytesCRC32C_Type             = make_updateBytesCRC32C_Type();
   _updateBytesAdler32_Type            = make_updateBytesAdler32_Type();

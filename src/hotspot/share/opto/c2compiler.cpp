@@ -107,7 +107,7 @@ bool C2Compiler::init_c2_runtime() {
 }
 
 void C2Compiler::initialize() {
-  assert(!CompilerConfig::is_c1_or_interpreter_only_no_jvmci(), "C2 compiler is launched, it's not c1/interpreter only mode");
+  assert(!CompilerConfig::is_c1_or_interpreter_only(), "C2 compiler is launched, it's not c1/interpreter only mode");
   // The first compiler thread that gets here will initialize the
   // small amount of global state (and runtime stubs) that C2 needs.
 
@@ -131,8 +131,7 @@ void C2Compiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, boo
   bool do_escape_analysis = DoEscapeAnalysis;
   bool do_iterative_escape_analysis = DoEscapeAnalysis;
   bool do_reduce_allocation_merges = ReduceAllocationMerges && EliminateAllocations;
-  // TODO 8328675 Re-enable
-  bool eliminate_boxing = EliminateAutoBox && !Arguments::is_valhalla_enabled();
+  bool eliminate_boxing = EliminateAutoBox;
   bool do_locks_coarsening = EliminateLocks;
   bool do_superword = UseSuperWord;
 
@@ -762,6 +761,7 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_counterTime:
   case vmIntrinsics::_getEventWriter:
   case vmIntrinsics::_jvm_commit:
+  case vmIntrinsics::_tryUpdateEpochField:
 #endif
   case vmIntrinsics::_currentTimeMillis:
   case vmIntrinsics::_nanoTime:
@@ -806,6 +806,7 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_sha5_implCompress:
   case vmIntrinsics::_sha3_implCompress:
   case vmIntrinsics::_double_keccak:
+  case vmIntrinsics::_quad_keccak:
   case vmIntrinsics::_digestBase_implCompressMB:
   case vmIntrinsics::_multiplyToLen:
   case vmIntrinsics::_squareToLen:
@@ -832,6 +833,8 @@ bool C2Compiler::is_intrinsic_supported(vmIntrinsics::ID id) {
   case vmIntrinsics::_poly1305_processBlocks:
   case vmIntrinsics::_intpoly_montgomeryMult_P256:
   case vmIntrinsics::_intpoly_assign:
+  case vmIntrinsics::_intpoly_mult_25519:
+  case vmIntrinsics::_intpoly_square_25519:
   case vmIntrinsics::_updateCRC32:
   case vmIntrinsics::_updateBytesCRC32:
   case vmIntrinsics::_updateByteBufferCRC32:

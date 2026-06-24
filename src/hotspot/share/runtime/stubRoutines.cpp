@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,10 +99,6 @@ BlobId StubRoutines::stub_to_blob(StubId id) {
 }
 
 #endif // ASSERT
-
-// TODO: update with 8343767
-address StubRoutines::_load_inline_type_fields_in_regs = nullptr;
-address StubRoutines::_store_inline_type_fields_to_buf = nullptr;
 
 // Initialization
 

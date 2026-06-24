@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2025, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -681,6 +681,14 @@
   do_entry(initial, dcbrt, dcbrt, dcbrt)                                \
   do_stub(initial, fmod)                                                \
   do_entry(initial, fmod, fmod, fmod)                                   \
+  do_stub(initial, load_inline_type_fields_in_regs)                     \
+  do_entry(initial, load_inline_type_fields_in_regs,                    \
+                    load_inline_type_fields_in_regs,                    \
+                    load_inline_type_fields_in_regs)                    \
+  do_stub(initial, store_inline_type_fields_to_buf)                     \
+  do_entry(initial, store_inline_type_fields_to_buf,                    \
+                    store_inline_type_fields_to_buf,                    \
+                    store_inline_type_fields_to_buf)                    \
   /* merge in stubs and entries declared in arch header */              \
   STUBGEN_INITIAL_BLOBS_ARCH_DO(do_stub, do_arch_blob,                  \
                                 do_arch_entry, do_arch_entry_init,      \
@@ -811,6 +819,12 @@
            intpoly_montgomeryMult_P256, intpoly_montgomeryMult_P256)    \
   do_stub(compiler, intpoly_assign)                                     \
   do_entry(compiler, intpoly_assign, intpoly_assign, intpoly_assign)    \
+  do_stub(compiler, intpoly_mult_25519)                                 \
+  do_entry(compiler, intpoly_mult_25519,                                \
+           intpoly_mult_25519, intpoly_mult_25519)                      \
+  do_stub(compiler, intpoly_square_25519)                               \
+  do_entry(compiler, intpoly_square_25519,                              \
+           intpoly_square_25519, intpoly_square_25519)                  \
   do_stub(compiler, md5_implCompress)                                   \
   do_entry(compiler, md5_implCompress, md5_implCompress,                \
            md5_implCompress)                                            \
@@ -840,6 +854,8 @@
            sha3_implCompress)                                           \
   do_stub(compiler, double_keccak)                                      \
   do_entry(compiler, double_keccak, double_keccak, double_keccak)       \
+  do_stub(compiler, quad_keccak)                                        \
+  do_entry(compiler, quad_keccak, quad_keccak, quad_keccak)             \
   do_stub(compiler, sha3_implCompressMB)                                \
   do_entry(compiler, sha3_implCompressMB, sha3_implCompressMB,          \
            sha3_implCompressMB)                                         \

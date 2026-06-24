@@ -159,6 +159,15 @@ public final class Objects {
      * Object.toString} if that method and {@code hashCode} are not
      * overridden}
      *
+     * @apiNote
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          Note that, like ==, the hash code string exposes information about a value object's
+     *          private fields that might otherwise be hidden by an identity object.
+     *          Developers should be cautious about storing sensitive secrets in value object fields.
+     *      </div>
+     * </div>
+     *
      * @implNote
      * This method constructs a string for an object without calling
      * any overridable methods of the object.
@@ -178,29 +187,28 @@ public final class Objects {
         return o.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(o));
     }
 
-   /**
-    * {@return {@code true} if the input is a non-null reference
-    * to an object with identity, and {@code false} otherwise}
-    *
-    * <p>If the object is an instance of a concrete {@linkplain Class#isValue()
-    * value class}, it does not have identity and the result will be
-    * {@code false}. All other objects, including arrays, are identity objects
-    * and the result will be {@code true}.
-    *
-    * @apiNote
-    * If the parameter is {@code null}, there is no object
-    * and hence no identity; the result is {@code false}.
-    * To test for a value object use:
-    * {@snippet type="java" :
-    *     if (obj != null && !Objects.hasIdentity(obj)) {
-    *         // obj is a non-null value object
-    *     }
-    * }
-    * @param obj an object or {@code null}
-    * @since Valhalla
-    */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-//    @IntrinsicCandidate
+    /**
+     * {@return {@code true} if the input is a non-null reference
+     * to an object with identity, and {@code false} otherwise}
+     *
+     * <p>If the object is an instance of a concrete {@linkplain Class#isValue()
+     * value class}, it does not have identity and the result will be
+     * {@code false}. All other objects, including arrays, are identity objects
+     * and the result will be {@code true}.
+     *
+     * @apiNote
+     * If the parameter is {@code null}, there is no object
+     * and hence no identity; the result is {@code false}.
+     * To test for a value object use:
+     * {@snippet type="java" :
+     *     if (obj != null && !Objects.hasIdentity(obj)) {
+     *         // obj is a non-null value object
+     *     }
+     * }
+     * @param obj an object or {@code null}
+     * @since 28
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
     public static boolean hasIdentity(Object obj) {
         return (obj == null) ? false : !obj.getClass().isValue();
     }
@@ -213,14 +221,14 @@ public final class Objects {
      * @return {@code obj} if {@code obj} is an identity object
      * @throws NullPointerException if {@code obj} is {@code null}
      * @throws IdentityException if {@code obj} is not an identity object
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @ForceInline
     public static <T> T requireIdentity(T obj) {
         Objects.requireNonNull(obj);
         if (!hasIdentity(obj))
-            throw new IdentityException(obj.getClass());
+            throw new IdentityException(obj.getClass().getName() + " is not an identity class");
         return obj;
     }
 
@@ -234,7 +242,7 @@ public final class Objects {
      * @return {@code obj} if {@code obj} is an identity object
      * @throws NullPointerException if {@code obj} is {@code null}
      * @throws IdentityException if {@code obj} is not an identity object
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @ForceInline
@@ -255,7 +263,7 @@ public final class Objects {
      * @return {@code obj} if {@code obj} is an identity object
      * @throws NullPointerException if {@code obj} is {@code null}
      * @throws IdentityException if {@code obj} is not an identity object
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @ForceInline

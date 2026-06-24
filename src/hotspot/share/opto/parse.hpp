@@ -497,7 +497,8 @@ class Parse : public GraphKit {
   void array_store(BasicType etype);
   void store_to_unknown_flat_array(Node* array, Node* idx, Node* non_null_stored_value);
   // Helper function to compute array addressing
-  Node* array_addressing(BasicType type, int vals, const Type*& elemtype);
+  Node* prepare_array_addressing(BasicType type, int vals, const Type*& elemtype);
+  Node* get_ptr_to_array_element(Node* array, Node* idx, BasicType elembt, const TypeInt* sizetype, Node* control);
   bool needs_range_check(const TypeInt* size_type, const Node* index) const;
   Node* create_speculative_inline_type_array_checks(Node* array, const TypeAryPtr* array_type, const Type*& element_type);
   Node* cast_to_speculative_array_type(Node* array, const TypeAryPtr*& array_type, const Type*& element_type);
@@ -573,7 +574,8 @@ class Parse : public GraphKit {
   bool    path_is_suitable_for_uncommon_trap(float prob) const;
 
   void    do_ifnull(BoolTest::mask btest, Node* c);
-  void    do_if(BoolTest::mask btest, Node* c, bool can_trap = true, bool new_path = false, Node** ctrl_taken = nullptr, Node** stress_count_mem = nullptr);
+  void    do_if(BoolTest::mask btest, Node* c, bool can_trap = true, bool new_path = false, Node** ctrl_taken = nullptr,
+                Node** mem_taken = nullptr, Node** id_taken = nullptr);
   void    do_acmp(BoolTest::mask btest, Node* left, Node* right);
   void    acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region);
   void    acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, Deoptimization::DeoptReason);
