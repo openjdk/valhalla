@@ -4575,9 +4575,11 @@ bool ConnectionGraph::flat_access_aliases_with(Node* flat_access, const TypeOopP
   }
   assert(ptn->is_LocalVar(), "sanity");
   for (EdgeIterator i(ptn); i.has_next(); i.next()) {
-    Node* jobj_base = get_map(i.get()->idx());
-    if (jobj_base != nullptr && _igvn->type(jobj_base)->is_oopptr()->same_instance_as(toop)) {
-      return true;
+    if (i.get()->is_JavaObject()) {
+      Node* jobj_base = get_map(i.get()->idx());
+      if (jobj_base != nullptr && _igvn->type(jobj_base)->is_oopptr()->same_instance_as(toop)) {
+        return true;
+      }
     }
   }
   assert(!_igvn->type(base)->is_oopptr()->same_instance_as(toop), "should not alias");
