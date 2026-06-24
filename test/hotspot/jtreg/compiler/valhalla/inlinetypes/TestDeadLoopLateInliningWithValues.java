@@ -28,7 +28,9 @@
  * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
  * @run main ${test.main.class}
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
+ * @run main/othervm -XX:CompileCommand=option,${test.main.class}::lateInlined2,delayinline
+ *                   -XX:CompileCommand=option,${test.main.class}::lateInlined1,delayinline
+ *                   -XX:CompileCommand=option,${test.main.class}$A::lateInlined,delayinline
  *                   -XX:CompileOnly=${test.main.class}::test* -Xcomp ${test.main.class}
  */
 
@@ -50,7 +52,8 @@ public class TestDeadLoopLateInliningWithValues {
     }
 
     public static void main(String[] args) {
-        test1(0, true);
+        MyValue v = new MyValue(null);
+        //test1(0, true);
         test2(0, 0, true);
     }
 
@@ -65,7 +68,8 @@ public class TestDeadLoopLateInliningWithValues {
                     boolean boolRes = lateInlined2();
                     if (boolRes) {
                         i *= 2;
-                        o = lateInlined1(o).o;
+                        MyValue v = new MyValue(o);
+                        o = lateInlined1(v).o;
                         if (o == null) {
                             throw new RuntimeException();
                         }
@@ -78,6 +82,8 @@ public class TestDeadLoopLateInliningWithValues {
         }
         return null;
     }
+
+    static final MyValue[] valueArray = new MyValue[1];
 
     private static Object test2(int j, int k, boolean flag) {
         A a;
@@ -103,7 +109,8 @@ public class TestDeadLoopLateInliningWithValues {
                         boolean boolRes = lateInlined2();
                         if (boolRes) {
                             i *= 2;
-                            o = a.lateInlined(o);
+                            MyValue v = new MyValue(o);
+                            o = a.lateInlined(v).o;
                             if (o == null) {
                                 throw new RuntimeException();
                             }
@@ -122,15 +129,14 @@ public class TestDeadLoopLateInliningWithValues {
         return true;
     }
 
-    @NullRestricted
-    private static MyValue lateInlined1(Object o) {
-        return new MyValue(o);
+    private static MyValue lateInlined1(MyValue o) {
+        return o;
     }
 
 
     static class A {
-        Object lateInlined(Object o) {
-            return o;
+        MyValue lateInlined(MyValue v) {
+            return v;
         }
     }
 
