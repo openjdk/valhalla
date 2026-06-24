@@ -2380,6 +2380,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = nullptr;
+    LIR_Opr load_result = result;
 
     if (x->should_profile() && x->array()->maybe_null_free_array()) {
       profile_null_free_array(array, md, data);
@@ -2388,19 +2389,25 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     if (x->elt_type() == T_OBJECT && x->array()->maybe_flat_array()) {
       assert(x->delayed() == nullptr, "Delayed LoadIndexed only apply to loaded_flat_arrays");
       index.load_item();
-      // if we are loading from a flat array, load it using a runtime call
-      slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x, x->state_before()));
+      // Use a temporary for the conditional load so that the RA defines
+      // 'result' at the continuation point (after both paths merge).
+      // Otherwise, the RA may insert a spill at the load's def point
+      // (inside the conditional code), and the stub's continuation jump
+      // would skip that spill, leaving the spill slot stale.
+      load_result = new_register(T_OBJECT);
+      slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), load_result, state_for(x, x->state_before()));
       check_flat_array(array.result(), slow_path);
       set_in_conditional_code(true);
     }
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY;
     access_load_at(decorators, x->elt_type(),
-                   array, index.result(), result,
+                   array, index.result(), load_result,
                    nullptr, null_check_info);
 
     if (slow_path != nullptr) {
       __ branch_destination(slow_path->continuation());
+      __ move(load_result, result);
       set_in_conditional_code(false);
     }
 
