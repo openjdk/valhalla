@@ -32,8 +32,7 @@ import jdk.internal.value.ValueClass;
  * @requires vm.flagless
  * @modules java.base/jdk.internal.value
  * @enablePreview
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
- *                   -XX:+UseArrayFlattening -XX:+UseNullableAtomicValueFlattening
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions
  *                   -XX:-UseNullFreeAtomicValueFlattening -XX:-UseNullFreeNonAtomicValueFlattening
  *                   runtime.valhalla.inlinetypes.ArrayCopyStoreNull
  */
