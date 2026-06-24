@@ -53,7 +53,7 @@ public class TestDeadLoopLateInliningWithValues {
 
     public static void main(String[] args) {
         MyValue v = new MyValue(null);
-        //test1(0, true);
+        test1(0, true);
         test2(0, 0, true);
     }
 
@@ -141,8 +141,8 @@ public class TestDeadLoopLateInliningWithValues {
     }
 
     static class B extends A {
-        Object lateInlined(Object o) {
-            return o;
+        MyValue lateInlined(MyValue v) {
+            return v;
         }
     }
 }

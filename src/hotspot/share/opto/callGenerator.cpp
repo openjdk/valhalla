@@ -184,9 +184,31 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   kit.set_arguments_for_java_call(call);
   kit.set_edges_for_java_call(call, false, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
-  if (is_late_inline() && !call->is_boxing_method() && ret->is_Proj() && ret->in(0) == call) {
+  if (is_late_inline() && !call->is_boxing_method()) {
     // If late inlining for this call happens in a dead part of the graph it can leave a dead loop behind
-    ret->mark_not_dead_loop_safe();
+    if (ret->is_Proj() && ret->in(0) == call) {
+      ret->mark_not_dead_loop_safe();
+    } else if (ret->isa_InlineType()) {
+      InlineTypeNode* vt = ret->as_InlineType();
+      Node* oop = vt->get_oop();
+      if (oop->is_Proj()) {
+        assert(oop->in(0) == call, "");
+        oop->mark_not_dead_loop_safe();
+      }
+      Node* null_marker = vt->get_null_marker();
+      if (null_marker->is_Proj()) {
+        assert(null_marker->in(0) == call, "");
+        null_marker->mark_not_dead_loop_safe();
+      }
+
+      for (uint i = 0; i < vt->field_count(); i++) {
+        Node* field = vt->field_value(i);
+        if (field->is_Proj()) {
+          assert(field->in(0) == call, "");
+          field->mark_not_dead_loop_safe();
+        }
+      }
+    }
   }
   kit.push_node(method()->return_type()->basic_type(), ret);
   return kit.transfer_exceptions_into_jvms();
@@ -285,9 +307,31 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   kit.set_arguments_for_java_call(call);
   kit.set_edges_for_java_call(call, false /*must_throw*/, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
-  if (is_late_inline() && ret->is_Proj() && ret->in(0) == call) {
+  if (is_late_inline()) {
     // If late inlining for this call happens in a dead part of the graph it can leave a dead loop behind
-    ret->mark_not_dead_loop_safe();
+    if (ret->is_Proj() && ret->in(0) == call) {
+      ret->mark_not_dead_loop_safe();
+    } else if (ret->isa_InlineType()) {
+      InlineTypeNode* vt = ret->as_InlineType();
+      Node* oop = vt->get_oop();
+      if (oop->is_Proj()) {
+        assert(oop->in(0) == call, "");
+        oop->mark_not_dead_loop_safe();
+      }
+      Node* null_marker = vt->get_null_marker();
+      if (null_marker->is_Proj()) {
+        assert(null_marker->in(0) == call, "");
+        null_marker->mark_not_dead_loop_safe();
+      }
+
+      for (uint i = 0; i < vt->field_count(); i++) {
+        Node* field = vt->field_value(i);
+        if (field->is_Proj()) {
+          assert(field->in(0) == call, "");
+          field->mark_not_dead_loop_safe();
+        }
+      }
+    }
   }
   kit.push_node(method()->return_type()->basic_type(), ret);
 
