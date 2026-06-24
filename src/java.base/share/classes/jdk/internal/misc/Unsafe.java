@@ -269,6 +269,14 @@ public final class Unsafe {
 
     private native int nullMarkerOffset0(Object o);
 
+    /**
+     * The layout value for a "reference pointer" layout. This is the only
+     * value layout values should check against; all other layout values
+     * represent some kind of flat layout opaque to Java code.
+     *
+     * @see #arrayLayout
+     * @see #fieldLayout
+     */
     public static final int NON_FLAT_LAYOUT = 0;
 
     /* Reports the kind of layout used for an element in the storage
@@ -1851,6 +1859,7 @@ public final class Unsafe {
                                                              V expected,
                                                              V x) {
         if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1878,6 +1887,7 @@ public final class Unsafe {
                                                                V expected,
                                                                V x) {
         if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferenceAcquire(o, offset, expected, x);
@@ -1905,6 +1915,7 @@ public final class Unsafe {
                                                                V expected,
                                                                V x) {
         if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferenceRelease(o, offset, expected, x);
@@ -1932,6 +1943,7 @@ public final class Unsafe {
                                                         V expected,
                                                         V x) {
         if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReference(o, offset, expected, x);
