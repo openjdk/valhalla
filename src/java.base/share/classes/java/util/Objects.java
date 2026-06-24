@@ -196,6 +196,12 @@ public final class Objects {
      * {@code false}. All other objects, including arrays, are identity objects
      * and the result will be {@code true}.
      *
+     * <p>This method returns {@code false} if and only if the parameter is
+     * {@code null} or if the parameter represents a value object when preview
+     * features are enabled.  Value objects do not exist when preview features
+     * are disabled; consequently, this method behaves the same as {@link
+     * #nonNull Objects.nonNull} when preview features are disabled.
+     *
      * @apiNote
      * If the parameter is {@code null}, there is no object
      * and hence no identity; the result is {@code false}.
