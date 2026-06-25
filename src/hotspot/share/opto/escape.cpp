@@ -4549,7 +4549,7 @@ void ConnectionGraph::move_inst_mem(Node* n, Unique_Node_List& orig_phis) {
 //
 #define FIND_INST_MEM_RECURSION_DEPTH_LIMIT 1000
 
-// Does LoadFlat/StoreFlat flat_access alias with memory acess with type toop?
+// Does LoadFlat/StoreFlat flat_access alias with memory access with type toop?
 // toop is the type for some field of some known instance
 bool ConnectionGraph::flat_access_aliases_with(Node* flat_access, const TypeOopPtr* toop) {
   Node* base = flat_access->is_StoreFlat() ? flat_access->as_StoreFlat()->base() : flat_access->as_LoadFlat()->base();
