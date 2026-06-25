@@ -221,6 +221,12 @@ public final class Objects {
 
     /**
      * Checks that the specified object reference is an identity object.
+     * <p>
+     * This method throws an {@code IdentityException} if and only if the
+     * parameter represents a value object when preview features are enabled.
+     * Value objects do not exist when preview features are disabled;
+     * consequently, this method behaves the same as {@link #requireNonNull(Object)
+     * Objects.requireNonNull} when preview features are disabled.
      *
      * @param obj the object reference to check for identity
      * @param <T> the type of the reference
@@ -229,7 +235,7 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since 28
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
     @ForceInline
     public static <T> T requireIdentity(T obj) {
         Objects.requireNonNull(obj);
@@ -240,6 +246,12 @@ public final class Objects {
 
     /**
      * Checks that the specified object reference is an identity object.
+     * <p>
+     * This method throws an {@code IdentityException} if and only if the
+     * parameter represents a value object when preview features are enabled.
+     * Value objects do not exist when preview features are disabled;
+     * consequently, this method behaves the same as {@link #requireNonNull(Object, String)
+     * Objects.requireNonNull} when preview features are disabled.
      *
      * @param obj the object reference to check for identity
      * @param message detail message to be used in the event that an
@@ -250,7 +262,7 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since 28
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
     @ForceInline
     public static <T> T requireIdentity(T obj, String message) {
         Objects.requireNonNull(obj);
@@ -261,6 +273,12 @@ public final class Objects {
 
     /**
      * Checks that the specified object reference is an identity object.
+     * <p>
+     * This method throws an {@code IdentityException} if and only if the
+     * parameter represents a value object when preview features are enabled.
+     * Value objects do not exist when preview features are disabled;
+     * consequently, this method behaves the same as {@link #requireNonNull(Object, Supplier)
+     * Objects.requireNonNull} when preview features are disabled.
      *
      * @param obj the object reference to check for identity
      * @param messageSupplier supplier of the detail message to be
@@ -271,7 +289,7 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since 28
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
+    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
     @ForceInline
     public static <T> T requireIdentity(T obj, Supplier<String> messageSupplier) {
         Objects.requireNonNull(obj);
