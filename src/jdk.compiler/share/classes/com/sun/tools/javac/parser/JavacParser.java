@@ -5049,7 +5049,6 @@ public class JavacParser implements Parser {
                     break;
             }
             if (isValueModifier) {
-                checkSourceLevel(Feature.VALUE_CLASSES);
                 return true;
             }
         }
