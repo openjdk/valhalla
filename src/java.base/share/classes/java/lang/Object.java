@@ -186,15 +186,16 @@ public class Object {
     /**
      * Creates and returns a copy of this object.  The precise meaning
      * of "copy" may depend on the class of the object. The general
-     * intent is that, for any object {@code x}, the expression:
+     * intent is that, for an object {@code x}, the expression:
      * <blockquote>
      * <pre>
      * x.clone() != x</pre></blockquote>
-     * will be true, and that the expression:
+     * will be true if {@code x} is an {@linkplain java.util.Objects#hasIdentity(Object)
+     * identity object}, and that the expression:
      * <blockquote>
      * <pre>
      * x.clone().getClass() == x.getClass()</pre></blockquote>
-     * will be {@code true}, but these are not absolute requirements.
+     * will be {@code true} for any object, but these are not absolute requirements.
      * While it is typically the case that:
      * <blockquote>
      * <pre>
@@ -225,9 +226,11 @@ public class Object {
      * are considered to implement the interface {@code Cloneable} and that
      * the return type of the {@code clone} method of an array type {@code T[]}
      * is {@code T[]} where T is any reference or primitive type.
-     * Otherwise, this method creates a new instance of the class of this
-     * object and initializes all its fields with exactly the contents of
-     * the corresponding fields of this object, as if by assignment; the
+     * <p>
+     * If this object is a value object, this method simply returns the object.
+     * Otherwise, this object has identity and the method creates a new instance of
+     * the class of this object and initializes all its fields with exactly the
+     * contents of the corresponding fields of this object, as if by assignment; the
      * contents of the fields are not themselves cloned. Thus, this method
      * performs a "shallow copy" of this object, not a "deep copy" operation.
      * <p>
