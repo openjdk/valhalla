@@ -139,7 +139,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 @ForceCompileClassInitializer
 public class TestIntrinsics {
 
-    // Make sure the WhiteBox API is only loaded in the test VM such that we can run this test in driver mode
+    // Make sure the WhiteBox API is only loaded in the Test VM such that we can run this test in driver mode
     static class Flags {
         private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
         private static final boolean UseArrayFlattening = WHITEBOX.getBooleanVMFlag("UseArrayFlattening");
