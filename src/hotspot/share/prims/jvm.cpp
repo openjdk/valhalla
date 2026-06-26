@@ -466,7 +466,6 @@ JVM_ENTRY(jarray, JVM_CopyOfSpecialArray(JNIEnv *env, jarray orig, jint from, ji
     array = dst;
   } else {
     const ArrayProperties props = ArrayProperties::Default().with_null_restricted(ak->is_null_free_array_klass());
-
     array = oopFactory::new_objArray(vk, len, props,  CHECK_NULL);
     int end = to < oh()->length() ? to : oh()->length();
     for (int i = from; i < end; i++) {
