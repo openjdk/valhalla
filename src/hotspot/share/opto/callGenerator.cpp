@@ -73,20 +73,17 @@ void CallGenerator::mark_projs_not_dead_loop_safe(Node* ret) const {
   } else if (ret->isa_InlineType()) {
     InlineTypeNode* vt = ret->as_InlineType();
     Node* oop = vt->get_oop();
-    if (oop->is_Proj()) {
-      assert(oop->in(0) == call, "projection was replaced by dominating one");
+    if (oop->is_Proj() && oop->in(0) == call) {
       oop->mark_not_dead_loop_safe();
     }
     Node* null_marker = vt->get_null_marker();
-    if (null_marker->is_Proj()) {
-      assert(null_marker->in(0) == call, "projection was replaced by dominating one");
+    if (null_marker->is_Proj() && null_marker->in(0) == call) {
       null_marker->mark_not_dead_loop_safe();
     }
 
     for (uint i = 0; i < vt->field_count(); i++) {
       Node* field = vt->field_value(i);
-      if (field->is_Proj()) {
-        assert(field->in(0) == call, "projection was replaced by dominating one");
+      if (field->is_Proj() && field->in(0) == call) {
         field->mark_not_dead_loop_safe();
       }
     }
