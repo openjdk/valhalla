@@ -81,7 +81,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run driver/timeout=240 ${test.main.class}
+ * @run driver/timeout=240 ${test.main.class} 3
  */
 
 /*

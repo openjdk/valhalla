@@ -102,7 +102,7 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run driver/timeout=300 ${test.main.class}
+ * @run driver/timeout=300 ${test.main.class} 3
  */
 
 /*
