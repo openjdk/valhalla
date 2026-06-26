@@ -5186,6 +5186,13 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     Node* orig_length = load_array_length(original);
 
     Node* klass_node = load_klass_from_mirror(array_type_mirror, false, nullptr, 0);
+    if (stopped()) {
+      // Arrays.copyOf() uses a generic type Class parameter which is erased to the raw type Class. This also
+      // allows passing in primitive class mirrors like int.class which do not have corresponding Klass* pointers.
+      // In these cases, klass_node will be top and we bail out.
+      return true;
+    }
+
     klass_node = null_check(klass_node);
 
     RegionNode* bailout = new RegionNode(1);
@@ -5194,34 +5201,19 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // Despite the generic type of Arrays.copyOf, the mirror might be int, int[], etc.
     // Bail out if that is so.
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
-    const TypeAryKlassPtr* dest_klass_t = _gvn.type(klass_node)->is_klassptr()->isa_aryklassptr();
-    const bool can_src_be_abstract_flat_value_class_array = orig_t != nullptr && !orig_t->elem()->is_inlinetypeptr() && !orig_t->is_not_flat();
-    const bool can_dest_be_value_class_array = dest_klass_t != nullptr && dest_klass_t->can_be_inline_array();
-    const bool can_dest_be_abstract_flat_value_class_array = can_dest_be_value_class_array && !dest_klass_t->is_not_flat() &&
-                                                             !dest_klass_t->elem()->is_instklassptr()->instance_klass()->is_inlinetype();
-    const bool is_abstract_flat_value_class_array_involved = can_src_be_abstract_flat_value_class_array || can_dest_be_abstract_flat_value_class_array;
-    const bool can_src_be_flat_with_oops = orig_t == nullptr ||
-                                           (!can_src_be_abstract_flat_value_class_array &&
-                                            !orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()));
-    const bool can_dest_be_flat_with_oops = can_dest_be_value_class_array && !can_dest_be_abstract_flat_value_class_array &&
-                                            !dest_klass_t->is_not_flat() &&
-                                            (!dest_klass_t->is_flat() || dest_klass_t->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops());
+    const TypeAryPtr* src_t = _gvn.type(original)->is_aryptr();
+    const TypeKlassPtr* dest_klass_t = _gvn.type(klass_node)->is_klassptr()->is_klassptr();
 
-    const bool exclude_flat = UseArrayFlattening &&
-                              // We do not know the exact layout of an abstract flat value class array. Bail out.
-                              (is_abstract_flat_value_class_array_involved ||
-                               // Value class array may have object field that would require a write barrier.
-                               // Conservatively, go to slow path.
-                               // TODO 8251971: Optimize for the case when flat src/dst are later found to not contain
-                               //               oops (i.e., move this check to the macro expansion phase).
-                               (bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing) &&
-                                can_src_be_flat_with_oops && can_dest_be_flat_with_oops));
-    Node* not_objArray = exclude_flat ? generate_non_refArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
+    Node* success_proj;
+    if (should_bail_out_on_non_ref_arrays(src_t, dest_klass_t)) {
+      success_proj = generate_non_refArray_guard(klass_node, bailout);
+    } else {
+      success_proj = generate_typeArray_guard(klass_node, bailout);
+    }
 
     Node* refined_klass_node = load_default_refined_array_klass(klass_node, /* type_array_guard= */ false);
 
-    if (not_objArray != nullptr) {
+    if (success_proj != nullptr) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
       bool not_flat = !UseArrayFlattening;
@@ -5338,6 +5330,51 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
   return true;
 }
 
+bool LibraryCallKit::should_bail_out_on_non_ref_arrays(const TypeAryPtr* src_type, const TypeKlassPtr* dest_klass_type) {
+  if (UseArrayFlattening) {
+    return false;
+  }
+
+  const TypeAryKlassPtr* dest_ary_klass_type = dest_klass_type->isa_aryklassptr();
+  if (dest_ary_klass_type == nullptr) {
+    // Dest class is not known to be an array class. There are multiple cases:
+    // - Primitive type mirror: We already bailed out before.
+    // - Instance klass mirror: We should bail out.
+    // - java.lang.Object (possible due to type erasure): Could be anything including primitive type or instance klass
+    //   mirror or also flat arrays. Bail out.
+    return true;
+  }
+
+  // We now know that src and dest are proper array pointers.
+  const bool src_maybe_flat = !src_type->is_not_flat();
+  const bool dest_maybe_flat = !dest_ary_klass_type->is_not_flat();
+
+  // We could have abstract flat value class arrays whose layout we don't know. Bail out.
+  const bool can_src_be_abstract_flat_value_class_array = src_maybe_flat && !src_type->elem()->is_inlinetypeptr();
+  const bool can_dest_be_abstract_flat_value_class_array = dest_maybe_flat &&
+                                                           !dest_ary_klass_type->elem()->is_instklassptr()->instance_klass()->is_inlinetype();
+  if (can_src_be_abstract_flat_value_class_array || can_dest_be_abstract_flat_value_class_array) {
+    return true;
+  }
+
+  // Value class array may have object field that would require a write barrier. Conservatively bail out.
+  // TODO 8251971: Optimize for the case when flat src/dst are later found to not contain
+  //               oops (i.e., move this check to the macro expansion phase).
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing)) {
+    // No barriers required.
+    return false;
+  }
+
+  const bool can_src_be_flat_with_oops = src_maybe_flat && src_type->elem()->inline_klass()->contains_oops();
+  const bool can_dest_be_flat_with_oops = dest_maybe_flat && dest_ary_klass_type->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops();
+  if (can_src_be_flat_with_oops || can_dest_be_flat_with_oops) {
+    return true;
+  }
+
+  // Can handle remaining flat arrays.
+  return false;
+}
 
 //----------------------generate_virtual_guard---------------------------
 // Helper for hashCode and clone.  Peeks inside the vtable to avoid a call.
