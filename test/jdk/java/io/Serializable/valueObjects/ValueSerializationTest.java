@@ -25,14 +25,14 @@
  * @test
  * @summary Test serialization of value classes
  * @enablePreview
- * @modules java.base/jdk.internal java.base/jdk.internal.value
+ * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @compile ValueSerializationTest.java
- * @run driver jdk.test.lib.helpers.StrictProcessor ValueSerializationTest$NonSerializableStrictPoint
- * @run junit/othervm ValueSerializationTest
+ * @comment run the StrictProcessor over the IdentityStrictPoint to generate a class with
+ *          STRICT_INIT access flags for its annotated fields
+ * @run driver jdk.test.lib.helpers.StrictProcessor ValueSerializationTest$IdentityStrictPoint
+ * @run junit ${test.main.class}
  */
-
-import static java.io.ObjectStreamConstants.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -53,188 +53,206 @@ import java.io.Serializable;
 import java.util.stream.Stream;
 
 import jdk.internal.value.Deserializer;
-
 import jdk.test.lib.helpers.StrictInit;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static java.io.ObjectStreamConstants.SC_EXTERNALIZABLE;
+import static java.io.ObjectStreamConstants.SC_SERIALIZABLE;
+import static java.io.ObjectStreamConstants.STREAM_MAGIC;
+import static java.io.ObjectStreamConstants.STREAM_VERSION;
+import static java.io.ObjectStreamConstants.TC_CLASSDESC;
+import static java.io.ObjectStreamConstants.TC_ENDBLOCKDATA;
+import static java.io.ObjectStreamConstants.TC_NULL;
+import static java.io.ObjectStreamConstants.TC_OBJECT;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ValueSerializationTest {
 
-    static final Class<NotSerializableException> NSE = NotSerializableException.class;
+    private static final Class<NotSerializableException> NSE = NotSerializableException.class;
     private static final Class<InvalidClassException> ICE = InvalidClassException.class;
 
-    public static Stream<Arguments> doesNotImplementSerializable() {
+    static Stream<Arguments> doesNotImplementSerializable() {
         return Stream.of(
-            Arguments.of( new NonSerializablePoint(10, 100), NSE),
-            Arguments.of( new NonSerializablePointNoCons(10, 100), ICE),
-            Arguments.of( new NonSerializableStrictPoint(), ICE),
-            // an array of Points
-            Arguments.of( new NonSerializablePoint[] {new NonSerializablePoint(1, 5)}, NSE),
-            Arguments.of( Arguments.of(new NonSerializablePoint(3, 7)), NSE),
-            Arguments.of( new ExternalizablePoint(12, 102), ICE),
-            Arguments.of( new ExternalizablePoint[] {
-                    new ExternalizablePoint(3, 7),
-                    new ExternalizablePoint(2, 8) }, ICE),
-            Arguments.of( new Object[] {
-                    new ExternalizablePoint(13, 17),
-                    new ExternalizablePoint(14, 18) }, ICE));
+                Arguments.of(
+                        new NonSerializableValue(10, 100),
+                        NSE
+                ),
+
+                Arguments.of(
+                        new ValueWithNoDeserializer(10, 100),
+                        ICE
+                ),
+
+                Arguments.of(
+                        new IdentityStrictPoint(),
+                        ICE
+                ),
+
+                // an array of non-serializable value objects
+                Arguments.of(
+                        new NonSerializableValue[]{
+                                new NonSerializableValue(1, 5)
+                        },
+                        NSE
+                ),
+
+                Arguments.of(
+                        new Object[]{
+                                new NonSerializableValue(3, 7)
+                        },
+                        NSE
+                ),
+
+                Arguments.of(
+                        new ExternalizableValue(12, 102),
+                        ICE
+                ),
+
+                Arguments.of(
+                        new ExternalizableValue[]{
+                                new ExternalizableValue(3, 7),
+                                new ExternalizableValue(2, 8)
+                        },
+                        ICE
+                ),
+
+                Arguments.of(
+                        new Object[]{
+                                new ExternalizableValue(13, 17),
+                                new ExternalizableValue(14, 18)
+                        },
+                        ICE
+                )
+        );
     }
 
-    // value class that DOES NOT implement Serializable should throw ICE
+    /*
+     * Verifies that a value object that doesn't implement java.io.Serializable
+     * throws the expected exception from ObjectOutputStream.writeObject()
+     */
     @ParameterizedTest
     @MethodSource("doesNotImplementSerializable")
-    public void doesNotImplementSerializable(Object obj, Class expectedException) {
+    void doesNotImplementSerializable(Object obj, Class<? extends Exception> expectedException) {
         assertThrows(expectedException, () -> serialize(obj));
     }
 
-    /* Non-Serializable point. */
-    public static value class NonSerializablePoint {
-        public int x;
-        public int y;
-
-        public NonSerializablePoint(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-        @Override public String toString() {
-            return "[NonSerializablePoint x=" + x + " y=" + y + "]";
-        }
-    }
-
-    public static class NonSerializableStrictPoint implements Serializable {
-        static {
-            for (var f : NonSerializableStrictPoint.class.getDeclaredFields()) {
-                assertTrue(f.isStrictInit(), f.getName());
-            }
-        }
-
-        @StrictInit
-        public int x;
-        @StrictInit
-        public int y;
-        public NonSerializableStrictPoint() {
-            x = 3;
-            y = 5;
-            super();
-        }
-    }
-
-    /* Non-Serializable point, because it does not have an @Deserializer constructor. */
-    public static value class NonSerializablePointNoCons implements Serializable {
-        public int x;
-        public int y;
-
-        // Note: Must NOT have @Deserializer annotation
-        public NonSerializablePointNoCons(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-        @Override public String toString() {
-            return "[NonSerializablePointNoCons x=" + x + " y=" + y + "]";
-        }
-    }
-
-    /* An Externalizable Point is not Serializable, readExternal cannot modify fields */
-    static value class ExternalizablePoint implements Externalizable {
-        public int x;
-        public int y;
-        public ExternalizablePoint() {this.x = 0; this.y = 0;}
-        ExternalizablePoint(int x, int y) { this.x = x; this.y = y; }
-        @Override public void readExternal(ObjectInput in) {  }
-        @Override public void writeExternal(ObjectOutput out) {  }
-        @Override public String toString() {
-            return "[ExternalizablePoint x=" + x + " y=" + y + "]"; }
-    }
-
-    public static Stream<Arguments> implementSerializable() {
+    static Stream<Arguments> implementSerializable() {
         return Stream.of(
-                Arguments.of(new SerializablePoint(11, 101)),
-                Arguments.of((Object)(new SerializablePoint[]{
-                        new SerializablePoint(1, 5),
-                        new SerializablePoint(2, 6)}),
-                Arguments.of(Arguments.of(
-                        new SerializablePoint(3, 7),
-                        new SerializablePoint(4, 8))),
-                Arguments.of(new SerializableFoo(45)),
-                Arguments.of((Object)(new SerializableFoo[]{new SerializableFoo(46)})),
-                Arguments.of(new ExternalizableFoo("hello")),
-                Arguments.of((Object)new ExternalizableFoo[]{new ExternalizableFoo("there")})));
+                Arguments.of(
+                        new ValueWithDeserializer(11, 101)
+                ),
+
+                Arguments.of(
+                        (Object) new ValueWithDeserializer[]{
+                                new ValueWithDeserializer(1, 5),
+                                new ValueWithDeserializer(2, 6)
+                        }
+                ),
+
+                Arguments.of(
+                        (Object) new Object[]{
+                                new ValueWithDeserializer(3, 7),
+                                new ValueWithDeserializer(4, 8)
+                        }
+                ),
+
+                Arguments.of(
+                        new ValueWriteReplaceWithIdentity(45)
+                ),
+
+                Arguments.of(
+                        (Object) new ValueWriteReplaceWithIdentity[]{
+                                new ValueWriteReplaceWithIdentity(46)
+                        }
+                ),
+
+                Arguments.of(
+                        new ExtValueWithIdentityReplacement("hello")
+                ),
+
+                Arguments.of(
+                        (Object) new ExtValueWithIdentityReplacement[]{
+                                new ExtValueWithIdentityReplacement("there")
+                        }
+                )
+        );
     }
 
-    // value class that DOES implement Serializable is supported
+    /*
+     * Verifies that a value object that implements java.io.Serializable and is associated with
+     * the JDK internal jdk.internal.value.Deserializer can be serialized and deserialized through
+     * the use of ObjectOutputStream.writeObject() and ObjectInputStream.readObject() successfully.
+     * The deserialized object is then compared with the given obj to verify that they are equal.
+     */
     @ParameterizedTest
     @MethodSource("implementSerializable")
-    public void implementSerializable(Object obj) throws IOException, ClassNotFoundException {
+    void implementSerializable(Object obj) throws IOException, ClassNotFoundException {
         byte[] bytes = serialize(obj);
         Object actual = deserialize(bytes);
-        if (obj.getClass().isArray())
-            Assertions.assertArrayEquals((Object[])actual, (Object[])obj);
-        else
+        if (obj.getClass().isArray()) {
+            assertArrayEquals((Object[]) actual, (Object[]) obj);
+        } else {
             assertEquals(actual, obj);
-    }
-
-    /* A Serializable value class Point */
-    static value class SerializablePoint implements Serializable {
-        public int x;
-        public int y;
-        @Deserializer({"x", "y"})
-        private SerializablePoint(int x, int y) { this.x = x; this.y = y; }
-
-        @Override public String toString() {
-            return "[SerializablePoint x=" + x + " y=" + y + "]";
         }
     }
 
-    /* A Serializable Foo, with a serial proxy */
-    static value class SerializableFoo implements Serializable {
-        public int x;
-        @Deserializer("x")
-        SerializableFoo(int x) { this.x = x; }
+    static Stream<Arguments> classes() {
+        return Stream.of(
+                Arguments.of(
+                        ExtValueWithIdentityReplacement.class,
+                        SC_EXTERNALIZABLE,
+                        ICE
+                ),
 
-        @Serial Object writeReplace() throws ObjectStreamException {
-            return new SerialFooProxy(x);
-        }
-        @Serial private void readObject(ObjectInputStream s) throws InvalidObjectException {
-            throw new InvalidObjectException("Proxy required");
-        }
-        private record SerialFooProxy(int x) implements Serializable {
-            @Serial Object readResolve() throws ObjectStreamException {
-                return new SerializableFoo(x);
-            }
-        }
+                Arguments.of(
+                        ExtValueWithIdentityReplacement.class,
+                        SC_SERIALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
+                        ValueWithDeserializer.class,
+                        SC_EXTERNALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
+                        ValueWithDeserializer.class,
+                        SC_SERIALIZABLE,
+                        null
+                )
+        );
     }
 
-    /* An Externalizable Foo, with a serial proxy */
-    static value class ExternalizableFoo implements Externalizable {
-        public String s;
-        ExternalizableFoo(String s) {  this.s = s; }
-        public boolean equals(Object other) {
-            if (other instanceof ExternalizableFoo foo) {
-                return s.equals(foo.s);
-            } else {
-                return false;
-            }
+    /*
+     * A byte stream is generated containing a reference to the given value class
+     * with the given flags and a serial version UID determined in the test method.
+     * The byte stream is then read using ObjectInputStream.readObject() and the test verifies
+     * that if an exception is expected to be thrown then it is thrown, or if the deserialization
+     * is expected to complete normally, then it verifies that no exception is thrown.
+     */
+    @ParameterizedTest
+    @MethodSource("classes")
+    void deserialize(Class<?> valueClass, byte flags, Class<Exception> expected) throws Exception {
+        // as a precaution verify that we are indeed testing a value class
+        assertTrue(valueClass.isValue(), "not a value class: " + valueClass);
+        ObjectStreamClass clsDesc = ObjectStreamClass.lookup(valueClass);
+        long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
+        byte[] serialBytes = byteStreamFor(valueClass.getName(), uid, flags);
+        if (expected == null) {
+            assertDoesNotThrow(() -> deserialize(serialBytes));
+        } else {
+            assertThrows(expected, () -> deserialize(serialBytes));
         }
-        @Serial  Object writeReplace() throws ObjectStreamException {
-            return new SerialFooProxy(s);
-        }
-        private record SerialFooProxy(String s) implements Serializable {
-            @Serial Object readResolve() throws ObjectStreamException {
-                return new ExternalizableFoo(s);
-            }
-        }
-        @Override public void readExternal(ObjectInput in) {  }
-        @Override public void writeExternal(ObjectOutput out) {  }
     }
 
     // Generate a byte stream containing a reference to the named class with the SVID and flags.
-    private static byte[] byteStreamFor(String className, long uid, byte flags)
-        throws Exception
-    {
+    private static byte[] byteStreamFor(String className, long uid, byte flags) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         DataOutputStream dos = new DataOutputStream(baos);
         dos.writeShort(STREAM_MAGIC);
@@ -251,33 +269,7 @@ public class ValueSerializationTest {
         return baos.toByteArray();
     }
 
-    public static Stream<Arguments> classes() {
-        return Stream.of(
-            Arguments.of( ExternalizableFoo.class, SC_EXTERNALIZABLE, ICE ),
-            Arguments.of( ExternalizableFoo.class, SC_SERIALIZABLE, ICE ),
-            Arguments.of( SerializablePoint.class, SC_EXTERNALIZABLE, ICE ),
-            Arguments.of( SerializablePoint.class, SC_SERIALIZABLE, null )
-        );
-    }
-
-    // value class read directly from a byte stream
-    // a byte stream is generated containing a reference to the class with the flags  and SVID.
-    // Reading the class from the stream verifies the exceptions thrown if there is a mismatch
-    // between the stream and the local class.
-    @ParameterizedTest
-    @MethodSource("classes")
-    public void deserialize(Class<?> cls, byte flags, Class<Exception> expected) throws Exception {
-        var clsDesc = ObjectStreamClass.lookup(cls);
-        long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
-        byte[] serialBytes = byteStreamFor(cls.getName(), uid, flags);
-        if (expected == null) {
-            Assertions.assertDoesNotThrow(() -> deserialize(serialBytes));
-        } else {
-            Assertions.assertThrows(expected, () -> deserialize(serialBytes));
-        }
-    }
-
-    static <T> byte[] serialize(T obj) throws IOException {
+    private static <T> byte[] serialize(T obj) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(baos);
         oos.writeObject(obj);
@@ -286,11 +278,194 @@ public class ValueSerializationTest {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T deserialize(byte[] streamBytes)
-        throws IOException, ClassNotFoundException
-    {
+    private static <T> T deserialize(byte[] streamBytes) throws IOException,
+            ClassNotFoundException {
         ByteArrayInputStream bais = new ByteArrayInputStream(streamBytes);
-        ObjectInputStream ois  = new ObjectInputStream(bais);
+        ObjectInputStream ois = new ObjectInputStream(bais);
         return (T) ois.readObject();
+    }
+
+    /**
+     * A concrete value class that doesn't implement Serializable (or Externalizable) interface
+     */
+    public static value class NonSerializableValue {
+        public int x;
+        public int y;
+
+        public NonSerializableValue(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public String toString() {
+            return "[NonSerializableValue x=" + x + " y=" + y + "]";
+        }
+    }
+
+    /**
+     * An identity class with strict initialized instance fields
+     */
+    public static class IdentityStrictPoint implements Serializable {
+        static {
+            for (var f : IdentityStrictPoint.class.getDeclaredFields()) {
+                assertTrue(f.isStrictInit(), f.getName());
+            }
+        }
+
+        @StrictInit
+        public int x;
+        @StrictInit
+        public int y;
+
+        public IdentityStrictPoint() {
+            x = 3;
+            y = 5;
+            super();
+        }
+    }
+
+    /**
+     * A concrete value class that implements java.io.Serializable and doesn't have any
+     * jdk.internal.value.Deserializer on its constructor.
+     */
+    public static value class ValueWithNoDeserializer implements Serializable {
+        public int x;
+        public int y;
+
+        // Note: Must NOT have @Deserializer annotation
+        public ValueWithNoDeserializer(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public String toString() {
+            return "[ValueWithNoDeserializer x=" + x + " y=" + y + "]";
+        }
+    }
+
+    /**
+     * A concrete value class which implements java.io.Externalizable and doesn't
+     * implement writeReplace().
+     */
+    static value class ExternalizableValue implements Externalizable {
+        public int x;
+        public int y;
+
+        public ExternalizableValue() {
+            this.x = 0;
+            this.y = 0;
+        }
+
+        ExternalizableValue(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public void readExternal(ObjectInput in) {
+        }
+
+        @Override
+        public void writeExternal(ObjectOutput out) {
+        }
+
+        @Override
+        public String toString() {
+            return "[ExternalizableValue x=" + x + " y=" + y + "]";
+        }
+    }
+
+
+    /**
+     * A concrete value class which implements java.io.Serializable and has a
+     * jdk.internal.value.Deserializer associated with its constructor.
+     */
+    static value class ValueWithDeserializer implements Serializable {
+        public int x;
+        public int y;
+
+        @Deserializer({"x", "y"})
+        private ValueWithDeserializer(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public String toString() {
+            return "[ValueWithDeserializer x=" + x + " y=" + y + "]";
+        }
+    }
+
+    /**
+     * A concrete value class which implements java.io.Serializable
+     * and implements the writeReplace() method to return an identity
+     * object.
+     */
+    static value class ValueWriteReplaceWithIdentity implements Serializable {
+        public int x;
+
+        ValueWriteReplaceWithIdentity(int x) {
+            this.x = x;
+        }
+
+        @Serial
+        Object writeReplace() throws ObjectStreamException {
+            return new IdentityRecord(x);
+        }
+
+        @Serial
+        private void readObject(ObjectInputStream s) throws InvalidObjectException {
+            throw new InvalidObjectException("not expected to be invoked on " + this);
+        }
+
+        private record IdentityRecord(int x) implements Serializable {
+            @Serial
+            Object readResolve() throws ObjectStreamException {
+                return new ValueWriteReplaceWithIdentity(x);
+            }
+        }
+    }
+
+    /**
+     * A concrete value class which implements java.io.Externalizable and implements
+     * the writeReplace() method to return an identity object.
+     */
+    static value class ExtValueWithIdentityReplacement implements Externalizable {
+        public String s;
+
+        ExtValueWithIdentityReplacement(String s) {
+            this.s = s;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (other instanceof ExtValueWithIdentityReplacement foo) {
+                return s.equals(foo.s);
+            } else {
+                return false;
+            }
+        }
+
+        @Serial
+        Object writeReplace() throws ObjectStreamException {
+            return new IdentityRecord(s);
+        }
+
+        private record IdentityRecord(String s) implements Serializable {
+            @Serial
+            Object readResolve() throws ObjectStreamException {
+                return new ExtValueWithIdentityReplacement(s);
+            }
+        }
+
+        @Override
+        public void readExternal(ObjectInput in) {
+        }
+
+        @Override
+        public void writeExternal(ObjectOutput out) {
+        }
     }
 }
