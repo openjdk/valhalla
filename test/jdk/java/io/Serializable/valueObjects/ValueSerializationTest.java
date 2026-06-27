@@ -66,7 +66,6 @@ import static java.io.ObjectStreamConstants.TC_ENDBLOCKDATA;
 import static java.io.ObjectStreamConstants.TC_NULL;
 import static java.io.ObjectStreamConstants.TC_OBJECT;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -137,8 +136,9 @@ public class ValueSerializationTest {
      */
     @ParameterizedTest
     @MethodSource("serializationFailingInstances")
-    void testSerializationFails(Object obj, Class<? extends Exception> expectedException) {
-        assertThrows(expectedException, () -> serialize(obj));
+    void testSerializationFails(Object obj, Class<? extends Exception> expectedException)
+            throws Exception {
+        serialize(obj, expectedException);
     }
 
     static Stream<Arguments> serializingInstances() {
@@ -192,8 +192,8 @@ public class ValueSerializationTest {
     @ParameterizedTest
     @MethodSource("serializingInstances")
     void testSerDeserSucceeds(Object obj) throws IOException, ClassNotFoundException {
-        byte[] bytes = serialize(obj);
-        Object actual = deserialize(bytes);
+        byte[] bytes = serialize(obj, null);
+        Object actual = deserialize(bytes, null);
         if (obj.getClass().isArray()) {
             assertArrayEquals((Object[]) actual, (Object[]) obj);
         } else {
@@ -238,17 +238,14 @@ public class ValueSerializationTest {
      */
     @ParameterizedTest
     @MethodSource("classes")
-    void testSerDeser(Class<?> valueClass, byte flags, Class<Exception> expected) throws Exception {
+    void testDeser(Class<?> valueClass, byte flags, Class<? extends Exception> expectedException)
+            throws Exception {
         // as a precaution verify that we are indeed testing a value class
         assertTrue(valueClass.isValue(), "not a value class: " + valueClass);
         ObjectStreamClass clsDesc = ObjectStreamClass.lookup(valueClass);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
         byte[] serialBytes = byteStreamFor(valueClass.getName(), uid, flags);
-        if (expected == null) {
-            assertDoesNotThrow(() -> deserialize(serialBytes));
-        } else {
-            assertThrows(expected, () -> deserialize(serialBytes));
-        }
+        deserialize(serialBytes, expectedException);
     }
 
     // Generate a byte stream containing a reference to the named class with the SVID and flags.
@@ -269,20 +266,33 @@ public class ValueSerializationTest {
         return baos.toByteArray();
     }
 
-    private static <T> byte[] serialize(T obj) throws IOException {
+    private static <T> byte[] serialize(T obj, Class<? extends Exception> expectedException)
+            throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(obj);
-        oos.close();
-        return baos.toByteArray();
+        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            if (expectedException != null) {
+                Exception e = assertThrows(expectedException, () -> oos.writeObject(obj));
+                System.err.println("got expected exception: " + e);
+                return null;
+            }
+            oos.writeObject(obj);
+            return baos.toByteArray();
+        }
     }
 
     @SuppressWarnings("unchecked")
-    private static <T> T deserialize(byte[] streamBytes) throws IOException,
-            ClassNotFoundException {
+    private static <T> T deserialize(byte[] streamBytes,
+                                     Class<? extends Exception> expectedException)
+            throws IOException, ClassNotFoundException {
         ByteArrayInputStream bais = new ByteArrayInputStream(streamBytes);
-        ObjectInputStream ois = new ObjectInputStream(bais);
-        return (T) ois.readObject();
+        try (ObjectInputStream ois = new ObjectInputStream(bais)) {
+            if (expectedException != null) {
+                Exception e = assertThrows(expectedException, () -> ois.readObject());
+                System.err.println("got expected exception: " + e);
+                return null;
+            }
+            return (T) ois.readObject();
+        }
     }
 
     /**
