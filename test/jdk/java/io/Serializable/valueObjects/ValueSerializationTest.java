@@ -76,7 +76,7 @@ public class ValueSerializationTest {
     private static final Class<NotSerializableException> NSE = NotSerializableException.class;
     private static final Class<InvalidClassException> ICE = InvalidClassException.class;
 
-    static Stream<Arguments> doesNotImplementSerializable() {
+    static Stream<Arguments> serializationFailingInstances() {
         return Stream.of(
                 Arguments.of(
                         new NonSerializableValue(10, 100),
@@ -136,12 +136,12 @@ public class ValueSerializationTest {
      * throws the expected exception from ObjectOutputStream.writeObject()
      */
     @ParameterizedTest
-    @MethodSource("doesNotImplementSerializable")
-    void doesNotImplementSerializable(Object obj, Class<? extends Exception> expectedException) {
+    @MethodSource("serializationFailingInstances")
+    void testSerializationFails(Object obj, Class<? extends Exception> expectedException) {
         assertThrows(expectedException, () -> serialize(obj));
     }
 
-    static Stream<Arguments> implementSerializable() {
+    static Stream<Arguments> serializingInstances() {
         return Stream.of(
                 Arguments.of(
                         new ValueWithDeserializer(11, 101)
@@ -190,8 +190,8 @@ public class ValueSerializationTest {
      * The deserialized object is then compared with the given obj to verify that they are equal.
      */
     @ParameterizedTest
-    @MethodSource("implementSerializable")
-    void implementSerializable(Object obj) throws IOException, ClassNotFoundException {
+    @MethodSource("serializingInstances")
+    void testSerDeserSucceeds(Object obj) throws IOException, ClassNotFoundException {
         byte[] bytes = serialize(obj);
         Object actual = deserialize(bytes);
         if (obj.getClass().isArray()) {
@@ -238,7 +238,7 @@ public class ValueSerializationTest {
      */
     @ParameterizedTest
     @MethodSource("classes")
-    void deserialize(Class<?> valueClass, byte flags, Class<Exception> expected) throws Exception {
+    void testSerDeser(Class<?> valueClass, byte flags, Class<Exception> expected) throws Exception {
         // as a precaution verify that we are indeed testing a value class
         assertTrue(valueClass.isValue(), "not a value class: " + valueClass);
         ObjectStreamClass clsDesc = ObjectStreamClass.lookup(valueClass);
