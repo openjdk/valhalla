@@ -350,8 +350,15 @@ public final class ObjectStreamClass implements Serializable {
         isProxy = Proxy.isProxyClass(cl);
         isEnum = Enum.class.isAssignableFrom(cl);
         isRecord = cl.isRecord();
-        requiresDeserializer = cl.isValue() || ValueClass.hasStrictInstanceField(cl);
         serializable = Serializable.class.isAssignableFrom(cl);
+        // Serialization specification states that if a class implements java.io.Serializable,
+        // then serialization/deserialization isn't allowed if that class is a concrete value class
+        // or if that class has strict initialization instance field(s).
+        // However, for some JDK classes we make a provision to bypass that restriction.
+        // Such classes are required to have a jdk.internal.value.Deserializer associated with it.
+        requiresDeserializer = serializable &&
+                (ValueClass.isConcreteValueClass(cl) || ValueClass.hasStrictInstanceField(cl));
+
         externalizable = Externalizable.class.isAssignableFrom(cl);
 
         Class<?> superCl = cl.getSuperclass();

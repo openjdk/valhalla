@@ -1402,9 +1402,17 @@ public class ObjectOutputStream
     private void writeSerialData(Object obj, ObjectStreamClass desc)
         throws IOException
     {
+        // As per the serialization spec, the serializable object's list of classes
+        // (that is, the class it instantiates and its superclasses) is processed
+        // in superclass-to-subclass order, starting with the first class that
+        // implements Serializable.
         ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
         for (int i = 0; i < slots.length; i++) {
             ObjectStreamClass slotDesc = slots[i].desc;
+            // Verify that each of these classes comply with the serialization spec.
+            // Specifically, if the class is a concrete value class, or it has strict
+            // initialization instance field(s) then throw InvalidClassException.
+            slotDesc.checkSerialize();
             if (slotDesc.hasWriteObjectMethod()) {
                 PutFieldImpl oldPut = curPut;
                 curPut = null;
