@@ -37,16 +37,15 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  *      <div class="preview-comment">
  *          When preview features are enabled, subclasses of {@code java.lang.Object}
  *          are either identity classes or {@linkplain Class#isValue value classes}.
+ *          A <em>value object</em> is an instance of a non-abstract value class.
  *          See The Java Language Specification {@jls value-objects-8.1.1.5 Value Classes}.
  *          All classes are considered identity classes when preview features are disabled.
  *          <p>
- *          Instances of value classes, known as <em>value objects</em>, do not have an
- *          associated synchronization monitor that a thread can lock or unlock. An
- *          attempt to {@code synchronize} on a value object causes {@link
- *          IdentityException} to be thrown.
+ *          It is not possible to synchronize on a value object. An attempt to {@code
+ *          synchronize} on a value object causes {@link IdentityException} to be thrown.
  *          <p>
- *          Value objects do not support finalization. The {@link #finalize()} method
- *          of a value object will never be invoked by the garbage collector.
+ *          The {@link #finalize()} method of a value object will never be invoked by
+ *          the garbage collector.
  *          <p>
  *          A {@linkplain java.lang.ref.Reference Reference Object} can only refer to an
  *          object with identity. Creating a reference object with a value object as
@@ -195,38 +194,47 @@ public class Object {
 
     /**
      * Creates and returns a copy of this object.  The precise meaning
-     * of "copy" may depend on the class of the object. The general
-     * intent is that, for an object {@code x}, the expression:
+     * of "copy" depends on the class of the object.
+     * <p>
+     * For an {@linkplain java.util.Objects#hasIdentity(Object) identity object}
+     * {@code x}, the general intent is that the expression:
      * <blockquote>
      * <pre>
      * x.clone() != x</pre></blockquote>
-     * will be true if {@code x} is an {@linkplain java.util.Objects#hasIdentity(Object)
-     * identity object}, and that the expression:
+     * will be true, and that the expression:
      * <blockquote>
      * <pre>
      * x.clone().getClass() == x.getClass()</pre></blockquote>
-     * will be {@code true} for any object, but these are not absolute requirements.
+     * will be {@code true}, but these are not absolute requirements.
+     * <p>
      * While it is typically the case that:
      * <blockquote>
      * <pre>
      * x.clone().equals(x)</pre></blockquote>
      * will be {@code true}, this is not an absolute requirement.
      * <p>
+     * For a value object {@code x} the expectation that {@code x.clone() != x} is
+     * not meaningful.
+     * <p>
      * By convention, the returned object should be obtained by calling
      * {@code super.clone}.  If a class and all of its superclasses (except
      * {@code Object}) obey this convention, it will be the case that
      * {@code x.clone().getClass() == x.getClass()}.
      * <p>
-     * By convention, the object returned by this method should be independent
-     * of this object (which is being cloned).  To achieve this independence,
-     * it may be necessary to modify one or more fields of the object returned
-     * by {@code super.clone} before returning it.  Typically, this means
+     * By convention, invoking this method on an identity object should return an
+     * object that is independent of this object (which is being cloned). To achieve
+     * this independence, it may be necessary to modify one or more fields of the object
+     * returned by {@code super.clone} before returning it.  Typically, this means
      * copying any mutable objects that comprise the internal "deep structure"
      * of the object being cloned and replacing the references to these
      * objects with references to the copies.  If a class contains only
      * primitive fields or references to immutable objects, then it is usually
      * the case that no fields in the object returned by {@code super.clone}
      * need to be modified.
+     * <p>
+     * Value classes that store references to identity objects may wish to
+     * override the {@code clone} method and perform a "deep copy" of the
+     * identity objects.
      *
      * @implSpec
      * The method {@code clone} for class {@code Object} performs a
@@ -237,12 +245,14 @@ public class Object {
      * the return type of the {@code clone} method of an array type {@code T[]}
      * is {@code T[]} where T is any reference or primitive type.
      * <p>
-     * If this object is a value object, this method simply returns the object.
-     * Otherwise, this object has identity and the method creates a new instance of
+     * For an identity object, this method creates a new instance of
      * the class of this object and initializes all its fields with exactly the
      * contents of the corresponding fields of this object, as if by assignment; the
      * contents of the fields are not themselves cloned. Thus, this method
      * performs a "shallow copy" of this object, not a "deep copy" operation.
+     * <p>
+     * For a value object, this method simply returns an object that is
+     * indistinguishable from the original ({@code x.clone() == x}).
      * <p>
      * The class {@code Object} does not itself implement the interface
      * {@code Cloneable}, so calling the {@code clone} method on an object
@@ -323,9 +333,10 @@ public class Object {
      * Only one thread at a time can own an object's monitor.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          Value objects do not have an associated synchronization monitor that a
-     *          thread can lock or unlock. An attempt to {@code synchronize} on a value
-     *          object causes {@link IdentityException} to be thrown.
+     *          The {@code notify} method requires that the current thread be the owner
+     *          of the object's monitor. Since it is not possible to synchronize on a
+     *          value object, an attempt to call this method on a value object will
+     *          always fail with {@code IllegalMonitorStateException}.
      *      </div>
      * </div>
      *
@@ -356,9 +367,10 @@ public class Object {
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          Value objects do not have an associated synchronization monitor that a
-     *          thread can lock or unlock. An attempt to {@code synchronize} on a value
-     *          object causes {@link IdentityException} to be thrown.
+     *          The {@code notifyAll} method requires that the current thread be the owner
+     *          of the object's monitor. Since it is not possible to synchronize on a
+     *          value object, an attempt to call this method on a value object will
+     *          always fail with {@code IllegalMonitorStateException}.
      *      </div>
      * </div>
      *
@@ -380,9 +392,10 @@ public class Object {
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          Value objects do not have an associated synchronization monitor that a
-     *          thread can lock or unlock. An attempt to {@code synchronize} on a value
-     *          object causes {@link IdentityException} to be thrown.
+     *          The {@code wait} method requires that the current thread be the owner
+     *          of the object's monitor. Since it is not possible to synchronize on a
+     *          value object, an attempt to call this method on a value object will
+     *          always fail with {@code IllegalMonitorStateException}.
      *      </div>
      * </div>
      *
@@ -411,9 +424,10 @@ public class Object {
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          Value objects do not have an associated synchronization monitor that a
-     *          thread can lock or unlock. An attempt to {@code synchronize} on a value
-     *          object causes {@link IdentityException} to be thrown.
+     *          The {@code wait} method requires that the current thread be the owner
+     *          of the object's monitor. Since it is not possible to synchronize on a
+     *          value object, an attempt to call this method on a value object will
+     *          always fail with {@code IllegalMonitorStateException}.
      *      </div>
      * </div>
      *
@@ -515,9 +529,10 @@ public class Object {
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          Value objects do not have an associated synchronization monitor that a
-     *          thread can lock or unlock. An attempt to {@code synchronize} on a value
-     *          object causes {@link IdentityException} to be thrown.
+     *          The {@code wait} method requires that the current thread be the owner
+     *          of the object's monitor. Since it is not possible to synchronize on a
+     *          value object, an attempt to call this method on a value object will
+     *          always fail with {@code IllegalMonitorStateException}.
      *      </div>
      * </div>
      *
@@ -577,9 +592,8 @@ public class Object {
      * system resources or to perform other cleanup.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          Value classes do not support finalization. If this object is a value
-     *          object, the {@code finalize} method will never be called by the garbage
-     *          collector.
+     *          The {@link #finalize()} method of a value object will never be invoked
+     *          by the garbage collector.
      *      </div>
      * </div>
      * <p>
