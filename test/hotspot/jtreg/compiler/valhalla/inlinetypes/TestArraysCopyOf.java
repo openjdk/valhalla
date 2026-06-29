@@ -152,7 +152,8 @@ public class TestArraysCopyOf {
                 new Klass("W", "static class W"),
                 new Klass("X", "static class X extends A"),
                 new Klass("Y", "static class Y implements I"),
-                new Klass("Z", "static class Z extends AV"));
+                new Klass("Z", "static class Z extends AV")
+                                             );
 
         List<Klass> valueClasses = List.of(
                 new Klass("V1", "static value class V1"),
@@ -168,8 +169,7 @@ public class TestArraysCopyOf {
 
         List<Klass> abstractClasses = new ArrayList<>(List.of(
                 new Klass("A", "static abstract class A"),
-                new Klass("AV", "static abstract value class AV")
-                                                             ));
+                new Klass("AV", "static abstract value class AV")));
 
         instanceAndPrimitiveClasses.addAll(concreteInstanceClasses.stream().map(Klass::name).toList());
         instanceAndPrimitiveClasses.addAll(abstractClasses.stream().map(Klass::name).toList());

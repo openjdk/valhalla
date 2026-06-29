@@ -5187,8 +5187,8 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
 
     Node* klass_node = load_klass_from_mirror(array_type_mirror, false, nullptr, 0);
     if (stopped()) {
-      // Arrays.copyOf() uses a generic type Class parameter which is erased to the raw type Class. This also
-      // allows passing in primitive class mirrors like int.class which do not have corresponding Klass* pointers.
+      // Arrays.copyOf() uses a generic Class parameter which is erased to the raw type Class. This also allows
+      // passing in primitive class mirrors like int.class which do not have corresponding Klass* pointers.
       // In these cases, klass_node will be top and we bail out.
       return true;
     }
@@ -5331,18 +5331,18 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
 }
 
 bool LibraryCallKit::should_bail_out_on_non_ref_arrays(const TypeAryPtr* src_type, const TypeKlassPtr* dest_klass_type) {
-  if (UseArrayFlattening) {
-    return false;
-  }
-
   const TypeAryKlassPtr* dest_ary_klass_type = dest_klass_type->isa_aryklassptr();
   if (dest_ary_klass_type == nullptr) {
-    // Dest class is not known to be an array class. There are multiple cases:
-    // - Primitive type mirror: We already bailed out before.
-    // - Instance klass mirror: We should bail out.
-    // - java.lang.Object (possible due to type erasure): Could be anything including primitive type or instance klass
-    //   mirror or also flat arrays. Bail out.
+    // Dest klass is not known to be an array class. There are multiple cases:
+    // - Primitive class mirror: We already bailed out before.
+    // - Instance class mirror: We should bail out.
+    // - java.lang.Object (possible due to type erasure): Could be anything including primitive or instance class mirror
+    //   or also flat arrays. Bail out.
     return true;
+  }
+
+  if (UseArrayFlattening) {
+    return false;
   }
 
   // We now know that src and dest are proper array pointers.
