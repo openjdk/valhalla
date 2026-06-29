@@ -25,6 +25,7 @@
  * @test
  * @summary Basic test of Object methods on value objects
  * @enablePreview
+ * @library /test/lib
  * @run junit ${test.main.class}
  */
 
@@ -34,6 +35,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
+
+import jdk.test.lib.Utils;
 
 class ValueObjects {
 
@@ -87,13 +90,13 @@ class ValueObjects {
             }
         }
 
-        var latch = new CountDownLatch(1);
+        var latch = new TimeoutAdjustingLatch();
         var obj = new V(latch);
         obj = null;
         for (int i = 0; i < 3; i++) {
             System.gc();
             // latch should not count down
-            assertFalse(latch.await(1, TimeUnit.SECONDS));
+            assertFalse(latch.await(100, TimeUnit.MILLISECONDS));
         }
     }
 
@@ -118,13 +121,13 @@ class ValueObjects {
             }
         }
 
-        var latch = new CountDownLatch(1);
+        var latch = new TimeoutAdjustingLatch();
         var obj = new C(latch);
         obj = null;
         for (int i = 0; i < 3; i++) {
             System.gc();
             // latch should not count down
-            assertFalse(latch.await(1, TimeUnit.SECONDS));
+            assertFalse(latch.await(100, TimeUnit.MILLISECONDS));
         }
     }
 
@@ -151,5 +154,19 @@ class ValueObjects {
         var obj = new V();
         String expected = V.class.getName() + "@" + Integer.toHexString(obj.hashCode());
         assertEquals(expected, obj.toString());
+    }
+
+    /**
+     * A CountDownLatch that is created with a count of 1 and with a timed-await method
+     * that adjusts the timeout based on the jtreg timeout factory configuration.
+     */
+    private static class TimeoutAdjustingLatch extends CountDownLatch {
+        TimeoutAdjustingLatch() {
+            super(1);
+        }
+        @Override
+        public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+            return super.await(Utils.adjustTimeout(timeout), unit);
+        }
     }
 }
