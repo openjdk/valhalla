@@ -131,7 +131,7 @@ public class ValueSerializationTest {
     }
 
     /*
-     * Verifies that a value object that doesn't implement java.io.Serializable
+     * Verifies that the given obj that isn't expected to be serializable
      * throws the expected exception from ObjectOutputStream.writeObject()
      */
     @ParameterizedTest
