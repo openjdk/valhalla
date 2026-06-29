@@ -43,6 +43,7 @@ import java.io.File;
 
 import java.lang.classfile.Attributes;
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.instruction.FieldInstruction;
@@ -1600,5 +1601,40 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """,
                     "aconst_null,putstatic,getstatic,astore_2,aload_0,aload_2,putfield,aload_0,aload_2," +
                     "putfield,aload_0,invokespecial,return");
+    }
+
+    @Test
+    void testIdentityRecordUsesPreview() throws Exception {
+        String source_withComponents =
+                """
+                record IdentityRecord(int i) {}
+                """;
+        String source_noComponents =
+                """
+                record IdentityRecord() {}
+                """;
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions("--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "-Xlint:preview");
+
+            File dir = assertOK(true, source_withComponents);
+            File classFile = new File(dir, "IdentityRecord.class");
+            Assert.check(classFile.exists(), "missing class file");
+            var classModel = ClassFile.of().parse(classFile.toPath());
+            Assert.check(classModel.minorVersion() == ClassFile.PREVIEW_MINOR_VERSION,
+                    "identity records should produce preview class files when compiled with preview enabled");
+            Assert.check(classModel.fields().getFirst().flags().has(AccessFlag.STRICT_INIT),
+                    "identity record component instance field should be strictly initialized");
+
+            dir = assertOK(true, source_noComponents);
+            classFile = new File(dir, "IdentityRecord.class");
+            Assert.check(classFile.exists(), "missing class file");
+            Assert.check(ClassFile.of().parse(classFile.toPath()).minorVersion() == 0,
+                    "identity records with no components should not produce preview class files even with preview enabled");
+        } finally {
+            setCompileOptions(previousOptions);
+        }
     }
 }
