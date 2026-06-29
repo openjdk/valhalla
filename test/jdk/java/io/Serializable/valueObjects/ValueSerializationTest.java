@@ -148,6 +148,10 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
+                        // Argument.of() takes a vararg parameter.
+                        // Here we intend to pass an array as a single parameter to the test method.
+                        // Explicitly cast it to Object type to prevent the array elements
+                        // being treated as multiple parameters.
                         (Object) new ValueWithDeserializer[]{
                                 new ValueWithDeserializer(1, 5),
                                 new ValueWithDeserializer(2, 6)
@@ -155,6 +159,10 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
+                        // Argument.of() takes a vararg parameter.
+                        // Here we intend to pass an array as a single parameter to the test method.
+                        // Explicitly cast it to Object type to prevent the array elements
+                        // being treated as multiple parameters.
                         (Object) new Object[]{
                                 new ValueWithDeserializer(3, 7),
                                 new ValueWithDeserializer(4, 8)
@@ -166,6 +174,10 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
+                        // Argument.of() takes a vararg parameter.
+                        // Here we intend to pass an array as a single parameter to the test method.
+                        // Explicitly cast it to Object type to prevent the array elements
+                        // being treated as multiple parameters.
                         (Object) new ValueWriteReplaceWithIdentity[]{
                                 new ValueWriteReplaceWithIdentity(46)
                         }
@@ -176,6 +188,10 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
+                        // Argument.of() takes a vararg parameter.
+                        // Here we intend to pass an array as a single parameter to the test method.
+                        // Explicitly cast it to Object type to prevent the array elements
+                        // being treated as multiple parameters.
                         (Object) new ExtValueWithIdentityReplacement[]{
                                 new ExtValueWithIdentityReplacement("there")
                         }
