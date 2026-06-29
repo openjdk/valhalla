@@ -2488,6 +2488,7 @@ void PhaseIterGVN::subsume_node( Node *old, Node *nn ) {
 
 void PhaseIterGVN::replace_in_uses(Node* n, Node* m) {
   assert(n != nullptr, "sanity");
+  add_users_to_worklist(n);
   for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
     Node* u = n->fast_out(i);
     if (u != n) {
