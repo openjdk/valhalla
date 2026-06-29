@@ -72,10 +72,10 @@ class ValueObjects {
     }
 
     /**
-     * Test that the finalize method on a value object is not invoked by the GC.
+     * Test that the finalize method on a value class is not invoked by the GC.
      */
     @Test
-    void testFinalize() throws Exception {
+    void testValueClassFinalize() throws Exception {
         value class V {
             CountDownLatch latch;
             V(CountDownLatch latch) {
@@ -89,6 +89,37 @@ class ValueObjects {
 
         var latch = new CountDownLatch(1);
         var obj = new V(latch);
+        obj = null;
+        for (int i = 0; i < 3; i++) {
+            System.gc();
+            // latch should not count down
+            assertFalse(latch.await(1, TimeUnit.SECONDS));
+        }
+    }
+
+    /**
+     * Test that the finalize method on an abstract value value is not invoked by the GC.
+     */
+    @Test
+    void testAbstractValueClassFinalize() throws Exception {
+        abstract value class AV {
+            CountDownLatch latch;
+            AV(CountDownLatch latch) {
+                this.latch = latch;
+            }
+            @Override
+            protected void finalize() {
+                latch.countDown();
+            }
+        }
+        /*identity*/ class C extends AV {
+            C(CountDownLatch latch) {
+                super(latch);
+            }
+        }
+
+        var latch = new CountDownLatch(1);
+        var obj = new C(latch);
         obj = null;
         for (int i = 0; i < 3; i++) {
             System.gc();

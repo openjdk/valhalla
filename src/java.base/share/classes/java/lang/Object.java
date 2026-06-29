@@ -47,7 +47,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  *          It is not possible to synchronize on a value object. An attempt to {@code
  *          synchronize} on a value object causes {@link IdentityException} to be thrown.
  *          <p>
- *          The {@link #finalize()} method of a value object will never be invoked by
+ *          The {@link #finalize()} method of a value class will never be invoked by
  *          the garbage collector.
  *          <p>
  *          A {@linkplain java.lang.ref.Reference Reference Object} can only refer to an
@@ -590,15 +590,18 @@ public class Object {
     }
 
     /**
-     * Called by the garbage collector on an {@linkplain
-     * java.util.Objects#hasIdentity(Object) identity object} when garbage collection
+     * Called by the garbage collector on an identity object when garbage collection
      * determines that there are no more references to the object.
-     * A subclass overrides the {@code finalize} method to dispose of
+     * An identity class may override the {@code finalize} method to dispose of
      * system resources or to perform other cleanup.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          The {@link #finalize()} method of a value object will never be invoked
-     *          by the garbage collector.
+     *          The {@code finalize} method of a value class is never directly
+     *          invoked by the garbage collector. This includes the case where an
+     *          abstract value class declares a {@code finalize} method and the
+     *          class is extended by an identity class; the garbage collector never
+     *          directly invokes the {@code finalize} method declared by the
+     *          abstract value class.
      *      </div>
      * </div>
      * <p>
