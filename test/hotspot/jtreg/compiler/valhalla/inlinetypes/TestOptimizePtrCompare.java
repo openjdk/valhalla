@@ -28,7 +28,7 @@
  * @library /test/lib /
  * @enablePreview
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main ${test.main.class}
+ * @run driver ${test.main.class}
  */
 
 package compiler.valhalla.inlinetypes;

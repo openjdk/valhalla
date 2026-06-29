@@ -235,8 +235,7 @@ public final class Class<T> implements java.io.Serializable,
         runtimeSetup();
     }
 
-    /// No significant static final fields; [#resetArchivedStates()] handles
-    /// prevents storing [#reflectionFactory] into AOT image.
+    /// No significant static final fields
     @AOTRuntimeSetup
     private static void runtimeSetup() {
         registerNatives();
@@ -747,7 +746,7 @@ public final class Class<T> implements java.io.Serializable,
             }
             try {
                 Class<?>[] empty = {};
-                final Constructor<T> c = getReflectionFactory().copyConstructor(
+                final Constructor<T> c = ReflectionFactory.getReflectionFactory().copyConstructor(
                     getConstructor0(empty, Member.DECLARED));
                 // Disable accessibility checks on the constructor
                 // access check is done with the true caller
@@ -761,7 +760,8 @@ public final class Class<T> implements java.io.Serializable,
 
         try {
             Class<?> caller = Reflection.getCallerClass();
-            return getReflectionFactory().newInstance(tmpConstructor, null, caller);
+            return ReflectionFactory.getReflectionFactory().newInstance(tmpConstructor,
+                                                                        null, caller);
         } catch (InvocationTargetException e) {
             Unsafe.getUnsafe().throwException(e.getTargetException());
             // Not reached
@@ -1566,7 +1566,7 @@ public final class Class<T> implements java.io.Serializable,
              * type.  Matching return type is also necessary
              * because of covariant returns, etc.
              */
-            ReflectionFactory fact = getReflectionFactory();
+            ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
             for (Method m : candidates) {
                 if (m.getName().equals(enclosingInfo.getName()) &&
                     arrayContentsEq(parameterClasses,
@@ -1692,7 +1692,7 @@ public final class Class<T> implements java.io.Serializable,
              * Loop over all declared constructors; match number
              * of and type of parameters.
              */
-            ReflectionFactory fact = getReflectionFactory();
+            ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
             for (Constructor<?> c : candidates) {
                 if (arrayContentsEq(parameterClasses,
                                     fact.getExecutableSharedParameterTypes(c))) {
@@ -2175,7 +2175,7 @@ public final class Class<T> implements java.io.Serializable,
         if (field == null) {
             throw new NoSuchFieldException(name);
         }
-        return getReflectionFactory().copyField(field);
+        return ReflectionFactory.getReflectionFactory().copyField(field);
     }
 
 
@@ -2273,7 +2273,7 @@ public final class Class<T> implements java.io.Serializable,
         if (method == null) {
             throw new NoSuchMethodException(methodToString(name, parameterTypes));
         }
-        return getReflectionFactory().copyMethod(method);
+        return ReflectionFactory.getReflectionFactory().copyMethod(method);
     }
 
     /**
@@ -2304,7 +2304,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     public Constructor<T> getConstructor(Class<?>... parameterTypes)
             throws NoSuchMethodException {
-        return getReflectionFactory().copyConstructor(
+        return ReflectionFactory.getReflectionFactory().copyConstructor(
             getConstructor0(parameterTypes, Member.PUBLIC));
     }
 
@@ -2489,7 +2489,7 @@ public final class Class<T> implements java.io.Serializable,
         if (field == null) {
             throw new NoSuchFieldException(name);
         }
-        return getReflectionFactory().copyField(field);
+        return ReflectionFactory.getReflectionFactory().copyField(field);
     }
 
 
@@ -2531,7 +2531,7 @@ public final class Class<T> implements java.io.Serializable,
         if (method == null) {
             throw new NoSuchMethodException(methodToString(name, parameterTypes));
         }
-        return getReflectionFactory().copyMethod(method);
+        return ReflectionFactory.getReflectionFactory().copyMethod(method);
     }
 
     /**
@@ -2546,7 +2546,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     List<Method> getDeclaredPublicMethods(String name, Class<?>... parameterTypes) {
         Method[] methods = privateGetDeclaredMethods(/* publicOnly */ true);
-        ReflectionFactory factory = getReflectionFactory();
+        ReflectionFactory factory = ReflectionFactory.getReflectionFactory();
         List<Method> result = new ArrayList<>();
         for (Method method : methods) {
             if (method.getName().equals(name)
@@ -2571,7 +2571,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     Method findMethod(boolean publicOnly, String name, Class<?>... parameterTypes) {
         PublicMethods.MethodList res = getMethodsRecursive(name, parameterTypes, true, publicOnly);
-        return res == null ? null : getReflectionFactory().copyMethod(res.getMostSpecific());
+        return res == null ? null : ReflectionFactory.getReflectionFactory().copyMethod(
+            res.getMostSpecific());
     }
 
     /**
@@ -2598,7 +2599,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     public Constructor<T> getDeclaredConstructor(Class<?>... parameterTypes)
             throws NoSuchMethodException {
-        return getReflectionFactory().copyConstructor(
+        return ReflectionFactory.getReflectionFactory().copyConstructor(
             getConstructor0(parameterTypes, Member.DECLARED));
     }
 
@@ -3003,7 +3004,7 @@ public final class Class<T> implements java.io.Serializable,
     // Since 1.8
     native byte[] getRawTypeAnnotations();
     static byte[] getExecutableTypeAnnotationBytes(Executable ex) {
-        return getReflectionFactory().getExecutableTypeAnnotationBytes(ex);
+        return ReflectionFactory.getReflectionFactory().getExecutableTypeAnnotationBytes(ex);
     }
 
     native ConstantPool getConstantPool();
@@ -3217,7 +3218,7 @@ public final class Class<T> implements java.io.Serializable,
                                         String name,
                                         Class<?>[] parameterTypes)
     {
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         Method res = null;
         for (Method m : methods) {
             if (m.getName().equals(name)
@@ -3285,7 +3286,7 @@ public final class Class<T> implements java.io.Serializable,
     private Constructor<T> getConstructor0(Class<?>[] parameterTypes,
                                         int which) throws NoSuchMethodException
     {
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         Constructor<T>[] constructors = privateGetDeclaredConstructors((which == Member.PUBLIC));
         for (Constructor<T> constructor : constructors) {
             if (arrayContentsEq(parameterTypes,
@@ -3324,7 +3325,7 @@ public final class Class<T> implements java.io.Serializable,
 
     private static Field[] copyFields(Field[] arg) {
         Field[] out = new Field[arg.length];
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         for (int i = 0; i < arg.length; i++) {
             out[i] = fact.copyField(arg[i]);
         }
@@ -3333,7 +3334,7 @@ public final class Class<T> implements java.io.Serializable,
 
     private static Method[] copyMethods(Method[] arg) {
         Method[] out = new Method[arg.length];
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         for (int i = 0; i < arg.length; i++) {
             out[i] = fact.copyMethod(arg[i]);
         }
@@ -3342,7 +3343,7 @@ public final class Class<T> implements java.io.Serializable,
 
     private static <U> Constructor<U>[] copyConstructors(Constructor<U>[] arg) {
         Constructor<U>[] out = arg.clone();
-        ReflectionFactory fact = getReflectionFactory();
+        ReflectionFactory fact = ReflectionFactory.getReflectionFactory();
         for (int i = 0; i < out.length; i++) {
             out[i] = fact.copyConstructor(out[i]);
         }
@@ -3494,25 +3495,6 @@ public final class Class<T> implements java.io.Serializable,
         return getSuperclass() == java.lang.Record.class &&
                 (this.getModifiers() & Modifier.FINAL) != 0 &&
                 isRecord0();
-    }
-
-    // Fetches the factory for reflective objects
-    private static ReflectionFactory getReflectionFactory() {
-        var factory = reflectionFactory;
-        if (factory != null) {
-            return factory;
-        }
-        return reflectionFactory = ReflectionFactory.getReflectionFactory();
-    }
-    private static ReflectionFactory reflectionFactory;
-
-    /**
-     * When CDS is enabled, the Class class may be aot-initialized. However,
-     * we can't archive reflectionFactory, so we reset it to null, so it
-     * will be allocated again at runtime.
-     */
-    private static void resetArchivedStates() {
-        reflectionFactory = null;
     }
 
     /**
