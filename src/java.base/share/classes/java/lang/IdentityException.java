@@ -48,41 +48,11 @@ public final class IdentityException extends RuntimeException {
     }
 
     /**
-     * Create an {@code IdentityException} with the class name and default message.
-     *
-     * @param clazz the class of the object
-     */
-    public IdentityException(Class<?> clazz) {
-        super(clazz.getName() + " is not an identity class");
-    }
-
-    /**
      * Create an {@code IdentityException} with a message.
      *
      * @param  message the detail message; can be {@code null}
      */
     public IdentityException(String message) {
         super(message);
-    }
-
-    /**
-     * Create an {@code IdentityException} with a cause.
-     *
-     * @param  cause the cause; {@code null} is permitted, and indicates
-     *               that the cause is nonexistent or unknown.
-     */
-    public IdentityException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Create an {@code IdentityException} with a message and cause.
-     *
-     * @param  message the detail message; can be {@code null}
-     * @param  cause the cause; {@code null} is permitted, and indicates
-     *               that the cause is nonexistent or unknown.
-     */
-    public IdentityException(String message, Throwable cause) {
-        super(message, cause);
     }
 }

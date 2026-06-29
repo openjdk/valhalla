@@ -2072,7 +2072,7 @@ Node* LoadFlatNode::get_payload_value(PhaseIterGVN& igvn, Node* ctrl, BasicType 
     return value;
   } else {
     // Make sure to zero unused bits in the 32-bit value
-    return Compile::narrow_value(value_bt, value, nullptr, &igvn, true);
+    return Compile::narrow_value(value_bt, value, value_type, &igvn, true);
   }
 }
 
@@ -2275,4 +2275,12 @@ const Type* StoreFlatNode::Value(PhaseGVN* phase) const {
     return Type::TOP;
   }
   return bottom_type();
+}
+
+bool LoadFlatNode::is_mismatched() const {
+  return (_decorators & C2_MISMATCHED) != 0;
+}
+
+bool StoreFlatNode::is_mismatched() const {
+  return (_decorators & C2_MISMATCHED) != 0;
 }
