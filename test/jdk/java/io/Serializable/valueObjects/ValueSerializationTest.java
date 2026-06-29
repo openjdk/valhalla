@@ -148,7 +148,7 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
-                        // Argument.of() takes a vararg parameter.
+                        // Arguments.of() takes a vararg parameter.
                         // Here we intend to pass an array as a single parameter to the test method.
                         // Explicitly cast it to Object type to prevent the array elements
                         // being treated as multiple parameters.
@@ -159,7 +159,7 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
-                        // Argument.of() takes a vararg parameter.
+                        // Arguments.of() takes a vararg parameter.
                         // Here we intend to pass an array as a single parameter to the test method.
                         // Explicitly cast it to Object type to prevent the array elements
                         // being treated as multiple parameters.
@@ -174,7 +174,7 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
-                        // Argument.of() takes a vararg parameter.
+                        // Arguments.of() takes a vararg parameter.
                         // Here we intend to pass an array as a single parameter to the test method.
                         // Explicitly cast it to Object type to prevent the array elements
                         // being treated as multiple parameters.
@@ -188,7 +188,7 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
-                        // Argument.of() takes a vararg parameter.
+                        // Arguments.of() takes a vararg parameter.
                         // Here we intend to pass an array as a single parameter to the test method.
                         // Explicitly cast it to Object type to prevent the array elements
                         // being treated as multiple parameters.
