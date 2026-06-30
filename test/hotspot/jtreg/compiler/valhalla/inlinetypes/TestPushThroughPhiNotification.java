@@ -28,7 +28,7 @@ package compiler.valhalla.inlinetypes;
  * @summary Test that Phi users are revisited when InlineTypeNode is pushed through.
  * @bug 8386067
  * @enablePreview
- * @run driver ${test.main.class}
+ * @run main ${test.main.class}
  * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -Xbatch
  *                   -XX:VerifyIterativeGVN=1110 -XX:+StressIGVN
