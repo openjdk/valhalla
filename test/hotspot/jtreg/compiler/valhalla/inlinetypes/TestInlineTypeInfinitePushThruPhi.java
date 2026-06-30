@@ -29,9 +29,9 @@
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @run main/othervm -XX:+StressIGVN -XX:CompileCommand=compileonly,${test.main.class}::test -Xbatch
- *                   -XX:-UseOnStackReplacement -XX:StressSeed=3696073068 -XX:CompileTaskTimeout=8000 ${test.main.class} 
+ *                   -XX:-UseOnStackReplacement -XX:StressSeed=3696073068 -XX:CompileTaskTimeout=8000 ${test.main.class}
  * @run main/othervm -XX:+StressIGVN -XX:CompileCommand=compileonly,${test.main.class}::test -Xbatch
- *                   -XX:-UseOnStackReplacement -XX:CompileTaskTimeout=8000 ${test.main.class} 
+ *                   -XX:-UseOnStackReplacement -XX:CompileTaskTimeout=8000 ${test.main.class}
  */
 
 package compiler.valhalla.inlinetypes;
