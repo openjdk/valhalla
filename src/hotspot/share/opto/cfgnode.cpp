@@ -2935,26 +2935,17 @@ private:
         for (uint j = 1; j < n->req(); ++j) {
           Node* in = n->in(j);
           if (in != nullptr) {
-            // if (in->is_InlineType()) {
-            //   _subgraph_to_clone.push(in);
-            // }
             _nodes_from_phi.push(in);
           }
         }
       } else if (n->is_ConstraintCast()) {
         Node* in = n->in(1);
         if (in != nullptr) {
-          // if (in->is_InlineType()) {
-          //   _subgraph_to_clone.push(in);
-          // }
           _nodes_from_phi.push(in);
         }
       } else if (n->is_InlineType()) {
         Node* buf = n->as_InlineType()->get_oop();
         if (buf != nullptr) {
-          // if (buf->is_InlineType()) {
-          //   _subgraph_to_clone.push(buf);
-          // }
           _nodes_from_phi.push(buf);
           _subgraph_to_clone.push(n);
         }
@@ -2975,23 +2966,6 @@ private:
         }
       }
     }
-    // assert(_subgraph_to_clone.size() == 0 || _subgraph_to_clone.member(_root_phi), "");
-#if 0 //def ASSERT
-    for (uint i = 0; i < _subgraph_to_clone.size(); ++i) {
-      Node* n = _subgraph_to_clone.at(i);
-      if (n->is_InlineType()) {
-        bool has_use_to_clone = false;
-        for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-          Node* u = n->fast_out(i);
-          if (_subgraph_to_clone.member(u)) {
-            has_use_to_clone = true;
-            break;
-          }
-        }
-        assert(has_use_to_clone, "");
-      }
-    }
-#endif
   }
 
   void clone_nodes() {
@@ -3132,83 +3106,33 @@ private:
   }
 #endif
 
-  Node* unique_non_null_phi_input(Node* n) {
-    if (!n->is_Phi()) {
-      return n;
-    }
-    Node* unique_input = nullptr;
-    for (uint i = 1; i < n->req(); i++) {
-      Node* in = n->in(i);
-      if (in != nullptr) {
-        if (unique_input == nullptr) {
-          unique_input = in;
-        } else {
-          unique_input = NodeSentinel;
-        }
-      }
-    }
-    if (unique_input != nullptr && unique_input != NodeSentinel) {
-      return unique_input;
-    }
-    return n;
-  }
-
   Node* do_transform(PhiNode* phi) {
-    if (phi->req() == 3 && phi->in(1) != nullptr && phi->in(1)->is_InlineType() && phi->in(1)->as_InlineType()->get_oop() == phi->in(2)) {
-      ShouldNotReachHere();
-    }
     assert(_inline_klass != nullptr, "must be");
     InlineTypeNode* vt = InlineTypeNode::make_null(*_phase, _inline_klass, /* transform = */ false)->clone_with_phis(
       _phase, phi->in(0), nullptr, !phi->type()->maybe_null(), true);
     // Record that vt was created to replace phi to be able to use the inline type node when reaching the phi again
     // through data loops.
     _clones.map(phi->_idx, vt);
-    if (_can_reshape) {
-      // Replace phi right away to be able to use the inline
-      // type node when reaching the phi again through data loops.
-      PhaseIterGVN* igvn = _phase->is_IterGVN();
-      for (DUIterator_Fast imax, i = phi->fast_outs(imax); i < imax; i++) {
-        Node* u = phi->fast_out(i);
-        igvn->rehash_node_delayed(u);
-        imax -= u->replace_edge(phi, vt);
-        --i;
-      }
-      igvn->rehash_node_delayed(phi);
-      assert(phi->outcnt() == 0, "should be dead now");
-    }
-    // ResourceMark rm;
     Node_List casts;
     for (uint i = 1; i < phi->req(); ++i) {
       Node* n = phi->in(i);
       if (n == nullptr) {
         continue;
       }
-      // while (true) {
       while (n->is_ConstraintCast()) {
         casts.push(n);
         n = n->in(1);
       }
-      //   Node* prev = n;
-      //   n = unique_non_null_phi_input(n);
-      //   if (prev == n) {
-      //     break;
-      //   }
-      // }
       if (_phase->type(n)->is_zero_type()) {
         n = InlineTypeNode::make_null(*_phase, _inline_klass);
       } else if (n->is_Phi()) {
         assert(_can_reshape, "can only handle phis during IGVN");
         Node* clone = get_clone(n);
-        // if (clone != nullptr) {
-        //   n = clone;
-        // } else {
+        if (clone != nullptr) {
+          n = clone;
+        } else {
           n = _phase->transform(do_transform(n->as_Phi()));
-        // }
-      } else {
-        if (!n->is_InlineType()) {
-          n->dump();
         }
-        assert(n->is_InlineType(), "unexpected node type");
       }
       while (casts.size() != 0) {
         // Push the cast(s) through the InlineTypeNode
