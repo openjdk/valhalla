@@ -40,7 +40,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main ${test.main.class} 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -51,7 +51,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main ${test.main.class} 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -62,7 +62,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main ${test.main.class} 3
+ * @run driver ${test.main.class} 3
  */
 
 /*
@@ -73,7 +73,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main ${test.main.class} 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -84,7 +84,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main ${test.main.class} 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -95,13 +95,15 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main ${test.main.class} 6
+ * @run driver ${test.main.class} 6
  */
 
 
 package compiler.valhalla.inlinetypes;
 
 import compiler.lib.compile_framework.CompileFramework;
+import compiler.lib.generators.Generators;
+import compiler.lib.generators.RestrictableGenerator;
 import compiler.lib.ir_framework.Scenario;
 import compiler.lib.template_framework.*;
 import compiler.lib.template_framework.library.*;
@@ -119,6 +121,8 @@ import static compiler.lib.template_framework.Template.*;
 import static compiler.lib.template_framework.Template.scope;
 
 public class TestArraysCopyOf {
+    private static final RestrictableGenerator<Integer> RANDOM_LENGTH = Generators.G.ints().restricted(0, 32);
+
     public static void main(String[] args) {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
         scenarios[2].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
@@ -187,6 +191,7 @@ public class TestArraysCopyOf {
                             static interface I {}
 
                         """,
+                // Define some classes, each containing primitive type fields.
                 abstractClasses.stream().map(klass -> scope(
                         let("def", klass.definition()),
                         let("klass", klass.name()),
@@ -215,6 +220,7 @@ public class TestArraysCopyOf {
                         """
                                 #type _#type;
                         """)).toList(),
+                        // Constructor
                         """
 
                                 public #klass(\
@@ -224,6 +230,7 @@ public class TestArraysCopyOf {
                 loop(primitiveTypes, (type, _) -> scope(
                         let("type", type.name()),
                         "            this._#type = _#type;\n")),
+                        // Initializer
                         """
                                 }
 
@@ -240,10 +247,11 @@ public class TestArraysCopyOf {
 
                             static Object[] oArr = new Object[1];
                         """,
+                // Passing A.class, int.class etc. Should always throw.
                 loop(instanceAndPrimitiveClasses.size(), i -> scope(
                         let("i", uniqueIndex.getAndIncrement()),
                         let("klass", instanceAndPrimitiveClasses.get(i)),
-                        let("test", "testNonArrayClass" + instanceAndPrimitiveClasses.get(i)),
+                        let("test", "testNonArrayClass_" + instanceAndPrimitiveClasses.get(i)),
                         generateTestMethodString(),
                         """
 
@@ -257,10 +265,11 @@ public class TestArraysCopyOf {
                                 }
                             }
                         """)),
+                // Passing in primitive type arrays which like int[].class which should throw.
                 loop(primitiveTypeClasses.size(), i -> scope(
                         let("i", uniqueIndex.getAndIncrement()),
                         let("klass", primitiveTypeClasses.get(i) + "[]"),
-                        let("test", "testPrimitiveArrayClass" + primitiveTypeClasses.get(i)),
+                        let("test", "testPrimitiveArrayClass_" + primitiveTypeClasses.get(i)),
                         generateTestMethodString(),
                         """
 
@@ -274,17 +283,19 @@ public class TestArraysCopyOf {
                                 }
                             }
                         """)),
+                // Normal tests with non-primitive type arrays.
                 loop(concreteInstanceClasses.size(), i -> scope(
                         let("i", uniqueIndex.getAndIncrement()),
                         let("klass_name", concreteInstanceClasses.get(i).name()),
                         let("klass", concreteInstanceClasses.get(i).name() + "[]"),
-                        let("test", "testInstanceArrayClass" + concreteInstanceClasses.get(i).name()),
+                        let("test", "testInstanceArrayClass_" + concreteInstanceClasses.get(i).name()),
+                        let("length", RANDOM_LENGTH.next()),
                         generateTestMethodString(),
                         """
 
                             @Run(test = "#test")
                             public static void run#i() {
-                                int length = 4;
+                                int length = #length;
                                 #klass arr = new #klass_name[length];
                                 #klass golden = new #klass_name[length];
                                 for (int i = 0; i < length; i++) {
@@ -299,17 +310,19 @@ public class TestArraysCopyOf {
                                 }
                             }
                         """)),
+                // Normal tests with value class arrays.
                 loop(newValueClassArrayScopes, (init, i) -> scope(
                         let("i", uniqueIndex.getAndIncrement()),
                         let("klass_name", valueClasses.get(i).name()),
                         let("klass", valueClasses.get(i).name() + "[]"),
-                        let("test", "testValueArrayClass" + valueClasses.get(i).name()),
+                        let("test", "testValueArrayClass_" + valueClasses.get(i).name()),
+                        let("length", RANDOM_LENGTH.next()),
                         generateTestMethodString(),
                         """
 
                             @Run(test = "#test")
                             public static void run#i() {
-                                int length = 4;
+                                int length = #length;
                         """,
                         "       #klass arr =", init, ";\n",
                         "       #klass golden =", init, ";\n",

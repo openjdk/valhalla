@@ -5177,22 +5177,20 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
 
     Node* orig_length = load_array_length(original);
 
-    Node* klass_node = load_klass_from_mirror(array_type_mirror, false, nullptr, 0);
+    RegionNode* bailout = new RegionNode(2);
+    record_for_igvn(bailout);
+
+    Node* klass_node = load_klass_from_mirror(array_type_mirror, false, bailout, 1);
     if (stopped()) {
       // Arrays.copyOf() uses a generic Class parameter which is erased to the raw type Class. This also allows
       // passing in primitive class mirrors like int.class which do not have corresponding Klass* pointers.
-      // In these cases, klass_node will be top and we bail out.
+      // In these cases, klass_node will be top. Emit a trap to throw in the interpreter in this case.
+      bail_out_from_array_copyOf(bailout);
       return true;
     }
 
     klass_node = null_check(klass_node);
 
-    RegionNode* bailout = new RegionNode(1);
-    record_for_igvn(bailout);
-
-    // Despite the generic type of Arrays.copyOf, the mirror might be int, int[], etc.
-    // Bail out if that is so.
-    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     const TypeAryPtr* src_t = _gvn.type(original)->is_aryptr();
     const TypeKlassPtr* dest_klass_t = _gvn.type(klass_node)->is_klassptr()->is_klassptr();
 
@@ -5241,10 +5239,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     generate_negative_guard(orig_tail, bailout, &orig_tail);
 
     if (bailout->req() > 1) {
-      PreserveJVMState pjvms(this);
-      set_control(_gvn.transform(bailout));
-      uncommon_trap(Deoptimization::Reason_intrinsic,
-                    Deoptimization::Action_maybe_recompile);
+      bail_out_from_array_copyOf(bailout);
     }
 
     if (!stopped()) {
@@ -5320,6 +5315,13 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     set_result(newcopy);
   }
   return true;
+}
+
+void LibraryCallKit::bail_out_from_array_copyOf(RegionNode* bailout_region) {
+  PreserveJVMState pjvms(this);
+  set_control(_gvn.transform(bailout_region));
+  uncommon_trap(Deoptimization::Reason_intrinsic,
+                Deoptimization::Action_maybe_recompile);
 }
 
 bool LibraryCallKit::should_bail_out_on_non_ref_arrays(const TypeAryPtr* src_type, const TypeKlassPtr* dest_klass_type) {
