@@ -287,8 +287,7 @@ public class ValueSerializationTest {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
             if (expectedException != null) {
-                Exception e = assertThrows(expectedException, () -> oos.writeObject(obj));
-                System.err.println("got expected exception: " + e);
+                assertThrows(expectedException, () -> oos.writeObject(obj));
                 return null;
             }
             oos.writeObject(obj);
@@ -303,8 +302,7 @@ public class ValueSerializationTest {
         ByteArrayInputStream bais = new ByteArrayInputStream(streamBytes);
         try (ObjectInputStream ois = new ObjectInputStream(bais)) {
             if (expectedException != null) {
-                Exception e = assertThrows(expectedException, () -> ois.readObject());
-                System.err.println("got expected exception: " + e);
+                assertThrows(expectedException, () -> ois.readObject());
                 return null;
             }
             return (T) ois.readObject();
@@ -467,11 +465,7 @@ public class ValueSerializationTest {
 
         @Override
         public boolean equals(Object other) {
-            if (other instanceof ExtValueWithIdentityReplacement foo) {
-                return s.equals(foo.s);
-            } else {
-                return false;
-            }
+            return other instanceof ExtValueWithIdentityReplacement foo && s.equals(foo.s);
         }
 
         @Serial
