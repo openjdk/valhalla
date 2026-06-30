@@ -28,6 +28,7 @@
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @compile ValueSerializationTest.java
+ * @build jdk.test.lib.helpers.StrictInit jdk.test.lib.helpers.StrictProcessor
  * @comment run the StrictProcessor over the IdentityStrictPoint to generate a class with
  *          STRICT_INIT access flags for its annotated fields
  * @run driver jdk.test.lib.helpers.StrictProcessor ValueSerializationTest$IdentityStrictPoint
