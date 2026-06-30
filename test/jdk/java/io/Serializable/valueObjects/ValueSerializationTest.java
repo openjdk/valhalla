@@ -211,9 +211,9 @@ public class ValueSerializationTest {
         byte[] bytes = serialize(obj, null);
         Object actual = deserialize(bytes, null);
         if (obj.getClass().isArray()) {
-            assertArrayEquals((Object[]) actual, (Object[]) obj);
+            assertArrayEquals((Object[]) obj, (Object[]) actual);
         } else {
-            assertEquals(actual, obj);
+            assertEquals(obj, actual);
         }
     }
 
@@ -333,7 +333,7 @@ public class ValueSerializationTest {
     public static class IdentityStrictPoint implements Serializable {
         static {
             for (var f : IdentityStrictPoint.class.getDeclaredFields()) {
-                assertTrue(f.isStrictInit(), f.getName());
+                assertTrue(f.isStrictInit(), "missing strict init on field: " + f.getName());
             }
         }
 
