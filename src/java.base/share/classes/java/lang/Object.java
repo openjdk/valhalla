@@ -170,7 +170,8 @@ public class Object {
      * the most discriminating possible equivalence relation on objects;
      * that is, for any non-null reference values {@code x} and
      * {@code y}, this method returns {@code true} if and only
-     * if {@code x} and {@code y} refer to the same object
+     * if {@code x} and {@code y} refer to the same identity object or
+     * both refer to statewise-equivalent value objects
      * ({@code x == y} has the value {@code true}).
      *
      * In other words, under the reference equality equivalence
@@ -256,8 +257,8 @@ public class Object {
      * contents of the fields are not themselves cloned. Thus, this method
      * performs a "shallow copy" of this object, not a "deep copy" operation.
      * <p>
-     * For a value object, this method returns an object that is indistinguishable
-     * from the original.
+     * For a value object, this method returns an object that is <em>statewise
+     * equivalent</em> to this object.
      * <p>
      * The class {@code Object} does not itself implement the interface
      * {@code Cloneable}, so calling the {@code clone} method on an object

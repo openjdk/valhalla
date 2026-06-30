@@ -78,6 +78,7 @@ class ValueObjects {
      * Test that the finalize method on a value class is not invoked by the GC.
      */
     @Test
+    @org.junit.jupiter.api.Disabled("Enable when JDK-8386972 is integrated")
     void testValueClassFinalize() throws Exception {
         value class V {
             CountDownLatch latch;
@@ -104,6 +105,7 @@ class ValueObjects {
      * Test that the finalize method on an abstract value value is not invoked by the GC.
      */
     @Test
+    @org.junit.jupiter.api.Disabled("Enable when JDK-8386972 is integrated")
     void testAbstractValueClassFinalize() throws Exception {
         abstract value class AV {
             CountDownLatch latch;
