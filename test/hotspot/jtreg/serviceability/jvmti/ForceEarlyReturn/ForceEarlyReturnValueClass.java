@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @summary Test ForceEarlyReturnVoid when target thread's top frame is a value class
- *     constructor or method
+ * @summary Test ForceEarlyReturnVoid when the target thread's top frame is a value class
+ *     constructor, method or class initializer.
  * @enablePreview
  * @run junit/othervm/native --enable-native-access=ALL-UNNAMED -agentlib:ForceEarlyReturnValueClass ${test.main.class}
  */
@@ -57,6 +57,7 @@ class ForceEarlyReturnValueClass {
         }
         Thread thread = Thread.ofPlatform().start(TestCase.ValueClass::new);
         try {
+            // wait for target thread to start executing constructor
             while (!TestCase.started) {
                 Thread.sleep(10);
             }
@@ -65,9 +66,9 @@ class ForceEarlyReturnValueClass {
         } finally {
             TestCase.stop = true;
             resumeThread(thread);
+            thread.join();
         }
-        thread.join();
-        assertTrue(TestCase.finished);
+        assertTrue(TestCase.finished);  // constructor should have run to end
     }
 
     /**
@@ -91,6 +92,7 @@ class ForceEarlyReturnValueClass {
         var valueObj = new TestCase.ValueClass();
         Thread thread = Thread.ofPlatform().start(valueObj::run);
         try {
+            // wait for target thread to start executing method
             while (!TestCase.started) {
                 Thread.sleep(10);
             }
@@ -99,9 +101,9 @@ class ForceEarlyReturnValueClass {
         } finally {
             TestCase.stop = true;
             resumeThread(thread);
+            thread.join();
         }
-        thread.join();
-        assertFalse(TestCase.finished);
+        assertFalse(TestCase.finished);  // should not have run to the end
     }
 
     /**
@@ -113,17 +115,19 @@ class ForceEarlyReturnValueClass {
         class TestCase {
             static volatile boolean started;
             static volatile boolean stop;
+            static volatile boolean finished;
             static value class ValueClass {
-                static final boolean finished;
+                static final boolean initialized;
                 static {
                     TestCase.started = true;
                     while (!TestCase.stop) {}
-                    finished = true;    // should not get there
+                    initialized = true;    // should not get there
                 }
             }
         }
         Thread thread = Thread.ofPlatform().start(TestCase.ValueClass::new);
         try {
+            // wait for target thread to start executing class initializer
             while (!TestCase.started) {
                 Thread.sleep(10);
             }
@@ -132,10 +136,9 @@ class ForceEarlyReturnValueClass {
         } finally {
             TestCase.stop = true;
             resumeThread(thread);
+            thread.join();
         }
-        thread.join();
-
-        assertFalse(TestCase.ValueClass.finished);
+        assertFalse(TestCase.ValueClass.initialized);  // should not have run to the end
     }
 
     private static native int suspendThread(Thread thread);
