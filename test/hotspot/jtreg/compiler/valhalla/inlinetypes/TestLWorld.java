@@ -5480,6 +5480,9 @@ public class TestLWorld {
         }
     }
 
+    // TODO 8376254: C1 bails out if the type of the nullable flat field is uninitialized
+    static ObjectHolderHolder tmp = new ObjectHolderHolder();
+
     static value class ObjectHolder {
         Object obj = new Object();
     }
