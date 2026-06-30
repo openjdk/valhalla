@@ -141,61 +141,31 @@ public class ValueSerializationTest {
         serialize(obj, expectedException);
     }
 
-    static Stream<Arguments> serializingInstances() {
+    static Stream<Object> serializingInstances() {
         return Stream.of(
-                Arguments.of(
-                        new ValueWithDeserializer(11, 101)
-                ),
+                new ValueWithDeserializer(11, 101),
 
-                Arguments.of(
-                        // Arguments.of() takes a vararg parameter.
-                        // Here we intend to pass an array as a single parameter to the test method.
-                        // Explicitly cast it to Object type to prevent the array elements
-                        // being treated as multiple parameters.
-                        (Object) new ValueWithDeserializer[]{
-                                new ValueWithDeserializer(1, 5),
-                                new ValueWithDeserializer(2, 6)
-                        }
-                ),
+                new ValueWithDeserializer[]{
+                        new ValueWithDeserializer(1, 5),
+                        new ValueWithDeserializer(2, 6)
+                },
 
-                Arguments.of(
-                        // Arguments.of() takes a vararg parameter.
-                        // Here we intend to pass an array as a single parameter to the test method.
-                        // Explicitly cast it to Object type to prevent the array elements
-                        // being treated as multiple parameters.
-                        (Object) new Object[]{
-                                new ValueWithDeserializer(3, 7),
-                                new ValueWithDeserializer(4, 8)
-                        }
-                ),
+                new Object[]{
+                        new ValueWithDeserializer(3, 7),
+                        new ValueWithDeserializer(4, 8)
+                },
 
-                Arguments.of(
-                        new ValueWriteReplaceWithIdentity(45)
-                ),
+                new ValueWriteReplaceWithIdentity(45),
 
-                Arguments.of(
-                        // Arguments.of() takes a vararg parameter.
-                        // Here we intend to pass an array as a single parameter to the test method.
-                        // Explicitly cast it to Object type to prevent the array elements
-                        // being treated as multiple parameters.
-                        (Object) new ValueWriteReplaceWithIdentity[]{
-                                new ValueWriteReplaceWithIdentity(46)
-                        }
-                ),
+                new ValueWriteReplaceWithIdentity[]{
+                        new ValueWriteReplaceWithIdentity(46)
+                },
 
-                Arguments.of(
-                        new ExtValueWithIdentityReplacement("hello")
-                ),
+                new ExtValueWithIdentityReplacement("hello"),
 
-                Arguments.of(
-                        // Arguments.of() takes a vararg parameter.
-                        // Here we intend to pass an array as a single parameter to the test method.
-                        // Explicitly cast it to Object type to prevent the array elements
-                        // being treated as multiple parameters.
-                        (Object) new ExtValueWithIdentityReplacement[]{
-                                new ExtValueWithIdentityReplacement("there")
-                        }
-                )
+                new ExtValueWithIdentityReplacement[]{
+                        new ExtValueWithIdentityReplacement("there")
+                }
         );
     }
 
