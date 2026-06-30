@@ -2602,7 +2602,7 @@ Node* GraphKit::record_profile_for_speculation(Node* n, ciKlass* exact_kls, Prof
   // Should the klass from the profile be recorded in the speculative type?
   if (current_type->would_improve_type(exact_kls, jvms()->depth())) {
     const TypeKlassPtr* tklass = TypeKlassPtr::make(exact_kls, Type::trust_interfaces);
-    const TypeOopPtr* xtype = tklass->as_instance_type();
+    const TypeOopPtr* xtype = tklass->as_exact_instance_type();
     assert(xtype->klass_is_exact(), "Should be exact");
     // Any reason to believe n is not null (from this profiling or a previous one)?
     assert(ptr_kind != ProfileAlwaysNull, "impossible here");
@@ -3320,7 +3320,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
 
   if (!stopped()) {
     const TypeOopPtr* receiver_type = _gvn.type(receiver)->isa_oopptr();
-    const TypeOopPtr* recv_xtype = tklass->as_instance_type();
+    const TypeOopPtr* recv_xtype = tklass->as_exact_instance_type();
     assert(recv_xtype->klass_is_exact(), "");
 
     if (!receiver_type->higher_equal(recv_xtype)) { // ignore redundant casts
@@ -3363,7 +3363,7 @@ Node* GraphKit::subtype_check_receiver(Node* receiver, ciKlass* klass,
   // Ignore interface type information until interface types are properly tracked.
   if (!stopped() && !klass->is_interface()) {
     const TypeOopPtr* receiver_type = _gvn.type(receiver)->isa_oopptr();
-    const TypeOopPtr* recv_type = tklass->cast_to_exactness(false)->is_klassptr()->as_instance_type();
+    const TypeOopPtr* recv_type = tklass->as_subtype_instance_type();
     if (receiver_type != nullptr && !receiver_type->higher_equal(recv_type)) { // ignore redundant casts
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), receiver, recv_type));
       if (recv_type->is_inlinetypeptr()) {
@@ -3689,7 +3689,7 @@ Node* GraphKit::gen_checkcast(Node* obj, Node* superklass, Node** failure_contro
   const Type* obj_type = _gvn.type(obj);
 
   const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
-  const TypeOopPtr* toop = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
+  const TypeOopPtr* toop = improved_klass_ptr_type->as_subtype_instance_type();
   bool safe_for_replace = (failure_control == nullptr);
   assert(!null_free || toop->can_be_inline_type(), "must be an inline type pointer");
 
@@ -4233,7 +4233,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
   if (!StressReflectiveCode && klass_t != nullptr) {
     bool xklass = klass_t->klass_is_exact();
     bool can_be_flat = false;
-    const TypeAryPtr* ary_type = klass_t->as_instance_type()->isa_aryptr();
+    const TypeAryPtr* ary_type = klass_t->as_exact_instance_type()->isa_aryptr();
     if (UseArrayFlattening && !xklass && ary_type != nullptr) {
       // Don't constant fold if the runtime type might be a flat array but the static type is not.
       const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
@@ -4442,7 +4442,7 @@ Node* GraphKit::new_instance(Node* klass_node,
   // It's what we cast the result to.
   const TypeKlassPtr* tklass = _gvn.type(klass_node)->isa_klassptr();
   if (!tklass)  tklass = TypeInstKlassPtr::OBJECT;
-  const TypeOopPtr* oop_type = tklass->as_instance_type();
+  const TypeOopPtr* oop_type = tklass->as_exact_instance_type();
 
   // Now generate allocation code
 
@@ -4623,7 +4623,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   }
 
   const TypeKlassPtr* ary_klass = _gvn.type(klass_node)->isa_klassptr();
-  const TypeOopPtr* ary_type = ary_klass->as_instance_type();
+  const TypeOopPtr* ary_type = ary_klass->as_exact_instance_type();
 
   Node* raw_init_value = nullptr;
   if (init_val != nullptr) {
