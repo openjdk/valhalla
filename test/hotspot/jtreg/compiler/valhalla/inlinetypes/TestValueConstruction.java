@@ -143,12 +143,28 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test id=StressIncrementalInlining
  * @key randomness
  * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
+ * @requires vm.opt.StressUnstableIfTraps == null | !vm.opt.StressUnstableIfTraps
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
+ *                   compiler.valhalla.inlinetypes.TestValueConstruction
+ */
+
+/*
+ * @test id=StressIncrementalInliningUnstableIfTraps
+ * @key randomness
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
+ * @requires vm.opt.StressUnstableIfTraps != null & vm.opt.StressUnstableIfTraps
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
+ *                   -XX:CompileCommand=MemLimit,*.*,2G~crash
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
@@ -197,6 +213,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test id=StressIncrementalInliningDontInlineMyAbstractInit
  * @key randomness
  * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
+ * @requires vm.opt.StressUnstableIfTraps == null | !vm.opt.StressUnstableIfTraps
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -206,11 +223,27 @@ import test.java.lang.invoke.lib.InstructionHelper;
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
+/*
+ * @test id=StressIncrementalInliningDontInlineMyAbstractInitUnstableIfTraps
+ * @key randomness
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
+ * @requires vm.opt.StressUnstableIfTraps != null & vm.opt.StressUnstableIfTraps
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
+ *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
+ *                   -XX:CompileCommand=MemLimit,*.*,2G~crash
+ *                   compiler.valhalla.inlinetypes.TestValueConstruction
+ */
 
 /*
  * @test id=StressIncrementalInliningOnStackReplacement
  * @key randomness
  * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
+ * @requires vm.opt.StressUnstableIfTraps == null | !vm.opt.StressUnstableIfTraps
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -218,6 +251,21 @@ import test.java.lang.invoke.lib.InstructionHelper;
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0
  *                   -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch
+ *                   compiler.valhalla.inlinetypes.TestValueConstruction
+ */
+/*
+ * @test id=StressIncrementalInliningOnStackReplacementUnstableIfTraps
+ * @key randomness
+ * @library /testlibrary /test/lib /compiler/whitebox /test/jdk/java/lang/invoke/common /
+ * @requires vm.opt.StressUnstableIfTraps != null & vm.opt.StressUnstableIfTraps
+ * @enablePreview
+ * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
+ *                   -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0
+ *                   -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch
+ *                   -XX:CompileCommand=MemLimit,*.*,2G~crash
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
