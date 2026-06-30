@@ -3114,12 +3114,7 @@ private:
       // Replace phi right away to be able to use the inline
       // type node when reaching the phi again through data loops.
       PhaseIterGVN* igvn = _phase->is_IterGVN();
-      for (DUIterator_Fast imax, i = phi->fast_outs(imax); i < imax; i++) {
-        Node* u = phi->fast_out(i);
-        igvn->rehash_node_delayed(u);
-        imax -= u->replace_edge(phi, vt);
-        --i;
-      }
+      igvn->replace_in_uses(phi, vt);
       igvn->rehash_node_delayed(phi);
       assert(phi->outcnt() == 0, "should be dead now");
     }
