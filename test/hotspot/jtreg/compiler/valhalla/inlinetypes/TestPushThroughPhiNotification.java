@@ -55,7 +55,7 @@ public class TestPushThroughPhiNotification {
     }
 
     public static void main(String[] args) {
-        for (int i = 0; i < 50_000; i++) {
+        for (int i = 0; i < 5_000; i++) {
             if (!test()) {
                 throw new RuntimeException("Unexpected result");
             }

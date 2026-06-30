@@ -2486,6 +2486,7 @@ void PhaseIterGVN::subsume_node( Node *old, Node *nn ) {
   temp->destruct(this);     // reuse the _idx of this little guy
 }
 
+// Replaces n with m in all uses, including self-loops.
 void PhaseIterGVN::replace_in_uses(Node* n, Node* m) {
   assert(n != nullptr, "sanity");
   add_users_to_worklist(n);
