@@ -139,7 +139,10 @@ public class ValueSerializationTest {
     @MethodSource("serializationFailingInstances")
     void testSerializationFails(Object obj, Class<? extends Exception> expectedException)
             throws Exception {
-        serialize(obj, expectedException);
+        // expect serialization to fail
+        try (ObjectOutputStream oos = new ObjectOutputStream(new ByteArrayOutputStream())) {
+            assertThrows(expectedException, () -> oos.writeObject(obj));
+        }
     }
 
     static Stream<Object> serializingInstances() {
@@ -179,8 +182,18 @@ public class ValueSerializationTest {
     @ParameterizedTest
     @MethodSource("serializingInstances")
     void testSerDeserSucceeds(Object obj) throws IOException, ClassNotFoundException {
-        byte[] bytes = serialize(obj, null);
-        Object actual = deserialize(bytes, null);
+        // serialize
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(obj);
+        }
+        byte[] bytes = baos.toByteArray();
+        Object actual;
+        // deserialize
+        try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
+            actual = ois.readObject();
+        }
+        // compare the deserialized with the original
         if (obj.getClass().isArray()) {
             assertArrayEquals((Object[]) obj, (Object[]) actual);
         } else {
@@ -232,7 +245,14 @@ public class ValueSerializationTest {
         ObjectStreamClass clsDesc = ObjectStreamClass.lookup(valueClass);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
         byte[] serialBytes = byteStreamFor(valueClass.getName(), uid, flags);
-        deserialize(serialBytes, expectedException);
+        // deserialize
+        try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serialBytes))) {
+            if (expectedException != null) {
+                assertThrows(expectedException, () -> ois.readObject());
+            } else {
+                ois.readObject();
+            }
+        }
     }
 
     // Generate a byte stream containing a reference to the named class with the SVID and flags.
@@ -251,33 +271,6 @@ public class ValueSerializationTest {
         dos.writeByte(TC_NULL);           // no superclasses
         dos.close();
         return baos.toByteArray();
-    }
-
-    private static <T> byte[] serialize(T obj, Class<? extends Exception> expectedException)
-            throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-            if (expectedException != null) {
-                assertThrows(expectedException, () -> oos.writeObject(obj));
-                return null;
-            }
-            oos.writeObject(obj);
-            return baos.toByteArray();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> T deserialize(byte[] streamBytes,
-                                     Class<? extends Exception> expectedException)
-            throws IOException, ClassNotFoundException {
-        ByteArrayInputStream bais = new ByteArrayInputStream(streamBytes);
-        try (ObjectInputStream ois = new ObjectInputStream(bais)) {
-            if (expectedException != null) {
-                assertThrows(expectedException, () -> ois.readObject());
-                return null;
-            }
-            return (T) ois.readObject();
-        }
     }
 
     /**
