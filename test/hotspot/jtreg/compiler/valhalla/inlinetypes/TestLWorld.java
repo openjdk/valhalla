@@ -5479,4 +5479,33 @@ public class TestLWorld {
             // expected
         }
     }
+
+    static value class ObjectHolder {
+        Object obj = new Object();
+    }
+
+    static value class ObjectHolderHolder {
+        ObjectHolder objectHolder = new ObjectHolder();
+    }
+
+    // Test that acmp expansion works with field of exact Object type
+    @Test
+    @IR(failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+        counts = {IRNode.ALLOC, "= 2"}) // The two Object allocations
+    static boolean testAcmp() {
+        Object lhs = null;
+        Object rhs = null;
+        for (int i = 0; i < 10; i++) {
+            if ((i & 1) == 0) {
+                lhs = new ObjectHolderHolder();
+                rhs = new ObjectHolderHolder();
+            }
+        }
+        return lhs == rhs;
+    }
+
+    @Run(test = "testAcmp")
+    public void runTestAcmp() {
+        Asserts.assertFalse(testAcmp());
+    }
 }
