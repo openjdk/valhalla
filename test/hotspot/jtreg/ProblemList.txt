@@ -198,7 +198,6 @@ applications/ctw/modules/java_base.java 8375645 generic-all
 applications/ctw/modules/java_base_2.java 8375645 generic-all
 
 compiler/codegen/TestRedundantLea.java#Spill                            8361089 generic-all
-compiler/valhalla/inlinetypes/TestIntrinsics.java#id4                   8386160 generic-all
 compiler/valhalla/inlinetypes/TestValueConstruction.java#StressIncrementalInlining 8349772 generic-all
 compiler/valhalla/inlinetypes/TestValueConstruction.java#StressIncrementalInliningDontInlineMyAbstractInit 8349772 generic-all
 compiler/valhalla/inlinetypes/TestValueConstruction.java#StressIncrementalInliningOnStackReplacement 8349772 generic-all
