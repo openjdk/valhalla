@@ -25,7 +25,7 @@
  * @test TestFinalizableValues
  * @library /test/lib
  * @enablePreview
- * @run main TestFinalizableValues
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions TestFinalizableValues
  */
 
 import java.io.IOException;
