@@ -953,6 +953,8 @@ Node* InlineTypeNode::emit_substitutability_check(GraphKit* kit, Node* lhs, Node
       Node* vk_klass = igvn.makecon(vk_klass_type);
 
       // Both must be vk
+      // No need to null-check/checkcast/reload an already scalarized inline type:
+      // its fields are already available directly from the InlineTypeNode.
       if (cur_lhs_inline != nullptr && cur_lhs_inline->inline_klass() == vk) {
         cur_lhs_field = cur_lhs_inline;
       } else {
