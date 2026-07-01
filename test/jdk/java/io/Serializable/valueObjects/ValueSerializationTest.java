@@ -29,9 +29,10 @@
  * @library /test/lib
  * @compile ValueSerializationTest.java
  * @build jdk.test.lib.helpers.StrictInit jdk.test.lib.helpers.StrictProcessor
- * @comment run the StrictProcessor over the IdentityStrictPoint to generate a class with
- *          STRICT_INIT access flags for its annotated fields
- * @run driver jdk.test.lib.helpers.StrictProcessor ValueSerializationTest$IdentityStrictPoint
+ * @comment run the StrictProcessor over the classes that use \@StrictInit to
+ *          generate classfiles with STRICT_INIT access flags for its annotated fields
+ * @run driver jdk.test.lib.helpers.StrictProcessor
+ *             ValueSerializationTest$IdentityStrictPoint
  * @run junit ${test.main.class}
  */
 
@@ -90,6 +91,11 @@ public class ValueSerializationTest {
 
                 Arguments.of(
                         new IdentityStrictPoint(),
+                        ICE
+                ),
+
+                Arguments.of(
+                        new StrictInSuperIdentity(),
                         ICE
                 ),
 
@@ -216,6 +222,18 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
+                        IdentityStrictPoint.class,
+                        SC_SERIALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
+                        StrictInSuperIdentity.class,
+                        SC_SERIALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
                         ValueWithDeserializer.class,
                         SC_EXTERNALIZABLE,
                         ICE
@@ -238,13 +256,11 @@ public class ValueSerializationTest {
      */
     @ParameterizedTest
     @MethodSource("classes")
-    void testDeser(Class<?> valueClass, byte flags, Class<? extends Exception> expectedException)
+    void testDeser(Class<?> clazz, byte flags, Class<? extends Exception> expectedException)
             throws Exception {
-        // as a precaution verify that we are indeed testing a value class
-        assertTrue(valueClass.isValue(), "not a value class: " + valueClass);
-        ObjectStreamClass clsDesc = ObjectStreamClass.lookup(valueClass);
+        ObjectStreamClass clsDesc = ObjectStreamClass.lookup(clazz);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
-        byte[] serialBytes = byteStreamFor(valueClass.getName(), uid, flags);
+        byte[] serialBytes = byteStreamFor(clazz.getName(), uid, flags);
         // deserialize
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serialBytes))) {
             if (expectedException != null) {
@@ -485,6 +501,22 @@ public class ValueSerializationTest {
         @Override
         public String toString() {
             return "[ExtValueWithIdentityReplacement s=" + s + "]";
+        }
+    }
+
+    /**
+     * A plain identity class that does not declare any strictly initialized
+     * instance field but one of its superclasses that implement Serializable
+     * does.
+     */
+    static class StrictInSuperIdentity extends IdentityStrictPoint {
+        StrictInSuperIdentity() {
+            super();
+        }
+
+        @Override
+        public String toString() {
+            return "[StrictInSuperIdentity x=" + x + " y=" + y + "]";
         }
     }
 }
