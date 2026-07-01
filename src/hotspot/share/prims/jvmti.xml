@@ -14074,7 +14074,7 @@ myInit() {
           <description>
             JNI local reference to the object that was allocated.
             Null when preview features are enabled, the capability <code>can_support_value_objects</code>
-            is enabled and the allocated object has no identity.
+            is enabled, and the allocated object has no identity.
           </description>
       </param>
       <param id="object_klass">
@@ -14151,7 +14151,7 @@ myInit() {
         <description>
           JNI local reference to the object that was allocated.
           Null when preview features are enabled, the capability <code>can_support_value_objects</code>
-          is enabled and the allocated object has no identity.
+          is enabled, and the allocated object has no identity.
         </description>
       </param>
       <param id="object_klass">
