@@ -39,36 +39,123 @@ class ForceEarlyReturnValueClass {
 
     /**
      * Test that ForceEarlyReturnVoid fails with JVMTI_ERROR_OPAQUE_FRAME when the
-     * target thread's top frame is a value class constructor.
+     * target thread's top frame is a value class constructor before super.
      */
     @Test
-    void testForceEarlyReturnConstructor() throws Exception {
+    void testForceEarlyReturnBeforeSuper() throws Exception {
         class TestCase {
-            static volatile boolean started;
+            static volatile boolean initStarted;
+            static volatile boolean initFinished;
             static volatile boolean stop;
-            static volatile boolean finished;
             static value class ValueClass {
                 ValueClass() {
-                    TestCase.started = true;
+                    TestCase.initStarted = true;
                     while (!TestCase.stop) {}
-                    TestCase.finished = true;
+                    super();
+                    TestCase.initFinished = true;
                 }
             }
         }
         Thread thread = Thread.ofPlatform().start(TestCase.ValueClass::new);
+        boolean suspended = false;
         try {
             // wait for target thread to start executing constructor
-            while (!TestCase.started) {
+            while (!TestCase.initStarted) {
                 Thread.sleep(10);
             }
             assertEquals(JVMTI_ERROR_NONE, suspendThread(thread));
+            suspended = true;
+            assertTopFrame(thread, TestCase.ValueClass.class, "<init>");
             assertEquals(JVMTI_ERROR_OPAQUE_FRAME, forceEarlyReturnVoid(thread));
         } finally {
             TestCase.stop = true;
-            resumeThread(thread);
+            if (suspended) resumeThread(thread);
             thread.join();
         }
-        assertTrue(TestCase.finished);  // constructor should have run to end
+        assertTrue(TestCase.initFinished);  // constructor should have run to end
+    }
+
+    /**
+     * Test that ForceEarlyReturnVoid fails with JVMTI_ERROR_OPAQUE_FRAME when the
+     * target thread's top frame is a value class constructor after super.
+     * (This case may be allowed to succeed in the future)
+     */
+    @Test
+    void testForceEarlyReturnAfterSuper() throws Exception {
+        class TestCase {
+            static volatile boolean afterSuperStarted;
+            static volatile boolean initFinished;
+            static volatile boolean stop;
+            static value class ValueClass {
+                ValueClass() {
+                    super();
+                    TestCase.afterSuperStarted = true;
+                    while (!TestCase.stop) {}
+                    TestCase.initFinished = true;
+                }
+            }
+        }
+        Thread thread = Thread.ofPlatform().start(TestCase.ValueClass::new);
+        boolean suspended = false;
+        try {
+            // wait for target thread to start executing code after super
+            while (!TestCase.afterSuperStarted) {
+                Thread.sleep(10);
+            }
+            assertEquals(JVMTI_ERROR_NONE, suspendThread(thread));
+            suspended = true;
+            assertTopFrame(thread, TestCase.ValueClass.class, "<init>");
+            assertEquals(JVMTI_ERROR_OPAQUE_FRAME, forceEarlyReturnVoid(thread));
+        } finally {
+            TestCase.stop = true;
+            if (suspended) resumeThread(thread);
+            thread.join();
+        }
+        assertTrue(TestCase.initFinished);  // constructor should have run to end
+    }
+
+    /**
+     * Test that ForceEarlyReturnVoid succeeds with the target thread's top frame is a
+     * method invoked from the constructor after super.
+     */
+    @Test
+    void testForceEarlyReturnPostInit() throws Exception {
+        class TestCase {
+            static volatile boolean initFinished;
+            static volatile boolean postInitStarted;
+            static volatile boolean postInitFinished;
+            static volatile boolean stop;
+            static value class ValueClass {
+                ValueClass() {
+                    super();
+                    postInit();
+                    TestCase.initFinished = true;
+                }
+                void postInit() {
+                    TestCase.postInitStarted = true;
+                    while (!TestCase.stop) {}
+                    TestCase.postInitFinished = true;
+                }
+            }
+        }
+        Thread thread = Thread.ofPlatform().start(TestCase.ValueClass::new);
+        boolean suspended = false;
+        try {
+            // wait for target thread to start executing postInit method
+            while (!TestCase.postInitStarted) {
+                Thread.sleep(10);
+            }
+            assertEquals(JVMTI_ERROR_NONE, suspendThread(thread));
+            assertTopFrame(thread, TestCase.ValueClass.class, "postInit");
+            suspended = true;
+            assertEquals(JVMTI_ERROR_NONE, forceEarlyReturnVoid(thread));
+        } finally {
+            TestCase.stop = true;
+            if (suspended) resumeThread(thread);
+            thread.join();
+        }
+        assertFalse(TestCase.postInitFinished);  // postInit should not have run to the end
+        assertTrue(TestCase.initFinished);       // constructor should have run to end
     }
 
     /**
@@ -78,32 +165,35 @@ class ForceEarlyReturnValueClass {
     @Test
     void testForceEarlyReturnMethod() throws Exception {
         class TestCase {
-            static volatile boolean started;
+            static volatile boolean runStarted;
+            static volatile boolean runFinished;
             static volatile boolean stop;
-            static volatile boolean finished;
             static value class ValueClass {
                 void run() {
-                    TestCase.started = true;
+                    TestCase.runStarted = true;
                     while (!TestCase.stop) {}
-                    TestCase.finished = true;  // should not get there
+                    TestCase.runFinished = true;  // should not get there
                 }
             }
         }
         var valueObj = new TestCase.ValueClass();
         Thread thread = Thread.ofPlatform().start(valueObj::run);
+        boolean suspended = false;
         try {
             // wait for target thread to start executing method
-            while (!TestCase.started) {
+            while (!TestCase.runStarted) {
                 Thread.sleep(10);
             }
             assertEquals(JVMTI_ERROR_NONE, suspendThread(thread));
+            suspended = true;
+            assertTopFrame(thread, TestCase.ValueClass.class, "run");
             assertEquals(JVMTI_ERROR_NONE, forceEarlyReturnVoid(thread));
         } finally {
             TestCase.stop = true;
-            resumeThread(thread);
+            if (suspended) resumeThread(thread);
             thread.join();
         }
-        assertFalse(TestCase.finished);  // should not have run to the end
+        assertFalse(TestCase.runFinished);  // should not have run to the end
     }
 
     /**
@@ -113,32 +203,44 @@ class ForceEarlyReturnValueClass {
     @Test
     void testForceEarlyReturnClassInitializer() throws Exception {
         class TestCase {
-            static volatile boolean started;
+            static volatile boolean clinitStarted;
             static volatile boolean stop;
-            static volatile boolean finished;
             static value class ValueClass {
                 static final boolean initialized;
                 static {
-                    TestCase.started = true;
+                    TestCase.clinitStarted = true;
                     while (!TestCase.stop) {}
-                    initialized = true;    // should not get there
+                    initialized = true;  // should not get there
                 }
             }
         }
         Thread thread = Thread.ofPlatform().start(TestCase.ValueClass::new);
+        boolean suspended = false;
         try {
             // wait for target thread to start executing class initializer
-            while (!TestCase.started) {
+            while (!TestCase.clinitStarted) {
                 Thread.sleep(10);
             }
             assertEquals(JVMTI_ERROR_NONE, suspendThread(thread));
+            suspended = true;
+            assertTopFrame(thread, TestCase.ValueClass.class, "<clinit>");
             assertEquals(JVMTI_ERROR_NONE, forceEarlyReturnVoid(thread));
         } finally {
             TestCase.stop = true;
-            resumeThread(thread);
+            if (suspended) resumeThread(thread);
             thread.join();
         }
         assertFalse(TestCase.ValueClass.initialized);  // should not have run to the end
+    }
+
+    /**
+     * Asserts that the given thread's top frame is the expected class/method.
+     */
+    private void assertTopFrame(Thread thread, Class<?> clazz, String methodName) {
+        StackTraceElement[] stack = thread.getStackTrace();
+        assertTrue(stack.length > 0);
+        assertEquals(clazz.getName(), stack[0].getClassName());
+        assertEquals(methodName, stack[0].getMethodName());
     }
 
     private static native int suspendThread(Thread thread);

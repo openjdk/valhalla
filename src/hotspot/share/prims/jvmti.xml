@@ -3377,14 +3377,14 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       <synopsis>Force Early Return - Void</synopsis>
       <description>
         This function can be used to return from a method with a return type
-        of <code>void</code>, a constructor or a class initializer.
+        of <code>void</code>.
         A constructor is a special method named <code>&lt;init&gt;</code> with
         a return type of <code>void</code>. A class initializer is a special
-        method named named <code>&lt;clinit&gt;</code> with  a return type of
+        method named named <code>&lt;clinit&gt;</code> with a return type of
         <code>void</code>.
         <p/>
-        This function can not be used to return early from the constructor
-        of a value class.
+        When preview features are enabled, this function can not be used to return
+        early from the constructor of a value class.
       </description>
       <origin>new</origin>
       <capabilities>
