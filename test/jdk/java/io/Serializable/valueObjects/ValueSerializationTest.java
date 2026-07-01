@@ -29,9 +29,10 @@
  * @library /test/lib
  * @compile ValueSerializationTest.java
  * @build jdk.test.lib.helpers.StrictInit jdk.test.lib.helpers.StrictProcessor
- * @comment run the StrictProcessor over the IdentityStrictPoint to generate a class with
- *          STRICT_INIT access flags for its annotated fields
- * @run driver jdk.test.lib.helpers.StrictProcessor ValueSerializationTest$IdentityStrictPoint
+ * @comment run the StrictProcessor over the classes that use \@StrictInit to
+ *          generate classfiles with STRICT_INIT access flags for its annotated fields
+ * @run driver jdk.test.lib.helpers.StrictProcessor
+ *             ValueSerializationTest$IdentityStrictPoint
  * @run junit ${test.main.class}
  */
 
@@ -90,6 +91,16 @@ public class ValueSerializationTest {
 
                 Arguments.of(
                         new IdentityStrictPoint(),
+                        ICE
+                ),
+
+                Arguments.of(
+                        new StrictInSuper(),
+                        ICE
+                ),
+
+                Arguments.of(
+                        new StrictInAbstractValueSuper(),
                         ICE
                 ),
 
@@ -216,6 +227,24 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
+                        IdentityStrictPoint.class,
+                        SC_SERIALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
+                        StrictInSuper.class,
+                        SC_SERIALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
+                        StrictInAbstractValueSuper.class,
+                        SC_SERIALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
                         ValueWithDeserializer.class,
                         SC_EXTERNALIZABLE,
                         ICE
@@ -240,8 +269,6 @@ public class ValueSerializationTest {
     @MethodSource("classes")
     void testDeser(Class<?> valueClass, byte flags, Class<? extends Exception> expectedException)
             throws Exception {
-        // as a precaution verify that we are indeed testing a value class
-        assertTrue(valueClass.isValue(), "not a value class: " + valueClass);
         ObjectStreamClass clsDesc = ObjectStreamClass.lookup(valueClass);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
         byte[] serialBytes = byteStreamFor(valueClass.getName(), uid, flags);
@@ -485,6 +512,53 @@ public class ValueSerializationTest {
         @Override
         public String toString() {
             return "[ExtValueWithIdentityReplacement s=" + s + "]";
+        }
+    }
+
+    /**
+     * A plain identity class that does not declare any strictly initialized
+     * instance field but one of its superclasses that implement Serializable
+     * does.
+     */
+    public static class StrictInSuper extends IdentityStrictPoint {
+        public StrictInSuper() {
+            super();
+        }
+
+        @Override
+        public String toString() {
+            return "[StrictInSuper x=" + x + " y=" + y + "]";
+        }
+    }
+
+    /**
+     * An abstract value class that declares instance fields. Such fields are
+     * always strictly initialized, making none of their subclasses serializable
+     * without jdk.internal.value.Deserializer.
+     */
+    public abstract static value class HasFieldAbstractValue implements Serializable {
+        public int x;
+        public int y;
+
+        public HasFieldAbstractValue(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public String toString() {
+            return "[HasFieldAbstractValue x=" + x + " y=" + y + "]";
+        }
+    }
+
+    public static class StrictInAbstractValueSuper extends HasFieldAbstractValue {
+        public StrictInAbstractValueSuper() {
+            super(42, -3);
+        }
+
+        @Override
+        public String toString() {
+            return "[StrictInAbstractValueSuper x=" + x + " y=" + y + "]";
         }
     }
 }
