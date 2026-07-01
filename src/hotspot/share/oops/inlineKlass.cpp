@@ -153,6 +153,9 @@ bool InlineKlass::maybe_flat_in_array() {
 }
 
 bool InlineKlass::is_always_flat_in_array() {
+  if (UseNewCode) {
+    return false;
+  }
   if (!UseArrayFlattening) {
     return false;
   }
