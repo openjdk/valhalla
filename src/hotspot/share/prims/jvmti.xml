@@ -8311,16 +8311,15 @@ class C2 extends C1 implements I2 {
         The fields of the <functionlink id="jvmtiMonitorUsage"></functionlink> structure
         are filled in with information about usage of the monitor.
         <p/>
+        When preview features are enabled, this function can be used to get
+        information for objects that have no identity. The fields of the returned
+        <functionlink id="jvmtiMonitorUsage"></functionlink> structure will always
+        be filled in with null values and zeros.
+        <p/>
         <b> This function does not support getting information about an object's monitor
             when it is owned by a virtual thread. It also does not support returning a
             reference to virtual threads that are waiting to own a monitor or waiting to
             be notified.
-        </b>
-        <p/>
-        <b> When preview features are enabled, this function can be used to get
-            information for objects that have no identity. The fields of the returned
-            <functionlink id="jvmtiMonitorUsage"></functionlink> structure will always
-            be filled in with null values and zeros.
         </b>
           <todo>
             Decide and then clarify suspend requirements.
