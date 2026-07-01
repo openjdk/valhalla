@@ -2411,7 +2411,7 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
           ciArrayKlass* klass = klass_type->exact_klass()->as_array_klass();
           assert(klass->is_flat_array_klass(), "must be a flat array");
           ciInlineKlass* elem_klass = klass->element_klass()->as_inline_klass();
-          const TypeAryPtr* oop_type = klass_type->as_instance_type()->is_aryptr();
+          const TypeAryPtr* oop_type = klass_type->as_exact_instance_type()->is_aryptr();
           assert(oop_type->klass_is_exact(), "must be an exact klass");
 
           Node* base = alloc->in(TypeFunc::Memory);
