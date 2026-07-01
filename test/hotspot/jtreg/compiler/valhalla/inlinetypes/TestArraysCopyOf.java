@@ -177,6 +177,7 @@ public class TestArraysCopyOf {
 
         instanceAndPrimitiveClasses.addAll(concreteInstanceClasses.stream().map(Klass::name).toList());
         instanceAndPrimitiveClasses.addAll(abstractClasses.stream().map(Klass::name).toList());
+        instanceAndPrimitiveClasses.add("void");
 
         List<?> newValueClassArrayScopes = List.of(
                 scope("(#klass)ValueClass.newReferenceArray(#klass_name.class, length)"),
