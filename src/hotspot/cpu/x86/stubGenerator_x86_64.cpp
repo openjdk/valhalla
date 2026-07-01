@@ -4822,14 +4822,11 @@ void StubGenerator::generate_initial_stubs() {
   StubRoutines::_forward_exception_entry = generate_forward_exception();
 
   // Generate these first because they are called from other stubs
-  if (InlineTypeReturnedAsFields) {
-    StubRoutines::_load_inline_type_fields_in_regs =
-      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs),
-                                 "load_inline_type_fields_in_regs", false);
-    StubRoutines::_store_inline_type_fields_to_buf =
-      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf),
-                                 "store_inline_type_fields_to_buf", true);
-  }
+  // if (InlineTypeReturnedAsFields) {
+  //   StubRoutines::_store_inline_type_fields_to_buf =
+  //     generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf),
+  //                                "store_inline_type_fields_to_buf", true);
+  // }
 
   StubRoutines::_call_stub_entry =
     generate_call_stub(StubRoutines::_call_stub_return_address);
@@ -4874,6 +4871,7 @@ void StubGenerator::generate_initial_stubs() {
   StubRoutines::_fmod = generate_libmFmod(); // from stubGenerator_x86_64_fmod.cpp
 }
 
+#if 0
 // Call here from the interpreter or compiled code to either load
 // multiple returned values from the inline type instance being
 // returned to registers or to store returned values to a newly
@@ -5028,6 +5026,7 @@ address StubGenerator::generate_return_value_stub(address destination, const cha
   RuntimeStub* stub = RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_in_words, oop_maps, false);
   return stub->entry_point();
 }
+#endif
 
 void StubGenerator::generate_continuation_stubs() {
   // Continuation stubs:
