@@ -311,6 +311,11 @@ public class ValueSerializationTest {
             y = 5;
             super();
         }
+
+        @Override
+        public String toString() {
+            return "[IdentityStrictPoint x=" + x + " y=" + y + "]";
+        }
     }
 
     /**
@@ -353,10 +358,16 @@ public class ValueSerializationTest {
 
         @Override
         public void readExternal(ObjectInput in) {
+            // concrete value class isn't expected to be deserializable, so we don't
+            // expect this method to be invoked during deserialization.
+            throw new AssertionError("not expected to be invoked on " + this);
         }
 
         @Override
         public void writeExternal(ObjectOutput out) {
+            // concrete value class isn't expected to be serializable, so we don't
+            // expect this method to be invoked during serialization.
+            throw new AssertionError("not expected to be invoked on " + this);
         }
 
         @Override
@@ -405,7 +416,16 @@ public class ValueSerializationTest {
 
         @Serial
         private void readObject(ObjectInputStream s) throws InvalidObjectException {
-            throw new InvalidObjectException("not expected to be invoked on " + this);
+            // the writeReplace() implementation of this class, when the serialization side
+            // is preparing to write this object to the stream, has replaced this object
+            // with an instance of a different class, so we don't expect deserialization
+            // to invoke this method.
+            throw new AssertionError("not expected to be invoked on " + this);
+        }
+
+        @Override
+        public String toString() {
+            return "[ValueWriteReplaceWithIdentity x=" + x + "]";
         }
 
         private record IdentityRecord(int x) implements Serializable {
@@ -446,10 +466,25 @@ public class ValueSerializationTest {
 
         @Override
         public void readExternal(ObjectInput in) {
+            // the writeReplace() implementation of this class, when the serialization side
+            // is preparing to write this object to the stream, has replaced this object
+            // with an instance of a different class, so we don't expect deserialization
+            // to invoke this method.
+            throw new AssertionError("not expected to be invoked on " + this);
         }
 
         @Override
         public void writeExternal(ObjectOutput out) {
+            // the writeReplace() implementation of this class, when the serialization side
+            // is preparing to write this object to the stream, has replaced this object
+            // with an instance of a different class, so we don't expect this method to
+            // play any role during serialization.
+            throw new AssertionError("not expected to be invoked on " + this);
+        }
+
+        @Override
+        public String toString() {
+            return "[ExtValueWithIdentityReplacement s=" + s + "]";
         }
     }
 }
