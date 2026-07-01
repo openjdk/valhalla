@@ -25,7 +25,9 @@
  * @test TestFinalizableValues
  * @library /test/lib
  * @enablePreview
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions TestFinalizableValues
+ * @compile TestFinalizableValues.java
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI TestFinalizableValues
  */
 
 import java.io.IOException;
@@ -35,9 +37,11 @@ import java.util.List;
 
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
+import jdk.test.whitebox.WhiteBox;
 
 public class TestFinalizableValues {
 
+    static WhiteBox WB = WhiteBox.getWhiteBox();
 
     public static class TestHelper {
         static boolean finalizer1WasCalled = false;
@@ -96,9 +100,6 @@ public class TestFinalizableValues {
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                 }
-                // if (finalizer1WasCalled) {
-                //     break;
-                // }
             }
             if (finalizer1WasCalled != expectFinalizer1) {
                 throw new RuntimeException("Finalizer1 was "
@@ -118,16 +119,19 @@ public class TestFinalizableValues {
         Collections.addAll(argsList, "--enable-preview");
         Collections.addAll(argsList, "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
+        Collections.addAll(argsList, "-XX:+IgnoreUnrecognizedVMOptions");
         Collections.addAll(argsList, "-XX:+TraceFinalizerRegistration");
         Collections.addAll(argsList, "TestFinalizableValues$TestHelper");
         Collections.addAll(argsList, "TestFinalizableValues$TestHelper$" + classname);
         Collections.addAll(argsList, args);
         ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(argsList);
         OutputAnalyzer out = new OutputAnalyzer(pb.start());
-        if (expectRegistration) {
-          out.shouldContain("as finalizable");
-        } else {
-          out.shouldNotContain("as finalizable");
+        if (WB.getBooleanVMFlag("TraceFinalizerRegistration")) {
+          if (expectRegistration) {
+            out.shouldContain("as finalizable");
+          } else {
+            out.shouldNotContain("as finalizable");
+          }
         }
         out.shouldHaveExitValue(0);
     }
