@@ -97,10 +97,9 @@ public interface StackFrame extends Mirror, Locatable {
      * The {@link ObjectReference} for 'this' is only available for
      * non-native instance methods.
      *
-     * @apiNote
      * <div class="preview-block">
      *     <div class="preview-comment">
-     *         When preview features are enabled,
+     *         When preview features are enabled for the target VM,
      *         if 'this' represents a value object under construction, the
      *         {@link ObjectReference} returned will be for a snapshot of the
      *         value object, not a reference to the actual value object under
@@ -181,10 +180,9 @@ public interface StackFrame extends Mirror, Locatable {
      * The variable must be valid for this frame's method and visible
      * according to the rules described in {@link #visibleVariables}.
      *
-     * @apiNote
      * <div class="preview-block">
      *     <div class="preview-comment">
-     *         When preview features are enabled,
+     *         When preview features are enabled for the target VM,
      *         if the variable represents `this` of a value object that
      *         is under construction, the
      *         {@link ObjectReference} returned will be for a snapshot of the
@@ -210,10 +208,9 @@ public interface StackFrame extends Mirror, Locatable {
      * Each variable must be valid for this frame's method and visible
      * according to the rules described in {@link #visibleVariables}.
      *
-     * @apiNote
      * <div class="preview-block">
      *     <div class="preview-comment">
-     *         When preview features are enabled,
+     *         When preview features are enabled for the target VM,
      *         if a variable represents `this` of a value object that
      *         is under construction, the
      *         {@link ObjectReference} returned will be for a snapshot of the
