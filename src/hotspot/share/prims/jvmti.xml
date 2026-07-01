@@ -8311,7 +8311,7 @@ class C2 extends C1 implements I2 {
         The fields of the <functionlink id="jvmtiMonitorUsage"></functionlink> structure
         are filled in with information about usage of the monitor.
         <p/>
-        When preview features are enabled, this function can be used for value objects.
+        When preview features are enabled, the object to query may be a value object.
         It is not possible to synchronize on a value object, so there is no monitor
         usage information to return. The fields of the returned
         <functionlink id="jvmtiMonitorUsage"></functionlink> structure will always
