@@ -10714,7 +10714,7 @@ myInit() {
         <description>
           Can support value objects.
           When preview features are enabled and this capability is enabled, then
-          the following two events are enabled for value object allocations:
+          events are sent for value objects when the following two events are enabled:
           <eventlink id="VMObjectAlloc"></eventlink>,
           <eventlink id="SampledObjectAlloc"></eventlink>.
         </description>
@@ -14024,7 +14024,7 @@ myInit() {
       for some or all of their methods can send this event.
       <p/>
       When preview features are enabled and the capability <code>can_support_value_objects</code>
-      is enabled, this event is sent for the allocated objects that have no identity.
+      is enabled, this event is sent for the value object allocations.
       <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter in such cases.
       <p/>
       Note that the <internallink
