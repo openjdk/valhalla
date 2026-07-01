@@ -8316,10 +8316,11 @@ class C2 extends C1 implements I2 {
             reference to virtual threads that are waiting to own a monitor or waiting to
             be notified.
         </b>
+        <p/>
         <b> When preview features are enabled, this function can be used to get
-            information for objects that have no identity. The fileds of the returned
-            <functionlink id="jvmtiMonitorUsage"></functionlink> structure will be
-            always filled in with nulls and zeros.
+            information for objects that have no identity. The fields of the returned
+            <functionlink id="jvmtiMonitorUsage"></functionlink> structure will always
+            be filled in with null values and zeros.
         </b>
           <todo>
             Decide and then clarify suspend requirements.
