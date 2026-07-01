@@ -95,7 +95,12 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
-                        new StrictInSuperIdentity(),
+                        new StrictInSuper(),
+                        ICE
+                ),
+
+                Arguments.of(
+                        new StrictInAbstractValueSuper(),
                         ICE
                 ),
 
@@ -228,7 +233,13 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
-                        StrictInSuperIdentity.class,
+                        StrictInSuper.class,
+                        SC_SERIALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
+                        StrictInAbstractValueSuper.class,
                         SC_SERIALIZABLE,
                         ICE
                 ),
@@ -256,11 +267,11 @@ public class ValueSerializationTest {
      */
     @ParameterizedTest
     @MethodSource("classes")
-    void testDeser(Class<?> clazz, byte flags, Class<? extends Exception> expectedException)
+    void testDeser(Class<?> valueClass, byte flags, Class<? extends Exception> expectedException)
             throws Exception {
-        ObjectStreamClass clsDesc = ObjectStreamClass.lookup(clazz);
+        ObjectStreamClass clsDesc = ObjectStreamClass.lookup(valueClass);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
-        byte[] serialBytes = byteStreamFor(clazz.getName(), uid, flags);
+        byte[] serialBytes = byteStreamFor(valueClass.getName(), uid, flags);
         // deserialize
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serialBytes))) {
             if (expectedException != null) {
@@ -509,14 +520,45 @@ public class ValueSerializationTest {
      * instance field but one of its superclasses that implement Serializable
      * does.
      */
-    static class StrictInSuperIdentity extends IdentityStrictPoint {
-        StrictInSuperIdentity() {
+    public static class StrictInSuper extends IdentityStrictPoint {
+        public StrictInSuper() {
             super();
         }
 
         @Override
         public String toString() {
-            return "[StrictInSuperIdentity x=" + x + " y=" + y + "]";
+            return "[StrictInSuper x=" + x + " y=" + y + "]";
+        }
+    }
+
+    /**
+     * An abstract value class that declares instance fields. Such fields are
+     * always strictly initialized, making none of their subclasses serializable
+     * without jdk.internal.value.Deserializer.
+     */
+    public abstract static value class HasFieldAbstractValue implements Serializable {
+        public int x;
+        public int y;
+
+        public HasFieldAbstractValue(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public String toString() {
+            return "[HasFieldAbstractValue x=" + x + " y=" + y + "]";
+        }
+    }
+
+    public static class StrictInAbstractValueSuper extends HasFieldAbstractValue {
+        public StrictInAbstractValueSuper() {
+            super(42, -3);
+        }
+
+        @Override
+        public String toString() {
+            return "[StrictInAbstractValueSuper x=" + x + " y=" + y + "]";
         }
     }
 }
