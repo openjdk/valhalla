@@ -3278,7 +3278,7 @@ RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool
   __ mov(c_rarg1, r0);
   __ mov(c_rarg0, rthread);
 
-  __ mov(rscratch1, destination);
+  __ mov(rscratch1, ExternalAddress(ddestination));
   __ blr(rscratch1);
 
   oop_maps->add_gc_map(the_pc - start, map);
