@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8387612
- * @summary Test that stale
+ * @summary Test that stale array type is correctly updated and the corrected assert works.
  * @enablePreview
  * @run main/othervm -Xbatch -XX:CompileCommand=compileonly,${test.main.class}::test ${test.main.class}
  */
