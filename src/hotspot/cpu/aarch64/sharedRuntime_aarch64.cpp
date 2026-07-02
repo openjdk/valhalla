@@ -3186,6 +3186,14 @@ RuntimeStub* SharedRuntime::generate_throw_exception(StubId id, address runtime_
 // returned to registers or to store returned values to a newly
 // allocated inline type instance.
 RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool has_res) {
+  StubId id = StubId::shared_store_inline_type_fields_to_buf_id;
+
+  const char* name = SharedRuntime::stub_name(id);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, StubInfo::blob(id));
+  if (blob != nullptr) {
+    return blob->as_runtime_stub();
+  }
+
   // We need to save all registers the calling convention may use so
   // the runtime calls read or update those registers. This needs to
   // be in sync with SharedRuntime::java_return_convention().
@@ -3216,6 +3224,7 @@ RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool
   };
 
   
+  ResourceMark rm;
   CodeBuffer code(name, 512, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
 
@@ -3317,7 +3326,8 @@ RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool
   masm->flush();
 
   RuntimeStub* stub = RuntimeStub::new_runtime_stub(name, &code, frame_complete, frame_size_in_words, oop_maps, false);
-  return stub->entry_point();
+  AOTCodeCache::store_code_blob(*stub, AOTCodeEntry::SharedBlob, StubInfo::blob(id));
+  return stub;
 }
 
 #if INCLUDE_JFR
