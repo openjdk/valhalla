@@ -129,9 +129,10 @@ void SharedRuntime::generate_initial_stubs() {
     generate_throw_exception(StubId::shared_throw_StackOverflowError_id,
                              CAST_FROM_FN_PTR(address, SharedRuntime::throw_StackOverflowError));
 
-  _store_inline_type_fields_to_buf_blob =
-    generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), true);
-
+  if (InlineTypeReturnedAsFields) {
+    _store_inline_type_fields_to_buf_blob =
+      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), true);
+  }
 }
 
 void SharedRuntime::generate_stubs() {
@@ -4155,8 +4156,6 @@ JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* current, Method
   current->set_vm_result_oop(array);
 JRT_END
 
-// We're returning from an interpreted method: load each field into a
-// register following the calling convention
 // We've returned to an interpreted method, the interpreter needs a
 // reference to an inline type instance. Allocate it and initialize it
 // from field's values in registers.
