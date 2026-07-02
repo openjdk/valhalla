@@ -2129,6 +2129,9 @@ JDWP "Java(tm) Debug Wire Protocol"
         "language method. Forcing return on a thread with only one "
         "frame on the stack causes the thread to exit when resumed. "
         "<p>"
+        "When preview features are enabled, the method can not be the "
+        "constructor of a value class."
+        "<p>"
         "For void methods, the value must be a void value. "
         "For methods that return primitive values, the value's type must "
         "match the return type exactly.  For object values, there must be a "
@@ -2149,7 +2152,9 @@ JDWP "Java(tm) Debug Wire Protocol"
             (Error INVALID_OBJECT    "Thread or value is not a known ID.")
             (Error THREAD_NOT_SUSPENDED)
             (Error OPAQUE_FRAME      "Unable to force the current frame to return "
-                                     "(e.g. the current frame is executing a native method).")
+                                     "(e.g. the current frame is executing a native method or "
+                                     "if preview features are enabled, the current frame is "
+                                     "the constructor for a value class).")
             (Error NO_MORE_FRAMES)
             (Error NOT_IMPLEMENTED)
             (Error TYPE_MISMATCH   "Value is not an appropriate type for the "

@@ -21,38 +21,35 @@
  * questions.
  */
 
-/**
+/*
  * @test
- * @bug 8381063
- * @summary Verify that null is passed for jobject parameter to JVMTI SampledObjectAlloc event callbacks.
- * @requires vm.jvmti
- *
+ * @bug 8387612
+ * @summary Test that stale array type is correctly updated and the corrected assert works.
  * @enablePreview
- * @run main/othervm/native -agentlib:SampledObjectAllocValue SampledObjectAllocValue
- * @run main/othervm/native -agentlib:SampledObjectAllocValue=can_support_value_objects SampledObjectAllocValue
+ * @run main/othervm -Xbatch -XX:CompileCommand=compileonly,${test.main.class}::test ${test.main.class}
  */
 
-public class SampledObjectAllocValue {
+package compiler.valhalla.inlinetypes;
 
-    private static value class ValueClass {
-        public long x;
-        public long y;
+public class TestStaleArrayTypeInArrayStore {
+    static Object[] array = new Object[1];
+    static int iFld;
 
-        public ValueClass(long arg1, long arg2) {
-          x = arg1; y = arg2;
+    public static void main(String[] args) {
+        for (int i = 0; i < 10_000; i++) {
+            iFld = i % 100;
+            test();
         }
     }
 
-    private static ValueClass[] tmp = new ValueClass[100];
-
-    private static native void enableEvents(Thread thread, Class testedClass);
-
-    public static void main(String[] args) throws Exception {
-        enableEvents(Thread.currentThread(), ValueClass.class);
-        // Allocate value objects to trigger JVMTI SampledObjectAlloc events.
-        // Here we assume that flat array layout is not used for ValueClass objects.
-        for (int i = 0; i < tmp.length; i++) {
-            tmp[i] = new ValueClass(i, i + 100);
+    static void test() {
+        Object o = array[0];
+        if (iFld == 0) {
+            inline();
         }
+    }
+
+    static void inline() {
+        array[0] = null;
     }
 }
