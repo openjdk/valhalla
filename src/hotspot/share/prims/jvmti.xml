@@ -8311,6 +8311,12 @@ class C2 extends C1 implements I2 {
         The fields of the <functionlink id="jvmtiMonitorUsage"></functionlink> structure
         are filled in with information about usage of the monitor.
         <p/>
+        When preview features are enabled, the object to query may be a value object.
+        It is not possible to synchronize on a value object, so there is no monitor
+        usage information to return. The fields of the returned
+        <functionlink id="jvmtiMonitorUsage"></functionlink> structure will always
+        be filled in with null values and zeros.
+        <p/>
         <b> This function does not support getting information about an object's monitor
             when it is owned by a virtual thread. It also does not support returning a
             reference to virtual threads that are waiting to own a monitor or waiting to
