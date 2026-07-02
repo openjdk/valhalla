@@ -255,7 +255,7 @@ public class Preview {
      * @return true iff sym has been declared using a preview language feature
      */
     public boolean declaredUsingPreviewFeature(Symbol sym) {
-        return sym.isValueClass();
+        return false;
     }
 
     public void checkSourceLevel(DiagnosticPosition pos, Feature feature) {
