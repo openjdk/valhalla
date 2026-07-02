@@ -97,17 +97,12 @@ public interface StackFrame extends Mirror, Locatable {
      * The {@link ObjectReference} for 'this' is only available for
      * non-native instance methods.
      *
-     * <div class="preview-block">
-     *     <div class="preview-comment">
-     *         When preview features are enabled for the target VM,
-     *         if 'this' represents a value object under construction, the
-     *         {@link ObjectReference} returned will be for a snapshot of the
-     *         value object, not a reference to the actual value object under
-     *         construction. Therefore the ObjectReference returned will not reflect
-     *         changes to the value object that happen later on during
-     *         construction.
-     *     </div>
-     * </div>
+     * If 'this' represents a value object under construction, the
+     * {@link ObjectReference} returned will be for a snapshot of the
+     * value object, not a reference to the actual value object under
+     * construction. Therefore the ObjectReference returned will not reflect
+     * changes to the value object that happen later on during
+     * construction.
      *
      * @return an {@link ObjectReference}, or null if the frame represents
      * a native or static method.
@@ -180,18 +175,13 @@ public interface StackFrame extends Mirror, Locatable {
      * The variable must be valid for this frame's method and visible
      * according to the rules described in {@link #visibleVariables}.
      *
-     * <div class="preview-block">
-     *     <div class="preview-comment">
-     *         When preview features are enabled for the target VM,
-     *         if the variable represents `this` of a value object that
-     *         is under construction, the
-     *         {@link ObjectReference} returned will be for a snapshot of the
-     *         value object, not a reference to the actual value object under
-     *         construction. Therefore the {@link ObjectReference} returned will not reflect
-     *         changes to the value object that happen later on during
-     *         construction.
-     *     </div>
-     * </div>
+     * If the variable represents `this` of a value object that
+     * is under construction, the
+     * {@link ObjectReference} returned will be for a snapshot of the
+     * value object, not a reference to the actual value object under
+     * construction. Therefore the {@link ObjectReference} returned will not reflect
+     * changes to the value object that happen later on during
+     * construction.
      *
      * @param variable the {@link LocalVariable} to be accessed
      * @return the {@link Value} of the instance field.
@@ -208,18 +198,12 @@ public interface StackFrame extends Mirror, Locatable {
      * Each variable must be valid for this frame's method and visible
      * according to the rules described in {@link #visibleVariables}.
      *
-     * <div class="preview-block">
-     *     <div class="preview-comment">
-     *         When preview features are enabled for the target VM,
-     *         if a variable represents `this` of a value object that
-     *         is under construction, the
-     *         {@link ObjectReference} returned will be for a snapshot of the
-     *         value object, not a reference to the actual value object under
-     *         construction. Therefore the {@link ObjectReference} returned will not reflect
-     *         changes to the value object that happen later on during
-               construction.
-     *      </div>
-     * </div>
+     * If a variable represents `this` of a value object that
+     * is under construction, the
+     * {@link ObjectReference} returned will be for a snapshot of the
+     * value object, not a reference to the actual value object under
+     * construction. Therefore the {@link ObjectReference} returned will not reflect
+     * changes to the value object that happen later on during construction.
      *
      * @param variables a list of {@link LocalVariable} objects to be accessed
      * @return a map associating each {@link LocalVariable} with
