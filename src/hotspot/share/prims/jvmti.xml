@@ -10710,6 +10710,15 @@ myInit() {
           <eventlink id="VirtualThreadEnd"></eventlink>.
         </description>
       </capabilityfield>
+      <capabilityfield id="can_support_value_objects" since="28">
+        <description>
+          Can support value objects.
+          When preview features are enabled and this capability is enabled, then
+          events are sent for value objects when the following two events are enabled:
+          <eventlink id="VMObjectAlloc"></eventlink>,
+          <eventlink id="SampledObjectAlloc"></eventlink>.
+        </description>
+      </capabilityfield>
     </capabilitiestypedef>
 
     <function id="GetPotentialCapabilities" jkernel="yes" phase="onload" num="140">
@@ -14013,9 +14022,11 @@ myInit() {
       VM. These methods should send this event.
       Virtual machines which are incapable of bytecode instrumentation
       for some or all of their methods can send this event.
-      When preview features are enabled and the allocated object has no identity,
-      <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter.
-
+      <p/>
+      When preview features are enabled and the capability <code>can_support_value_objects</code>
+      is enabled, this event is sent for the value object allocations.
+      <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter in such cases.
+      <p/>
       Note that the <internallink
       id="SampledObjectAlloc">SampledObjectAlloc</internallink>
       event is triggered on all Java object allocations, including those
@@ -14041,6 +14052,7 @@ myInit() {
     <origin>new</origin>
     <capabilities>
       <required id="can_generate_vm_object_alloc_events"></required>
+      <capability id="can_support_value_objects"></capability>
     </capabilities>
     <parameters>
       <param id="jni_env">
@@ -14061,7 +14073,8 @@ myInit() {
         <jobject/>
           <description>
             JNI local reference to the object that was allocated.
-            Null when preview features are enabled and the allocated object has no identity.
+            Null when preview features are enabled, the capability <code>can_support_value_objects</code>
+            is enabled, and the allocated object has no identity.
           </description>
       </param>
       <param id="object_klass">
@@ -14108,13 +14121,15 @@ myInit() {
       In conjunction with weak references and the function
       <functionlink id="GetStackTrace"></functionlink>, a user can track which objects were allocated from which
       stack trace, and which are still live during the execution of the program.
-      When preview features are enabled and the allocated object has no identity,
-      <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter.
-      Note that weak references support identity objects only.
+      <p/>
+      When preview features are enabled and the capability <code>can_support_value_objects</code>
+      is enabled, this event is sent for the allocated objects that have no identity.
+      <code>null</code> is passed for the <paramlink id="object"></paramlink> parameter in such cases.
     </description>
     <origin>new</origin>
     <capabilities>
       <required id="can_generate_sampled_object_alloc_events"></required>
+      <capability id="can_support_value_objects"></capability>
     </capabilities>
     <parameters>
       <param id="jni_env">
@@ -14135,7 +14150,8 @@ myInit() {
         <jobject/>
         <description>
           JNI local reference to the object that was allocated.
-          Null when preview features are enabled and the allocated object has no identity.
+          Null when preview features are enabled, the capability <code>can_support_value_objects</code>
+          is enabled, and the allocated object has no identity.
         </description>
       </param>
       <param id="object_klass">
@@ -15502,6 +15518,12 @@ typedef void (JNICALL *jvmtiEventVMInit)
   </change>
   <change date="10 January 2025" version="25.0.0">
       Add new function ClearAllFramePops. Needed to speedup debugger single stepping.
+  </change>
+  <change date="30 June 2026" version="28.0.0">
+      Support for value objects (Preview):
+      Add new capability: can_support_value_objects which enables
+      the following events for value objects:
+      JVMTI_EVENT_VM_OBJECT_ALLOC, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC.
   </change>
 </changehistory>
 
