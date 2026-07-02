@@ -3223,7 +3223,7 @@ RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool
     framesize // inclusive of return address
   };
 
-  
+
   ResourceMark rm;
   CodeBuffer code(name, 512, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
