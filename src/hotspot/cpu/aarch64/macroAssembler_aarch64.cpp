@@ -2392,16 +2392,18 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
-  Label test_mark_word;
   // load mark word
   ldr(temp_reg, Address(oop, oopDesc::mark_offset_in_bytes()));
-  // check displaced
-  tst(temp_reg, markWord::unlocked_value);
-  br(Assembler::NE, test_mark_word);
-  // slow path use klass prototype
-  load_prototype_header(temp_reg, oop);
+  if (!UseObjectMonitorTable) {
+    Label test_mark_word;
+    // check displaced
+    tst(temp_reg, markWord::unlocked_value);
+    br(Assembler::NE, test_mark_word);
+    // slow path use klass prototype
+    load_prototype_header(temp_reg, oop);
 
-  bind(test_mark_word);
+    bind(test_mark_word);
+  }
   andr(temp_reg, temp_reg, test_bit);
   if (jmp_set) {
     cbnz(temp_reg, jmp_label);

@@ -43,3 +43,4 @@ runtime/cds/appcds/aotCode/AOTCodeFlags.java#parallel   8382398 generic-all
 runtime/cds/appcds/aotCode/AOTCodeFlags.java#Z          8382398 generic-all
 
 # Serviceability:
+vmTestbase/nsk/jdi/Accessible/modifiers/modifiers001/TestDescription.java 8387458 generic-all

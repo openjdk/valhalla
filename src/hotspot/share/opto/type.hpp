@@ -2007,7 +2007,9 @@ public:
   virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const { ShouldNotReachHere(); return nullptr; }
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const { ShouldNotReachHere(); return nullptr; }
+  virtual const TypeOopPtr* as_exact_instance_type(bool klass_change = true) const { ShouldNotReachHere(); return nullptr; }
+  // corresponding pointer to instances which subtype a given class
+  virtual const TypeOopPtr* as_subtype_instance_type(bool klass_change = true) const = 0;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const { ShouldNotReachHere(); return nullptr; }
   virtual const Type    *xmeet( const Type *t ) const { ShouldNotReachHere(); return nullptr; }
@@ -2090,10 +2092,11 @@ public:
 
   virtual const TypeInstKlassPtr* cast_to_ptr_type(PTR ptr) const;
 
-  virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const;
+  virtual const TypeInstKlassPtr *cast_to_exactness(bool klass_is_exact) const;
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const;
+  virtual const TypeInstPtr* as_exact_instance_type(bool klass_change = true) const;
+  virtual const TypeInstPtr* as_subtype_instance_type(bool klass_change = true) const;
   virtual uint hash() const;
   virtual bool eq(const Type *t) const;
 
@@ -2193,6 +2196,7 @@ public:
   static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling);
 
   const TypeAryKlassPtr* cast_to_non_refined() const;
+  const TypeAryKlassPtr* cast_to_default_refined() const;
   const TypeAryKlassPtr* cast_to_refined_array_klass_ptr(bool refined = true) const;
 
   const Type *elem() const { return _elem; }
@@ -2202,10 +2206,11 @@ public:
 
   virtual const TypeAryKlassPtr* cast_to_ptr_type(PTR ptr) const;
 
-  virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const;
+  virtual const TypeAryKlassPtr* cast_to_exactness(bool klass_is_exact) const;
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const;
+  virtual const TypeAryPtr* as_exact_instance_type(bool klass_change = true) const;
+  virtual const TypeAryPtr* as_subtype_instance_type(bool klass_change = true) const;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const;
   virtual const Type    *xmeet( const Type *t ) const;

@@ -2706,7 +2706,7 @@ static bool match_type_check(PhaseGVN& gvn,
     // These patterns with nullable klasses arise from example from
     // load_array_klass_from_mirror.
     if (*obj == nullptr) { return false; }
-    (*cast_type) = tcon->isa_klassptr()->as_instance_type();
+    (*cast_type) = tcon->isa_klassptr()->as_exact_instance_type();
     return true; // found
   }
 
@@ -2757,7 +2757,7 @@ static bool match_type_check(PhaseGVN& gvn,
           const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
 
           (*obj) = obj_or_subklass;
-          (*cast_type) = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
+          (*cast_type) = improved_klass_ptr_type->as_subtype_instance_type();
           return true; // found
         }
       }
