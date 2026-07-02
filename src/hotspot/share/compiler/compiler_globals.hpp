@@ -383,6 +383,10 @@
           "If compilation is stopped with an error, capture diagnostic "    \
           "information at the bailout point")                               \
                                                                             \
+  product(intx, TypeProfileMajorReceiverPercent, 90,                        \
+          "% of major receiver type to all profiled receivers")             \
+          range(0, 100)                                                     \
+                                                                            \
 // end of COMPILER_FLAGS
 
 DECLARE_FLAGS(COMPILER_FLAGS)

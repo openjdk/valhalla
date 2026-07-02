@@ -505,12 +505,6 @@ static void profile_flat_array(JavaThread* current, bool load, bool null_free) {
     ProfileData* data = md->bci_to_data(bci);
     assert(data != nullptr, "incorrect profiling entry");
     if (data->is_ArrayLoadData()) {
-      assert(load, "should be an array load");
-      ArrayLoadData* load_data = (ArrayLoadData*) data;
-      load_data->set_flat_array();
-      if (null_free) {
-        load_data->set_null_free_array();
-      }
     } else {
       assert(data->is_ArrayStoreData(), "");
       assert(!load, "should be an array store");
