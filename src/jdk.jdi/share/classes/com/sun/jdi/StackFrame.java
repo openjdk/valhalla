@@ -96,7 +96,7 @@ public interface StackFrame extends Mirror, Locatable {
      * Returns the value of 'this' for the current frame.
      * The {@link ObjectReference} for 'this' is only available for
      * non-native instance methods.
-     *
+     * <p>
      * If 'this' represents a value object under construction, the
      * {@link ObjectReference} returned will be for a snapshot of the
      * value object, not a reference to the actual value object under
@@ -174,7 +174,7 @@ public interface StackFrame extends Mirror, Locatable {
      * Gets the {@link Value} of a {@link LocalVariable} in this frame.
      * The variable must be valid for this frame's method and visible
      * according to the rules described in {@link #visibleVariables}.
-     *
+     * <p>
      * If the variable represents `this` of a value object that
      * is under construction, the
      * {@link ObjectReference} returned will be for a snapshot of the
@@ -197,7 +197,7 @@ public interface StackFrame extends Mirror, Locatable {
      * Returns the values of multiple local variables in this frame.
      * Each variable must be valid for this frame's method and visible
      * according to the rules described in {@link #visibleVariables}.
-     *
+     * <p>
      * If a variable represents `this` of a value object that
      * is under construction, the
      * {@link ObjectReference} returned will be for a snapshot of the
