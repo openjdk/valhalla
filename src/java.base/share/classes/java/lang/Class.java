@@ -1388,9 +1388,9 @@ public final class Class<T> implements java.io.Serializable,
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          When preview features are enabled, if this {@code Class} object
-     *          represents a class whose {@code class} file does not use preview
-     *          features or represents an array type, its {@code identity}
+     *          When preview features are enabled and this {@code Class} object
+     *          represents either a class whose {@code class} file does not
+     *          depend on preview features or an array type, its {@code identity}
      *          modifier is always true.
      *          <p>
      *          When preview features are disabled, such a {@code Class} object
@@ -1406,9 +1406,8 @@ public final class Class<T> implements java.io.Serializable,
      *      <div class="preview-comment">
      *          Developers should be aware that the presence of the {@code
      *          identity} modifier is dependent on whether preview features are
-     *          enabled, a status not accessible to programs.  The preferred way
-     *          to check for the identity status is to use {@link #isValue()
-     *          Class.isValue()}.
+     *          enabled.  Use the {@link #isValue() Class.isValue()} method to
+     *          test if a class is an identity class or a value class.
      *          <p>
      *          This snippet below checks whether a given {@code Class<?> clazz}
      *          would have its {@code identity} modifier set when preview
@@ -1455,10 +1454,10 @@ public final class Class<T> implements java.io.Serializable,
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     *          When preview features are enabled, if this {@code Class} object
-     *          represents a class whose {@code class} file does not use preview
-     *          features or represents an array type, its flags always include
-     *          {@code IDENTITY}.
+     *          When preview features are enabled and this {@code Class} object
+     *          represents either a class whose {@code class} file does not
+     *          depend on preview features or an array type, its flags always
+     *          include {@code IDENTITY}.
      *          <p>
      *          When preview features are disabled, such a {@code Class} object
      *          does not have the {@code IDENTITY} flag set.
@@ -1469,10 +1468,9 @@ public final class Class<T> implements java.io.Serializable,
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          Developers should be aware that the presence of the {@code
-     *          IDENTITY} flag is dependent on whether preview features are
-     *          enabled, a status not accessible to programs.  The preferred way
-     *          to check for the identity status is to use {@link #isValue()
-     *          Class.isValue()}.
+     *          identity} modifier is dependent on whether preview features are
+     *          enabled.  Use the {@link #isValue() Class.isValue()} method to
+     *          test if a class is an identity class or a value class.
      *          <p>
      *          This snippet below checks whether a given {@code Class<?> clazz}
      *          would have its {@code IDENTITY} modifier set when preview

@@ -198,9 +198,9 @@ public final class Objects {
      *
      * <p>This method returns {@code false} if and only if the parameter is
      * {@code null} or if the parameter represents a value object when preview
-     * features are enabled.  Value objects do not exist when preview features
-     * are disabled; consequently, this method behaves the same as {@link
-     * #nonNull Objects.nonNull} when preview features are disabled.
+     * features are enabled.  All objects are identity objects when preview
+     * features are disabled; consequently, this method behaves the same as
+     * {@link #nonNull Objects.nonNull} when preview features are disabled.
      *
      * @apiNote
      * If the parameter is {@code null}, there is no object
@@ -224,7 +224,7 @@ public final class Objects {
      * <p>
      * This method throws an {@code IdentityException} if and only if the
      * parameter represents a value object when preview features are enabled.
-     * Value objects do not exist when preview features are disabled;
+     * All objects are identity objects when preview features are disabled;
      * consequently, this method behaves the same as {@link #requireNonNull(Object)
      * Objects.requireNonNull} when preview features are disabled.
      *
@@ -249,7 +249,7 @@ public final class Objects {
      * <p>
      * This method throws an {@code IdentityException} if and only if the
      * parameter represents a value object when preview features are enabled.
-     * Value objects do not exist when preview features are disabled;
+     * All objects are identity objects when preview features are disabled;
      * consequently, this method behaves the same as {@link #requireNonNull(Object, String)
      * Objects.requireNonNull} when preview features are disabled.
      *
@@ -276,7 +276,7 @@ public final class Objects {
      * <p>
      * This method throws an {@code IdentityException} if and only if the
      * parameter represents a value object when preview features are enabled.
-     * Value objects do not exist when preview features are disabled;
+     * All objects are identity objects when preview features are disabled;
      * consequently, this method behaves the same as {@link #requireNonNull(Object, Supplier)
      * Objects.requireNonNull} when preview features are disabled.
      *
