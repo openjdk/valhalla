@@ -2501,6 +2501,14 @@ void TemplateTable::_return(TosState state) {
     __ bind(skip_register_finalizer);
   }
 
+  // Issue a StoreStore barrier after all stores but before return
+  // from any constructor for any class with a final field. We don't
+  // know if this is a finalizer, so we always do so.
+  if (_desc->bytecode() == Bytecodes::_return
+      || _desc->bytecode() == Bytecodes::_return_register_finalizer) {
+    __ membar(MacroAssembler::StoreStore, Rtemp);
+  }
+
   if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
     Label no_safepoint;
     __ ldr(Rtemp, Address(Rthread, JavaThread::polling_word_offset()));
