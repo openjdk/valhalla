@@ -3445,9 +3445,6 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
       When preview features are enabled, the Object Free event is only sent for tagged
       <externallink id="jni/functions.html#hasidentity">identity objects</externallink>.
       <b>The event is not sent for tagged values objects.</b>
-      All objects are identity objects when preview features are disabled; consequently
-      the Object Free event is sent for all tagged objects when preview features are
-      disabled.
     </intro>
 
     <intro id="heapCallbacks" label="Heap Callback Functions">
@@ -14202,9 +14199,6 @@ myInit() {
       When preview features are enabled, the Object Free event is only sent for tagged
       <externallink id="jni/functions.html#hasidentity">identity objects</externallink>.
       <b>The event is not sent for tagged values objects.</b>
-      All objects are identity objects when preview features are disabled; consequently
-      the Object Free event is sent for all tagged objects when preview features are
-      disabled.
       <p/>
       The event handler must not use JNI functions and
       must not use <jvmti/> functions except those which
