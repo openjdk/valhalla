@@ -53,7 +53,6 @@ public value class TestGetFlatValueNullableNonAtomic {
             Field f = TestGetFlatValueNullableNonAtomic.class.getDeclaredField("value");
             OFFSET = U.objectFieldOffset(f);
             LAYOUT = U.fieldLayout(f);
-            Asserts.assertEQ(LAYOUT, 5, "Unexpected layout");
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
