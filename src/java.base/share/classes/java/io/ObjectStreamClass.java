@@ -355,8 +355,13 @@ public final class ObjectStreamClass implements Serializable {
         serializable = Serializable.class.isAssignableFrom(cl);
         externalizable = Externalizable.class.isAssignableFrom(cl);
 
-        // Note: AVC with no strict instance field like java.lang.Number is allowed;
-        // non-serializable superclasses are allowed because their constructors are called
+        // Non-serializable superclasses may declare strictly-initialized instance
+        // fields while their subclasses remain serializable through default
+        // serialization, because the superclass constructors that initialize
+        // those fields are called by default serialization.
+        // Abstract value classes that do not declare any strictly-initialized
+        // instance field, like java.lang.Number, are allowed because no field
+        // initialization is skipped by default serialization.
         requiresDeserializer = serializable && (ValueClass.isConcreteValueClass(cl) || ValueClass.hasStrictInstanceField(cl));
 
         Class<?> superCl = cl.getSuperclass();
@@ -396,7 +401,7 @@ public final class ObjectStreamClass implements Serializable {
                     deserializer = findDeserializer(cl, fields);
                     if (deserializer == null) {
                         serializeEx = deserializeEx = new ExceptionInfo(cl.getName(),
-                                "cannot serialize due to concrete value class or strict instance fields");
+                                "cannot serialize due to final value class or strictly-initialized instance fields");
                     }
                 } else if (externalizable) {
                     cons = getExternalizableConstructor(cl);

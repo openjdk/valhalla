@@ -100,6 +100,11 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
+                        new StrictInTwiceSuper(),
+                        ICE
+                ),
+
+                Arguments.of(
                         new StrictInAbstractValueSuper(),
                         ICE
                 ),
@@ -180,6 +185,13 @@ public class ValueSerializationTest {
 
                 new ExtValueWithIdentityReplacement[]{
                         new ExtValueWithIdentityReplacement("there")
+                },
+
+                new CustomNumberWithIdentity(16, 42),
+
+                new CustomNumberWithIdentity[] {
+                        new CustomNumberWithIdentity(-6, 77),
+                        new CustomNumberWithIdentity(54, -79),
                 }
         );
     }
@@ -239,6 +251,12 @@ public class ValueSerializationTest {
                 ),
 
                 Arguments.of(
+                        StrictInTwiceSuper.class,
+                        SC_SERIALIZABLE,
+                        ICE
+                ),
+
+                Arguments.of(
                         StrictInAbstractValueSuper.class,
                         SC_SERIALIZABLE,
                         ICE
@@ -254,12 +272,18 @@ public class ValueSerializationTest {
                         ValueWithDeserializer.class,
                         SC_SERIALIZABLE,
                         null
+                ),
+
+                Arguments.of(
+                        CustomNumberWithIdentity.class,
+                        SC_SERIALIZABLE,
+                        null
                 )
         );
     }
 
     /*
-     * A byte stream is generated containing a reference to the given value class
+     * A byte stream is generated containing a reference to the given class
      * with the given flags and a serial version UID determined in the test method.
      * The byte stream is then read using ObjectInputStream.readObject() and the test verifies
      * that if an exception is expected to be thrown then it is thrown, or if the deserialization
@@ -267,11 +291,11 @@ public class ValueSerializationTest {
      */
     @ParameterizedTest
     @MethodSource("classes")
-    void testDeser(Class<?> valueClass, byte flags, Class<? extends Exception> expectedException)
+    void testDeser(Class<?> clazz, byte flags, Class<? extends Exception> expectedException)
             throws Exception {
-        ObjectStreamClass clsDesc = ObjectStreamClass.lookup(valueClass);
+        ObjectStreamClass clsDesc = ObjectStreamClass.lookup(clazz);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
-        byte[] serialBytes = byteStreamFor(valueClass.getName(), uid, flags);
+        byte[] serialBytes = byteStreamFor(clazz.getName(), uid, flags);
         // deserialize
         try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serialBytes))) {
             if (expectedException != null) {
@@ -517,10 +541,12 @@ public class ValueSerializationTest {
 
     /**
      * A plain identity class that does not declare any strictly initialized
-     * instance field but one of its superclasses that implement Serializable
+     * instance field but its immediate superclasses, which implement Serializable,
      * does.
      */
     public static class StrictInSuper extends IdentityStrictPoint {
+        // Declares no field, inherits strictly-initialized instance fields
+        // IdentityStrictPoint.x and y
         public StrictInSuper() {
             super();
         }
@@ -528,6 +554,24 @@ public class ValueSerializationTest {
         @Override
         public String toString() {
             return "[StrictInSuper x=" + x + " y=" + y + "]";
+        }
+    }
+
+    /**
+     * A plain identity class that does not declare any strictly initialized
+     * instance field but one of its non-immediate superclasses that implement
+     * Serializable does.
+     */
+    public static class StrictInTwiceSuper extends StrictInSuper {
+        // Declares no field, inherits strictly-initialized instance fields
+        // IdentityStrictPoint.x and y
+        public StrictInTwiceSuper() {
+            super();
+        }
+
+        @Override
+        public String toString() {
+            return "[StrictInTwiceSuper x=" + x + " y=" + y + "]";
         }
     }
 
@@ -551,6 +595,11 @@ public class ValueSerializationTest {
         }
     }
 
+    /**
+     * An identity class that inherits strictly-initialized instance fields from
+     * its abstract value superclass that is serializable.  Therefore, this class
+     * is not serializable without jdk.internal.value.Deserializer.
+     */
     public static class StrictInAbstractValueSuper extends HasFieldAbstractValue {
         public StrictInAbstractValueSuper() {
             super(42, -3);
@@ -559,6 +608,62 @@ public class ValueSerializationTest {
         @Override
         public String toString() {
             return "[StrictInAbstractValueSuper x=" + x + " y=" + y + "]";
+        }
+    }
+
+    /**
+     * An identity class that does not inherit any strictly-initialized instance
+     * field from its abstract value superclass that is serializable, in this
+     * case the migrated java.lang.Number.  This class is accepted by default
+     * serialization.
+     */
+    public static class CustomNumberWithIdentity extends Number {
+        public int x;
+        public int y;
+
+        public CustomNumberWithIdentity(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override
+        public int intValue() {
+            return (int) longValue();
+        }
+
+        @Override
+        public long longValue() {
+            return (long) x << 32 | y;
+        }
+
+        @Override
+        public float floatValue() {
+            return longValue();
+        }
+
+        @Override
+        public double doubleValue() {
+            return longValue();
+        }
+
+        @Override
+        public final boolean equals(Object o) {
+            if (!(o instanceof CustomNumberWithIdentity that))
+                return false;
+
+            return x == that.x && y == that.y;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = x;
+            result = 31 * result + y;
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "[CustomNumberWithIdentity x=" + x + " y=" + y + "]";
         }
     }
 }
