@@ -95,7 +95,7 @@ class SharedRuntime: AllStatic {
   static SafepointBlob* generate_handler_blob(StubId id, address call_ptr);
   static RuntimeStub*   generate_resolve_blob(StubId id, address destination);
   static RuntimeStub*   generate_throw_exception(StubId id, address runtime_entry);
-  static RuntimeStub*   generate_return_value_stub(address destination, bool has_res);
+  static RuntimeStub*   generate_return_value_stub(address destination);
  public:
   static void generate_initial_stubs(void);
   static void generate_stubs(void);

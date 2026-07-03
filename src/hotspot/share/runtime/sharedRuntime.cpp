@@ -131,7 +131,7 @@ void SharedRuntime::generate_initial_stubs() {
 
   if (InlineTypeReturnedAsFields) {
     _store_inline_type_fields_to_buf_blob =
-      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), true);
+      generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf));
   }
 }
 

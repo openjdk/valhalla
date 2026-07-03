@@ -3181,11 +3181,9 @@ RuntimeStub* SharedRuntime::generate_throw_exception(StubId id, address runtime_
   return stub;
 }
 
-// Call here from the interpreter or compiled code to either load
-// multiple returned values from the inline type instance being
-// returned to registers or to store returned values to a newly
-// allocated inline type instance.
-RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool has_res) {
+// Call here from the interpreter or compiled code to store returned
+// values to a newly allocated inline type instance.
+RuntimeStub* SharedRuntime::generate_return_value_stub(address destination) {
   StubId id = StubId::shared_store_inline_type_fields_to_buf_id;
 
   const char* name = SharedRuntime::stub_name(id);
@@ -3300,19 +3298,17 @@ RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool
   __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
   __ cbnz(rscratch1, pending);
 
-  if (has_res) {
-    // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
-    // need to initialize the buffer and if so, call the inline class specific pack handler.
-    Label skip_pack;
-    __ get_vm_result_oop(r0, rthread);
-    __ get_vm_result_metadata(rscratch1, rthread);
-    __ cbz(rscratch1, skip_pack);
-    __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
-    __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
-    __ blr(rscratch1);
-    __ membar(Assembler::StoreStore);
-    __ bind(skip_pack);
-  }
+  // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+  // need to initialize the buffer and if so, call the inline class specific pack handler.
+  Label skip_pack;
+  __ get_vm_result_oop(r0, rthread);
+  __ get_vm_result_metadata(rscratch1, rthread);
+  __ cbz(rscratch1, skip_pack);
+  __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
+  __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
+  __ blr(rscratch1);
+  __ membar(Assembler::StoreStore);
+  __ bind(skip_pack);
 
   __ leave();
   __ ret(lr);

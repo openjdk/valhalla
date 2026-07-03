@@ -3877,15 +3877,13 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
 }
 
-// Call here from the interpreter or compiled code to either load
-// multiple returned values from the inline type instance being
-// returned to registers or to store returned values to a newly
-// allocated inline type instance.
+// Call here from the interpreter or compiled code to store returned
+// values to a newly allocated inline type instance.
 // Register is a class, but it would be assigned numerical value.
 // "0" is assigned for xmm0. Thus we need to ignore -Wnonnull.
 PRAGMA_DIAG_PUSH
 PRAGMA_NONNULL_IGNORED
-RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool has_res) {
+RuntimeStub* SharedRuntime::generate_return_value_stub(address destination) {
   StubId id = StubId::shared_store_inline_type_fields_to_buf_id;
 
   const char* name = SharedRuntime::stub_name(id);
@@ -4011,20 +4009,18 @@ RuntimeStub* SharedRuntime::generate_return_value_stub(address destination, bool
   __ cmpptr(Address(r15_thread, Thread::pending_exception_offset()), (int32_t)NULL_WORD);
   __ jcc(Assembler::notEqual, pending);
 
-  if (has_res) {
-    // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
-    // need to initialize the buffer and if so, call the inline class specific pack handler.
-    Label skip_pack;
-    __ get_vm_result_oop(rax);
-    __ get_vm_result_metadata(rscratch1);
-    __ testptr(rscratch1, rscratch1);
-    __ jcc(Assembler::zero, skip_pack);
-    __ movptr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
-    __ movptr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
-    __ call(rscratch1);
-    __ membar(Assembler::StoreStore);
-    __ bind(skip_pack);
-  }
+  // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+  // need to initialize the buffer and if so, call the inline class specific pack handler.
+  Label skip_pack;
+  __ get_vm_result_oop(rax);
+  __ get_vm_result_metadata(rscratch1);
+  __ testptr(rscratch1, rscratch1);
+  __ jcc(Assembler::zero, skip_pack);
+  __ movptr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
+  __ movptr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
+  __ call(rscratch1);
+  __ membar(Assembler::StoreStore);
+  __ bind(skip_pack);
 
   __ ret(0);
 
