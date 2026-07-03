@@ -1863,6 +1863,36 @@ public class TestIntrinsics {
         }
     }
 
+    static value class MyValueNotCloneable {
+        int x;
+
+        MyValueNotCloneable(int x) {
+            this.x = x;
+        }
+
+        @Override
+        public Object clone() throws CloneNotSupportedException {
+            return super.clone();
+        }
+    }
+
+    @Test
+    public Object testCloneNotCloneable() throws CloneNotSupportedException {
+        MyValueNotCloneable obj = new MyValueNotCloneable(3);
+        // Throws CloneNotSupportedException because MyValueNotCloneable does not implement Cloneable.
+        return obj.clone();
+    }
+
+    @Run(test = "testCloneNotCloneable")
+    public void testCloneNotCloneable_verifier() {
+        try {
+            testCloneNotCloneable();
+            Asserts.fail("should throw");
+        } catch (CloneNotSupportedException e) {
+            // Expected.
+        }
+    }
+
     // Test correctness of the ValueClass::isNullRestrictedArray intrinsic
     @Test
     @IR(failOn = {STATIC_CALL_OF_METHOD, "jdk.internal.value.ValueClass::isNullRestrictedArray",
