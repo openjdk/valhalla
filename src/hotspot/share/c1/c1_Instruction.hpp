@@ -860,7 +860,16 @@ LEAF(StoreField, AccessField)
  public:
   // creation
   StoreField(Value obj, int offset, ciField* field, Value value, bool is_static,
-             ValueStack* state_before, bool needs_patching);
+             ValueStack* state_before, bool needs_patching)
+    : AccessField(obj, offset, field, is_static, state_before, needs_patching)
+      , _value(value)
+      , _enclosing_field(nullptr) {
+  #ifdef ASSERT
+    AssertValues assert_value;
+    values_do(&assert_value);
+  #endif
+    pin();
+  }
 
   // accessors
   Value value() const                            { return _value; }
@@ -1042,8 +1051,17 @@ LEAF(StoreIndexed, AccessIndexed)
 
  public:
   // creation
-  StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value, ValueStack* state_before,
-               bool check_boolean, bool mismatched = false);
+  StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value,
+               ValueStack* state_before, bool check_boolean, bool mismatched = false)
+    : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
+      , _value(value), _check_boolean(check_boolean) {
+  #ifdef ASSERT
+    AssertValues assert_value;
+    values_do(&assert_value);
+  #endif
+    pin();
+  }
+
 
   // accessors
   Value value() const                            { return _value; }

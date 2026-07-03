@@ -405,32 +405,6 @@ void BlockBegin::state_values_do(ValueVisitor* f) {
 }
 
 
-StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool is_static,
-                       ValueStack* state_before, bool needs_patching)
-  : AccessField(obj, offset, field, is_static, state_before, needs_patching)
-  , _value(value)
-  , _enclosing_field(nullptr)
-{
-#ifdef ASSERT
-  AssertValues assert_value;
-  values_do(&assert_value);
-#endif
-  pin();
-}
-
-StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value,
-                           ValueStack* state_before, bool check_boolean, bool mismatched)
-  : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _value(value), _check_boolean(check_boolean)
-{
-#ifdef ASSERT
-  AssertValues assert_value;
-  values_do(&assert_value);
-#endif
-  pin();
-}
-
-
 // Implementation of Invoke
 
 
@@ -458,8 +432,7 @@ Invoke::Invoke(Bytecodes::Code code, ciType* return_type, Value recv, Values* ar
     _signature->append(as_BasicType(receiver()->type()));
   }
   for (int i = 0; i < number_of_arguments(); i++) {
-    Value v = argument_at(i);
-    ValueType* t = v->type();
+    ValueType* t = argument_at(i)->type();
     BasicType bt = as_BasicType(t);
     _signature->append(bt);
   }
@@ -1102,4 +1075,3 @@ void RangeCheckPredicate::check_state() {
 void ProfileInvoke::state_values_do(ValueVisitor* f) {
   if (state() != nullptr) state()->values_do(f);
 }
-
