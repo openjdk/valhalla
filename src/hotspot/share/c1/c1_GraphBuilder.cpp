@@ -2008,6 +2008,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             }
 
             if (can_delay_access) {
+              // Flat fields contain the nested value's payload but not its object header,
+              // so accumulate the field offset relative to the holder's payload.
               if (has_pending_load_indexed()) {
                 pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->payload_offset());
               } else if (has_pending_field_access()) {

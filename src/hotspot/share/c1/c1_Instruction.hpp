@@ -1018,6 +1018,9 @@ LEAF(LoadIndexed, AccessIndexed)
   HASHING4(LoadIndexed, delayed() == nullptr && !should_profile(), elt_type(), array()->subst(), index()->subst(), buffer())
 };
 
+// Records a flat-array LoadIndexed while following getfield bytecodes are parsed.
+// This allows LIR generation to access the selected field directly, without first
+// buffering the enclosing flat-array element.
 class DelayedLoadIndexed : public CompilationResourceObj {
 private:
   LoadIndexed* _load_instr;

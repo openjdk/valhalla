@@ -238,6 +238,8 @@ ciType* Constant::exact_type() const {
 
 ciType* LoadIndexed::exact_type() const {
   ciType* array_type = array()->exact_type();
+  // A delayed load produces a field within the array element. Let
+  // Instruction::exact_type() below derive its type from declared_type().
   if (delayed() == nullptr && array_type != nullptr) {
     assert(array_type->is_array_klass(), "what else?");
     ciArrayKlass* ak = (ciArrayKlass*)array_type;
@@ -254,6 +256,8 @@ ciType* LoadIndexed::exact_type() const {
 
 ciType* LoadIndexed::declared_type() const {
   if (delayed() != nullptr) {
+    // The LoadIndexed is fused with one or more following getfield bytecodes
+    // and produces the final field value instead of the array element.
     return delayed()->field()->type();
   }
   ciType* array_type = array()->declared_type();
@@ -270,7 +274,9 @@ bool StoreIndexed::is_exact_flat_array_store() const {
     ciKlass* element_klass = array()->declared_type()->as_flat_array_klass()->element_klass();
     ciKlass* actual_klass = value()->declared_type()->as_klass();
 
-    // The following check can fail with inlining:
+    // Inlining can expose more specific types than the callee's signature. In
+    // this example, element_klass is MyValue1 and actual_klass is MyValue2, so
+    // the array store check must be kept:
     //     void test45_inline(Object[] oa, Object o, int index) { oa[index] = o; }
     //     void test45(MyValue1[] va, int index, MyValue2 v) { test45_inline(va, v, index); }
     if (element_klass == actual_klass) {
@@ -290,7 +296,8 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  // Returns the refined type
+  // Resolve the default array properties used by anewarray to a concrete
+  // layout klass (reference or flat), which is the exact type of the allocation.
   return ciObjArrayKlass::make(klass());
 }
 
