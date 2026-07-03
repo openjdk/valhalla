@@ -1389,11 +1389,11 @@ public final class Class<T> implements java.io.Serializable,
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          When preview features are enabled and this {@code Class} object
-     *          represents either a class whose {@code class} file does not
-     *          depend on preview features or an array type, its {@code identity}
-     *          modifier is always true.
+     *          either represents a class whose {@code class} file does not
+     *          depend on preview features or represents an array type, its
+     *          {@code identity} modifier is always true.
      *          <p>
-     *          When preview features are disabled, such a {@code Class} object
+     *          When preview features are disabled, the {@code Class} object
      *          does not have its {@code identity} modifier set.
      *      </div>
      * </div>
@@ -1455,11 +1455,11 @@ public final class Class<T> implements java.io.Serializable,
      * <div class="preview-block">
      *      <div class="preview-comment">
      *          When preview features are enabled and this {@code Class} object
-     *          represents either a class whose {@code class} file does not
-     *          depend on preview features or an array type, its flags always
-     *          include {@code IDENTITY}.
+     *          either represents a class whose {@code class} file does not
+     *          depend on preview features or represents an array type, its
+     *          flags always include {@code IDENTITY}.
      *          <p>
-     *          When preview features are disabled, such a {@code Class} object
+     *          When preview features are disabled, the {@code Class} object
      *          does not have the {@code IDENTITY} flag set.
      *      </div>
      * </div>
