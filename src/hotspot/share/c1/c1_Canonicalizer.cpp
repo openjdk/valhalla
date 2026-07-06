@@ -652,7 +652,7 @@ void Canonicalizer::do_CheckCast      (CheckCast*       x) {
       }
     }
     // checkcast of null returns null for non null-free klasses
-    if (!x->is_null_free() && obj->is_null_obj()) {
+    if (obj->is_null_obj()) {
       set_canonical(obj);
     }
   }
