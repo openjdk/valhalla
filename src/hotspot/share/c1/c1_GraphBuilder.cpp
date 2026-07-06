@@ -1897,7 +1897,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         null_check(val);
 
         ciType* field_type = field->type();
-        if (field_type->is_loaded() && field->empty_null_free_initialized_value_field(method())) {
+        if (field_type->is_loaded() && field->empty_null_free_initialized_value_field(!method()->is_class_initializer())) {
           // Storing to an empty, null-free inline type field that is already initialized. Ignore.
           break;
         }
@@ -2096,7 +2096,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       }
 
       ciType* field_type = field->type();
-      if (field_type->is_loaded() && field->empty_null_free_initialized_value_field(method())) {
+      if (field_type->is_loaded() && field->empty_null_free_initialized_value_field(!method()->is_object_constructor())) {
         // Storing to an empty, null-free inline type field that is already initialized. Ignore.
         null_check(obj);
         null_check(val);

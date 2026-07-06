@@ -236,7 +236,7 @@ public:
 
   bool is_autobox_cache();
 
-  bool empty_null_free_initialized_value_field(ciMethod* method);
+  bool empty_null_free_initialized_value_field(bool method_is_safe);
 
   // Debugging output
   void print() const;

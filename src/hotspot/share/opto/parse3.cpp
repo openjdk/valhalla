@@ -279,7 +279,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   bool do_store = true;
   if (field_klass->is_inlinetype()) { // could also have an abstract value class
     ciInlineKlass* vk = field_klass->as_inline_klass();
-    if (field->empty_null_free_initialized_value_field(method())) {
+    if (field->empty_null_free_initialized_value_field(!method()->is_object_constructor())) {
       // Storing to an empty, null-free inline type field that is already initialized. Ignore.
       return;
     }
