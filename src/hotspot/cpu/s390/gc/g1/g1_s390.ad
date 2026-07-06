@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
 // Copyright 2024 IBM Corporation. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
@@ -73,6 +73,137 @@ static void write_barrier_post(MacroAssembler* masm,
 
 %} // source
 
+
+// TODO 8350865 (same applies to g1StoreLSpecialTwoOops)
+// - Do not set/overwrite barrier data here, also handle G1C2BarrierPostNotNull
+
+instruct g1StoreLSpecialOneOopOff0(indirect mem, iRegL src, immI_0 off, iRegL tmp1, iRegL tmp2, iRegL tmp3, iRegL tmp4, flagsReg cr) %{
+  predicate(UseG1GC);
+  match(Set mem (StoreLSpecial mem (Binary src off)));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, KILL cr);
+  ins_cost(MEMORY_REF_COST);
+  format %{ "STG     $src,$mem\t # g1StoreLSpecialOneOopOff0" %}
+  ins_encode %{
+    __ block_comment("g1StoreLSpecialOneOopOff0 {");
+    ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
+
+    // S390 is big-endian: the IR places the oop-offset-0 field in the low 32 bits
+    // (bits 31:0) of the long register. When written to memory, these bits land at
+    // byte offset 4 (the low word of the 8-byte big-endian store).
+    // Adjust address to point to the narrow oop at byte offset 4.
+    __ z_lgr($tmp4$$Register, $mem$$Register);
+    __ z_aghi($tmp4$$Register, 4);
+    write_barrier_pre(masm, this,
+                      $tmp4$$Register /* obj     */,
+                      $tmp1$$Register /* pre_val */,
+                      $tmp2$$Register /* tmp1    */,
+                      RegSet::of($mem$$Register, $src$$Register, $tmp4$$Register) /* preserve */);
+
+    __ z_stg($src$$Register, Address($mem$$Register));
+
+    // Zero-extend the lower 32 bits to extract the narrow oop field value.
+    __ z_llgfr($tmp1$$Register, $src$$Register);
+    __ oop_decoder($tmp1$$Register, $tmp1$$Register, true /* maybe_null */);
+    write_barrier_post(masm, this,
+                       $tmp4$$Register /* store_addr */,
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
+    __ block_comment("} g1StoreLSpecialOneOopOff0");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+instruct g1StoreLSpecialOneOopOff4(indirect mem, iRegL src, immI_4 off, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+  predicate(UseG1GC);
+  match(Set mem (StoreLSpecial mem (Binary src off)));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  ins_cost(MEMORY_REF_COST);
+  format %{ "STG     $src,$mem\t # g1StoreLSpecialOneOopOff4" %}
+  ins_encode %{
+    __ block_comment("g1StoreLSpecialOneOopOff4 {");
+    ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
+
+    // S390 is big-endian: the IR places the oop-offset-4 field in the high 32 bits
+    // (bits 63:32) of the long register. When written to memory, these bits land at
+    // byte offset 0 (the high word of the 8-byte big-endian store).
+    // The pre-barrier address is the base address $mem (byte offset 0).
+    write_barrier_pre(masm, this,
+                      $mem$$Register  /* obj     */,
+                      $tmp1$$Register /* pre_val */,
+                      $tmp2$$Register /* tmp1    */,
+                      RegSet::of($mem$$Register, $src$$Register) /* preserve */);
+
+    __ z_stg($src$$Register, Address($mem$$Register));
+
+    // Shift right by 32 to bring the upper 32 bits (oop at IR offset 4) into the
+    // lower word position for decoding.
+    __ z_srlg($tmp1$$Register, $src$$Register, 32);
+    __ oop_decoder($tmp1$$Register, $tmp1$$Register, true /* maybe_null */);
+    write_barrier_post(masm, this,
+                       $mem$$Register  /* store_addr */,
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
+    __ block_comment("} g1StoreLSpecialOneOopOff4");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
+instruct g1StoreLSpecialTwoOops(indirect mem, iRegL src, iRegL tmp1, iRegL tmp2, iRegL tmp3, iRegL tmp4, flagsReg cr) %{
+  predicate(UseG1GC);
+  match(Set mem (StoreLSpecial mem src));
+  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, KILL cr);
+  ins_cost(MEMORY_REF_COST);
+  format %{ "STG     $src,$mem\t # g1StoreLSpecialTwoOops" %}
+  ins_encode %{
+    __ block_comment("g1StoreLSpecialTwoOops {");
+    ((MachNode*)this)->set_barrier_data(G1C2BarrierPre | G1C2BarrierPost);
+
+    // S390 is big-endian. The IR layout places:
+    //   IR-offset-0 oop in low 32 bits (bits 31:0)  -> lands at memory byte offset 4
+    //   IR-offset-4 oop in high 32 bits (bits 63:32) -> lands at memory byte offset 0
+    // Pre-barriers need the addresses of both slots as they exist in memory.
+    write_barrier_pre(masm, this,
+                      $mem$$Register  /* obj (byte offset 0 = IR-offset-4 oop) */,
+                      $tmp1$$Register /* pre_val */,
+                      $tmp2$$Register /* tmp1    */,
+                      RegSet::of($mem$$Register, $src$$Register) /* preserve */);
+    // Adjust address to point to byte offset 4 (= IR-offset-0 oop in memory)
+    __ z_lgr($tmp4$$Register, $mem$$Register);
+    __ z_aghi($tmp4$$Register, 4);
+    write_barrier_pre(masm, this,
+                      $tmp4$$Register /* obj (byte offset 4 = IR-offset-0 oop) */,
+                      $tmp1$$Register /* pre_val */,
+                      $tmp2$$Register /* tmp1    */,
+                      RegSet::of($mem$$Register, $src$$Register, $tmp4$$Register) /* preserve */);
+
+    __ z_stg($src$$Register, Address($mem$$Register));
+
+    // Extract the IR-offset-4 oop (high 32 bits, memory byte offset 0):
+    // Shift right by 32 to bring bits 63:32 into the lower word position.
+    __ z_srlg($tmp1$$Register, $src$$Register, 32);
+    __ oop_decoder($tmp1$$Register, $tmp1$$Register, true /* maybe_null */);
+    write_barrier_post(masm, this,
+                       $mem$$Register  /* store_addr (byte offset 0) */,
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
+
+    // Extract the IR-offset-0 oop (low 32 bits, memory byte offset 4):
+    // Zero-extend the lower 32 bits to extract the narrow oop field value.
+    __ z_llgfr($tmp1$$Register, $src$$Register);
+    __ oop_decoder($tmp1$$Register, $tmp1$$Register, true /* maybe_null */);
+    write_barrier_post(masm, this,
+                       $tmp4$$Register /* store_addr (byte offset 4) */,
+                       $tmp1$$Register /* new_val    */,
+                       $tmp2$$Register /* tmp1       */,
+                       $tmp3$$Register /* tmp2       */);
+    __ block_comment("} g1StoreLSpecialTwoOops");
+  %}
+  ins_pipe(pipe_class_dummy);
+%}
+
 // store pointer
 instruct g1StoreP(indirect dst, memoryRegP src, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_Store()->barrier_data() != 0);
@@ -140,7 +271,7 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndSwapN mem_ptr (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapN mem_ptr (Binary oldval newval)));
-  effect(USE mem_ptr, TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
   format %{ "$res = CompareAndSwapN $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
@@ -186,10 +317,10 @@ instruct g1CompareAndSwapN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval,
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1CompareAndExchangeN(iRegP mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegN res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
+instruct g1CompareAndExchangeN(indirect mem_ptr, rarg5RegN oldval, iRegN_P2N newval, iRegN res, iRegL tmp1, iRegL tmp2, iRegL tmp3, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeN mem_ptr (Binary oldval newval)));
-  effect(USE mem_ptr, TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, TEMP tmp3, USE_KILL oldval, KILL cr);
   format %{ "$res = CompareAndExchangeN $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     assert_different_registers($oldval$$Register, $mem_ptr$$Register);
@@ -287,11 +418,11 @@ instruct g1GetAndSetN(indirect mem, iRegN dst, iRegI tmp, iRegL tmp1, iRegL tmp2
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegI res, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
+instruct g1CompareAndSwapP(indirect mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegI res, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndSwapP mem_ptr (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapP mem_ptr (Binary oldval newval)));
-  effect(TEMP res, TEMP tmp1, TEMP tmp2, USE mem_ptr, USE_KILL oldval, KILL cr);
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, USE_KILL oldval, KILL cr);
   format %{ "$res = CompareAndSwapP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndSwapP {");
@@ -334,10 +465,10 @@ instruct g1CompareAndSwapP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iR
   ins_pipe(pipe_class_dummy);
 %}
 
-instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegP res, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
+instruct g1CompareAndExchangeP(indirect mem_ptr, rarg5RegP oldval, iRegP_N2P newval, iRegP res, iRegL tmp1, iRegL tmp2, flagsReg cr) %{
   predicate(UseG1GC && n->as_LoadStore()->barrier_data() != 0);
   match(Set res (CompareAndExchangeP mem_ptr (Binary oldval newval)));
-  effect(TEMP res, TEMP tmp1, TEMP tmp2, USE mem_ptr, USE_KILL oldval, KILL cr);
+  effect(TEMP res, TEMP tmp1, TEMP tmp2, USE_KILL oldval, KILL cr);
   format %{ "$res = CompareAndExchangeP $oldval,$newval,$mem_ptr" %}
   ins_encode %{
     __ block_comment("g1CompareAndExchangeP {");
@@ -356,7 +487,7 @@ instruct g1CompareAndExchangeP(iRegP mem_ptr, rarg5RegP oldval, iRegP_N2P newval
 
     __ z_lgr($res$$Register, $oldval$$Register); // previous content
 
-    __ z_csg($res$$Register, $newval$$Register, 0, $mem_ptr$$reg);
+    __ z_csg($res$$Register, $newval$$Register, 0, $mem_ptr$$Register);
 
     write_barrier_post(masm, this,
                        $mem_ptr$$Register /* store_addr */,

@@ -39,6 +39,8 @@ inline bool StackChunkFrameStream<frame_kind>::is_in_frame(void* p0) const {
 
 template <ChunkFrames frame_kind>
 inline frame StackChunkFrameStream<frame_kind>::to_frame() const {
+  assert(is_compiled(), "");
+  assert(!_cb->as_nmethod()->needs_stack_repair(), "unsupported");
   Unimplemented();
   return frame();
 }

@@ -40,6 +40,7 @@ inline frame FreezeBase::sender(const frame& f) {
 }
 
 template<typename FKind> frame FreezeBase::new_heap_frame(frame& f, frame& caller, int size_adjust) {
+  assert(f.cb() == nullptr || !f.cb()->is_nmethod() || !f.cb()->as_nmethod()->needs_stack_repair(), "unsupported");
   Unimplemented();
   return frame();
 }

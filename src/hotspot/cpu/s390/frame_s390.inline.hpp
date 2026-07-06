@@ -355,6 +355,12 @@ inline frame frame::sender(RegisterMap* map) const {
 
 inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
   assert(map != nullptr, "map must be set");
+  assert(!_cb->is_nmethod() || !_cb->as_nmethod()->needs_stack_repair(), "unsupported");
+
+  nmethod* nm = _cb->as_nmethod_or_null();
+  if (nm != nullptr && nm->method()->has_scalarized_args()) {
+    fatal("implement function frame::sender_for_compiled_frame");
+  }
 
   intptr_t* sender_sp = this->sender_sp();
   address   sender_pc = this->sender_pc();
@@ -362,9 +368,22 @@ inline frame frame::sender_for_compiled_frame(RegisterMap *map) const {
   // Now adjust the map.
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-    if (_cb->oop_maps() != nullptr) {
-      OopMapSet::update_register_map(this, map);
+    // For C1, the runtime stub might not have oop maps, so set this flag
+    // outside of update_register_map.
+#ifdef COMPILER1
+    DEBUG_ONLY(nmethod* nm = _cb->as_nmethod_or_null());
+    assert(nm == nullptr || !nm->is_compiled_by_c1() || !nm->method()->has_scalarized_args() ||
+           pc() >= nm->verified_inline_entry_point(), "unsupported");
+#endif
+    if (!_cb->is_nmethod()) { // compiled frames do not use callee-saved registers
+      map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
+      if (oop_map() != nullptr) {
+        _oop_map->update_register_map(this, map);
+      }
+    } else {
+      assert(!_cb->caller_must_gc_arguments(map->thread()), "");
+      assert(!map->include_argument_oops(), "");
+      assert(oop_map() == nullptr || !oop_map()->has_any(OopMapValue::callee_saved_value), "callee-saved value in compiled frame");
     }
   }
 

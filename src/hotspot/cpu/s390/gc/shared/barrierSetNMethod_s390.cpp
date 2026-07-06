@@ -133,6 +133,10 @@ void BarrierSetNMethod::set_guard_value(nmethod* nm, int value, int bit_mask) {
     return;
   }
 
+  if (nm->method()->has_scalarized_args()) {
+    fatal("implement function BarrierSetNMethod::set_guard_value");
+  }
+
   NativeMethodBarrier* barrier = get_nmethod_barrier(nm);
   barrier->set_guard_value(value, bit_mask);
 }
@@ -140,6 +144,10 @@ void BarrierSetNMethod::set_guard_value(nmethod* nm, int value, int bit_mask) {
 int BarrierSetNMethod::guard_value(nmethod* nm) {
   if (!supports_entry_barrier(nm)) {
     return disarmed_guard_value();
+  }
+
+  if (nm->method()->has_scalarized_args()) {
+    fatal("implement function BarrierSetNMethod::guard_value");
   }
 
   NativeMethodBarrier* barrier = get_nmethod_barrier(nm);

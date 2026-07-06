@@ -3900,6 +3900,47 @@ void MacroAssembler::null_check(Register reg, Register tmp, int64_t offset) {
 }
 
 //-------------------------------------
+//  Valhalla inline type support
+//-------------------------------------
+
+void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_inline_type) {
+  assert_different_registers(markword, Z_R0);
+  load_const_optimized(Z_R0, (long)markWord::inline_type_pattern_mask);
+  z_ngr(markword, Z_R0);
+  z_cghi(markword, markWord::inline_type_pattern);
+  z_bre(is_inline_type);
+}
+
+void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
+  assert_different_registers(tmp, Z_R0);
+  if (can_be_null) {
+    z_ltgr(object, object);
+    z_bre(not_inline_type);
+  }
+  const int is_inline_type_mask = markWord::inline_type_pattern;
+  z_lg(tmp, oopDesc::mark_offset_in_bytes(), object);
+  load_const_optimized(Z_R0, (long)is_inline_type_mask);
+  z_ngr(tmp, Z_R0);
+  z_cghi(tmp, is_inline_type_mask);
+  z_brne(not_inline_type);
+}
+
+void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Label& is_null_free) {
+  testbit(flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
+  z_brc(Assembler::bcondNotZero, is_null_free);
+}
+
+void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Label& not_null_free_inline_type) {
+  testbit(flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
+  z_brc(Assembler::bcondZero, not_null_free_inline_type);
+}
+
+void MacroAssembler::test_field_is_flat(Register flags, Label& is_flat) {
+  testbit(flags, ResolvedFieldEntry::is_flat_shift);
+  z_brc(Assembler::bcondNotZero, is_flat);
+}
+
+//-------------------------------------
 //  Compressed Klass Pointers
 //-------------------------------------
 
@@ -4170,6 +4211,11 @@ void MacroAssembler::load_klass(Register klass, Register src_oop) {
   }
 }
 
+void MacroAssembler::load_prototype_header(Register dst, Register src) {
+  load_klass(dst, src);
+  z_lg(dst, Address(dst, Klass::prototype_header_offset()));
+}
+
 void MacroAssembler::store_klass(Register klass, Register dst_oop, Register ck) {
   assert(!UseCompactObjectHeaders, "Don't use with compact headers");
   assert_different_registers(dst_oop, klass, Z_R0);
@@ -4188,6 +4234,48 @@ void MacroAssembler::store_klass_gap(Register s, Register d) {
     z_mvhi(Address(d, oopDesc::klass_gap_offset_in_bytes()), 0);
   }
 }
+void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
+  Label test_mark_word;
+  // Load mark word
+  z_lg(temp_reg, oopDesc::mark_offset_in_bytes(), oop);
+  // If unlocked bit is set we can directly use the mark word
+  z_tmll(temp_reg, markWord::unlocked_value);
+  z_brnaz(test_mark_word);
+  // Slow path: use klass prototype
+  load_klass(temp_reg, oop);
+  z_lg(temp_reg, Address(temp_reg, in_bytes(Klass::prototype_header_offset())));
+
+  bind(test_mark_word);
+  z_tmll(temp_reg, test_bit);
+  if (jmp_set) {
+    z_brnaz(jmp_label);
+  } else {
+    z_braz(jmp_label);
+  }
+}
+
+void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flat_array);
+}
+
+void MacroAssembler::test_non_flat_array_oop(Register oop, Register temp_reg, Label& is_non_flat_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flat_array);
+}
+
+void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
+}
+
+void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label& is_non_null_free_array) {
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
+}
+
+void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
+  // Test the layout helper for the flat array bit
+  z_tmll(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
+  z_brnaz(is_flat_array);
+}
+
 
 // Compare klass ptr in memory against klass ptr in register.
 //
@@ -4859,6 +4947,33 @@ unsigned int MacroAssembler::Clear_Array_Const_Big(long cnt, Register base_point
 
   int block_end = offset();
   return block_end - block_start;
+}
+
+// Fill words with a non-zero value.
+void MacroAssembler::fill_words(Register base, Register cnt, Register value, Register tmp) {
+  Label loop, loop_end, done;
+
+  BLOCK_COMMENT("fill_words {");
+
+  // 2x unrolled loop
+  z_srag(tmp, cnt, 1);    // tmp = cnt / 2
+  z_bre(loop_end);         // skip pair loop if cnt < 2
+
+  // Loop for pairs of words
+  bind(loop);
+  z_stg(value, 0, base);
+  z_stg(value, 8, base);
+  z_aghi(base, 16);
+  z_brctg(tmp, loop);      // 64-bit decrement-and-branch
+
+  bind(loop_end);
+  // Handle remaining single word if cnt is odd
+  z_tmll(cnt, 1);
+  z_bre(done);
+  z_stg(value, 0, base);
+
+  bind(done);
+  BLOCK_COMMENT("} fill_words");
 }
 
 // Allocator.
@@ -6924,6 +7039,8 @@ void MacroAssembler::profile_receiver_type(Register recv, Register mdp, int mdp_
 // Unimplemented methods for inline types.
 int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
    Unimplemented();
+   stop("implement function MacroAssembler::store_inline_type_fields_to_buf");
+   return 0;
 }
 
 bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {

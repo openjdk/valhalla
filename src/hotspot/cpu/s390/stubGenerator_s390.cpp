@@ -32,6 +32,7 @@
 #include "interpreter/interp_masm.hpp"
 #include "memory/universe.hpp"
 #include "nativeInst_s390.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -428,6 +429,9 @@ class StubGenerator: public StubCodeGenerator {
         __ align(handlerLen);
       // T_OBJECT:
         guarantee(T_OBJECT == T_LONG+1, "check BasicType definition in globalDefinitions.hpp");
+        if (InlineTypeReturnedAsFields) {
+          __ stop("implement function StubGenerator::generate_call_stub #1");
+        }
         __ z_stg(Z_RET, 0, r_arg_result_addr);
         __ z_br(Z_R14); // Return to caller.
         __ align(handlerLen);
@@ -442,7 +446,7 @@ class StubGenerator: public StubCodeGenerator {
         __ z_br(Z_R14); // Return to caller.
         __ align(handlerLen);
       // T_ADDRESS:
-        guarantee(T_ADDRESS == T_VOID+1, "check BasicType definition in globalDefinitions.hpp");
+        guarantee(T_ADDRESS == T_FLAT_ELEMENT+1, "check BasicType definition in globalDefinitions.hpp");
         __ z_stg(Z_RET, 0, r_arg_result_addr);
         __ z_br(Z_R14); // Return to caller.
         __ align(handlerLen);

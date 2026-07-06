@@ -33,6 +33,7 @@
 #include "interpreter/interpreter.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markWord.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -48,16 +49,30 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
                                     bool needs_stack_repair, bool has_scalarized_args,
                                     Label* verified_inline_entry_label) {
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
+  
+  assert(!needs_stack_repair && !has_scalarized_args, "");
+  
   generate_stack_overflow_check(bang_size_in_bytes);
   save_return_pc();
   push_frame(frame_size_in_bytes);
 
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
+  
+  if (verified_inline_entry_label != nullptr) {
+    // Jump here from the scalarized entry points that already created the frame.
+    bind(*verified_inline_entry_label);
+  }
 }
 
 void C1_MacroAssembler::verified_entry(bool breakAtEntry) {
   if (breakAtEntry) z_illtrap(0xC1);
+}
+
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes,
+                                        int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
+  Unimplemented();
+  return 0;
 }
 
 void C1_MacroAssembler::lock_object(Register Rmark, Register Roop, Register Rbox, Label& slow_case) {
@@ -100,13 +115,22 @@ void C1_MacroAssembler::try_allocate(
 
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register Rzero, Register t1) {
   assert_different_registers(obj, klass, len, t1, Rzero);
-  if (UseCompactObjectHeaders) {
+  if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
+    // COH: Markword contains class pointer which is only known at runtime.
+    // Valhalla: Could have value class which has a different prototype header to a normal object.
+    // In both cases, we need to fetch dynamically.
     z_lg(t1, Address(klass, in_bytes(Klass::prototype_header_offset())));
     z_stg(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
   } else {
+    // Otherwise: Can use the statically computed prototype header which is the same for every object.
     load_const_optimized(t1, (intx)markWord::prototype().value());
     z_stg(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
-    store_klass(klass, obj, t1);
+  }
+  
+  if (!UseCompactObjectHeaders) {
+    // COH: Markword already contains class pointer. Nothing else to do.
+    // Otherwise: Fetch klass pointer following the markword
+    store_klass(klass, obj, t1); // Take care not to kill klass
   }
 
   if (len->is_valid()) {
@@ -250,10 +274,6 @@ void C1_MacroAssembler::allocate_array(
   // }
 
   verify_oop(obj, FILE_AND_LINE);
-}
-
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
-  Unimplemented();
 }
 
 

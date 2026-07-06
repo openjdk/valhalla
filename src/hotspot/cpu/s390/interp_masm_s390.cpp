@@ -440,9 +440,12 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
                                                   Register Rsuper_klass,
                                                   Register Rtmp1,
                                                   Register Rtmp2,
-                                                  Label &ok_is_subtype) {
+                                                  Label &ok_is_subtype,
+                                                  bool profile) {
   // Profile the not-null value's klass.
-  profile_typecheck(Rtmp1, Rsub_klass, Rtmp2);
+  if (profile) {
+    profile_typecheck(Rtmp1, Rsub_klass, Rtmp2);
+  }
 
   // Do the check.
   check_klass_subtype(Rsub_klass, Rsuper_klass, Rtmp1, Rtmp2, ok_is_subtype);
@@ -973,6 +976,10 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
   // Save result (push state before jvmti call and pop it afterwards) and notify jvmti.
   notify_method_exit(false, state, notify_jvmti ? NotifyJVMTI : SkipNotifyJVMTI);
 
+  if (UseArrayFlattening) {
+    stop("implement function InterpreterMacroAssembler::remove_activation #2");
+  }
+
   if (StackReservedPages > 0) {
     BLOCK_COMMENT("reserved_stack_check:");
     // Test if reserved zone needs to be enabled.
@@ -998,6 +1005,10 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     should_not_reach_here();
 
     bind(no_reserved_zone_enabling);
+  }
+
+  if (state == atos && InlineTypeReturnedAsFields) {
+    stop("implement function InterpreterMacroAssembler::remove_activation");
   }
 
   verify_oop(Z_tos, state);
@@ -1207,7 +1218,8 @@ void InterpreterMacroAssembler::profile_taken_branch(Register mdp, Register bump
 }
 
 // Kills Z_R1_scratch.
-void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) {
+void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp, bool acmp) {
+  // TODO: untested(profile_not_taken_branch)
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -1215,11 +1227,50 @@ void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) {
     test_method_data_pointer(mdp, profile_continue);
 
     // We are taking a branch. Increment the not taken count.
-    increment_mdp_data_at(mdp, in_bytes(BranchData::not_taken_offset()), Z_R1_scratch);
+    increment_mdp_data_at(mdp, in_bytes(BranchData::not_taken_offset()));
 
-    // The method data pointer needs to be updated to correspond to
-    // the next bytecode.
-    update_mdp_by_constant(mdp, in_bytes(BranchData::branch_data_size()));
+    // The method data pointer needs to be updated.
+    int mdp_delta = in_bytes(BranchData::branch_data_size());
+    if (acmp) {
+      mdp_delta = in_bytes(ACmpData::acmp_data_size());
+    }
+    update_mdp_by_constant(mdp, mdp_delta);
+
+    bind(profile_continue);
+  }
+}
+
+void InterpreterMacroAssembler::profile_acmp(Register mdp,
+                                             Register left,
+                                             Register right,
+                                             Register tmp) {
+  if (ProfileInterpreter) {
+    assert_different_registers(mdp, left, right, tmp);
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    z_lgr(tmp, left);
+    profile_obj_type(tmp, Address(mdp, in_bytes(ACmpData::left_offset())), Z_ARG4);
+
+    Label left_not_inline_type;
+    compareU64_and_branch(left, (intptr_t)0, Assembler::bcondEqual, left_not_inline_type);
+    z_lg(tmp, Address(left, oopDesc::mark_offset_in_bytes()));
+    test_markword_is_inline_type(tmp, left_not_inline_type);
+    set_mdp_flag_at(mdp, ACmpData::left_inline_type_byte_constant());
+    bind(left_not_inline_type);
+
+    z_lgr(tmp, right);
+    profile_obj_type(tmp, Address(mdp, in_bytes(ACmpData::right_offset())), Z_ARG4);
+
+    Label right_not_inline_type;
+    compareU64_and_branch(right, (intptr_t)0, Assembler::bcondEqual, right_not_inline_type);
+    z_lg(tmp, Address(right, oopDesc::mark_offset_in_bytes()));
+    test_markword_is_inline_type(tmp, right_not_inline_type);
+    set_mdp_flag_at(mdp, ACmpData::right_inline_type_byte_constant());
+    bind(right_not_inline_type);
+
     bind(profile_continue);
   }
 }
@@ -1457,6 +1508,88 @@ void InterpreterMacroAssembler::profile_obj_type(Register obj, Address mdo_addr,
 
   bind(do_nothing);
 }
+template <class ArrayData> void InterpreterMacroAssembler::profile_array_type(Register array,
+                                                                              Register tmp1,
+                                                                              Register tmp2) {
+  if (ProfileInterpreter) {
+    Label profile_continue;
+    assert_different_registers(array, tmp1, tmp2);
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(tmp1, profile_continue);
+
+    profile_obj_type(array, Address(tmp1, in_bytes(ArrayData::array_offset())), tmp2);
+
+    Label not_flat;
+    test_non_flat_array_oop(array, tmp2, not_flat);
+    set_mdp_flag_at(tmp1, ArrayData::flat_array_byte_constant());
+    bind(not_flat);
+
+    Label not_null_free;
+    test_non_null_free_array_oop(array, tmp2, not_null_free);
+    set_mdp_flag_at(tmp1, ArrayData::null_free_array_byte_constant());
+    bind(not_null_free);
+
+    bind(profile_continue);
+  }
+}
+
+template void InterpreterMacroAssembler::profile_array_type<ArrayLoadData>(Register array,
+                                                                           Register tmp1,
+                                                                           Register tmp2);
+template void InterpreterMacroAssembler::profile_array_type<ArrayStoreData>(Register array,
+                                                                            Register tmp1,
+                                                                            Register tmp2);
+
+void InterpreterMacroAssembler::profile_element_type(Register element,
+                                                     Register tmp1,
+                                                     Register tmp2) { 
+  if (ProfileInterpreter) {
+    Label profile_continue;
+    assert_different_registers(element, tmp1, tmp2);
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(tmp1, profile_continue);
+
+    profile_obj_type(element, Address(tmp1, in_bytes(ArrayLoadData::element_offset())), tmp2);
+
+    // The method data pointer needs to be updated.
+    update_mdp_by_constant(tmp1, in_bytes(ArrayLoadData::array_load_data_size()));
+
+    bind(profile_continue);
+  }
+}
+void InterpreterMacroAssembler::profile_multiple_element_types(Register element,
+                                                               Register tmp1,
+                                                               Register tmp2,
+                                                               Register tmp3) {
+  if (ProfileInterpreter) {
+    Label profile_continue;
+    assert_different_registers(element, tmp1, tmp2, tmp3);
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(tmp1, profile_continue);
+
+    Label done, update;
+    compareU64_and_branch(element, (intptr_t)0, Assembler::bcondNotEqual, update);
+    set_mdp_flag_at(tmp1, BitData::null_seen_byte_constant());
+    z_bru(done);
+
+    bind(update);
+    load_klass(tmp2, element);
+
+    profile_receiver_type(tmp2, tmp1, 0, tmp3);
+
+    bind(done);
+
+    // The method data pointer needs to be updated.
+    update_mdp_by_constant(tmp1, in_bytes(ArrayStoreData::array_store_data_size()));
+
+    bind(profile_continue);
+  }
+}
+
+
 
 void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register callee, Register tmp, bool is_virtual) {
   if (!ProfileInterpreter) {
@@ -1959,4 +2092,44 @@ void InterpreterMacroAssembler::pop_interpreter_frame(Register return_pc, Regist
   load_const_optimized(Z_ARG3, 0xb00b1);
   z_stg(Z_ARG3, _z_parent_ijava_frame_abi(return_pc), Z_SP);
 #endif
+}
+
+//-------------------------------------
+//  Valhalla inline type support
+//-------------------------------------
+
+void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
+  untested("read_flat_field");
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field), obj, entry);
+  z_fence();
+}
+
+void InterpreterMacroAssembler::write_flat_field(Register entry, Register field_offset,
+                                                 Register tmp1, Register tmp2,
+                                                 Register obj) {
+                                                  untested("write_flat_field");
+  assert_different_registers(entry, field_offset, tmp1, tmp2, obj);
+  Label slow_path, done;
+
+  // Load flags and check if field is null-free inline type
+  load_sized_value(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())), sizeof(u1), false);
+  test_field_is_not_null_free_inline_type(tmp1, slow_path);
+
+  // Null check the value being stored
+  null_check(Z_tos);  // FIXME JDK-8341120
+
+  // Calculate field address: obj + field_offset
+  z_agr(obj, field_offset);
+
+  // For flat field copy, we need to call the runtime
+  // This is a simplified implementation that calls the runtime helper
+  // A full implementation would inline the copy operation
+  z_bru(slow_path);
+
+  bind(slow_path);
+  // Call runtime helper to perform the flat field write
+  // Arguments: obj (field address), Z_tos (value), entry (field entry)
+  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flat_field), obj, Z_tos, entry);
+  
+  bind(done);
 }
