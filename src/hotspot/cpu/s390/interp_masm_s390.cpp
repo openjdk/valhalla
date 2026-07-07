@@ -1543,7 +1543,7 @@ template void InterpreterMacroAssembler::profile_array_type<ArrayStoreData>(Regi
 
 void InterpreterMacroAssembler::profile_element_type(Register element,
                                                      Register tmp1,
-                                                     Register tmp2) { 
+                                                     Register tmp2) {
   if (ProfileInterpreter) {
     Label profile_continue;
     assert_different_registers(element, tmp1, tmp2);
@@ -1559,6 +1559,7 @@ void InterpreterMacroAssembler::profile_element_type(Register element,
     bind(profile_continue);
   }
 }
+
 void InterpreterMacroAssembler::profile_multiple_element_types(Register element,
                                                                Register tmp1,
                                                                Register tmp2,
@@ -1588,8 +1589,6 @@ void InterpreterMacroAssembler::profile_multiple_element_types(Register element,
     bind(profile_continue);
   }
 }
-
-
 
 void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register callee, Register tmp, bool is_virtual) {
   if (!ProfileInterpreter) {
@@ -2130,6 +2129,6 @@ void InterpreterMacroAssembler::write_flat_field(Register entry, Register field_
   // Call runtime helper to perform the flat field write
   // Arguments: obj (field address), Z_tos (value), entry (field entry)
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flat_field), obj, Z_tos, entry);
-  
+
   bind(done);
 }

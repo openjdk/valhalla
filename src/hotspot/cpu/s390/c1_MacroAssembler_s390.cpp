@@ -49,16 +49,16 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
                                     bool needs_stack_repair, bool has_scalarized_args,
                                     Label* verified_inline_entry_label) {
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
-  
+
   assert(!needs_stack_repair && !has_scalarized_args, "");
-  
+
   generate_stack_overflow_check(bang_size_in_bytes);
   save_return_pc();
   push_frame(frame_size_in_bytes);
 
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
-  
+
   if (verified_inline_entry_label != nullptr) {
     // Jump here from the scalarized entry points that already created the frame.
     bind(*verified_inline_entry_label);
@@ -126,7 +126,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     load_const_optimized(t1, (intx)markWord::prototype().value());
     z_stg(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
   }
-  
+
   if (!UseCompactObjectHeaders) {
     // COH: Markword already contains class pointer. Nothing else to do.
     // Otherwise: Fetch klass pointer following the markword

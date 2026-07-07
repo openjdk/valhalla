@@ -467,14 +467,14 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
         const char* name = (id == StubId::c1_buffer_inline_args_id) ?
           "buffer_inline_args" : "buffer_inline_args_no_receiver";
         __ set_info(name, dont_gc_arguments);
-        
+
         // This is called from a C1 method's scalarized entry point
         OopMap* map = save_live_registers(sasm);
         Register method = Z_R13;   // Incoming
         address entry = (id == StubId::c1_buffer_inline_args_id) ?
           CAST_FROM_FN_PTR(address, buffer_inline_args) :
           CAST_FROM_FN_PTR(address, buffer_inline_args_no_receiver);
-        
+
         int call_offset = __ call_RT(Z_R14, noreg, entry, method);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
