@@ -3916,24 +3916,20 @@ void MacroAssembler::null_check(Register reg, Register tmp, int64_t offset) {
 //-------------------------------------
 
 void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_inline_type) {
-  assert_different_registers(markword, Z_R0);
-  load_const_optimized(Z_R0, (long)markWord::inline_type_pattern_mask);
-  z_ngr(markword, Z_R0);
-  z_cghi(markword, markWord::inline_type_pattern);
+  static_assert(markWord::inline_type_pattern <= 0x7FFF, "must fit in simm16 for z_chi");
+  z_nilf(markword, markWord::inline_type_pattern_mask);
+  z_chi(markword, markWord::inline_type_pattern);
   z_bre(is_inline_type);
 }
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
-  assert_different_registers(tmp, Z_R0);
   if (can_be_null) {
     z_ltgr(object, object);
     z_bre(not_inline_type);
   }
-  const int is_inline_type_mask = markWord::inline_type_pattern;
   z_lg(tmp, oopDesc::mark_offset_in_bytes(), object);
-  load_const_optimized(Z_R0, (long)is_inline_type_mask);
-  z_ngr(tmp, Z_R0);
-  z_cghi(tmp, is_inline_type_mask);
+  z_nilf(tmp, markWord::inline_type_pattern_mask);
+  z_chi(tmp, markWord::inline_type_pattern);
   z_brne(not_inline_type);
 }
 

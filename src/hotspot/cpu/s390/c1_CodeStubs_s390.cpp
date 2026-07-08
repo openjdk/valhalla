@@ -293,15 +293,12 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   if (_throw_ie_stub != nullptr) {
-    static_assert((markWord::inline_type_pattern_mask & ~0xffff) == 0,
-        "inline_type_pattern_mask must fit in 16-bit immediate of z_nill");
-    static_assert((markWord::inline_type_pattern & ~0xffff) == 0,
-        "inline_type_pattern must fit in 16-bit immediate of z_cghi");
+    static_assert(markWord::inline_type_pattern <= 0x7FFF, "must fit in simm16 for z_chi");
     // When we come here, _obj_reg has already been checked to be non-null.
     Register scratch = _scratch_reg->as_register();
     __ z_lg(scratch, oopDesc::mark_offset_in_bytes(), _obj_reg->as_register());
-    __ z_nill(scratch, markWord::inline_type_pattern_mask);
-    __ z_cghi(scratch, markWord::inline_type_pattern);
+    __ z_nilf(scratch, markWord::inline_type_pattern_mask);
+    __ z_chi(scratch, markWord::inline_type_pattern);
     __ branch_optimized(Assembler::bcondEqual, *_throw_ie_stub->entry());
   }
   StubId enter_id;

@@ -2098,7 +2098,6 @@ void TemplateTable::if_acmp(Condition cc) {
 
   __ profile_acmp(Z_tmp_1, Z_ARG5, Z_tos, Z_tmp_2);
 
-  const int is_inline_type_mask = markWord::inline_type_pattern;
   if (Arguments::is_valhalla_enabled()) {
     __ compareU64_and_branch(Z_tos, Z_ARG5, Assembler::bcondEqual, (cc == equal) ? taken : not_taken);
 
@@ -2108,10 +2107,10 @@ void TemplateTable::if_acmp(Condition cc) {
     __ z_ltgr(Z_ARG5, Z_ARG5);
     __ z_brc(Assembler::bcondEqual, (cc == equal) ? not_taken : taken);
 
-    __ z_llill(Z_ARG3, is_inline_type_mask);
+    __ z_llill(Z_ARG3, markWord::inline_type_pattern);
     __ z_ng(Z_ARG3, Address(Z_tos, oopDesc::mark_offset_in_bytes()));
     __ z_ng(Z_ARG3, Address(Z_ARG5, oopDesc::mark_offset_in_bytes()));
-    __ z_chi(Z_ARG3, is_inline_type_mask);
+    __ z_chi(Z_ARG3, markWord::inline_type_pattern);
     __ branch_optimized(Assembler::bcondNotEqual, (cc == equal) ? not_taken : taken);
 
     __ load_klass(Z_ARG3, Z_tos);
@@ -4555,11 +4554,10 @@ void TemplateTable::monitorexit() {
   __ null_check(Z_tos);
 
   // Check for inline type (Valhalla feature)
-  const int is_inline_type_mask = markWord::inline_type_pattern;
   NearLabel has_identity;
   __ z_lg(Z_R1_scratch, Address(Z_tos, oopDesc::mark_offset_in_bytes()));
-  __ z_nill(Z_R1_scratch, is_inline_type_mask);
-  __ z_chi(Z_R1_scratch, is_inline_type_mask);
+  __ z_nilf(Z_R1_scratch, markWord::inline_type_pattern_mask);
+  __ z_chi(Z_R1_scratch, markWord::inline_type_pattern);
   __ z_brne(has_identity);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
                      InterpreterRuntime::throw_illegal_monitor_state_exception));
