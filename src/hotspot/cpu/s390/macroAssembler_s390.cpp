@@ -4316,7 +4316,7 @@ void MacroAssembler::inline_layout_info(Register holder_klass, Register index, R
   if (is_power_of_2(size)) {
     z_sllg(index, index, log2i_exact(size)); // Scale index by power of 2
   } else {
-    z_msghi(index, size); // Scale the index to be the entry index * array_element_size
+    z_msgfi(index, size); // Scale the index to be the entry index * array_element_size
   }
   z_lay(layout_info, Address(layout_info, index, Array<InlineLayoutInfo>::base_offset_in_bytes()));
 }
