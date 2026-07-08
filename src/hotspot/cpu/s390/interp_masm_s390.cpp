@@ -1245,7 +1245,7 @@ void InterpreterMacroAssembler::profile_acmp(Register mdp,
                                              Register right,
                                              Register tmp) {
   if (ProfileInterpreter) {
-    assert_different_registers(mdp, left, right, tmp);
+    assert_different_registers(mdp, left, right, tmp, Z_ARG4);
     Label profile_continue;
 
     // If no method data exists, go to profile_continue.
@@ -1255,9 +1255,7 @@ void InterpreterMacroAssembler::profile_acmp(Register mdp,
     profile_obj_type(tmp, Address(mdp, in_bytes(ACmpData::left_offset())), Z_ARG4);
 
     Label left_not_inline_type;
-    compareU64_and_branch(left, (intptr_t)0, Assembler::bcondEqual, left_not_inline_type);
-    z_lg(tmp, Address(left, oopDesc::mark_offset_in_bytes()));
-    test_markword_is_inline_type(tmp, left_not_inline_type);
+    test_oop_is_not_inline_type(left, tmp, left_not_inline_type);
     set_mdp_flag_at(mdp, ACmpData::left_inline_type_byte_constant());
     bind(left_not_inline_type);
 
@@ -1265,9 +1263,7 @@ void InterpreterMacroAssembler::profile_acmp(Register mdp,
     profile_obj_type(tmp, Address(mdp, in_bytes(ACmpData::right_offset())), Z_ARG4);
 
     Label right_not_inline_type;
-    compareU64_and_branch(right, (intptr_t)0, Assembler::bcondEqual, right_not_inline_type);
-    z_lg(tmp, Address(right, oopDesc::mark_offset_in_bytes()));
-    test_markword_is_inline_type(tmp, right_not_inline_type);
+    test_oop_is_not_inline_type(right, tmp, right_not_inline_type);
     set_mdp_flag_at(mdp, ACmpData::right_inline_type_byte_constant());
     bind(right_not_inline_type);
 
