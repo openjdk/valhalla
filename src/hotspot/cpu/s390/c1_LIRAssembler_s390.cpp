@@ -519,14 +519,11 @@ void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) {
   assert(rtype == relocInfo::none ||
          rtype == relocInfo::opt_virtual_call_type ||
          rtype == relocInfo::static_call_type, "unexpected rtype");
-  if (op->maybe_return_as_fields()) {
-    __ stop("implement function LIR_Assembler::call");
-  }
   // Prepend each BRASL with a nop.
   __ relocate(rtype);
   __ z_nop();
   __ z_brasl(Z_R14, op->addr());
-  add_call_info(code_offset(), op->info());
+  add_call_info(code_offset(), op->info(), op->maybe_return_as_fields());
 }
 
 void LIR_Assembler::ic_call(LIR_OpJavaCall* op) {
@@ -1232,9 +1229,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
          (result->is_single_fpu() && result->as_float_reg() == Z_F0) ||
          (result->is_double_fpu() && result->as_double_reg() == Z_F0), "convention");
 
-  if (InlineTypeReturnedAsFields) {
-    __ stop("implement function LIR_Assembler::return_op");
-  }
+  assert(!InlineTypeReturnedAsFields, "unimplemented");
 
   __ z_lg(Z_R1_scratch, Address(Z_thread, JavaThread::polling_page_offset()));
 
@@ -2430,7 +2425,7 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len = op->len()->as_register();
   __ move_reg_if_needed(len, T_LONG, len, T_INT); // sign extend
 
-  if (UseSlowPath ||
+  if (UseSlowPath || op->always_slow_path() ||
       (!UseFastNewObjectArray && (is_reference_type(op->type()))) ||
       (!UseFastNewTypeArray   && (!is_reference_type(op->type())))) {
     __ z_brul(*op->stub()->entry());
@@ -2485,10 +2480,6 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   Register Rtmp1 = Z_R1_scratch;
   ciKlass* k = op->klass();
 
-  if (!op->need_null_check()) {
-    __ stop("implement function LIR_Assembler::emit_typecheck_helper");
-  }
-
   assert(!op->tmp3()->is_valid(), "tmp3's not needed");
 
   // Check if it needs to be profiled.
@@ -2515,23 +2506,25 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   }
   assert_different_registers(obj, k_RInfo, klass_RInfo);
 
-  if (op->should_profile()) {
-    Register mdo = klass_RInfo;
-    metadata2reg(md->constant_encoding(), mdo);
-    NearLabel not_null;
-    __ compareU64_and_branch(obj, (intptr_t) 0, Assembler::bcondNotEqual, not_null);
-    // Object is null; update MDO and exit.
-    Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
-    int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-    __ or2mem_8(data_addr, header_bits);
-    __ branch_optimized(Assembler::bcondAlways, *obj_is_null);
-    __ bind(not_null);
+  if (op->need_null_check()) {
+    if (op->should_profile()) {
+      Register mdo = klass_RInfo;
+      metadata2reg(md->constant_encoding(), mdo);
+      NearLabel not_null;
+      __ compareU64_and_branch(obj, (intptr_t) 0, Assembler::bcondNotEqual, not_null);
+      // Object is null; update MDO and exit.
+      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
+      int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
+      __ or2mem_8(data_addr, header_bits);
+      __ branch_optimized(Assembler::bcondAlways, *obj_is_null);
+      __ bind(not_null);
 
-    Register recv = k_RInfo;
-    __ load_klass(recv, obj);
-    type_profile_helper(mdo, md, data, recv, Rtmp1);
-  } else {
-    __ compareU64_and_branch(obj, (intptr_t) 0, Assembler::bcondEqual, *obj_is_null);
+      Register recv = k_RInfo;
+      __ load_klass(recv, obj);
+      type_profile_helper(mdo, md, data, recv, Rtmp1);
+    } else {
+      __ compareU64_and_branch(obj, (intptr_t) 0, Assembler::bcondEqual, *obj_is_null);
+    }
   }
 
   Label *failure_target = failure;
