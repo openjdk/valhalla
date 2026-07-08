@@ -6578,7 +6578,6 @@ void MacroAssembler::compiler_fast_lock_object(Register obj, Register box, Regis
       for (int i = 0; i < num_unrolled; i++) {
         z_lg(tmp1_monitor, Address(Z_thread, cache_offset + monitor_offset));
         z_cg(obj, Address(Z_thread, cache_offset));
-        z_lg(tmp1_monitor, Address(Z_thread, cache_offset + monitor_offset));
         z_bre(monitor_found);
         cache_offset = cache_offset + OMCache::oop_to_oop_difference();
       }
