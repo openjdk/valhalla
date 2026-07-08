@@ -234,10 +234,6 @@ void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler *masm, Register tmp1,
   __ compareU64_and_branch(tmp2, (intptr_t)0, Assembler::bcondNotEqual, skip_barrier);
 
   // Class loader is weak. Determine whether the holder is still alive.
-  // _holder is a WeakHandle backed by Universe::vm_weak(). Any CLD that
-  // reaches here has keep_alive_ref_count == 0 and always has a non-null
-  // _holder._obj (CLDs with a null class loader or has_class_mirror_holder
-  // both have keep_alive_ref_count > 0 and are caught by the fast path above).
   // On s390 neither ZGC nor Shenandoah are supported, so resolve_oop_handle
   // with IN_NATIVE (without ON_PHANTOM_OOP_REF) is sufficient; the additional
   // GC barrier required by those collectors is not needed here.
