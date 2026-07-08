@@ -4253,18 +4253,22 @@ void MacroAssembler::store_klass_gap(Register s, Register d) {
     z_mvhi(Address(d, oopDesc::klass_gap_offset_in_bytes()), 0);
   }
 }
+
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
-  Label test_mark_word;
+  assert_different_registers(oop, temp_reg);
+  assert(test_bit <= 0xFFFF, "must fit in low 16 bits for z_tmll");
   // Load mark word
   z_lg(temp_reg, oopDesc::mark_offset_in_bytes(), oop);
-  // If unlocked bit is set we can directly use the mark word
-  z_tmll(temp_reg, markWord::unlocked_value);
-  z_brnaz(test_mark_word);
-  // Slow path: use klass prototype
-  load_klass(temp_reg, oop);
-  z_lg(temp_reg, Address(temp_reg, in_bytes(Klass::prototype_header_offset())));
-
-  bind(test_mark_word);
+  if (!UseObjectMonitorTable) {
+    Label test_mark_word;
+    // If unlocked bit is set we can directly use the mark word
+    z_tmll(temp_reg, markWord::unlocked_value);
+    z_brnaz(test_mark_word);
+    // Slow path: use klass prototype
+    load_klass(temp_reg, oop);
+    z_lg(temp_reg, Address(temp_reg, in_bytes(Klass::prototype_header_offset())));
+    bind(test_mark_word);
+  }
   z_tmll(temp_reg, test_bit);
   if (jmp_set) {
     z_brnaz(jmp_label);
@@ -4290,8 +4294,7 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
 }
 
 void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
-  // Test the layout helper for the flat array bit
-  z_tmll(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
+  testbit(lh, exact_log2(Klass::_lh_array_tag_flat_value_bit_inplace));
   z_brnaz(is_flat_array);
 }
 
@@ -4313,7 +4316,7 @@ void MacroAssembler::inline_layout_info(Register holder_klass, Register index, R
   if (is_power_of_2(size)) {
     z_sllg(index, index, log2i_exact(size)); // Scale index by power of 2
   } else {
-    z_mghi(index, size); // Scale the index to be the entry index * array_element_size
+    z_msghi(index, size); // Scale the index to be the entry index * array_element_size
   }
   z_lay(layout_info, Address(layout_info, index, Array<InlineLayoutInfo>::base_offset_in_bytes()));
 }
@@ -5022,12 +5025,13 @@ unsigned int MacroAssembler::Clear_Array_Const_Big(long cnt, Register base_point
 
 // Fill words with a non-zero value.
 void MacroAssembler::fill_words(Register base, Register cnt, Register value, Register tmp) {
+  assert_different_registers(base, cnt, value, tmp);
   Label loop, loop_end, done;
 
   BLOCK_COMMENT("fill_words {");
 
-  // 2x unrolled loop
-  z_srag(tmp, cnt, 1);    // tmp = cnt / 2
+  // 2x unrolled loop; cnt == 0 is handled correctly (both branches skip, falls to done)
+  z_srag(tmp, cnt, 1);    // tmp = cnt / 2, sets CC
   z_bre(loop_end);         // skip pair loop if cnt < 2
 
   // Loop for pairs of words
@@ -6136,12 +6140,12 @@ void MacroAssembler::verify_oop(Register oop, const char* msg) {
   }
 
   BLOCK_COMMENT("verify_oop {");
+  // 5 GPRs (Z_R1-Z_R5) + 8 FPRs (Z_F0-Z_F7) + 1 word for CC save (z_mvi writes 1 byte)
   unsigned int nbytes_save = (5 + 8 + 1) * BytesPerWord;
   address entry_addr = StubRoutines::verify_oop_subroutine_entry_address();
 
   save_return_pc();
 
-  // Push frame, but preserve flags
   z_lgr(Z_R0, Z_SP);
   z_lay(Z_SP, -((int64_t)nbytes_save + frame::z_abi_160_size), Z_SP);
   z_stg(Z_R0, _z_abi(callers_sp), Z_SP);
@@ -6359,15 +6363,18 @@ void MacroAssembler::fast_lock(Register basic_lock, Register obj, Register temp1
   z_cg(obj, Address(Z_thread, top));
   z_bre(push);
 
-  // Check header for monitor (0b10).
+  // Check for monitor (0b10) to avoid a doomed CAS; a locked (0b00) object
+  // will also fail the CAS below and correctly fall to slow.
   z_tmll(mark, markWord::monitor_value);
   branch_optimized(bcondNotAllZero, slow);
 
   { // Try to lock. Transition lock bits 0b01 => 0b00
+    static_assert((uint32_t)markWord::inline_type_bit_in_place <= 0x7FFFFFFF,
+                  "inline_type_bit_in_place must fit in low 32 bits for z_nilf");
     const Register locked_obj = top;
     z_oill(mark, markWord::unlocked_value);
-    // Mask inline_type bit such that we go to the slow path if object is an inline type
-    z_nilf(mark, ~((int32_t)markWord::inline_type_bit_in_place));
+    // Mask inline_type bit so CAS fails (-> slow) if object is an inline type.
+    z_nilf(mark, ~((uint32_t)markWord::inline_type_bit_in_place));
     z_lgr(locked_obj, mark);
     // Clear lock-bits from locked_obj (locked state)
     z_xilf(locked_obj, markWord::unlocked_value);
@@ -6523,10 +6530,12 @@ void MacroAssembler::compiler_fast_lock_object(Register obj, Register box, Regis
 
     { // Try to lock. Transition lock bits 0b01 => 0b00
       assert(mark_offset == 0, "required to avoid a lea");
+      static_assert((uint32_t)markWord::inline_type_bit_in_place <= 0x7FFFFFFF,
+                    "inline_type_bit_in_place must fit in low 32 bits for z_nilf");
       const Register locked_obj = top;
       z_oill(mark, markWord::unlocked_value);
-      // Mask inline_type bit such that we go to the slow path if object is an inline type
-      z_nilf(mark, ~((int32_t)markWord::inline_type_bit_in_place));
+      // Mask inline_type bit so CAS fails (-> slow) if object is an inline type.
+      z_nilf(mark, ~((uint32_t)markWord::inline_type_bit_in_place));
       z_lgr(locked_obj, mark);
       // Clear lock-bits from locked_obj (locked state)
       z_xilf(locked_obj, markWord::unlocked_value);
@@ -6569,6 +6578,7 @@ void MacroAssembler::compiler_fast_lock_object(Register obj, Register box, Regis
       for (int i = 0; i < num_unrolled; i++) {
         z_lg(tmp1_monitor, Address(Z_thread, cache_offset + monitor_offset));
         z_cg(obj, Address(Z_thread, cache_offset));
+        z_lg(tmp1_monitor, Address(Z_thread, cache_offset + monitor_offset));
         z_bre(monitor_found);
         cache_offset = cache_offset + OMCache::oop_to_oop_difference();
       }
@@ -6603,23 +6613,21 @@ void MacroAssembler::compiler_fast_lock_object(Register obj, Register box, Regis
     NearLabel monitor_locked;
     // lock the monitor
 
-    const Register zero           = tmp2;
+    const Register expected       = tmp2; // holds 0 (expected owner) before CAS; filled with actual owner on CAS failure
 
     const ByteSize monitor_tag = in_ByteSize(UseObjectMonitorTable ? 0 : checked_cast<int>(markWord::monitor_value));
     const Address owner_address(tmp1_monitor, ObjectMonitor::owner_offset() - monitor_tag);
     const Address recursions_address(tmp1_monitor, ObjectMonitor::recursions_offset() - monitor_tag);
 
-
     // Try to CAS owner (no owner => current thread's _monitor_owner_id).
-    // If csg succeeds then CR=EQ, otherwise, register zero is filled
-    // with the current owner.
-    z_lghi(zero, 0);
+    // On failure, z_csg loads the actual owner into expected.
+    z_lghi(expected, 0);
     z_lg(Z_R0_scratch, Address(Z_thread, JavaThread::monitor_owner_id_offset()));
-    z_csg(zero, Z_R0_scratch, owner_address);
+    z_csg(expected, Z_R0_scratch, owner_address);
     z_bre(monitor_locked);
 
-    // Check if recursive.
-    z_cgr(Z_R0_scratch, zero); // zero contains the owner from z_csg instruction
+    // Check if recursive: expected now holds the actual owner after failed CAS.
+    z_cgr(Z_R0_scratch, expected);
     z_brne(slow_path);
 
     // Recursive
@@ -6630,7 +6638,7 @@ void MacroAssembler::compiler_fast_lock_object(Register obj, Register box, Regis
       // Cache the monitor for unlock
       z_stg(tmp1_monitor, Address(box, BasicLock::object_monitor_cache_offset_in_bytes()));
     }
-    // set the CC now
+    // z_agsi/z_csg above clobber CC; restore to EQ for the locked label contract.
     z_cgr(obj, obj);
   }
   BLOCK_COMMENT("} handle_inflated_monitor_locking");

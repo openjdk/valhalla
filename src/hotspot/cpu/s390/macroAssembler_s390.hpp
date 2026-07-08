@@ -870,7 +870,8 @@ void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inlin
   // Uses tmp1 and tmp2 as temporary registers.
   void cmp_klasses_from_objects(Register obj1, Register obj2, Register tmp1, Register tmp2);
 
-  // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
+  // Check oops for special arrays, i.e. flat arrays and/or null-free arrays.
+  // temp_reg is clobbered; oop and temp_reg must be distinct.
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
   void test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array);
   void test_non_flat_array_oop(Register oop, Register temp_reg, Label& is_non_flat_array);
