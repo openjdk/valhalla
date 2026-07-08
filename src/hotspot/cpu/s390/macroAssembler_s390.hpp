@@ -915,6 +915,7 @@ void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inlin
 
   void resolve_oop_handle(Register result, Register tmp1, Register tmp2);
   void load_method_holder(Register holder, Register method);
+  void load_method_holder_cld(Register result, Register method);
 
   //--------------------------
   //---  Operations on arrays.

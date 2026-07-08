@@ -4804,6 +4804,11 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
   mem2reg_opt(holder, Address(holder, ConstantPool::pool_holder_offset()));
 }
 
+void MacroAssembler::load_method_holder_cld(Register result, Register method) {
+  load_method_holder(result, method);
+  z_lg(result, Address(result, InstanceKlass::class_loader_data_offset()));
+}
+
 //---------------------------------------------------------------
 //---  Operations on arrays.
 //---------------------------------------------------------------
