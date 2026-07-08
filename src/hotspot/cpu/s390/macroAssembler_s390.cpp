@@ -3923,14 +3923,15 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 }
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
-  assert_different_registers(object, tmp);
+  assert_different_registers(Z_R0, tmp);
+  assert_different_registers(Z_R0, object);
   if (can_be_null) {
     z_ltgr(object, object);
     z_bre(not_inline_type);
   }
-  z_lg(tmp, oopDesc::mark_offset_in_bytes(), object);
-  z_nilf(tmp, markWord::inline_type_pattern_mask);
-  z_chi(tmp, markWord::inline_type_pattern);
+  z_lg(Z_R0, oopDesc::mark_offset_in_bytes(), object);
+  z_nilf(Z_R0, markWord::inline_type_pattern_mask);
+  z_chi(Z_R0, markWord::inline_type_pattern);
   z_brne(not_inline_type);
 }
 
