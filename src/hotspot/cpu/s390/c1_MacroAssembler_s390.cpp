@@ -58,7 +58,6 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
                                            int sp_inc, bool reset_orig_pc, bool needs_stack_repair) {
   save_return_pc();
   push_frame(frame_size_in_bytes);
-  ShouldNotCallThis(); // poison: remove once validated on s390x
   if (needs_stack_repair) {
     // Save real frame size (frame + sp extension) so the callee can repair
     // the sender SP on return.  Slot is at frame_size - wordSize relative to
@@ -66,6 +65,7 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
     //
     // TODO (s390x): validate slot offset against frame layout once
     // InlineTypePassFieldsAsArgs is enabled on s390x.
+    ShouldNotCallThis(); // poison: remove once validated on s390x
     assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
     int real_frame_size = sp_inc + frame_size_in_bytes;
     z_mvghi(frame_size_in_bytes - wordSize, Z_SP, real_frame_size);
@@ -77,6 +77,7 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offse
     //
     // TODO (s390x): validate sp_offset_for_orig_pc against the s390x frame
     // layout (z_abi_160 + compiler frame) once the feature is enabled.
+    ShouldNotCallThis(); // poison: remove once validated on s390x
     z_mvghi(sp_offset_for_orig_pc, Z_SP, 0);
   }
 }
