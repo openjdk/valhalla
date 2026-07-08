@@ -134,13 +134,11 @@ void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   __ untested("LoadFlattenedArrayStub::emit_code");
   ce->store_parameter(_array->as_register(), 1);
   ce->store_parameter(_index->as_register(), 0);
-  __ load_const_optimized(Z_R1_scratch, Runtime1::entry_for(StubId::c1_load_flat_array_id));
-  __ z_basr(Z_R14, Z_R1_scratch);
+  ce->emit_call_c(Runtime1::entry_for(StubId::c1_load_flat_array_id));
+  CHECK_BAILOUT();
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
-  if (_result->as_register() != Z_R2) {
-    __ z_lgr(_result->as_register(), Z_R2);
-  }
+  __ lgr_if_needed(_result->as_register(), Z_R2);
   __ branch_optimized(Assembler::bcondAlways, _continuation);
 }
 
@@ -160,8 +158,8 @@ void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   ce->store_parameter(_array->as_register(), 2);
   ce->store_parameter(_index->as_register(), 1);
   ce->store_parameter(_value->as_register(), 0);
-  __ load_const_optimized(Z_R1_scratch, Runtime1::entry_for(StubId::c1_store_flat_array_id));
-  __ z_basr(Z_R14, Z_R1_scratch);
+  ce->emit_call_c(Runtime1::entry_for(StubId::c1_store_flat_array_id));
+  CHECK_BAILOUT();
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ branch_optimized(Assembler::bcondAlways, _continuation);
@@ -180,8 +178,8 @@ void SubstitutabilityCheckStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   ce->store_parameter(_left->as_register(), 1);
   ce->store_parameter(_right->as_register(), 0);
-  __ load_const_optimized(Z_R1_scratch, Runtime1::entry_for(StubId::c1_substitutability_check_id));
-  __ z_basr(Z_R14, Z_R1_scratch);
+  ce->emit_call_c(Runtime1::entry_for(StubId::c1_substitutability_check_id));
+  CHECK_BAILOUT();
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   __ branch_optimized(Assembler::bcondAlways, _continuation);
@@ -295,12 +293,14 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   if (_throw_ie_stub != nullptr) {
+    static_assert((markWord::inline_type_pattern_mask & ~0xffff) == 0,
+        "inline_type_pattern_mask must fit in 16-bit immediate of z_nill");
     static_assert((markWord::inline_type_pattern & ~0xffff) == 0,
         "inline_type_pattern must fit in 16-bit immediate of z_cghi");
     // When we come here, _obj_reg has already been checked to be non-null.
     Register scratch = _scratch_reg->as_register();
     __ z_lg(scratch, oopDesc::mark_offset_in_bytes(), _obj_reg->as_register());
-    __ z_nill(scratch, markWord::inline_type_pattern);
+    __ z_nill(scratch, markWord::inline_type_pattern_mask);
     __ z_cghi(scratch, markWord::inline_type_pattern);
     __ branch_optimized(Assembler::bcondEqual, *_throw_ie_stub->entry());
   }
