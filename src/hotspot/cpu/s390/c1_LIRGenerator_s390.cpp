@@ -31,7 +31,7 @@
 #include "c1/c1_Runtime1.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArray.hpp"
-#include "ci/ciInstanceKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -274,7 +274,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   // "lock" stores the address of the monitor stack slot, so this is not an oop.
   LIR_Opr lock = new_register(T_INT);
-  LIR_Opr scratch = new_register(T_INT);
+  LIR_Opr scratch = new_register(T_LONG);
 
   CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
@@ -824,14 +824,6 @@ void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
 void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   // Evaluate state_for early since it may emit code.
   CodeEmitInfo* info = state_for (x, x->state());
-  if (x->klass()->is_loaded()) {
-    ciKlass* loaded_obj = ciObjArrayKlass::make(x->klass());
-    bool is_flat = loaded_obj->is_flat_array_klass();
-    bool is_null_free = loaded_obj->as_array_klass()->is_elem_null_free();
-    if (is_flat || is_null_free) {
-      bailout("implement function LIRGenerator::do_NewObjectArray");
-    }
-  }
   // In case of patching (i.e., object class is not yet loaded), we need to reexecute the instruction
   // and therefore provide the state before the parameters have been consumed.
   CodeEmitInfo* patching_info = nullptr;
@@ -952,9 +944,8 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   LIR_Opr reg = rlock_result(x);
   LIR_Opr tmp1 = new_register(objectType);
   LIR_Opr tmp2 = new_register(objectType);
-  LIR_Opr tmp3 = LIR_OprFact::illegalOpr;
   __ checkcast(reg, obj.result(), x->klass(),
-               tmp1, tmp2, tmp3,
+               tmp1, tmp2, LIR_OprFact::illegalOpr,
                x->direct_compare(), info_for_exception, patching_info, stub,
                x->profiled_method(), x->profiled_bci(), x->is_null_free());
 }
