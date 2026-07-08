@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Migration of JDK Classes to Value Classes</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="../make/data/docs-resources/resources/jdk-default.css" />
+  <style type="text/css">pre, code, tt { color: #1d6ae5; }</style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Migration of JDK Classes to Value Classes</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#the-build-process" id="toc-the-build-process">The Build
+Process</a>
+<ul>
+<li><a href="#hardcoding-for-value-objects-jep"
+id="toc-hardcoding-for-value-objects-jep">Hardcoding for Value Objects
+JEP</a></li>
+<li><a href="#preview-classes-in-interim-javac"
+id="toc-preview-classes-in-interim-javac">Preview Classes in Interim
+<code>javac</code></a></li>
+</ul></li>
+<li><a href="#testing" id="toc-testing">Testing</a></li>
+<li><a href="#wrapper-class-caches"
+id="toc-wrapper-class-caches">Wrapper Class Caches</a></li>
+<li><a href="#editing-this-document"
+id="toc-editing-this-document">Editing This Document</a></li>
+</ul>
+</nav>
+<h2 id="introduction">Introduction</h2>
+<p>The "Value Objects" JEP introduces value objects and migrates
+suitable classes to value classes. This means that when preview features
+are enabled, a different classpath is available to Java programs. To
+accomplish this, the JDK has a custom build and deployment process to
+allow access to different classpaths.</p>
+<h2 id="the-build-process">The Build Process</h2>
+<p>The build system has a fully automated pipeline from preview-only
+source files for each module to preview-ready image binaries. The source
+files are currently hardcoded in <code>GENERATED_PREVIEW_SUBDIRS</code>
+variable in <a
+href="../make/common/Modules.gmk"><code>make/common/Modules.gmk</code></a>.</p>
+<h3 id="hardcoding-for-value-objects-jep">Hardcoding for Value Objects
+JEP</h3>
+<p>For the Value Objects JEP, for each module, the preview source files
+are in
+<code>$(SUPPORT_OUTPUTDIR)/gensrc-valueclasses/&lt;module&gt;/</code>
+directory. However, only the module <code>java.base</code> actually
+makes use of this directory, created by <a
+href="../make/modules/java.base/gensrc/GensrcValueClasses.gmk"><code>GensrcValueClasses.gmk</code></a>.
+This processor simply looks for occurrences of
+<code>/*value*/ class</code> and <code>/*value*/ record</code> in the
+hardcoded list of source files, and generate preview source files where
+these occurrences are replaced by <code>value class</code> and
+<code>value record</code>, respectively.</p>
+<p>The Value Objects JEP does not intend to introduce value classes that
+are not migrated from a class that is available when preview features
+are disabled, nor does it intend to introduce migrations from modules
+other than <code>java.base</code>. The preview source file setup would
+require substantial changes to accomplish these goals.</p>
+<h3 id="preview-classes-in-interim-javac">Preview Classes in Interim
+<code>javac</code></h3>
+<p>The preview classpath files are not available to the interim
+<code>javac</code>, most commonly used in
+<code>SetupJavaCompilation</code> call. For each module that ships
+preview-specific binaries, the following javac flag is required for a
+preview-enabled compilation:</p>
+<pre><code>--patch-module &lt;module&gt;=$(SUPPORT_OUTPUTDIR)/preview/&lt;module&gt;</code></pre>
+<p>See <a
+href="../make/test/BuildMicrobenchmark.gmk"><code>BuildMicroBenchmarks.gmk</code></a>
+for an example.</p>
+<h2 id="testing">Testing</h2>
+<p>In addition to tests that require preview features to be enabled,
+tests that do not depend on preview features wish to run with preview
+features enabled to ensure compatibility:</p>
+<ol type="1">
+<li><p>Some tests wish to run against the preview system classpath.</p>
+<p>The jtreg tests may be run with
+<code>JTREG=VM_OPTIONS=--enable-preview</code>.</p></li>
+<li><p>Some tests wish to run against their own classes migrated to
+value classes.</p>
+<p>The jtreg <a
+href="testing.html#VALUE_CLASS_PLUGIN">VALUE_CLASS_PLUGIN</a> allows
+tests to migrate their own classes to value classes when running with
+the plugin.</p></li>
+</ol>
+<h2 id="wrapper-class-caches">Wrapper Class Caches</h2>
+<p>Currently, wrapper class caches are retained even when preview
+features are enabled. They are created with
+<code>ValueClass.newReferenceArray</code>, which creates a non-flat
+array storing object references, allowing a value object wrapping a
+primitive value to be available quickly without redundant allocations
+and associated performance regressions. Their existence have no semantic
+meaning, and they may be removed when the performance regressions are
+eliminated or reduced.</p>
+<h2 id="editing-this-document">Editing This Document</h2>
+<p>If you want to contribute changes to this document, edit
+<code>doc/value-class-preview.md</code> and then run
+<code>make update-build-docs</code> to generate the same changes in
+<code>doc/value-class-preview.html</code>.</p>
+</body>
+</html>
