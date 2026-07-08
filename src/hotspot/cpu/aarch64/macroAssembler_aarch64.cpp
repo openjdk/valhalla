@@ -2363,7 +2363,7 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 }
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
-  assert_different_registers(tmp, rscratch1, object);
+  assert_different_registers(tmp, rscratch1);
   if (can_be_null) {
     cbz(object, not_inline_type);
   }
