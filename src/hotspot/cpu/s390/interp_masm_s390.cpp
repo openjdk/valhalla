@@ -2108,7 +2108,7 @@ void InterpreterMacroAssembler::write_flat_field(Register entry, Register field_
 
   // Load flags and check if field is null-free inline type
   load_sized_value(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())), sizeof(u1), false);
-  test_field_is_not_null_free_inline_type(tmp1, slow_path);
+  test_field_is_not_null_free_inline_type(tmp1, noreg, slow_path);
 
   // Null check the value being stored
   null_check(Z_tos);  // FIXME JDK-8341120

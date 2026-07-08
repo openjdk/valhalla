@@ -26,6 +26,7 @@
 
 #include "asm/codeBuffer.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "code/compiledIC.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -40,8 +41,10 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/methodData.hpp"
+#include "oops/resolvedFieldEntry.hpp"
 #include "prims/methodHandles.hpp"
 #include "registerSaver_s390.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/objectMonitor.hpp"
@@ -50,10 +53,15 @@
 #include "runtime/safepoint.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/signature_cc.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
+#include "vmreg_s390.inline.hpp"
+#ifdef COMPILER2
+#include "opto/output.hpp"
+#endif
 
 #include <ucontext.h>
 
@@ -2397,6 +2405,10 @@ void MacroAssembler::call_VM(Register oop_result, Register last_java_sp, address
 
 // VM leaf calls.
 
+void MacroAssembler::super_call_VM_leaf(address entry_point) {
+  MacroAssembler::call_VM_leaf_base(entry_point, true);
+}
+
 void MacroAssembler::call_VM_leaf(address entry_point) {
   // Call takes possible detour via InterpreterMacroAssembler.
   call_VM_leaf_base(entry_point, true);
@@ -3925,17 +3937,20 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
   z_brne(not_inline_type);
 }
 
-void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Label& is_null_free) {
+void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free) {
+  assert(temp_reg == noreg, "not needed");
   testbit(flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
   z_brc(Assembler::bcondNotZero, is_null_free);
 }
 
-void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Label& not_null_free_inline_type) {
+void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
+  assert(temp_reg == noreg, "not needed");
   testbit(flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
   z_brc(Assembler::bcondZero, not_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_flat(Register flags, Label& is_flat) {
+void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
+  assert(temp_reg == noreg, "not needed");
   testbit(flags, ResolvedFieldEntry::is_flat_shift);
   z_brc(Assembler::bcondNotZero, is_flat);
 }
@@ -4211,6 +4226,15 @@ void MacroAssembler::load_klass(Register klass, Register src_oop) {
   }
 }
 
+void MacroAssembler::load_metadata(Register dst, Register src) {
+  untested("load_metadata");
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+  } else {
+    z_llgf(dst, oopDesc::klass_offset_in_bytes(), src);
+  }
+}
+
 void MacroAssembler::load_prototype_header(Register dst, Register src) {
   load_klass(dst, src);
   z_lg(dst, Address(dst, Klass::prototype_header_offset()));
@@ -4276,6 +4300,28 @@ void MacroAssembler::test_flat_array_layout(Register lh, Label& is_flat_array) {
   z_brnaz(is_flat_array);
 }
 
+void MacroAssembler::inline_layout_info(Register holder_klass, Register index, Register layout_info) {
+  untested("inline_layout_info");
+  assert_different_registers(holder_klass, index, layout_info);
+  z_lg(layout_info, Address(holder_klass, InstanceKlass::inline_layout_info_array_offset()));
+#ifdef ASSERT
+  {
+    Label done;
+    z_ltgr(layout_info, layout_info);
+    z_brne(done);
+    stop("inline_layout_info_array is null");
+    bind(done);
+  }
+#endif
+  InlineLayoutInfo array[2];
+  int size = (char*)&array[1] - (char*)&array[0]; // computing size of array elements
+  if (is_power_of_2(size)) {
+    z_sllg(index, index, log2i_exact(size)); // Scale index by power of 2
+  } else {
+    z_mghi(index, size); // Scale the index to be the entry index * array_element_size
+  }
+  z_lay(layout_info, Address(layout_info, index, Array<InlineLayoutInfo>::base_offset_in_bytes()));
+}
 
 // Compare klass ptr in memory against klass ptr in register.
 //
@@ -4518,6 +4564,31 @@ void MacroAssembler::store_heap_oop(Register Roop, const Address &a,
                                     Register tmp1, Register tmp2, Register tmp3,
                                     DecoratorSet decorators) {
   access_store_at(T_OBJECT, IN_HEAP | decorators, a, Roop, tmp1, tmp2, tmp3);
+}
+
+void MacroAssembler::flat_field_copy(DecoratorSet decorators, Register src, Register dst,
+                                     Register inline_layout_info) {
+  untested("flat_field_copy");
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->flat_field_copy(this, decorators, src, dst, inline_layout_info);
+}
+
+void MacroAssembler::payload_offset(Register inline_klass, Register offset) {
+  untested("payload_offset");
+  z_lg(offset, Address(inline_klass, InlineKlass::adr_members_offset()));
+  z_lgf(offset, Address(offset, InlineKlass::payload_offset_offset()));
+}
+
+void MacroAssembler::payload_addr(Register oop, Register data, Register inline_klass) {
+  untested("payload_addr");
+  // ((address) (void*) o) + vk->payload_offset();
+  Register offset = (data == oop) ? Z_R0_scratch : data;
+  payload_offset(inline_klass, offset);
+  if (data == oop) {
+    z_agr(data, offset);
+  } else {
+    z_lay(data, Address(oop, offset));
+  }
 }
 
 //-------------------------------------------------
@@ -6063,7 +6134,11 @@ void MacroAssembler::restore_volatile_regs(Register src, int offset, bool includ
 
 // Plausibility check for oops.
 void MacroAssembler::verify_oop(Register oop, const char* msg) {
-  if (!VerifyOops) return;
+  if (!VerifyOops || VerifyAdapterSharing) {
+    // Below address of the code string confuses VerifyAdapterSharing
+    // because it may differ between otherwise equivalent adapters.
+    return;
+  }
 
   BLOCK_COMMENT("verify_oop {");
   unsigned int nbytes_save = (5 + 8 + 1) * BytesPerWord;
@@ -6092,7 +6167,11 @@ void MacroAssembler::verify_oop(Register oop, const char* msg) {
 }
 
 void MacroAssembler::verify_oop_addr(Address addr, const char* msg) {
-  if (!VerifyOops) return;
+  if (!VerifyOops || VerifyAdapterSharing) {
+    // Below address of the code string confuses VerifyAdapterSharing
+    // because it may differ between otherwise equivalent adapters.
+    return;
+  }
 
   BLOCK_COMMENT("verify_oop {");
   unsigned int nbytes_save = (5 + 8) * BytesPerWord;
@@ -6292,6 +6371,8 @@ void MacroAssembler::fast_lock(Register basic_lock, Register obj, Register temp1
   { // Try to lock. Transition lock bits 0b01 => 0b00
     const Register locked_obj = top;
     z_oill(mark, markWord::unlocked_value);
+    // Mask inline_type bit such that we go to the slow path if object is an inline type
+    z_nilf(mark, ~((int32_t)markWord::inline_type_bit_in_place));
     z_lgr(locked_obj, mark);
     // Clear lock-bits from locked_obj (locked state)
     z_xilf(locked_obj, markWord::unlocked_value);
@@ -6449,6 +6530,8 @@ void MacroAssembler::compiler_fast_lock_object(Register obj, Register box, Regis
       assert(mark_offset == 0, "required to avoid a lea");
       const Register locked_obj = top;
       z_oill(mark, markWord::unlocked_value);
+      // Mask inline_type bit such that we go to the slow path if object is an inline type
+      z_nilf(mark, ~((int32_t)markWord::inline_type_bit_in_place));
       z_lgr(locked_obj, mark);
       // Clear lock-bits from locked_obj (locked state)
       z_xilf(locked_obj, markWord::unlocked_value);
