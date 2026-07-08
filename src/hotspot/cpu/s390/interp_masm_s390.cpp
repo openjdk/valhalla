@@ -1219,14 +1219,13 @@ void InterpreterMacroAssembler::profile_taken_branch(Register mdp, Register bump
 
 // Kills Z_R1_scratch.
 void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp, bool acmp) {
-  // TODO: untested(profile_not_taken_branch)
   if (ProfileInterpreter) {
     Label profile_continue;
 
     // If no method data exists, go to profile_continue.
     test_method_data_pointer(mdp, profile_continue);
 
-    // We are taking a branch. Increment the not taken count.
+    // We are not taking a branch. Increment the not taken count.
     increment_mdp_data_at(mdp, in_bytes(BranchData::not_taken_offset()));
 
     // The method data pointer needs to be updated.
