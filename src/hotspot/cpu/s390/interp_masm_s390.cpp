@@ -1503,6 +1503,7 @@ void InterpreterMacroAssembler::profile_obj_type(Register obj, Address mdo_addr,
 
   bind(do_nothing);
 }
+
 template <class ArrayData> void InterpreterMacroAssembler::profile_array_type(Register array,
                                                                               Register tmp1,
                                                                               Register tmp2) {
