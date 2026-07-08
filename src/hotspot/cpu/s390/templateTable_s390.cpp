@@ -2923,7 +2923,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         __ push(atos);
       } else {
         Label is_flat;
-        __ test_field_is_flat(flags, noreg, is_flat);
+        __ test_field_is_flat(flags, is_flat);
         __ load_heap_oop(Z_tos, field, oopLoad_tmp1, oopLoad_tmp2);
         __ push(atos);
         if (do_rewrite) {
@@ -3505,7 +3505,7 @@ void TemplateTable::fast_storefield(TosState state) {
     case Bytecodes::_fast_vputfield:
       {
         Label is_flat, done;
-        __ test_field_is_flat(flags, noreg, is_flat);
+        __ test_field_is_flat(flags, is_flat);
         __ null_check(obj);
         do_oop_store(_masm, field, Z_tos,
                      Z_ARG2, Z_ARG3, Z_ARG4, IN_HEAP);

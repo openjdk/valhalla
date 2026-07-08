@@ -849,9 +849,9 @@ void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inlin
 
 
   // Valhalla support for inline types
-  void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
-  void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type);
-  void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
+  void test_field_is_null_free_inline_type(Register flags, Label& is_null_free);
+  void test_field_is_not_null_free_inline_type(Register flags, Label& not_null_free_inline_type);
+  void test_field_is_flat(Register flags, Label& is_flat);
 
   // Klass oop manipulations if compressed.
   void load_metadata(Register dst, Register src);

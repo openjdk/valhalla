@@ -3923,6 +3923,7 @@ void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_i
 }
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type, bool can_be_null) {
+  assert_different_registers(object, tmp);
   if (can_be_null) {
     z_ltgr(object, object);
     z_bre(not_inline_type);
@@ -3933,20 +3934,17 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
   z_brne(not_inline_type);
 }
 
-void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free) {
-  assert(temp_reg == noreg, "not needed");
+void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Label& is_null_free) {
   testbit(flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
   z_brc(Assembler::bcondNotZero, is_null_free);
 }
 
-void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
-  assert(temp_reg == noreg, "not needed");
+void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Label& not_null_free_inline_type) {
   testbit(flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
   z_brc(Assembler::bcondZero, not_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {
-  assert(temp_reg == noreg, "not needed");
+void MacroAssembler::test_field_is_flat(Register flags, Label& is_flat) {
   testbit(flags, ResolvedFieldEntry::is_flat_shift);
   z_brc(Assembler::bcondNotZero, is_flat);
 }
