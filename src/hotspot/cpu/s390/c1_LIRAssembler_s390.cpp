@@ -3065,12 +3065,10 @@ void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
   Label not_inline_type;
   __ test_oop_is_not_inline_type(obj, tmp, not_inline_type, !not_null);
 
-  // Load current byte value from MDO
-  __ z_llgc(Z_R0_scratch, mdo_offs, mdo_base);
-  // OR with flag
-  __ z_oill(Z_R0_scratch, flag);
-  // Store back
-  __ z_stcy(Z_R0_scratch, Address(mdo_base, mdo_offs));
+  // Load current byte value from MDO, OR with flag, store back.
+  __ z_llgc(tmp, mdo_offs, mdo_base);
+  __ z_oilf(tmp, flag);
+  __ z_stcy(tmp, Address(mdo_base, mdo_offs));
 
   __ bind(not_inline_type);
 }
