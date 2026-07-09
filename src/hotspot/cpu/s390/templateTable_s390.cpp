@@ -3506,7 +3506,7 @@ void TemplateTable::fast_storefield(TosState state) {
       {
         Label is_flat, done;
         __ test_field_is_flat(flags, is_flat);
-        __ null_check(obj);
+        __ null_check(Z_tos);  // Value being stored must not be null for null-free flat field.
         do_oop_store(_masm, field, Z_tos,
                      Z_ARG2, Z_ARG3, Z_ARG4, IN_HEAP);
         __ branch_optimized(Assembler::bcondAlways, done);
