@@ -1141,7 +1141,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       __ load_const_optimized(Z_ARG3, (intptr_t)alloc_inline_receiver);
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_types), Z_ARG1, Z_ARG2, Z_ARG3);
 
-      oop_maps->add_gc_map(__ offset(), map);
+      // TODO: use blob-relative offset, matching the pattern in the rest of
+      // sharedRuntime_s390.cpp ("offset() - start_off")
+      oop_maps->add_gc_map((int)(__ offset() - (start - masm->code()->insts_begin())), map);
       __ reset_last_Java_frame();
 
       RegisterSaver::restore_live_registers(masm, RegisterSaver::all_registers);
@@ -1157,8 +1159,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ bind(no_exception);
 
-      // We get an array of objects from the runtime call
+      // TODO: matching aarch64's get_vm_result_oop(), to prevent the GC from visiting a
+      // stale oop reference in the thread-local slot.
       __ z_lg(buf_array, Address(Z_thread, JavaThread::vm_result_oop_offset()));
+      __ clear_mem(Address(Z_thread, JavaThread::vm_result_oop_offset()), sizeof(oop));
     }
   }
 
@@ -1176,7 +1180,12 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // This should always fit in 14 bit immediate.
   __ resize_frame(-extraspace, Z_R0_scratch);
 
-  // Reuse Z_R11 for temporary sender SP reference in the loop
+  // TODO: loop_sender_SP aliases buf_array (both Z_R11). When InlineTypePassFieldsAsArgs
+  // is enabled, buf_array is loaded from vm_result_oop above and must remain live
+  // throughout the argument-copy loop, but the z_lgr below overwrites Z_R11 with
+  // sender_SP, silently corrupting buf_array. Fix: replace loop_sender_SP with
+  // sender_SP (Z_R10) directly -- it already holds the pre-resize SP and is the
+  // value the interpreter expects in Z_R10 on entry, so no extra register is needed.
   Register loop_sender_SP = Z_R11;
   __ z_lgr(loop_sender_SP, sender_SP);
 
