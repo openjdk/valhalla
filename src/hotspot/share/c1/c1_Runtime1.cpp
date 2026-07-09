@@ -383,10 +383,10 @@ const char* Runtime1::name_for_address(address entry) {
   return pd_name_for_address(entry);
 }
 
-static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
+JRT_ENTRY(void, Runtime1::new_instance(JavaThread* current, Klass* klass))
 #ifndef PRODUCT
   if (PrintC1Statistics) {
-    Runtime1::_new_instance_slowcase_cnt++;
+    _new_instance_slowcase_cnt++;
   }
 #endif
   assert(klass->is_klass(), "not a class");
@@ -398,10 +398,6 @@ static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
   // allocate instance and return via TLS
   oop obj = h->allocate_instance(CHECK);
   current->set_vm_result_oop(obj);
-JRT_END
-
-JRT_ENTRY(void, Runtime1::new_instance(JavaThread* current, Klass* klass))
-  allocate_instance(current, klass, CHECK);
 JRT_END
 
 JRT_ENTRY(void, Runtime1::new_type_array(JavaThread* current, Klass* klass, jint length))
