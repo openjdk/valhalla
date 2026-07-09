@@ -4,45 +4,78 @@
 
 The "Value Objects" JEP introduces value objects and migrates suitable classes
 to value classes. This means that when preview features are enabled, a different
-classpath is available to Java programs. To accomplish this, the JDK has a
-custom build and deployment process to allow access to different classpaths.
+classpath is available to Java programs.
+
+To accomplish this, the JDK uses *preview-specific* files in `META-INF/preview`,
+which overrides files of the same name in the regular classpath. For example,
+`META-INF/preview/java/lang/Integer.class` overrides `java/lang/Integer.class`.
+
+The JDK generates preview-specific source files (they may use preview language
+features), compiles class files from them, and distributes these class files in
+`META-INF/preview`.
 
 ## The Build Process
 
-The build system has a fully automated pipeline from preview-only source files
-for each module to preview-ready image binaries.  The source files are currently
-hardcoded in `GENERATED_PREVIEW_SUBDIRS` variable in
-[`make/common/Modules.gmk`](../make/common/Modules.gmk).
+### The Custom Handling for the Value Objects JEP
 
-### Hardcoding for Value Objects JEP
+The Value Objects JEP requires a few select classes in the `java.base` module
+to become value classes in the classpath when preview features are enabled.
 
-For the Value Objects JEP, for each module, the preview source files are in
-`$(SUPPORT_OUTPUTDIR)/gensrc-valueclasses/<module>/` directory. However, only
-the module `java.base` actually makes use of this directory, created by
+The build of `java.base` module first create the source code of those value
+classes, done in
 [`GensrcValueClasses.gmk`](../make/modules/java.base/gensrc/GensrcValueClasses.gmk).
-This processor simply looks for occurrences of `/*value*/ class` and
-`/*value*/ record` in the hardcoded list of source files, and generate preview
-source files where these occurrences are replaced by `value class` and
-`value record`, respectively.
 
-The Value Objects JEP does not intend to introduce value classes that are not
-migrated from a class that is available when preview features are disabled, nor
-does it intend to introduce migrations from modules other than `java.base`. The
-preview source file setup would require substantial changes to accomplish these
-goals.
+1. A hardcoded list of files are selected for generation.
 
-### Preview Classes in Interim `javac`
+2. For each file, search for any occurrences of `/*value*/ class` or
+   `/*value*/ record`, and replace with `value class` or `value record`.
 
-The preview classpath files are not available to the interim `javac`, most
-commonly used in `SetupJavaCompilation` call. For each module that ships
-preview-specific binaries, the following javac flag is required for a
-preview-enabled compilation:
+3. The replaced, preview-specific source files are located in
+   `support/gensrc-valueclasses/java.base/`.
 
-```
---patch-module <module>=$(SUPPORT_OUTPUTDIR)/preview/<module>
-```
+4. The general preview source to binary pipeline recognizes this
+   directory as where `java.base` places its preview-specific source files.
 
-See [`BuildMicroBenchmarks.gmk`](../make/test/BuildMicrobenchmark.gmk) for an example.
+### The General Preview Source to Binary Pipeline
+
+Once the preview-specific source files are ready, they are picked up by the
+build system into a fully automated pipeline handling all modules and all
+outcome images.
+
+1. The `GENERATED_PREVIEW_SUBDIRS` variable in [`make/common/Modules.gmk`](../make/common/Modules.gmk)
+   indicates where the source files are found.
+
+2. For each module that has preview-specific source files, a goal is created
+   to compile these source files into class files.
+
+3. The class files from each of these tasks reside in `support/preview/<module>`
+   for each module.
+
+4. These preview-specific class files and other resources are copied to the
+   `META-INF/preview` directory of the regular output directory.
+
+5. At run-time, jimage will pick up the preview-specific overrides from
+   `META-INF/preview`  when preview features are enabled.
+
+6. The interim `javac` used by the build system cannot pickup the
+   preview-specific overrides; they must be supplied explicitly with this
+   javac flag for every single module where overrides are significant:
+
+   ```
+   --patch-module <module>=$(SUPPORT_OUTPUTDIR)/preview/<module>
+   ```
+
+   See [`BuildMicroBenchmarks.gmk`](../make/test/BuildMicrobenchmark.gmk) for an example.
+
+### Non-Goals
+
+The Value Objects JEP only plans to introduce a value class that:
+
+1. Is in the `java.base` module.
+
+2. Has a fallback identity version when preview features are disabled.
+
+Support for other value classes require significant changes to the build system.
 
 ## Testing
 
