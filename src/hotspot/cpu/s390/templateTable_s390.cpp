@@ -4554,11 +4554,11 @@ void TemplateTable::monitorexit() {
   __ null_check(Z_tos);
 
   // Check for inline type (Valhalla feature)
-  NearLabel has_identity;
+  NearLabel is_inline_type, has_identity;
   __ z_lg(Z_R1_scratch, Address(Z_tos, oopDesc::mark_offset_in_bytes()));
-  __ z_nilf(Z_R1_scratch, markWord::inline_type_pattern_mask);
-  __ z_chi(Z_R1_scratch, markWord::inline_type_pattern);
-  __ z_brne(has_identity);
+  __ test_markword_is_inline_type(Z_R1_scratch, is_inline_type);
+  __ z_bru(has_identity);
+  __ bind(is_inline_type);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
                      InterpreterRuntime::throw_illegal_monitor_state_exception));
   __ should_not_reach_here();
