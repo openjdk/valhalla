@@ -926,7 +926,7 @@ Agent_OnUnload_L(JavaVM *vm)</example>
   </intro>
 
   <intro id="identityAndValueObjects" label="Identity and Value Objects">
-    When preview features are enabled, JVMTI may observe both identity objects and value objects.
+    When preview features are enabled, JVMTI may observe both identity and value objects.
     JVMTI treats both kinds of objects in the same manner as JNI. Agents can use the JNI
     <externallink id="jni/functions.html#hasidentity"><code>HasIdentity</code></externallink>
     function to determine whether a JNI object reference denotes an object with identity.
