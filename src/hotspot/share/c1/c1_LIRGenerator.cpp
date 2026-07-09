@@ -1489,7 +1489,20 @@ LIR_Opr LIRGenerator::load_constant(Constant* x) {
 
 LIR_Opr LIRGenerator::load_constant(LIR_Const* c) {
   BasicType t = c->type();
-  for (int i = 0; i < _constants.length() && !in_conditional_code(); i++) {
+  if (in_conditional_code()) {
+    // TODO 8353851: Control flow introduced by check_flat_array() is currently opaque to the register allocator.
+    // Do not use or update the constant -> register cache in such conditional code because the register allocator could
+    // spill a constant and only rematerialize it into a register in one branch of check_flat_array() but not the other.
+    // Since the control flow is opaque to the register allocator, it assumes the rematerialized constant in the register
+    // dominates all subsequent uses in the block and does not insert another rematerialization. When taking the
+    // non-rematerialized branch of check_flat_array() at runtime, the register contains garbage potentially causing
+    // a crash.
+    LIR_Opr result = new_register(t);
+    __ move(c, result);
+    return result;
+  }
+
+  for (int i = 0; i < _constants.length(); i++) {
     LIR_Const* other = _constants.at(i);
     if (t == other->type()) {
       switch (t) {
@@ -1513,11 +1526,9 @@ LIR_Opr LIRGenerator::load_constant(LIR_Const* c) {
   }
 
   LIR_Opr result = new_register(t);
-  __ move((LIR_Opr)c, result);
-  if (!in_conditional_code()) {
-    _constants.append(c);
-    _reg_for_constants.append(result);
-  }
+  __ move(c, result);
+  _constants.append(c);
+  _reg_for_constants.append(result);
   return result;
 }
 
