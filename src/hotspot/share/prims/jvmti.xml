@@ -935,7 +935,7 @@ Agent_OnUnload_L(JavaVM *vm)</example>
     and
     <externallink id="jni/functions.html#newweakglobalref"><code>NewWeakGlobalRef</code></externallink>,
     specify the JNI behavior for value objects. Any additional JVMTI-specific behavior
-    is specified by the affected JVMTI function or event.
+    is specified by the affected JVMTI functions or events.
   </intro>
 
 <functionsection label="Functions">
