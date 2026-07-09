@@ -772,9 +772,9 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     if (expected_type == nullptr) expected_type = src_declared_type;
     if (expected_type == nullptr) expected_type = dst_declared_type;
 
-    if (expected_type != nullptr && expected_type->is_obj_array_klass()) {
+    if (expected_type != nullptr && expected_type->is_obj_array_klass() && !expected_type->is_refined()) {
       // For a direct pointer comparison, we need the refined array klass pointer
-      expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass());
+      expected_type = ciObjArrayKlass::make(expected_type->as_array_klass()->element_klass(), true /* refined_type */);
     }
 
     src_objarray = (src_exact_type && src_exact_type->is_obj_array_klass()) || (src_declared_type && src_declared_type->is_obj_array_klass());
