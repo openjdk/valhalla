@@ -79,9 +79,9 @@ replace with <code>value class</code> or
 <code>value record</code>.</p></li>
 <li><p>The replaced, preview-specific source files are located in
 <code>support/gensrc-valueclasses/java.base/</code>.</p></li>
-<li><p>The general preview source to binary pipeline recognizes this
-directory as where <code>java.base</code> places its preview-specific
-source files.</p></li>
+<li><p>The general preview source to binary build pipeline recognizes
+this directory as where <code>java.base</code> places its
+preview-specific source files.</p></li>
 </ol>
 <h3 id="the-general-preview-source-to-binary-pipeline">The General
 Preview Source to Binary Pipeline</h3>
@@ -112,11 +112,15 @@ href="../make/test/BuildMicrobenchmark.gmk"><code>BuildMicroBenchmarks.gmk</code
 for an example.</p></li>
 </ol>
 <h3 id="non-goals">Non-Goals</h3>
-<p>The Value Objects JEP only plans to introduce a value class that:</p>
+<p>The Value Objects JEP only plans to introduce value classes that
+are:</p>
 <ol type="1">
-<li><p>Is in the <code>java.base</code> module.</p></li>
-<li><p>Has a fallback identity version when preview features are
-disabled.</p></li>
+<li><p>In the <code>java.base</code> module.</p>
+<p>There's no plan to migrate other classes in other modules.</p></li>
+<li><p>Migrated from existing classes.</p>
+<p>These classes are available as identity classes when preview features
+are disabled. There's no plan to introduce completely new value
+classes.</p></li>
 </ol>
 <p>Support for other value classes require significant changes to the
 build system.</p>

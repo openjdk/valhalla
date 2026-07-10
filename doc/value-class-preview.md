@@ -33,7 +33,7 @@ classes, done in
 3. The replaced, preview-specific source files are located in
    `support/gensrc-valueclasses/java.base/`.
 
-4. The general preview source to binary pipeline recognizes this
+4. The general preview source to binary build pipeline recognizes this
    directory as where `java.base` places its preview-specific source files.
 
 ### The General Preview Source to Binary Pipeline
@@ -69,11 +69,16 @@ outcome images.
 
 ### Non-Goals
 
-The Value Objects JEP only plans to introduce a value class that:
+The Value Objects JEP only plans to introduce value classes that are:
 
-1. Is in the `java.base` module.
+1. In the `java.base` module.
 
-2. Has a fallback identity version when preview features are disabled.
+   There's no plan to migrate other classes in other modules.
+
+2. Migrated from existing classes.
+
+   These classes are available as identity classes when preview features are
+   disabled. There's no plan to introduce completely new value classes.
 
 Support for other value classes require significant changes to the build system.
 
