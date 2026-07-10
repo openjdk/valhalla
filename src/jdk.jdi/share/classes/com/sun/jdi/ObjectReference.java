@@ -52,7 +52,36 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * takes <code>ObjectReference</code> as parameter may throw
  * {@link ObjectCollectedException} if the mirrored object has been
  * garbage collected.
- *
+ * <div class="preview-block">
+ *      <div class="preview-comment">
+ * <h2><a id=valueObjects>Value Objects</a></h2>
+ * When preview features are enabled, JDI supports value objects and classes
+ * in a manner consistent with <cite>The Java Language Specification</cite> and
+ * <cite>The Java Virtual Machine Specification</cite>, with one exception noted
+ * below. In particular, two value objects are considered to be the same if both
+ * refer to statewise-equivalent value objects (x == y has the value {@code true}).
+ * {@link ObjectReference#equals} has always been defined to return true if
+ * applying the "==" operator on the mirrored objects in the target VM
+ * evaluates to true. That has not changed with value objects. See Sections
+ * {@jls value-objects-8.1.1.5 Value Classes} and
+ * {@jls value-objects-15.21.3 Object Equality Operators} of
+ * <cite>The Java Language Specification</cite>, and Section 
+ * {@jvms value-objects-6.5 if_acmp_cond} of the
+ * <cite>The Java Virtual Machine Specification</cite>.
+ * <p>
+ * Where JDI does differ from the JLS is in allowing the user to obtain an
+ * ObjectReference to a value object under construction (while in the "larval"
+ * state). For example, the JDI user could fetch 'this' after hitting a
+ * breakpoint in the value object contructor. This could lead to confusing
+ * behavior for the JDI user. In particlar, the value object may change after
+ * the ObjectReference is obtained, even though value objects are considered
+ * to be immutable. Because of this, if 'this' is fetched from a value object
+ * constructor, an ObjectReference representing a statewise-equivalent "snapshot"
+ * is returned instead, and this ObjectReference will not reflect changes to the
+ * value object that happen later during construction. See
+ * {@link StackFrame#thisObject}.
+ *      </div>
+ * </div>
  * @author Robert Field
  * @author Gordon Hirsch
  * @author James McIlree
