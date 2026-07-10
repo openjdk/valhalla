@@ -2,9 +2,9 @@
 
 ## Introduction
 
-The "Value Objects" JEP introduces value objects and migrates suitable classes
-to value classes. This means that when preview features are enabled, a different
-classpath is available to Java programs.
+Value Objects feature introduces value objects and migrates suitable classes to
+value classes. This means that when preview features are enabled, different
+class files are used for the migrated classes in the Java class library.
 
 To accomplish this, the JDK uses *preview-specific* files in `META-INF/preview`,
 which overrides files of the same name in the regular classpath. For example,

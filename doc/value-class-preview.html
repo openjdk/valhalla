@@ -51,9 +51,10 @@ id="toc-editing-this-document">Editing This Document</a></li>
 </ul>
 </nav>
 <h2 id="introduction">Introduction</h2>
-<p>The "Value Objects" JEP introduces value objects and migrates
-suitable classes to value classes. This means that when preview features
-are enabled, a different classpath is available to Java programs.</p>
+<p>Value Objects feature introduces value objects and migrates suitable
+classes to value classes. This means that when preview features are
+enabled, different class files are used for the migrated classes in the
+Java class library.</p>
 <p>To accomplish this, the JDK uses <em>preview-specific</em> files in
 <code>META-INF/preview</code>, which overrides files of the same name in
 the regular classpath. For example,
