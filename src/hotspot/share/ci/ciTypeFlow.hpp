@@ -334,14 +334,15 @@ public:
              type_at_tos()->is_array_klass(), "must be array type");
       pop();
     }
-    // pop_objOrFlatArray and pop_typeArray narrow the tos to ciObjArrayKlass,
-    // ciFlatArrayKlass or ciTypeArrayKlass (resp.). In the rare case that an explicit
-    // null is popped from the stack, we return null.  Caller beware.
-    ciArrayKlass* pop_objOrFlatArray() {
+    // pop_objArray and pop_typeArray narrow the tos to ciObjArrayKlass
+    // or ciTypeArrayKlass (resp.).  In the rare case that an explicit
+    // null is popped from the stack, we return null. Caller beware.
+    ciObjArrayKlass* pop_objArray() {
       ciType* array = pop_value();
-      if (array == null_type())  return nullptr;
-      assert(array->is_obj_array_klass(), "must be an object array type");
-      return array->as_array_klass();
+      if (array == null_type()) {
+        return nullptr;
+      }
+      return array->as_obj_array_klass();
     }
     ciTypeArrayKlass* pop_typeArray() {
       ciType* array = pop_value();

@@ -580,7 +580,7 @@ void ciTypeFlow::StateVector::push_translate(ciType* type) {
 // ciTypeFlow::StateVector::do_aload
 void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
   pop_int();
-  ciArrayKlass* array_klass = pop_objOrFlatArray();
+  ciObjArrayKlass* array_klass = pop_objArray();
   if (array_klass == nullptr) {
     // Did aload on a null reference; push a null and ignore the exception.
     // This instruction will never continue normally.  All we have to do
@@ -961,7 +961,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
     {
       pop_object();
       pop_int();
-      pop_objOrFlatArray();
+      pop_objArray();
       break;
     }
   case Bytecodes::_aconst_null:
