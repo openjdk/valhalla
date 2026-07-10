@@ -356,7 +356,7 @@ public:
     void      do_null_assert(ciKlass* unloaded_klass);
 
     // Helper convenience routines.
-    void do_aload(ciBytecodeStream* str);
+    void do_aaload(ciBytecodeStream* str);
     void do_checkcast(ciBytecodeStream* str);
     void do_getfield(ciBytecodeStream* str);
     void do_getstatic(ciBytecodeStream* str);

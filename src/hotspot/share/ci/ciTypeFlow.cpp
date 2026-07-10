@@ -576,9 +576,7 @@ void ciTypeFlow::StateVector::push_translate(ciType* type) {
   }
 }
 
-// ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_aload
-void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
+void ciTypeFlow::StateVector::do_aaload(ciBytecodeStream* str) {
   pop_int();
   ciObjArrayKlass* array_klass = pop_objArray();
   if (array_klass == nullptr) {
@@ -955,7 +953,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
   }
 
   switch(str->cur_bc()) {
-  case Bytecodes::_aaload: do_aload(str);                           break;
+  case Bytecodes::_aaload: do_aaload(str);                           break;
 
   case Bytecodes::_aastore:
     {
