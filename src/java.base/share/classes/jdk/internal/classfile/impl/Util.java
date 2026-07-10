@@ -204,8 +204,9 @@ public final class Util {
 
     public static List<Utf8Entry> fieldDescriptorList(List<? extends ClassDesc> list) {
         var result = new Object[list.size()]; // null check
-        for (int i = 0; i < result.length; i++) {
-            result[i] = TemporaryConstantPool.INSTANCE.utf8Entry(list.get(i));
+        int i = 0;
+        for (var entry : list) {
+            result[i++] = TemporaryConstantPool.INSTANCE.utf8Entry(entry);
         }
         return SharedSecrets.getJavaUtilCollectionAccess().listFromTrustedArray(result);
     }
