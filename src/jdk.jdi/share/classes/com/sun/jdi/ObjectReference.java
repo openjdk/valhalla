@@ -73,7 +73,7 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * ObjectReference to a value object under construction (while in the "larval"
  * state). For example, the JDI user could fetch 'this' after hitting a
  * breakpoint in the value object contructor. This could lead to confusing
- * behavior for the JDI user. In particlar, the value object may change after
+ * behavior for the JDI user. In particular, the value object may change after
  * the ObjectReference is obtained, even though value objects are considered
  * to be immutable. Because of this, if 'this' is fetched from a value object
  * constructor, an ObjectReference representing a statewise-equivalent "snapshot"
