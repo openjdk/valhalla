@@ -65,7 +65,7 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * evaluates to true. That has not changed with value objects. See Sections
  * {@jls value-objects-8.1.1.5 Value Classes} and
  * {@jls value-objects-15.21.3 Object Equality Operators} of
- * <cite>The Java Language Specification</cite>, and Section 
+ * <cite>The Java Language Specification</cite>, and Section
  * {@jvms value-objects-6.5 if_acmp_cond} of the
  * <cite>The Java Virtual Machine Specification</cite>.
  * <p>
