@@ -1972,7 +1972,7 @@ public:
 
   // clear memory of size 'cnt' qwords, starting at 'base';
   // if 'is_large' is set, do not try to produce short loop
-  void clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, bool is_large, bool word_copy_only, KRegister mask=knoreg);
+  void clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, bool is_large, bool requires_word_fill, KRegister mask=knoreg);
 
   // clear memory initialization sequence for constant size;
   void clear_mem(Register base, int cnt, Register rtmp, XMMRegister xtmp, KRegister mask=knoreg);
