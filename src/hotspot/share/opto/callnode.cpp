@@ -2052,8 +2052,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
 
 void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
 {
-  assert(initializer != nullptr &&
-         (initializer->is_object_constructor() || initializer->is_class_initializer()),
+  assert(initializer != nullptr && initializer->is_object_constructor(),
          "unexpected initializer method");
   BCEscapeAnalyzer* analyzer = initializer->get_bcea();
   if (analyzer == nullptr) {
