@@ -56,8 +56,8 @@ suitable classes to value classes. This means that when preview features
 are enabled, different class files are used for the migrated classes in
 the Java class library.</p>
 <p>To accomplish this, the JDK uses <em>preview-specific</em> files in
-<code>META-INF/preview</code>, which overrides files of the same name in
-the regular classpath. For example,
+<code>META-INF/preview</code>, which overrides the regular files of the
+same name. For example,
 <code>META-INF/preview/java/lang/Integer.class</code> overrides
 <code>java/lang/Integer.class</code>.</p>
 <p>The JDK generates preview-specific source files (they may use preview
@@ -67,8 +67,8 @@ these class files in <code>META-INF/preview</code>.</p>
 <h3 id="the-custom-handling-for-the-value-objects-jep">The Custom
 Handling for the Value Objects JEP</h3>
 <p>The Value Objects JEP requires a few select classes in the
-<code>java.base</code> module to become value classes in the classpath
-when preview features are enabled.</p>
+<code>java.base</code> module to become value classes when preview
+features are enabled.</p>
 <p>The build of <code>java.base</code> module first create the source
 code of those value classes, done in <a
 href="../make/modules/java.base/gensrc/GensrcValueClasses.gmk"><code>GensrcValueClasses.gmk</code></a>.</p>
@@ -130,7 +130,8 @@ build system.</p>
 tests that do not depend on preview features wish to run with preview
 features enabled to ensure compatibility:</p>
 <ol type="1">
-<li><p>Some tests wish to run against the preview system classpath.</p>
+<li><p>Some tests wish to run against the Java SE class library with
+value classes.</p>
 <p>The jtreg tests may be run with
 <code>JTREG=VM_OPTIONS=--enable-preview</code>.</p></li>
 <li><p>Some tests wish to run against their own classes migrated to

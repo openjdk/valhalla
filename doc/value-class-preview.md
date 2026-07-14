@@ -7,7 +7,7 @@ to value classes. This means that when preview features are enabled, different
 class files are used for the migrated classes in the Java class library.
 
 To accomplish this, the JDK uses *preview-specific* files in `META-INF/preview`,
-which overrides files of the same name in the regular classpath. For example,
+which overrides the regular files of the same name. For example,
 `META-INF/preview/java/lang/Integer.class` overrides `java/lang/Integer.class`.
 
 The JDK generates preview-specific source files (they may use preview language
@@ -19,7 +19,7 @@ features), compiles class files from them, and distributes these class files in
 ### The Custom Handling for the Value Objects JEP
 
 The Value Objects JEP requires a few select classes in the `java.base` module
-to become value classes in the classpath when preview features are enabled.
+to become value classes when preview features are enabled.
 
 The build of `java.base` module first create the source code of those value
 classes, done in
@@ -88,7 +88,7 @@ In addition to tests that require preview features to be enabled, tests that do
 not depend on preview features wish to run with preview features enabled to
 ensure compatibility:
 
-1. Some tests wish to run against the preview system classpath.
+1. Some tests wish to run against the Java SE class library with value classes.
 
    The jtreg tests may be run with `JTREG=VM_OPTIONS=--enable-preview`.
 
