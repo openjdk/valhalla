@@ -2442,18 +2442,20 @@ void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label
 }
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
-  Label test_mark_word;
   // load mark word
   movptr(temp_reg, Address(oop, oopDesc::mark_offset_in_bytes()));
-  // check displaced
-  testl(temp_reg, markWord::unlocked_value);
-  jccb(Assembler::notZero, test_mark_word);
-  // slow path use klass prototype
-  push(rscratch1);
-  load_prototype_header(temp_reg, oop, rscratch1);
-  pop(rscratch1);
+  if (!UseObjectMonitorTable) {
+    Label test_mark_word;
+    // check displaced
+    testl(temp_reg, markWord::unlocked_value);
+    jccb(Assembler::notZero, test_mark_word);
+    // slow path use klass prototype
+    push(rscratch1);
+    load_prototype_header(temp_reg, oop, rscratch1);
+    pop(rscratch1);
 
-  bind(test_mark_word);
+    bind(test_mark_word);
+  }
   testl(temp_reg, test_bit);
   jcc((jmp_set) ? Assembler::notZero : Assembler::zero, jmp_label);
 }
@@ -5560,17 +5562,19 @@ void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
   shrq(dst, markWord::klass_shift);
 }
 
+void MacroAssembler::load_narrow_klass(Register dst, Register src) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+  } else {
+    movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  }
+}
+
 void MacroAssembler::load_klass(Register dst, Register src, Register tmp) {
   assert_different_registers(src, tmp);
   assert_different_registers(dst, tmp);
-
-  if (UseCompactObjectHeaders) {
-    load_narrow_klass_compact(dst, src);
-    decode_klass_not_null(dst, tmp);
-  } else {
-    movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
-    decode_klass_not_null(dst, tmp);
-  }
+  load_narrow_klass(dst, src);
+  decode_klass_not_null(dst, tmp);
 }
 
 void MacroAssembler::load_prototype_header(Register dst, Register src, Register tmp) {
@@ -6095,9 +6099,9 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   mov(rax, rscratch1);
 
   if (from_interpreter) {
-    super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
+    super_call_VM_leaf(SharedRuntime::store_inline_type_fields_to_buf_entry());
   } else {
-    call(RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
+    call(RuntimeAddress(SharedRuntime::store_inline_type_fields_to_buf_entry()));
     call_offset = offset();
   }
 

@@ -2183,7 +2183,7 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
     // conservatively small header size:
     header_size = arrayOopDesc::base_offset_in_bytes(T_BYTE);
     if (_igvn.type(klass_node)->isa_aryklassptr()) {   // we know the exact header size in most cases:
-      BasicType elem = _igvn.type(klass_node)->is_klassptr()->as_instance_type()->isa_aryptr()->elem()->array_element_basic_type();
+      BasicType elem = _igvn.type(klass_node)->is_klassptr()->as_exact_instance_type()->isa_aryptr()->elem()->array_element_basic_type();
       if (is_reference_type(elem, true)) {
         elem = T_OBJECT;
       }
@@ -2887,7 +2887,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
 
   // Allocation failed, fall back to a runtime call
   CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_inline_type_fields_Type(),
-                                                         StubRoutines::store_inline_type_fields_to_buf(),
+                                                         SharedRuntime::store_inline_type_fields_to_buf_entry(),
                                                          "store_inline_type_fields",
                                                          TypePtr::BOTTOM);
   slow_call->init_req(TypeFunc::Control, needgc_ctrl);

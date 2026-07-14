@@ -1933,6 +1933,9 @@ void AOTCodeAddressTable::init_extrs() {
     ADD_EXTERNAL_ADDRESS(Thread::current); // used by call_stub
     ADD_EXTERNAL_ADDRESS(SharedRuntime::throw_StackOverflowError);
     ADD_EXTERNAL_ADDRESS(SharedRuntime::throw_delayed_StackOverflowError);
+    if (InlineTypeReturnedAsFields) {
+      ADD_EXTERNAL_ADDRESS(SharedRuntime::store_inline_type_fields_to_buf);
+    }
   }
 
   // Record addresses of VM runtime methods
@@ -2437,9 +2440,6 @@ int AOTCodeAddressTable::id_for_address(address addr, RelocIterator reloc, CodeB
     id = search_address(addr, _stubs_addr, _stubs_max);
     if (id == BAD_ADDRESS_ID) {
       StubCodeDesc* desc = StubCodeDesc::desc_for(addr);
-      if (desc == nullptr) {
-        desc = StubCodeDesc::desc_for(addr + frame::pc_return_offset);
-      }
       const char* sub_name = (desc != nullptr) ? desc->name() : "<unknown>";
       assert(false, "Address " INTPTR_FORMAT " for Stub:%s is missing in AOT Code Cache addresses table", p2i(addr), sub_name);
     } else {

@@ -3763,16 +3763,18 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
 
 void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t tst_bit, bool jmp_set, Label& jmp_label) {
   assert_different_registers(temp_reg, t0);
-  Label test_mark_word;
   // load mark word
   ld(temp_reg, Address(oop, oopDesc::mark_offset_in_bytes()));
-  // check displaced
-  test_bit(t0, temp_reg, exact_log2(markWord::unlocked_value));
-  bnez(t0, test_mark_word);
-  // slow path use klass prototype
-  load_prototype_header(temp_reg, oop);
+  if (!UseObjectMonitorTable) {
+    Label test_mark_word;
+    // check displaced
+    test_bit(t0, temp_reg, exact_log2(markWord::unlocked_value));
+    bnez(t0, test_mark_word);
+    // slow path use klass prototype
+    load_prototype_header(temp_reg, oop);
 
-  bind(test_mark_word);
+    bind(test_mark_word);
+  }
   andi(temp_reg, temp_reg, tst_bit);
   if (jmp_set) {
     bnez(temp_reg, jmp_label, /* is_far */ true);
@@ -3889,16 +3891,19 @@ void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
   srli(dst, dst, markWord::klass_shift);
 }
 
+void MacroAssembler::load_narrow_klass(Register dst, Register src) {
+  if (UseCompactObjectHeaders) {
+    load_narrow_klass_compact(dst, src);
+  } else {
+    lwu(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  }
+}
+
 void MacroAssembler::load_klass(Register dst, Register src, Register tmp) {
   assert_different_registers(dst, tmp);
   assert_different_registers(src, tmp);
-  if (UseCompactObjectHeaders) {
-    load_narrow_klass_compact(dst, src);
-    decode_klass_not_null(dst, tmp);
-  } else {
-    lwu(dst, Address(src, oopDesc::klass_offset_in_bytes()));
-    decode_klass_not_null(dst, tmp);
-  }
+  load_narrow_klass(dst, src);
+  decode_klass_not_null(dst, tmp);
 }
 
 void MacroAssembler::load_prototype_header(Register dst, Register src, Register tmp) {

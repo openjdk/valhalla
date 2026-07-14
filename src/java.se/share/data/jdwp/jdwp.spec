@@ -2129,6 +2129,9 @@ JDWP "Java(tm) Debug Wire Protocol"
         "language method. Forcing return on a thread with only one "
         "frame on the stack causes the thread to exit when resumed. "
         "<p>"
+        "When preview features are enabled, the method can not be the "
+        "constructor of a value class."
+        "<p>"
         "For void methods, the value must be a void value. "
         "For methods that return primitive values, the value's type must "
         "match the return type exactly.  For object values, there must be a "
@@ -2149,7 +2152,8 @@ JDWP "Java(tm) Debug Wire Protocol"
             (Error INVALID_OBJECT    "Thread or value is not a known ID.")
             (Error THREAD_NOT_SUSPENDED)
             (Error OPAQUE_FRAME      "Unable to force the current frame to return "
-                                     "(e.g. the current frame is executing a native method).")
+                                     "(e.g. the current frame is executing a native method or "
+                                     "the current frame is the constructor for a value class).")
             (Error NO_MORE_FRAMES)
             (Error NOT_IMPLEMENTED)
             (Error TYPE_MISMATCH   "Value is not an appropriate type for the "
@@ -2601,14 +2605,11 @@ JDWP "Java(tm) Debug Wire Protocol"
         "index can be determined for method arguments from the method "
         "signature without access to the local variable table information.) "
         "<p>"
-        "When preview features are enabled, "
-        "if a local variable is the 'this' object and represents a "
-        "value object under construction, the "
-        "value returned will be for a snapshot of the "
-        "value object, not a reference to the actual value object under "
-        "construction. Therefore the value returned will not reflect "
-        "changes to the value object that happen later on during "
-        "construction."
+        "When preview features are enabled, if the local variable is the 'this' "
+        "object and represents a value object under construction, the value returned "
+        "will be for a snapshot of the value object, not a reference to the actual "
+        "value object under construction. Therefore the value returned will not reflect "
+        "changes to the value object that happen later on during construction."
         
         (Out
             (threadObject thread "The frame's thread. ")
@@ -2682,9 +2683,8 @@ JDWP "Java(tm) Debug Wire Protocol"
         "If the frame's method is static or native, the reply "
         "will contain the null object reference. "
         "<p>"
-        "When preview features are enabled, "
-        "if 'this' represents a value object under construction, the "
-        "value returned will be for a snapshot of the "
+        "When preview features are enabled and 'this' represents a value object
+        "under construction, the value returned will be for a snapshot of the "
         "value object, not a reference to the actual value object under "
         "construction. Therefore the value returned will not reflect "
         "changes to the value object that happen later on during "

@@ -2584,7 +2584,7 @@ class StubGenerator: public StubCodeGenerator {
     __ movw(scratch_length, length);        // length (elements count, 32-bits value)
     __ tbnz(scratch_length, 31, L_failed);  // i.e. sign bit set
 
-    __ load_klass(scratch_src_klass, src);
+    __ load_narrow_klass(scratch_src_klass, src);
 #ifdef ASSERT
     //  assert(src->klass() != nullptr);
     {
@@ -2594,11 +2594,12 @@ class StubGenerator: public StubCodeGenerator {
       __ bind(L1);
       __ stop("broken null klass");
       __ bind(L2);
-      __ load_klass(rscratch1, dst);
+      __ load_narrow_klass(rscratch1, dst);
       __ cbz(rscratch1, L1);     // this would be broken also
       BLOCK_COMMENT("} assert klasses not null done");
     }
 #endif
+    __ decode_klass_not_null(scratch_src_klass, scratch_src_klass);
 
     // Load layout helper (32-bits)
     //
@@ -5464,6 +5465,7 @@ class StubGenerator: public StubCodeGenerator {
   // address supplied in base.
   template<int N>
   void vs_ldpq(const VSeq<N>& v, Register base) {
+    static_assert(N > 0 && is_even(N), "sequence length must be even");
     for (int i = 0; i < N; i += 2) {
       __ ldpq(v[i], v[i+1], Address(base, 16 * i));
     }
@@ -5474,7 +5476,7 @@ class StubGenerator: public StubCodeGenerator {
   // in base using post-increment addressing
   template<int N>
   void vs_ldpq_post(const VSeq<N>& v, Register base) {
-    static_assert((N & (N - 1)) == 0, "sequence length must be even");
+    static_assert(N > 0 && is_even(N), "sequence length must be even");
     for (int i = 0; i < N; i += 2) {
       __ ldpq(v[i], v[i+1], __ post(base, 32));
     }
@@ -5485,7 +5487,7 @@ class StubGenerator: public StubCodeGenerator {
   // supplied in base using post-increment addressing
   template<int N>
   void vs_stpq_post(const VSeq<N>& v, Register base) {
-    static_assert((N & (N - 1)) == 0, "sequence length must be even");
+    static_assert(N > 0 && is_even(N), "sequence length must be even");
     for (int i = 0; i < N; i += 2) {
       __ stpq(v[i], v[i+1], __ post(base, 32));
     }
@@ -5496,7 +5498,7 @@ class StubGenerator: public StubCodeGenerator {
   // using post-increment addressing.
   template<int N>
   void vs_ld2_post(const VSeq<N>& v, Assembler::SIMD_Arrangement T, Register base) {
-    static_assert((N & (N - 1)) == 0, "sequence length must be even");
+    static_assert(N > 0 && is_even(N), "sequence length must be even");
     for (int i = 0; i < N; i += 2) {
       __ ld2(v[i], v[i+1], T, __ post(base, 32));
     }
@@ -5507,7 +5509,7 @@ class StubGenerator: public StubCodeGenerator {
   // post-increment addressing.
   template<int N>
   void vs_st2_post(const VSeq<N>& v, Assembler::SIMD_Arrangement T, Register base) {
-    static_assert((N & (N - 1)) == 0, "sequence length must be even");
+    static_assert(N > 0 && is_even(N), "sequence length must be even");
     for (int i = 0; i < N; i += 2) {
       __ st2(v[i], v[i+1], T, __ post(base, 32));
     }
@@ -5552,6 +5554,7 @@ class StubGenerator: public StubCodeGenerator {
   // offsets array
   template<int N>
   void vs_ldpq_indexed(const VSeq<N>& v, Register base, int start, int (&offsets)[N/2]) {
+    static_assert(N > 0 && is_even(N), "sequence length must be even");
     for (int i = 0; i < N/2; i++) {
       __ ldpq(v[2*i], v[2*i+1], Address(base, start + offsets[i]));
     }
@@ -5599,6 +5602,7 @@ class StubGenerator: public StubCodeGenerator {
   template<int N>
   void vs_ld2_indexed(const VSeq<N>& v, Assembler::SIMD_Arrangement T, Register base,
                       Register tmp, int start, int (&offsets)[N/2]) {
+    static_assert(N > 0 && is_even(N), "sequence length must be even");
     for (int i = 0; i < N/2; i++) {
       __ add(tmp, base, start + offsets[i]);
       __ ld2(v[2*i], v[2*i+1], T, tmp);
@@ -5612,6 +5616,7 @@ class StubGenerator: public StubCodeGenerator {
   template<int N>
   void vs_st2_indexed(const VSeq<N>& v, Assembler::SIMD_Arrangement T, Register base,
                       Register tmp, int start, int (&offsets)[N/2]) {
+    static_assert(N > 0 && is_even(N), "sequence length must be even");
     for (int i = 0; i < N/2; i++) {
       __ add(tmp, base, start + offsets[i]);
       __ st2(v[2*i], v[2*i+1], T, tmp);
@@ -8668,6 +8673,123 @@ class StubGenerator: public StubCodeGenerator {
     __ BIND(L_Done);
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ mov(r0, zr); // return 0
+    __ ret(lr);
+
+    // record the stub entry and end
+    store_archive_data(stub_id, start, __ pc());
+
+    return start;
+  }
+
+  /**
+   * Arithmetic polynomial multiplication in Curve25519.  The algorithm mimics
+   * the version in the IntegerPolynomial25519 class, including the use of all
+   * columns (no folding method).
+   *
+   * Arguments:
+   *
+   * Inputs:
+   *   c_rarg0   - long[] aLimbs
+   *   c_rarg1   - long[] bLimbs
+   *
+   * Output:
+   *   c_rarg2   - long[] rLimbs result
+   */
+  address generate_intpoly_mult_25519() {
+    StubId stub_id = StubId::stubgen_intpoly_mult_25519_id;
+    int entry_count = StubInfo::entry_count(stub_id);
+    assert(entry_count == 1, "sanity check");
+    address start = load_archive_data(stub_id);
+    if (start != nullptr) {
+      return start;
+    }
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, stub_id);
+    start = __ pc();
+    __ enter();
+
+    // Register Map
+    const Register aLimbs  = c_rarg0; // r0
+    const Register bLimbs  = c_rarg1; // r1
+    const Register rLimbs  = c_rarg2; // r2
+
+    Register c[]   = {r3, r4, r5, r6, r7, r8, r9, r10, r11, r12};
+    Register a     = r13;
+    Register b     = r14;
+    Register term  = r15;
+    Register low   = r16;
+    Register high  = r17;
+
+    const int32_t limbs      = 5;
+    const int32_t bpl        = 51;
+    const int32_t rem        = 64 - bpl;
+    const int32_t TERM       = 19;
+    const int32_t columns    = limbs * 2;
+    const uint64_t mask      = (uint64_t) -1 >> rem;
+    const uint64_t CARRY_ADD = (uint64_t) 1 << (bpl - 1);
+
+    __ mov(term, TERM);
+    for (int i = 0; i < columns; i++) {
+      __ mov(c[i], zr);
+    }
+
+    // Perform high/low multiplication with signed 5x51 bit limbs
+    for (int i = 0; i < limbs; i++) {
+      __ ldr(b, Address(bLimbs, i * 8));
+      for (int j = 0; j < limbs; j++) {
+        __ ldr(a, Address(aLimbs, j * 8));
+        __ smulh(high, a, b);
+        __ mul(low, a, b);
+        __ extr(high, high, low, bpl);
+        __ andr(low, low,  mask);
+        __ add(c[i + j], c[i + j], low);
+        __ add(c[i + j + 1], c[i + j + 1], high);
+      }
+    }
+
+    for (int i = 0; i < limbs; i++) {
+      __ mul(c[i + 5], c[i + 5], term);
+      __ add(c[i], c[i], c[i + 5]);
+    }
+
+    // Carry-add with reduction from high limb
+    Register tmp       = low;
+    Register carry_add = high;
+    __ mov(carry_add, CARRY_ADD);
+
+    // Limb 3
+    __ add(tmp, c[3], carry_add);
+    __ asr(tmp, tmp, bpl);
+    __ add(c[4], c[4], tmp);
+    __ lsl(tmp, tmp, bpl);
+    __ sub(c[3], c[3], tmp);
+
+    // Limb 4
+    __ add(tmp, c[4], carry_add);
+    __ asr(tmp, tmp, bpl);
+
+    // Reduce high order limb and fold back into low order limb
+    __ mul(term, tmp, term);
+    __ add(c[0], c[0], term);
+
+    __ lsl(tmp, tmp, bpl);
+    __ sub(c[4], c[4], tmp);
+
+    // Limbs 0 - 3
+    for (int i = 0; i < (limbs - 1); i++) {
+      __ add(tmp, c[i], carry_add);
+      __ asr(tmp, tmp, bpl);
+      __ add(c[i + 1], c[i + 1], tmp);
+      __ lsl(tmp, tmp, bpl);
+      __ sub(c[i], c[i], tmp);
+    }
+
+    for (int i = 0; i < limbs; i++) {
+      __ str(c[i], Address(rLimbs, i * 8));
+    }
+
+    __ mov(r0, 0);
+    __ leave();   // required for proper stackwalking of RuntimeStub frame
     __ ret(lr);
 
     // record the stub entry and end
@@ -13580,144 +13702,6 @@ class StubGenerator: public StubCodeGenerator {
     // }
   };
 
-  // Call here from the interpreter or compiled code to either load
-  // multiple returned values from the inline type instance being
-  // returned to registers or to store returned values to a newly
-  // allocated inline type instance.
-  address generate_return_value_stub(address destination, const char* name, bool has_res) {
-    // We need to save all registers the calling convention may use so
-    // the runtime calls read or update those registers. This needs to
-    // be in sync with SharedRuntime::java_return_convention().
-    // n.b. aarch64 asserts that frame::arg_reg_save_area_bytes == 0
-    enum layout {
-      j_rarg7_off = 0, j_rarg7_2,    // j_rarg7 is r0
-      j_rarg6_off, j_rarg6_2,
-      j_rarg5_off, j_rarg5_2,
-      j_rarg4_off, j_rarg4_2,
-      j_rarg3_off, j_rarg3_2,
-      j_rarg2_off, j_rarg2_2,
-      j_rarg1_off, j_rarg1_2,
-      j_rarg0_off, j_rarg0_2,
-
-      j_farg7_off, j_farg7_2,
-      j_farg6_off, j_farg6_2,
-      j_farg5_off, j_farg5_2,
-      j_farg4_off, j_farg4_2,
-      j_farg3_off, j_farg3_2,
-      j_farg2_off, j_farg2_2,
-      j_farg1_off, j_farg1_2,
-      j_farg0_off, j_farg0_2,
-
-      rfp_off, rfp_off2,
-      return_off, return_off2,
-
-      framesize // inclusive of return address
-    };
-
-    CodeBuffer code(name, 512, 64);
-    MacroAssembler* masm = new MacroAssembler(&code);
-
-    int frame_size_in_bytes = align_up(framesize*BytesPerInt, 16);
-    assert(frame_size_in_bytes == framesize*BytesPerInt, "misaligned");
-    int frame_size_in_slots = frame_size_in_bytes / BytesPerInt;
-    int frame_size_in_words = frame_size_in_bytes / wordSize;
-
-    OopMapSet* oop_maps = new OopMapSet();
-    OopMap* map = new OopMap(frame_size_in_slots, 0);
-
-    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg7_off), j_rarg7->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg6_off), j_rarg6->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg5_off), j_rarg5->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg4_off), j_rarg4->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg3_off), j_rarg3->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg2_off), j_rarg2->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg1_off), j_rarg1->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg0_off), j_rarg0->as_VMReg());
-
-    map->set_callee_saved(VMRegImpl::stack2reg(j_farg0_off), j_farg0->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_farg1_off), j_farg1->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_farg2_off), j_farg2->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_farg3_off), j_farg3->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_farg4_off), j_farg4->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_farg5_off), j_farg5->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_farg6_off), j_farg6->as_VMReg());
-    map->set_callee_saved(VMRegImpl::stack2reg(j_farg7_off), j_farg7->as_VMReg());
-
-    address start = __ pc();
-
-    __ enter(); // Save FP and LR before call
-
-    __ stpd(j_farg1, j_farg0, Address(__ pre(sp, -2 * wordSize)));
-    __ stpd(j_farg3, j_farg2, Address(__ pre(sp, -2 * wordSize)));
-    __ stpd(j_farg5, j_farg4, Address(__ pre(sp, -2 * wordSize)));
-    __ stpd(j_farg7, j_farg6, Address(__ pre(sp, -2 * wordSize)));
-
-    __ stp(j_rarg1, j_rarg0, Address(__ pre(sp, -2 * wordSize)));
-    __ stp(j_rarg3, j_rarg2, Address(__ pre(sp, -2 * wordSize)));
-    __ stp(j_rarg5, j_rarg4, Address(__ pre(sp, -2 * wordSize)));
-    __ stp(j_rarg7, j_rarg6, Address(__ pre(sp, -2 * wordSize)));
-
-    int frame_complete = __ offset();
-
-    // Set up last_Java_sp and last_Java_fp
-    address the_pc = __ pc();
-    __ set_last_Java_frame(sp, noreg, the_pc, rscratch1);
-
-    // Call runtime
-    __ mov(c_rarg1, r0);
-    __ mov(c_rarg0, rthread);
-
-    __ mov(rscratch1, destination);
-    __ blr(rscratch1);
-
-    oop_maps->add_gc_map(the_pc - start, map);
-
-    __ reset_last_Java_frame(false);
-
-    __ ldp(j_rarg7, j_rarg6, Address(__ post(sp, 2 * wordSize)));
-    __ ldp(j_rarg5, j_rarg4, Address(__ post(sp, 2 * wordSize)));
-    __ ldp(j_rarg3, j_rarg2, Address(__ post(sp, 2 * wordSize)));
-    __ ldp(j_rarg1, j_rarg0, Address(__ post(sp, 2 * wordSize)));
-
-    __ ldpd(j_farg7, j_farg6, Address(__ post(sp, 2 * wordSize)));
-    __ ldpd(j_farg5, j_farg4, Address(__ post(sp, 2 * wordSize)));
-    __ ldpd(j_farg3, j_farg2, Address(__ post(sp, 2 * wordSize)));
-    __ ldpd(j_farg1, j_farg0, Address(__ post(sp, 2 * wordSize)));
-
-    // check for pending exceptions
-    Label pending;
-    __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
-    __ cbnz(rscratch1, pending);
-
-    if (has_res) {
-      // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
-      // need to initialize the buffer and if so, call the inline class specific pack handler.
-      Label skip_pack;
-      __ get_vm_result_oop(r0, rthread);
-      __ get_vm_result_metadata(rscratch1, rthread);
-      __ cbz(rscratch1, skip_pack);
-      __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
-      __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
-      __ blr(rscratch1);
-      __ membar(Assembler::StoreStore);
-      __ bind(skip_pack);
-    }
-
-    __ leave();
-    __ ret(lr);
-
-    __ bind(pending);
-    __ leave();
-    __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
-
-    // -------------
-    // make sure all code is generated
-    masm->flush();
-
-    RuntimeStub* stub = RuntimeStub::new_runtime_stub(name, &code, frame_complete, frame_size_in_words, oop_maps, false);
-    return stub->entry_point();
-  }
-
   // Initialization
   void generate_preuniverse_stubs() {
     // preuniverse stubs are not needed for aarch64
@@ -13766,14 +13750,6 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_hf2f = generate_float16ToFloat();
       StubRoutines::_f2hf = generate_floatToFloat16();
     }
-
-    if (InlineTypeReturnedAsFields) {
-      StubRoutines::_load_inline_type_fields_in_regs =
-         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
-      StubRoutines::_store_inline_type_fields_to_buf =
-         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), "store_inline_type_fields_to_buf", true);
-    }
-
   }
 
   void generate_continuation_stubs() {
@@ -13977,6 +13953,15 @@ class StubGenerator: public StubCodeGenerator {
 
     if (UsePoly1305Intrinsics) {
       StubRoutines::_poly1305_processBlocks = generate_poly1305_processBlocks();
+    }
+
+    // The difference between AArch64 vs. x86_64 intrinsics implementation
+    // include the lack of square() intrinsics; usage caused a 3.3% performance
+    // degradation due to the efficiencies of the symmetric squaring shape in
+    // Java vs. the inefficiencies of the leaf calls and the additional cycles
+    // required for 64 bit multiplication in AArch64.
+    if (UseIntPoly25519Intrinsics) {
+      StubRoutines::_intpoly_mult_25519 = generate_intpoly_mult_25519();
     }
 
     // generate Adler32 intrinsics code
