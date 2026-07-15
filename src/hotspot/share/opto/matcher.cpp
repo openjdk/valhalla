@@ -1089,10 +1089,6 @@ Node *Matcher::xform( Node *n, int max_stack ) {
               }
               if (m == nullptr) {
                 // Convert to machine-dependent projection
-                RegMask* mask = nullptr;
-                if (n->in(0)->is_Call() && n->in(0)->as_Call()->tf()->returns_inline_type_as_fields()) {
-                  mask = return_values_mask(n->in(0)->as_Call()->tf());
-                }
                 m = n->in(0)->as_Multi()->match(n->as_Proj(), this);
                 NOT_PRODUCT(record_new2old(m, n);)
               }
