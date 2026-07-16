@@ -38,7 +38,7 @@ import static java.lang.annotation.ElementType.METHOD;
  * <p>
  * Non-record value classes, unless they implement the {@code writeReplace()}
  * and {@code readObject()} methods, cannot be serialized or deserialized. Certain pre-existing
- * {@code Serializable} identity classes within the JDK are migrated to value classes. Such a value
+ * {@code Serializable} identity classes within the JDK are value classes in preview-mode, and must remain compatible. Such a value
  * class may choose to annotate a constructor or a static method in that class with the
  * {@code Deserializer} annotation. During serialization and deserialization of value objects
  * of those classes, the {@code java.io.ObjectOutputStream} and {@code java.io.ObjectInputStream}
