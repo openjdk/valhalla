@@ -6507,9 +6507,10 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
 #ifdef COMPILER2
 
 // Fill memory with 'val', for 'cnt' qwords starting at 'base', using XMM/YMM/ZMM registers.
-void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
+void MacroAssembler::xmm_fill_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
   // cnt - number of qwords (8-byte words).
   // base - start address, qword aligned.
+  // val - qword pattern to fill.
   Label L_fill_64_bytes, L_loop, L_sloop, L_tail, L_end;
   bool use64byteVector = (MaxVectorSize == 64) && (CopyAVX3Threshold == 0);
   if (use64byteVector) {
@@ -6539,7 +6540,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   subptr(cnt, 8);
   jccb(Assembler::greaterEqual, L_loop);
 
-  // Copy trailing 64 bytes
+  // Fill trailing 64 bytes.
   if (use64byteVector) {
     addptr(cnt, 8);
     jccb(Assembler::equal, L_end);
@@ -6707,7 +6708,7 @@ void MacroAssembler::clear_mem(Register base, Register cnt, Register val, XMMReg
     shlptr(cnt, 3); // convert to number of bytes
     rep_stosb();
   } else if (UseXMMForObjInit) {
-    xmm_clear_mem(base, cnt, val, xtmp, mask);
+    xmm_fill_mem(base, cnt, val, xtmp, mask);
   } else {
     rep_stos();
   }
