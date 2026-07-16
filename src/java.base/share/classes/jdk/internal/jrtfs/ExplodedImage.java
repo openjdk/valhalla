@@ -120,9 +120,9 @@ class ExplodedImage extends SystemImage {
          * Used for each module-named directory that are leafs of /packages/...
          */
         private PathNode(String name, PathNode link) {
-            super(name, link.getFileAttributes());
+            super(name, Objects.requireNonNull(link).getFileAttributes());
             this.file = null;
-            this.link = Objects.requireNonNull(link);
+            this.link = link;
             this.directories = null;
             this.childNames = null;
         }
