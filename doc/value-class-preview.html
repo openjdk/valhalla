@@ -69,20 +69,24 @@ Handling for the Value Objects JEP</h3>
 <p>The Value Objects JEP requires a few select classes in the
 <code>java.base</code> module to become value classes when preview
 features are enabled.</p>
-<p>The build of <code>java.base</code> module first create the source
+<p>The build of <code>java.base</code> module first creates the source
 code of those value classes, done in <a
 href="../make/modules/java.base/gensrc/GensrcValueClasses.gmk"><code>GensrcValueClasses.gmk</code></a>.</p>
 <ol type="1">
-<li><p>A hardcoded list of files are selected for generation.</p></li>
-<li><p>For each file, search for any occurrences of
-<code>/*value*/ class</code> or <code>/*value*/ record</code>, and
-replace with <code>value class</code> or
-<code>value record</code>.</p></li>
-<li><p>The replaced, preview-specific source files are located in
-<code>support/gensrc-valueclasses/java.base/</code>.</p></li>
+<li><p>A hardcoded list of regular source files are selected for
+preview-specific generation.</p></li>
+<li><p>Extract the content of each regular source file, search for any
+occurrences of <code>/*value*/ class</code> or
+<code>/*value*/ record</code>, and replace with <code>value class</code>
+or <code>value record</code>.</p></li>
+<li><p>The replaced contents are written to the preview-specific
+generated files, located in
+<code>support/gensrc-valueclasses/java.base/</code>. The regular source
+files remain unchanged in their original locations.</p></li>
 <li><p>The general preview source to binary build pipeline recognizes
-this directory as where <code>java.base</code> places its
-preview-specific source files.</p></li>
+the <code>support/gensrc-valueclasses/java.base/</code> directory as
+where the <code>java.base</code> module places its preview-specific
+source files.</p></li>
 </ol>
 <h3 id="the-general-preview-source-to-binary-pipeline">The General
 Preview Source to Binary Pipeline</h3>

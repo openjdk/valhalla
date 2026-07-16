@@ -21,20 +21,24 @@ features), compiles class files from them, and distributes these class files in
 The Value Objects JEP requires a few select classes in the `java.base` module
 to become value classes when preview features are enabled.
 
-The build of `java.base` module first create the source code of those value
+The build of `java.base` module first creates the source code of those value
 classes, done in
 [`GensrcValueClasses.gmk`](../make/modules/java.base/gensrc/GensrcValueClasses.gmk).
 
-1. A hardcoded list of files are selected for generation.
+1. A hardcoded list of regular source files are selected for preview-specific
+   generation.
 
-2. For each file, search for any occurrences of `/*value*/ class` or
-   `/*value*/ record`, and replace with `value class` or `value record`.
+2. Extract the content of each regular source file, search for any occurrences
+   of `/*value*/ class` or `/*value*/ record`, and replace with `value class`
+   or `value record`.
 
-3. The replaced, preview-specific source files are located in
-   `support/gensrc-valueclasses/java.base/`.
+3. The replaced contents are written to the preview-specific generated files,
+   located in `support/gensrc-valueclasses/java.base/`.  The regular source
+   files remain unchanged in their original locations.
 
-4. The general preview source to binary build pipeline recognizes this
-   directory as where `java.base` places its preview-specific source files.
+4. The general preview source to binary build pipeline recognizes the
+   `support/gensrc-valueclasses/java.base/` directory as where the `java.base`
+   module places its preview-specific source files.
 
 ### The General Preview Source to Binary Pipeline
 
