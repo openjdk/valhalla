@@ -51,7 +51,7 @@ import static java.lang.annotation.ElementType.METHOD;
  * {@code Deserializer} is a temporary measure for legacy serialization migration compatibility;
  * future value object persistence would be handled by other mechanisms. The {@code Deserializer}
  * annotation isn't for general purpose usage, even in the classes that belong to the JDK; it is
- * meant to be used by a very select few classes and the legacy serialization places several
+ * meant to be used only by a very select few classes and the legacy serialization places several
  * unspecified restrictions on its usage.
  * <p>
  * This annotation only takes effect for classes loaded by the boot loader. The presence of this
