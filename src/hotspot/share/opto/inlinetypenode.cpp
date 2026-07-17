@@ -295,7 +295,7 @@ uint InlineTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePoi
   return cnt;
 }
 
-bool InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const {
+void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const {
   JVMState* jvms = sfpt->jvms();
   assert(jvms != nullptr, "missing JVMS");
   uint first_ind = (sfpt->req() - jvms->scloff());
@@ -321,7 +321,6 @@ bool InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
       sfpt->set_req(i, sobj);
     }
   }
-  return true;
 }
 
 bool InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {

@@ -59,7 +59,7 @@ private:
   // Get the klass defining the field layout of the inline type
   ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
 
-  bool make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const;
+  void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const;
   uint add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) const;
 
   // Checks if the inline type is loaded from memory and if so returns the oop
