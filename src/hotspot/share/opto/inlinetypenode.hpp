@@ -59,7 +59,7 @@ private:
   // Get the klass defining the field layout of the inline type
   ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
 
-  void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const;
+  bool make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const;
   uint add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) const;
 
   // Checks if the inline type is loaded from memory and if so returns the oop
@@ -122,9 +122,9 @@ public:
   uint          field_index(int offset) const;
 
   // Replace InlineTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
-  void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
+  bool make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
   // Variant that allows to limit to a single safepoint. If nullptr is given, all safepoint uses will be considered.
-  void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop, SafePointNode* safepoint);
+  bool make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop, SafePointNode* safepoint);
 
   // Store the inline type as a flat (headerless) representation
   void store_flat(GraphKit* kit, Node* base, Node* ptr, bool atomic, bool immutable_memory, bool null_free, DecoratorSet decorators);
