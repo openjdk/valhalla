@@ -3937,17 +3937,17 @@ void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, 
 
 void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Label& is_null_free) {
   testbit(flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
-  z_brc(Assembler::bcondNotZero, is_null_free);
+  z_brc(Assembler::bcondAllOne, is_null_free);
 }
 
 void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Label& not_null_free_inline_type) {
   testbit(flags, ResolvedFieldEntry::is_null_free_inline_type_shift);
-  z_brc(Assembler::bcondZero, not_null_free_inline_type);
+  z_brc(Assembler::bcondAllZero, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Label& is_flat) {
   testbit(flags, ResolvedFieldEntry::is_flat_shift);
-  z_brc(Assembler::bcondNotZero, is_flat);
+  z_brc(Assembler::bcondAllOne, is_flat);
 }
 
 //-------------------------------------
