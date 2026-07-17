@@ -50,9 +50,9 @@ import jdk.internal.access.SharedSecrets;
  * </b>
  * <div class="preview-block">
  *      <div class="preview-comment">
- *          When preview features are enabled, keys and values may be identity objects,
- *          value objects or null.
- *          For value classes, two value objects are state-wise equivalent if they are instances
+ *          When preview features are enabled, keys and values may be
+ *          {@linkplain java.util.Objects#hasIdentity value objects}.
+ *          Two value object keys are {@code == } if they are instances
  *          of the same class and the values of their instance fields are the same.
  *      </div>
  * </div>
