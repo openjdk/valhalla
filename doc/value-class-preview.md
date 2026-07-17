@@ -59,11 +59,11 @@ outcome images.
    `META-INF/preview` directory of the regular output directory.
 
 5. At run-time, jimage will pick up the preview-specific overrides from
-   `META-INF/preview`  when preview features are enabled.
+   `META-INF/preview` only when features are enabled.
 
-6. The interim `javac` used by the build system cannot pickup the
-   preview-specific overrides; they must be supplied explicitly with this
-   javac flag for every single module where overrides are significant:
+6. The interim `javac` used by the build system cannot pick up the
+   preview-specific overrides; they must be supplied explicitly with the
+   following javac flag for every single module where overrides are significant:
 
    ```
    --patch-module <module>=$(SUPPORT_OUTPUTDIR)/preview/<module>
