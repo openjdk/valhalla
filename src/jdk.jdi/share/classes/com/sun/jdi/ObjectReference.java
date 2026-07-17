@@ -55,7 +55,7 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * <div class="preview-block">
  *      <div class="preview-comment">
  * <h2><a id=valueObjects>Value Objects</a></h2>
- *If preview features are enabled, JDI supports value objects and classes.
+ * If preview features are enabled, JDI supports value objects and classes.
  * However, the support does in some cases deviate from identity object
  * support in behavior or expectations as noted below:
  * <p>
