@@ -44,11 +44,10 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  *          When preview features are disabled, all classes are identity classes and
  *          all objects are identity objects.
  *          <p>
- *          It is not possible to synchronize on a value object. Applying a {@code
- *          synchronize} statement to a value object causes an {@link IdentityException}
- *          to be thrown.
+ *          It is not possible to synchronize on a value object. An attempt to {@code
+ *          synchronize} on a value object causes {@link IdentityException} to be thrown.
  *          <p>
- *          The {@link #finalize()} method of a value object will never be invoked by
+ *          The {@link #finalize()} method of a value class will never be invoked by
  *          the garbage collector.
  *          <p>
  *          A {@linkplain java.lang.ref.Reference Reference object} can only refer to an
