@@ -55,31 +55,15 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * <div class="preview-block">
  *      <div class="preview-comment">
  * <h2><a id=valueObjects>Value Objects</a></h2>
- * When preview features are enabled, JDI supports value objects and classes
- * in a manner consistent with <cite>The Java Language Specification</cite> and
- * <cite>The Java Virtual Machine Specification</cite>, with one exception noted
- * below. In particular, two value objects are considered to be the same if both
- * refer to statewise-equivalent value objects (x == y has the value {@code true}).
- * {@link ObjectReference#equals} has always been defined to return true if
- * applying the "==" operator on the mirrored objects in the target VM
- * evaluates to true. That has not changed with value objects. See Sections
- * {@jls value-objects-8.1.1.5 Value Classes} and
- * {@jls value-objects-15.21.3 Object Equality Operators} of
- * <cite>The Java Language Specification</cite>, and Section
- * {@jvms value-objects-6.5 if_acmp_cond} of the
- * <cite>The Java Virtual Machine Specification</cite>.
+ *If preview features are enabled, JDI supports value objects and classes.
+ * However, the support does in some cases deviate from identity object
+ * support in behavior or expectations as noted below:
  * <p>
- * Where JDI does differ from the JLS is in allowing the user to obtain an
- * ObjectReference to a value object under construction (while in the "larval"
- * state). For example, the JDI user could fetch 'this' after hitting a
- * breakpoint in the value object contructor. This could lead to confusing
- * behavior for the JDI user. In particular, the value object may change after
- * the ObjectReference is obtained, even though value objects are considered
- * to be immutable. Because of this, if 'this' is fetched from a value object
- * constructor, an ObjectReference representing a statewise-equivalent "snapshot"
- * is returned instead, and this ObjectReference will not reflect changes to the
- * value object that happen later during construction. See
- * {@link StackFrame#thisObject}.
+ * If an ObjectReference is obtained for a value object under construction,
+ * it will be for a <em>snapshot</em> of the value object at that point in time.
+ * Any further changes to the initialization state of the value object will not
+ * be reflected in this ObjectReference. A new ObjectReference would need to
+ * be obtained to see the updated state. See {@link StackFrame#thisObject}.
  *      </div>
  * </div>
  * @author Robert Field
@@ -116,6 +100,12 @@ public interface ObjectReference extends Value {
      * The Field must be valid for this ObjectReference;
      * that is, it must be from
      * the mirrored object's class or a superclass of that class.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     * If preview features are enabled, this method does not prevent a
+     * strictly-initialized field from being read before it has been initialized.
+     *      </div>
+     * </div>
      *
      * @param sig the field containing the requested value
      * @return the {@link Value} of the instance field.
@@ -129,6 +119,12 @@ public interface ObjectReference extends Value {
      * The Fields must be valid for this ObjectReference;
      * that is, they must be from
      * the mirrored object's class or a superclass of that class.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     * If preview features are enabled, this method does not prevent a
+     * strictly-initialized field from being read before it has been initialized.
+     *      </div>
+     * </div>
      *
      * @param fields a list of {@link Field} objects containing the
      * requested values.

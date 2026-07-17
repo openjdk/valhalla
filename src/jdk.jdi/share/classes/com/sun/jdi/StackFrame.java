@@ -100,7 +100,7 @@ public interface StackFrame extends Mirror, Locatable {
      * If 'this' is a {@linkplain
      * ObjectReference##valueObjects value object<sup class="preview-mark">PREVIEW</sup>}
      * under construction, the returned {@code ObjectReference} will refer to a
-     * statewise-equivalent <em>snapshot</em> of the value object, not a reference
+     * <em>snapshot</em> of the value object, not a reference
      * to the actual value object under construction. Consequently, the returned
      * {@code ObjectReference} will not reflect changes to the value object that
      * happen later during construction.
