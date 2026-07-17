@@ -59,7 +59,7 @@ outcome images.
    `META-INF/preview` directory of the regular output directory.
 
 5. At run-time, jimage will pick up the preview-specific overrides from
-   `META-INF/preview` only when features are enabled.
+   `META-INF/preview` only when preview features are enabled.
 
 6. The interim `javac` used by the build system cannot pick up the
    preview-specific overrides; they must be supplied explicitly with the
@@ -84,7 +84,8 @@ The Value Objects JEP only plans to introduce value classes that are:
    These classes are available as identity classes when preview features are
    disabled. There's no plan to introduce completely new value classes.
 
-Support for other value classes require significant changes to the build system.
+Support for other value classes would require significant changes to the build
+system.
 
 ## Testing
 
@@ -107,7 +108,7 @@ Currently, wrapper class caches are retained even when preview features are
 enabled. They are created with `ValueClass.newReferenceArray`, which creates
 a non-flat array storing object references, allowing a value object wrapping
 a primitive value to be available quickly without redundant allocations and
-associated performance regressions. Their existence have no semantic meaning,
+associated performance regressions. Their existence has no semantic meaning,
 and they may be removed when the performance regressions are eliminated or
 reduced.
 
