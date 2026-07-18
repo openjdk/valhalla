@@ -107,10 +107,10 @@ directory.</p></li>
 <li><p>At run-time, jimage will pick up the preview-specific overrides
 from <code>META-INF/preview</code> only when preview features are
 enabled.</p></li>
-<li><p>The interim <code>javac</code> used by the build system cannot
-pick up the preview-specific overrides; they must be supplied explicitly
-with the following javac flag for every single module where overrides
-are significant:</p>
+<li><p>The interim javac used by the build system cannot pick up the
+preview-specific overrides; they must be supplied explicitly with the
+following javac flag for every single module where overrides are
+significant:</p>
 <pre><code>--patch-module &lt;module&gt;=$(SUPPORT_OUTPUTDIR)/preview/&lt;module&gt;</code></pre>
 <p>See <a
 href="../make/test/BuildMicrobenchmark.gmk"><code>BuildMicroBenchmarks.gmk</code></a>

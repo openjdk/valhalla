@@ -61,7 +61,7 @@ outcome images.
 5. At run-time, jimage will pick up the preview-specific overrides from
    `META-INF/preview` only when preview features are enabled.
 
-6. The interim `javac` used by the build system cannot pick up the
+6. The interim javac used by the build system cannot pick up the
    preview-specific overrides; they must be supplied explicitly with the
    following javac flag for every single module where overrides are significant:
 
