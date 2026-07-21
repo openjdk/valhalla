@@ -55,7 +55,7 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * <div class="preview-block">
  *      <div class="preview-comment">
  * <h2><a id=valueObjects>Value Objects</a></h2>
- * If preview features are enabled, JDI supports value objects and classes.
+ * If preview features are enabled in the target VM, JDI supports value objects and classes.
  * However, the support does in some cases deviate from identity object
  * support in behavior or expectations as noted below:
  * <p>
@@ -102,7 +102,7 @@ public interface ObjectReference extends Value {
      * the mirrored object's class or a superclass of that class.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     * If preview features are enabled, this method does not prevent a
+     * If preview features are enabled in the target VM, this method does not prevent a
      * strictly-initialized field from being read before it has been initialized.
      *      </div>
      * </div>
@@ -121,7 +121,7 @@ public interface ObjectReference extends Value {
      * the mirrored object's class or a superclass of that class.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     * If preview features are enabled, this method does not prevent a
+     * If preview features are enabled in the target VM, this method does not prevent a
      * strictly-initialized field from being read before it has been initialized.
      *      </div>
      * </div>

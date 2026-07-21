@@ -33,7 +33,8 @@ import com.sun.jdi.event.ModificationWatchpointEvent;
  * value hierarchy encompassing primitive values and object values.
  * <div class="preview-block">
  *      <div class="preview-comment">
- * When preview features are enabled, JDI supports value classes. A "value class"
+ * When preview features are enabled in the target VM,
+ * JDI supports value classes. A "value class"
  * as supported in the Java language is not related to the JDI Value interface.
  * A "value class" is a class declared with the "value" modifier. The JDI
  * Value interface is used by JDI to mirror a value in the debuggee VM. For more

@@ -521,7 +521,7 @@ public interface ReferenceType
      * superinterface, or an implemented interface.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     * If preview features are enabled, this method does not prevent a
+     * If preview features are enabled in the target VM, this method does not prevent a
      * strictly-initialized field from being read before it has been initialized.
      *      </div>
      * </div>
@@ -540,7 +540,7 @@ public interface ReferenceType
      * superinterface, or an implemented interface.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     * If preview features are enabled, this method does not prevent a
+     * If preview features are enabled in the target VM, this method does not prevent a
      * strictly-initialized field from being read before it has been initialized.
      *      </div>
      * </div>
