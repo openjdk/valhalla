@@ -932,6 +932,11 @@ Agent_OnUnload_L(JavaVM *vm)</example>
     a Java object that does not have identity. Such differences in behavior are described
     by the individual functions and events where they apply.
     <p/>
+    Object tags are jlong values that a JVMTI agent can associate with an object.
+    <jvmti/> allows a value object to be tagged despite the object having no identity.
+    Consequently, the tag is a <code>jlong</code> value associated with the object's
+    field values rather than its identity.
+    <p/>
     In summary, tags for value objects use value equality semantics, and
     the <eventlink id="ObjectFree"/> event is not sent for tagged value objects.
     The <eventlink id="VMObjectAlloc"/> and <eventlink id="SampledObjectAlloc"/> events
