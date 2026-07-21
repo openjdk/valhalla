@@ -108,15 +108,17 @@ Currently, wrapper class caches are retained even when preview features are
 enabled to address performance losses. They have no semantic impact to value
 objects.
 
-In interpreter or C1 execution in Hotspot, allocations of value objects to the
-heap as a full object with header happens when a value object is:
+In interpreter or C1 execution in Hotspot, allocations of a value object to the
+heap as a full object with header happen when a value object is:
 
 1. Loaded from a flat storage (field or array)
 2. Created by a constructor
+3. If C2 uses scalarized calling convention, at C2 to C1/interpreter calls and returns
 
-Ideally, C2 can eliminate such allocations, but this is not the case if the
-resulting object is stored into references. Unfortunately, many uses of boxing
-conversions store the resulting wrapper objects as references.
+Ideally, C2 can eliminate such allocations with scalarized calling convention,
+but this does not work if the resulting object is stored into references.
+Unfortunately, many uses of boxing conversions store the resulting wrapper
+objects as references.
 
 For the uses that store wrapper objects to references, if the boxing
 conversion is:
