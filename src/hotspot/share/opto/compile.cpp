@@ -2130,7 +2130,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
     InlineTypeNode* vt = _inline_type_nodes.at(i)->as_InlineType();
     if (!vt->make_scalar_in_safepoints(&igvn)) {
-      record_failure("Out of nodes during scalarization");
+      record_failure("out of nodes during scalarization");
       return;
     }
     igvn.record_for_igvn(vt);

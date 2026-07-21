@@ -79,7 +79,7 @@ public class TestSafepointScalarizationNodeLimit {
             i90 = x + 90, i91 = x + 91, i92 = x + 92, i93 = x + 93, i94 = x + 94,
             i95 = x + 95, i96 = x + 96, i97 = x + 97, i98 = x + 98, i99 = x + 99;
 
-        // 30 x 30 = 90 safepoints, each one with 100 live Integers
+        // 30 x 30 = 900 safepoints, each one with 100 live Integers
         safepoints(); safepoints(); safepoints(); safepoints(); safepoints();
         safepoints(); safepoints(); safepoints(); safepoints(); safepoints();
         safepoints(); safepoints(); safepoints(); safepoints(); safepoints();
@@ -114,7 +114,7 @@ public class TestSafepointScalarizationNodeLimit {
             i90 = x + 90, i91 = x + 91, i92 = x + 92, i93 = x + 93, i94 = x + 94,
             i95 = x + 95, i96 = x + 96, i97 = x + 97, i98 = x + 98, i99 = x + 99;
 
-        // 20 x 30 = 60 safepoints, each one with 100 live Integers
+        // 20 x 30 = 600 safepoints, each one with 100 live Integers
         safepoints(); safepoints(); safepoints(); safepoints(); safepoints();
         safepoints(); safepoints(); safepoints(); safepoints(); safepoints();
         safepoints(); safepoints(); safepoints(); safepoints(); safepoints();

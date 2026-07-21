@@ -1289,7 +1289,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode* alloc, Unique_Node_List&
   for (uint i = 0; i < value_worklist.size(); ++i) {
     InlineTypeNode* vt = value_worklist.at(i)->as_InlineType();
     if (!vt->make_scalar_in_safepoints(&_igvn, allow_oop)) {
-      C->record_failure("Out of nodes during scalarization");
+      C->record_failure("out of nodes during scalarization");
       return false;
     }
   }
