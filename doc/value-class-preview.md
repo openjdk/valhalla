@@ -115,10 +115,9 @@ heap as a full object with header happen when a value object is:
 2. Created by a constructor
 3. If C2 uses scalarized calling convention, at C2 to C1/interpreter calls and returns
 
-Ideally, C2 can eliminate such allocations with scalarized calling convention,
-but this does not work if the resulting object is stored into references.
-Unfortunately, many uses of boxing conversions store the resulting wrapper
-objects as references.
+Ideally, C2 can eliminate such allocations, but this does not work if the
+resulting object is stored into references. Unfortunately, many uses of boxing
+conversions store the resulting wrapper objects as references.
 
 For the uses that store wrapper objects to references, if the boxing
 conversion is:

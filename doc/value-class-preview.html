@@ -158,10 +158,10 @@ object is:</p>
 <li>If C2 uses scalarized calling convention, at C2 to C1/interpreter
 calls and returns</li>
 </ol>
-<p>Ideally, C2 can eliminate such allocations with scalarized calling
-convention, but this does not work if the resulting object is stored
-into references. Unfortunately, many uses of boxing conversions store
-the resulting wrapper objects as references.</p>
+<p>Ideally, C2 can eliminate such allocations, but this does not work if
+the resulting object is stored into references. Unfortunately, many uses
+of boxing conversions store the resulting wrapper objects as
+references.</p>
 <p>For the uses that store wrapper objects to references, if the boxing
 conversion is:</p>
 <ol type="1">
