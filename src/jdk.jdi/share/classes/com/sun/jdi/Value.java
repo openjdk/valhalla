@@ -31,11 +31,11 @@ import com.sun.jdi.event.ModificationWatchpointEvent;
  * The mirror for a value in the target VM.
  * This interface is the root of a
  * value hierarchy encompassing primitive values and object values.
+ *
  * <div class="preview-block">
  *      <div class="preview-comment">
- * When preview features are enabled in the target VM,
- * JDI supports value classes. A "value class"
- * as supported in the Java language is not related to the JDI Value interface.
+ * JDI supports {@linkplain Class#isValue() value classes}. A "value class"
+ * as supported in the Java language is not related to the JDI <em>Value</em> interface.
  * A "value class" is a class declared with the "value" modifier. The JDI
  * Value interface is used by JDI to mirror a value in the debuggee VM. For more
  * information on value classes, see Section {@jls value-objects-8.1.1.5 Value Classes}

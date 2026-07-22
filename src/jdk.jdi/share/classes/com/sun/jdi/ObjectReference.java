@@ -52,10 +52,11 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * takes <code>ObjectReference</code> as parameter may throw
  * {@link ObjectCollectedException} if the mirrored object has been
  * garbage collected.
+ *
  * <div class="preview-block">
  *      <div class="preview-comment">
  * <h2><a id=valueObjects>Value Objects</a></h2>
- * If preview features are enabled in the target VM, JDI supports value objects and classes.
+ * JDI supports {@linkplain Class#isValue() value objects and classes}.
  * However, the support does in some cases deviate from identity object
  * support in behavior or expectations as noted below:
  * <p>
@@ -66,6 +67,7 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * be obtained to see the updated state. See {@link StackFrame#thisObject}.
  *      </div>
  * </div>
+ *
  * @author Robert Field
  * @author Gordon Hirsch
  * @author James McIlree
@@ -102,8 +104,9 @@ public interface ObjectReference extends Value {
      * the mirrored object's class or a superclass of that class.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     * If preview features are enabled in the target VM, this method does not prevent a
-     * strictly-initialized field from being read before it has been initialized.
+     * This method does not prevent a
+     * {@linkplain java.lang.reflect.Field#isStrictInit() strictly-initialized field}
+     * from being read before it has been initialized.
      *      </div>
      * </div>
      *
@@ -121,8 +124,9 @@ public interface ObjectReference extends Value {
      * the mirrored object's class or a superclass of that class.
      * <div class="preview-block">
      *      <div class="preview-comment">
-     * If preview features are enabled in the target VM, this method does not prevent a
-     * strictly-initialized field from being read before it has been initialized.
+     * This method does not prevent a
+     * {@linkplain java.lang.reflect.Field#isStrictInit() strictly-initialized field}
+     * from being read before it has been initialized.
      *      </div>
      * </div>
      *
