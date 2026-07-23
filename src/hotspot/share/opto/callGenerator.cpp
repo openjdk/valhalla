@@ -888,9 +888,14 @@ void CallGenerator::do_late_inline_helper() {
         }
         assert(buffer_oop == nullptr, "unused buffer allocation");
 
-        // Limit result type propagation until next IGVN cleanup.
-        const Type* result_type = kit.gvn().type(callprojs.resproj);
-        result = kit.gvn().transform(new OpaqueParseNode(C, result, result_type));
+        // Note: scalarized results are guarded per projection
+        if (!call->tf()->returns_inline_type_as_fields()) {
+          assert(callprojs->nb_resproj == 1 && callprojs->resproj[0] != nullptr,
+                 "single result projection expected");
+          // Limit result type propagation until next IGVN cleanup.
+          const Type* result_type = kit.gvn().type(callprojs->resproj[0]);
+          result = kit.gvn().transform(new OpaqueParseNode(C, result, result_type));
+        }
       }
     }
 
