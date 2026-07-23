@@ -99,7 +99,7 @@ public interface StackFrame extends Mirror, Locatable {
      *
      * <div class="preview-block">
      *      <div class="preview-comment">
-     * If 'this' is a 
+     * If 'this' is a
      * {@linkplain ObjectReference##valueObjects value object<sup class="preview-mark">PREVIEW</sup>}
      * under construction, the returned {@code ObjectReference} will refer to a
      * <em>snapshot</em> of the value object, not a reference
