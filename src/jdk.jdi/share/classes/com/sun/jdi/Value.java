@@ -34,12 +34,11 @@ import com.sun.jdi.event.ModificationWatchpointEvent;
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
- * JDI supports {@linkplain Class#isValue() value classes}. A "value class"
- * as supported in the Java language is not related to the JDI <em>Value</em> interface.
- * A "value class" is a class declared with the "value" modifier. The JDI
- * Value interface is used by JDI to mirror a value in the debuggee VM. For more
- * information on value classes, see Section {@jls value-objects-8.1.1.5 Value Classes}
- * of <cite>The Java Language Specification</cite>.
+ * The Java Debug Interface (JDI) supports debugging of programs that use
+ * {@linkplain Class#isValue() value objects}. A value object is an instance of a
+ * value class, declared with the value modifier. The JDI
+ * {@code com.sun.jdi.Value} interface is used to mirror a value in the target VM.
+ * That value may be a value object or an identity object.
  *      </div>
  * </div>
  * <P>

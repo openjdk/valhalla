@@ -56,7 +56,8 @@ import com.sun.jdi.event.VMDisconnectEvent;
  * <div class="preview-block">
  *      <div class="preview-comment">
  * <h2><a id=valueObjects>Value Objects</a></h2>
- * JDI supports {@linkplain Class#isValue() value objects and classes}.
+ * The Java Debug Interface (JDI) supports debugging of programs that use
+ * {@linkplain Class#isValue() value objects}.
  * However, the support does in some cases deviate from identity object
  * support in behavior or expectations as noted below:
  * <p>
