@@ -1396,7 +1396,7 @@ void HeapShared::resolve_classes_for_subgraph_of(JavaThread* current, Klass* k) 
   JavaThread* THREAD = current;
   ExceptionMark em(THREAD);
   const ArchivedKlassSubGraphInfoRecord* record =
-   resolve_or_init_classes_for_subgraph_of(k, /*do_init=*/false, THREAD);
+   resolve_or_init_classes_for_subgraph_of(k, /*do_init=*/false, /*init_subgraph_first*/false, THREAD);
   if (HAS_PENDING_EXCEPTION) {
    CLEAR_PENDING_EXCEPTION;
   }
@@ -1484,7 +1484,7 @@ void HeapShared::initialize_from_archived_subgraph(JavaThread* current, Klass* k
 
   ExceptionMark em(THREAD);
   const ArchivedKlassSubGraphInfoRecord* record =
-    resolve_or_init_classes_for_subgraph_of(k, /*do_init=*/true, THREAD);
+    resolve_or_init_classes_for_subgraph_of(k, /*do_init=*/true, /*init_subgraph_first=*/false, THREAD);
 
   if (HAS_PENDING_EXCEPTION) {
     CLEAR_PENDING_EXCEPTION;
@@ -1500,7 +1500,7 @@ void HeapShared::initialize_from_archived_subgraph(JavaThread* current, Klass* k
 }
 
 const ArchivedKlassSubGraphInfoRecord*
-HeapShared::resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, TRAPS) {
+HeapShared::resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, bool init_subgraph_first, TRAPS) {
   assert(!CDSConfig::is_dumping_heap(), "Should not be called when dumping heap");
 
   if (!k->in_aot_cache()) {
@@ -1545,7 +1545,9 @@ HeapShared::resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, TRAP
       }
     }
 
-    resolve_or_init(k, do_init, CHECK_NULL);
+    if (!init_subgraph_first) {
+      resolve_or_init(k, do_init, CHECK_NULL);
+    }
 
     // Load/link/initialize the klasses of the objects in the subgraph.
     // nullptr class loader is used.
@@ -1557,6 +1559,10 @@ HeapShared::resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, TRAP
         }
         resolve_or_init(klass, do_init, CHECK_NULL);
       }
+    }
+
+    if (init_subgraph_first) {
+      resolve_or_init(k, do_init, CHECK_NULL);
     }
   }
 
@@ -2288,16 +2294,19 @@ void HeapShared::initialize_test_class_from_archive(JavaThread* current) {
     JavaThread* THREAD = current;
     ExceptionMark em(THREAD);
     const ArchivedKlassSubGraphInfoRecord* record =
-      resolve_or_init_classes_for_subgraph_of(k, /*do_init=*/false, THREAD);
+      resolve_or_init_classes_for_subgraph_of(k, /*do_init=*/false, /*init_subgraph_first*/false, THREAD);
 
     // The _test_class is in the unnamed module, so it can't call CDS.initializeFromArchive()
     // from its <clinit> method. So we set up its "archivedObjects" field first, before
-    // calling its <clinit>. This is not strictly clean, but it's a convenient way to write unit
-    // test cases (see test/hotspot/jtreg/runtime/cds/appcds/cacheObject/ArchiveHeapTestClass.java).
+    // calling its <clinit>.
     if (record != nullptr) {
       init_archived_fields_for(k, record);
     }
-    resolve_or_init_classes_for_subgraph_of(k, /*do_init=*/true, THREAD);
+
+    // This is a convenient way to write unit test cases, but the order of initialization needs
+    // to initialize the subclasses first in this case.
+    // (see test/hotspot/jtreg/runtime/cds/appcds/cacheObject/ArchiveHeapTestClass.java).
+    resolve_or_init_classes_for_subgraph_of(k, /*do_init=*/true, /*init_subgraph_first*/true, THREAD);
   }
 }
 #endif

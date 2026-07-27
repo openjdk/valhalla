@@ -337,7 +337,7 @@ private:
   static void resolve_classes_for_subgraph_of(JavaThread* current, Klass* k);
   static void clear_archived_roots_of(Klass* k);
   static const ArchivedKlassSubGraphInfoRecord*
-               resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, TRAPS);
+               resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, bool init_subgraph_first, TRAPS);
   static void resolve_or_init(const char* klass_name, bool do_init, TRAPS);
   static void resolve_or_init(Klass* k, bool do_init, TRAPS);
   static void init_archived_fields_for(Klass* k, const ArchivedKlassSubGraphInfoRecord* record);

@@ -1430,6 +1430,11 @@ void LinkResolver::runtime_resolve_virtual_method(CallInfo& result,
     THROW(vmSymbols::java_lang_NullPointerException());
   }
 
+  // Check that receiver class for an actual receiver-based virtual dispatch is initialized.
+  assert(!check_null_and_abstract || !recv->klass()->is_instance_klass() ||
+         !InstanceKlass::cast(recv->klass())->is_not_initialized(),
+         "must be initialized");
+
   // Virtual methods cannot be resolved before its klass has been linked, for otherwise the Method*'s
   // has not been rewritten, and the vtable initialized. Make sure to do this after the nullcheck, since
   // a missing receiver might result in a bogus lookup.
