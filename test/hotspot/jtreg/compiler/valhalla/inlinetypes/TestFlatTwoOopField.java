@@ -21,10 +21,10 @@
  * questions.
  */
 
-// TODO  * @bug 8389089
 
 /*
  * @test
+ * @bug 8389139
  * @summary Test atomic flat field stores with two embedded oops
  * @enablePreview
  * @modules java.base/jdk.internal.vm.annotation
