@@ -50,7 +50,7 @@ void CardTableBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) 
       ciField* field = vk->nonstatic_field_at(i);
       if (!field->type()->is_primitive_type()) {
         int off = access.offset().opr().as_jint() + field->offset_in_bytes() - vk->payload_offset();
-        // Each pre-barrier is a different LIR instruction and needs its own CodeEmitInfo.
+        // Each pre-barrier needs its own CodeEmitInfo
         CodeEmitInfo* info = access.patch_emit_info();
         if (info != nullptr) {
           info = new CodeEmitInfo(info);
