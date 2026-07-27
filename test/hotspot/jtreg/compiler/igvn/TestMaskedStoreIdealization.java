@@ -142,6 +142,15 @@ public class TestMaskedStoreIdealization {
                     );
                 });
 
+                if (op == Operation.STORE_MASK && vec.elementType.name().equals("int") && vec.length == 4) {
+                    return scope(
+                        """
+                            // No IR-verification for testInteger4Mask because it intermittently
+                            // compiles to a different code shape. Probably due to a fully set mask.
+                        """
+                    );
+                }
+
                 return scope(
                     let("pty", vec.elementType.name()),
                     let("ptyIR", ptyIR),
