@@ -23,7 +23,7 @@
  */
 
 /*
- * @summary Test AOT-cached flat arrays
+ * @test Test AOT-cached flat arrays
  * @requires vm.cds.supports.aot.class.linking
  * @requires vm.debug
  * @enablePreview
