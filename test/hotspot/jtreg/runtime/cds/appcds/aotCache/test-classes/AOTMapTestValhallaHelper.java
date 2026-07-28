@@ -103,7 +103,17 @@ public class AOTMapTestValhallaHelper {
     // This object will be stored in the AOT cache.
     static ArchivedData archivedObjects = new ArchivedData();
 
+    // This is called by reflection code in AOTMapTestApp.main() in ../AOTMapTest.java
     public AOTMapTestValhallaHelper() {
+        System.out.println("boxArray " + archivedObjects.boxArray);
+        System.out.println("wrapperArray " + archivedObjects.wrapperArray);
+        System.out.println("wrapperWrapperArray " + archivedObjects.wrapperWrapperArray);
+        System.out.println("objArray " + archivedObjects.objArray);
+        System.out.println("wrapper " + archivedObjects.wrapper);
+        System.out.println("wrapperWrapper " + archivedObjects.wrapperWrapper);
+        System.out.println("a " + archivedObjects.a);
+        System.out.println("b " + archivedObjects.b);
+
         if (!ValueClass.isFlatArray(archivedObjects.boxArray)) {
             throw new RuntimeException("Boxing class array should be flat");
         }
