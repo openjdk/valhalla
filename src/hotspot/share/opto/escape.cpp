@@ -2155,13 +2155,13 @@ bool ConnectionGraph::add_final_edges_unsafe_access(Node* n, uint opcode) {
 // (Object, Object), (MyValue, int), (MyValue, float), (int, int)
 class DomainIterator : public StackObj {
 private:
-  const TypeTuple* _domain;               // Domain of the Java signature
+  const TypeTuple* _domain;               // Domain of the JVM signature
   const TypeTuple* _domain_cc;            // Domain of the scalarized calling convention
   const GrowableArray<SigEntry>* _sig_cc; // Entries of the scalarized calling convention
 
-  uint _i_domain;        // Java signature domain index (long/double take two slots)
+  uint _i_domain;        // JVM signature domain index (long/double take two slots)
   uint _i_domain_cc;     // Scalarized calling convention domain index
-  int _i_arg;            // Java signature argument index (long/double take one argument)
+  int _i_arg;            // JVM signature argument index (long/double take one argument)
   int _i_sig_cc;         // Scalarized calling convention SigEntry index
   uint _depth;           // Scalarized value nesting depth
   uint _first_field_pos; // Scalarized calling convention domain index of the first non-hidden value field
