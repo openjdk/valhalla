@@ -335,7 +335,7 @@ public:
       pop();
     }
     // pop_objArray and pop_typeArray narrow the tos to ciObjArrayKlass
-    // or ciTypeArrayKlass (resp.).  In the rare case that an explicit
+    // or ciTypeArrayKlass (resp.). In the rare case that an explicit
     // null is popped from the stack, we return null. Caller beware.
     ciObjArrayKlass* pop_objArray() {
       ciType* array = pop_value();

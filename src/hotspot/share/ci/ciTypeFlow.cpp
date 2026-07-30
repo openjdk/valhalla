@@ -3223,7 +3223,7 @@ void ciTypeFlow::record_failure(const char* reason) {
 }
 
 ciType* ciTypeFlow::mark_as_early_larval(ciType* type) {
-  // Wrap the type to carry the information that "early larval"
+  // Wrap the type to carry the information that it is "early larval"
   return env()->make_early_larval_wrapper(type);
 }
 
