@@ -3029,7 +3029,7 @@ public class TestNullableInlineTypes {
     public void test103_verifier() {
         Asserts.assertEQ(test103(), null);
     }
-     */
+    */
 
     // Test null restricted fields
 
