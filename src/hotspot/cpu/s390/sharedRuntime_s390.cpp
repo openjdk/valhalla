@@ -1183,19 +1183,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // This should always fit in 14 bit immediate.
   __ resize_frame(-extraspace, Z_R0_scratch);
 
-  // TODO: loop_sender_SP aliases buf_array (both Z_R11). When InlineTypePassFieldsAsArgs
-  // is enabled, buf_array is loaded from vm_result_oop above and must remain live
-  // throughout the argument-copy loop, but the z_lgr below overwrites Z_R11 with
-  // sender_SP, silently corrupting buf_array. Fix: replace loop_sender_SP with
-  // sender_SP (Z_R10) directly -- it already holds the pre-resize SP and is the
-  // value the interpreter expects in Z_R10 on entry, so no extra register is needed.
-  Register loop_sender_SP = Z_R11;
-  __ z_lgr(loop_sender_SP, sender_SP);
-
-  // We use the caller's ABI scratch area (out_preserved_stack_slots) for the initial
-  // args. This essentially moves the callers ABI scratch area from the top to the
-  // bottom of the arg area.
-
   int st_off = extraspace - wordSize;
 
   // Now write the args into the outgoing interpreter space
@@ -1222,7 +1209,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         int ld_off = (r_1->reg2stack() + SharedRuntime::out_preserve_stack_slots()) * VMRegImpl::stack_slot_size;
 
         if (!r_2->is_valid()) {
-          __ z_mvc(Address(Z_SP, st_off), Address(loop_sender_SP, ld_off), sizeof(void*));
+          __ z_mvc(Address(Z_SP, st_off), Address(sender_SP, ld_off), sizeof(void*));
         } else {
           // longs are given 2 64-bit slots in the interpreter,
           // but the data is passed in only 1 slot.
@@ -1232,7 +1219,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 #endif
             st_off -= wordSize;
           }
-          __ z_mvc(Address(Z_SP, st_off), Address(loop_sender_SP, ld_off), sizeof(void*));
+          __ z_mvc(Address(Z_SP, st_off), Address(sender_SP, ld_off), sizeof(void*));
         }
       } else if (r_1->is_Register()) {
         Register r = r_1->as_Register();
@@ -1290,7 +1277,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           VMReg buffer = regs[next_arg_comp - ignored].first();
           if (buffer->is_stack()) {
             int ld_off = (buffer->reg2stack() + SharedRuntime::out_preserve_stack_slots()) * VMRegImpl::stack_slot_size;
-            __ z_lg(buf_oop, Address(loop_sender_SP, ld_off));
+            __ z_lg(buf_oop, Address(sender_SP, ld_off));
           } else {
             __ z_lgr(buf_oop, buffer->as_Register());
           }
@@ -1308,7 +1295,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
             Label L_notNull;
             if (reg->is_stack()) {
               int ld_off = (reg->reg2stack() + SharedRuntime::out_preserve_stack_slots()) * VMRegImpl::stack_slot_size;
-              __ z_llgc(tmp1, Address(loop_sender_SP, ld_off));
+              __ z_llgc(tmp1, Address(sender_SP, ld_off));
               __ compare64_and_branch(tmp1, (intptr_t)0, Assembler::bcondNotEqual, L_notNull);
             } else {
               __ compare64_and_branch(reg->as_Register(), (intptr_t)0, Assembler::bcondNotEqual, L_notNull);
@@ -1327,10 +1314,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           if (r_1->is_stack()) {
             int ld_off = (r_1->reg2stack() + SharedRuntime::out_preserve_stack_slots()) * VMRegImpl::stack_slot_size;
             if (!r_2->is_valid()) {
-              __ z_lgf(tmp1, Address(loop_sender_SP, ld_off));
+              __ z_lgf(tmp1, Address(sender_SP, ld_off));
               __ z_st(tmp1, Address(buf_oop, off));
             } else {
-              __ z_lg(tmp1, Address(loop_sender_SP, ld_off));
+              __ z_lg(tmp1, Address(sender_SP, ld_off));
               __ z_stg(tmp1, Address(buf_oop, off));
             }
           } else if (r_1->is_Register()) {

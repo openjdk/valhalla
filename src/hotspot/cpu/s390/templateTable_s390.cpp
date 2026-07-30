@@ -2113,8 +2113,8 @@ void TemplateTable::if_acmp(Condition cc) {
     __ z_chi(Z_ARG3, markWord::inline_type_pattern);
     __ branch_optimized(Assembler::bcondNotEqual, (cc == equal) ? not_taken : taken);
 
-    __ load_klass(Z_ARG3, Z_tos);
-    __ load_klass(Z_ARG4, Z_ARG5);
+    __ load_metadata(Z_ARG3, Z_tos);
+    __ load_metadata(Z_ARG4, Z_ARG5);
     __ compareU64_and_branch(Z_ARG3, Z_ARG4, Assembler::bcondNotEqual, (cc == equal) ? not_taken : taken);
 
     if (cc == equal) {
@@ -2701,13 +2701,21 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   const Register off           = Z_tmp_2;
   const Register cache         = Z_tmp_1;
   const Register index         = Z_tmp_2;
-  const Register flags         = Z_R1_scratch; // flags are not used in getfield
+  const Register flags         = Z_R1_scratch; // flags are not used in non-atos BTB entries
   const Register br_tab        = Z_R1_scratch;
   const Register tos_state     = Z_ARG4;
   const Register bc_reg        = Z_tmp_1;
   const Register patch_tmp     = Z_ARG4;
   const Register oopLoad_tmp1  = Z_R1_scratch;
   const Register oopLoad_tmp2  = Z_ARG5;
+  // In the Valhalla atosHandler, flags (Z_R1_scratch) and cache (Z_tmp_1) are both
+  // clobbered before we arrive there: Z_R1_scratch by br_tab dispatch and oopLoad_tmp1
+  // uses in every BTB entry; Z_tmp_1 by pop_and_check_object which overwrites cache
+  // with obj.  We reload both via load_field_entry inside atosHandler using Z_ARG4 and
+  // Z_ARG5, which are dead at the point of the z_bru(atosHandler) branch.
+  const Register atos_entry    = Z_ARG5;   // ResolvedFieldEntry* reloaded in atosHandler
+  const Register atos_index    = Z_ARG4;   // scratch for load_field_entry
+  const Register atos_flags    = Z_ARG4;   // reused to hold reloaded flags byte after entry load
 #ifdef ASSERT
   const Register br_tab_temp   = Z_R0_scratch;  // for branch table verification code only
 #endif
@@ -2718,7 +2726,8 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   //  cache, index          : short-lived. Their life ends after load_resolved_field_entry.
   //  obj (overwrites cache): long-lived. Used in branch table entries.
   //  off (overwrites index): long-lived. Used in branch table entries.
-  //  flags                 : unused in getfield.
+  //  flags (Z_R1_scratch)  : valid after load_resolved_field_entry but clobbered by
+  //                          br_tab dispatch — not usable in atosHandler. Reload there.
   //  br_tab                : short-lived. Only used to address branch table, and for verification in BTB_BEGIN macro.
   //  tos_state             : short-lived. Only used to index the branch table entry.
   //  bc_reg                : short-lived. Used as work register in patch_bytecode.
@@ -2924,8 +2933,15 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         __ load_heap_oop(Z_tos, field, oopLoad_tmp1, oopLoad_tmp2);
         __ push(atos);
       } else {
+        // Both flags (Z_R1_scratch) and cache (Z_tmp_1 == obj) are clobbered by the
+        // time we reach here.  Reload the ResolvedFieldEntry pointer fresh.
+        // atos_entry (Z_ARG5) and atos_index (Z_ARG4) are dead at this point.
+        __ load_field_entry(atos_entry, atos_index);
+        // Read the 1-byte flags field into atos_flags (Z_ARG4); atos_entry (Z_ARG5)
+        // still holds the ResolvedFieldEntry* for read_flat_field below.
+        __ load_sized_value(atos_flags, Address(atos_entry, in_bytes(ResolvedFieldEntry::flags_offset())), sizeof(u1), false);
         Label is_flat;
-        __ test_field_is_flat(flags, is_flat);
+        __ test_field_is_flat(atos_flags, is_flat);
         __ load_heap_oop(Z_tos, field, oopLoad_tmp1, oopLoad_tmp2);
         __ push(atos);
         if (do_rewrite) {
@@ -2933,9 +2949,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         }
         __ z_bru(Done);
         __ bind(is_flat);
-        // field is flat (null-free or nullable with a null-marker)
+        // field is flat (null-free or nullable with a null-marker).
+        // atos_entry (Z_ARG5) still holds the ResolvedFieldEntry* here.
         __ z_lgr(Z_tos, obj);
-        __ read_flat_field(cache, Z_tos);
+        __ read_flat_field(atos_entry, Z_tos);
         __ verify_oop(Z_tos);
         __ push(atos);
         if (do_rewrite) {
@@ -3305,7 +3322,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       __ pop(atos);
       if (is_static) {
         Label is_nullable;
-        __ z_lgr(Z_R0, Z_R10);
+        __ z_lgr(Z_R0, flags);
         __ z_nill(Z_R0, 1 << ResolvedFieldEntry::is_null_free_inline_type_shift);
         __ branch_optimized(Assembler::bcondZero, is_nullable);
         __ null_check(Z_tos);  // FIXME JDK-8341120
@@ -3341,8 +3358,18 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         __ z_bru(rewrite_inline);
         __ bind(is_flat);
         pop_and_check_object(oopStore_tmp1);
-        __ write_flat_field(cache, off, oopStore_tmp2, flags, oopStore_tmp1);
-        __ bind(rewrite_inline);
+        {
+          // cache (Z_ARG5) is dead here — overwritten by load_resolved_field_entry.
+          // tos_state (Z_ARG4) is dead here — its life ended after branch-table dispatch.
+          // Reload the ResolvedFieldEntry pointer into tos_state (Z_ARG4); use
+          // oopStore_tmp2 (Z_R1_scratch) as the index scratch.
+          // Pass oopStore_tmp3 (Z_ARG2) as tmp2 so that flags (Z_tmp_1) is not
+          // clobbered; flags must survive to the volatility check after Done.
+          Register flat_entry = tos_state;
+          Register flat_index = oopStore_tmp2; // Z_R1_scratch (index scratch, discarded after load)
+          __ load_field_entry(flat_entry, flat_index);
+          __ write_flat_field(flat_entry, off, flat_index, oopStore_tmp3, oopStore_tmp1);
+        }__ bind(rewrite_inline);
         if (do_rewrite) {
           patch_bytecode(Bytecodes::_fast_vputfield, bc_reg, patch_tmp, true, byte_no);
         }
@@ -3506,6 +3533,16 @@ void TemplateTable::fast_storefield(TosState state) {
   switch (bytecode()) {
     case Bytecodes::_fast_vputfield:
       {
+        // Register state at this point:
+        //   obj/cache = Z_tmp_1 (R10) = target object  (pop_and_check_object wrote obj here,
+        //                               overwriting the entry pointer that cache held earlier)
+        //   off       = Z_tmp_2 (R11) = field offset
+        //   flags     = Z_ARG5  (R6)  = field flags
+        //   Z_tos     = Z_ARG1  (R2)  = value oop being stored
+        //
+        // For write_flat_field we need the ResolvedFieldEntry pointer.
+        // Re-load it into Z_ARG3 (R4) using Z_ARG4 (R5) as the index scratch;
+        // both are volatile and not carrying live values at this point.
         Label is_flat, done;
         __ test_field_is_flat(flags, is_flat);
         __ null_check(Z_tos);  // Value being stored must not be null for null-free flat field.
@@ -3513,8 +3550,16 @@ void TemplateTable::fast_storefield(TosState state) {
                      Z_ARG2, Z_ARG3, Z_ARG4, IN_HEAP);
         __ branch_optimized(Assembler::bcondAlways, done);
         __ bind(is_flat);
-        // TODO: update write flat field
-        __ write_flat_field(cache, Z_ARG2, Z_ARG3, noreg, Z_tos);
+        {
+          // Reload the ResolvedFieldEntry pointer.  pop_and_check_object above
+          // overwrote cache/Z_tmp_1 with the object.
+          Register flat_entry = Z_ARG4;  // R5  — safe for call_VM arg_3 slot
+          Register flat_index = Z_ARG3;  // R4  — discarded after load_field_entry
+          __ load_field_entry(flat_entry, flat_index);
+          // entry=R5, field_offset=off=R11, tmp1=Z_ARG2=R3, tmp2=flags=Z_ARG5=R6, obj=Z_tmp_1=R10
+          // All five are distinct; obj(R10) != Z_tos(R2) so flat_field_copy is safe.
+          __ write_flat_field(flat_entry, off, Z_ARG2, flat_index, obj);
+        }
         __ bind(done);
       }
     break;
@@ -3613,10 +3658,10 @@ void TemplateTable::fast_accessfield(TosState state) {
   // access field
   switch (bytecode()) {
     case Bytecodes::_fast_vgetfield:
-    {
-      __ unimplemented("fast_vgetfield");
-    }
-    break;
+      // field is flat; cache (Z_tmp_1) holds ResolvedFieldEntry*, obj (Z_tos) is receiver/result
+      __ read_flat_field(cache, obj);
+      __ verify_oop(Z_tos);
+      break;
     case Bytecodes::_fast_agetfield:
       do_oop_load(_masm, field, Z_tos, Z_tmp_1, Z_tmp_2, IN_HEAP);
       __ verify_oop(Z_tos);
@@ -4144,16 +4189,13 @@ void TemplateTable::_new() {
     Register Rzero = Z_R1_scratch;
     __ clear_reg(Rzero, true /*whole reg*/, false); // Load 0L into Rzero. Don't set CC.
 
-    if (!ZeroTLAB) {
+   if (!ZeroTLAB) {
       // The object is initialized before the header. If the object size is
       // zero, go directly to the header initialization.
-      if (UseCompactObjectHeaders) {
-        assert(is_aligned(oopDesc::base_offset_in_bytes(), BytesPerLong), "oop base offset must be 8-byte-aligned");
-        __ z_aghi(Rsize, (int)-oopDesc::base_offset_in_bytes());
-      } else {
-        __ z_aghi(Rsize, (int)-sizeof(oopDesc)); // Subtract header size, set CC.
-      }
-      __ z_bre(initialize_header);             // Jump if size of fields is zero.
+      int header_size = oopDesc::header_size() * HeapWordSize;
+      assert(is_aligned(header_size, BytesPerLong), "oop header size must be 8-byte-aligned");
+      __ z_aghi(Rsize, -header_size); // Subtract header size, set CC.
+      __ z_bre(initialize_header);    // Jump if size of fields is zero.
 
       // Initialize object fields.
       // See documentation for MVCLE instruction!!!
@@ -4164,11 +4206,7 @@ void TemplateTable::_new() {
 
       // Set Rzero to 0 and use it as src length, then mvcle will copy nothing
       // and fill the object with the padding value 0.
-      if (UseCompactObjectHeaders) {
-        __ add2reg(RobjectFields, oopDesc::base_offset_in_bytes(), RallocatedObject);
-      } else {
-        __ add2reg(RobjectFields, sizeof(oopDesc), RallocatedObject);
-      }
+      __ add2reg(RobjectFields, header_size, RallocatedObject);
       __ move_long_ext(RobjectFields, as_Register(Rzero->encoding() - 1), 0);
     }
 

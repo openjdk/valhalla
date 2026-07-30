@@ -5322,6 +5322,7 @@ instruct castP2X(iRegL dst, iRegP_N2P src) %{
   ins_encode %{ __ lgr_if_needed($dst$$Register, $src$$Register); %}
   ins_pipe(pipe_class_dummy);
 %}
+
 // Cast Narrow Pointer to Long for unsafe natives.
 instruct castN2X(iRegL dst, iRegN src) %{
   match(Set dst (CastP2X src));
@@ -5331,6 +5332,14 @@ instruct castN2X(iRegL dst, iRegN src) %{
   ins_pipe(pipe_class_dummy);
 %}
 
+// Cast Integer to Narrow Pointer for inline types.
+instruct castI2N(iRegN dst, iRegI src) %{
+  match(Set dst (CastI2N src));
+  // TODO: s390 port size(VARIABLE_SIZE);
+  format %{ "LR      $dst,$src\t # CastI2N" %}
+  ins_encode %{ __ lr_if_needed($dst$$Register, $src$$Register); %}
+  ins_pipe(pipe_class_dummy);
+%}
 
 instruct stfSSD(stackSlotD stkSlot, regD src) %{
   // %%%% TODO: Tell the coalescer that this kind of node is a copy!

@@ -2206,36 +2206,43 @@ void InterpreterMacroAssembler::pop_interpreter_frame(Register return_pc, Regist
 //-------------------------------------
 
 void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
-  untested("read_flat_field");
   call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field), obj, entry);
-  z_fence();
 }
 
 void InterpreterMacroAssembler::write_flat_field(Register entry, Register field_offset,
                                                  Register tmp1, Register tmp2,
                                                  Register obj) {
-                                                  untested("write_flat_field");
   assert_different_registers(entry, field_offset, tmp1, tmp2, obj);
   Label slow_path, done;
 
-  // Load flags and check if field is null-free inline type
+  // Load flags and check if field is null-free inline type.
   load_sized_value(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())), sizeof(u1), false);
   test_field_is_not_null_free_inline_type(tmp1, slow_path);
 
-  // Null check the value being stored
+  // Null check the value being stored (Z_tos holds the value oop).
   null_check(Z_tos);  // FIXME JDK-8341120
 
-  // Calculate field address: obj + field_offset
+  // Advance obj to the exact field address inside the object.
   z_agr(obj, field_offset);
 
-  // For flat field copy, we need to call the runtime
-  // This is a simplified implementation that calls the runtime helper
-  // A full implementation would inline the copy operation
-  z_bru(slow_path);
+  // Compute the payload address of the value oop (Z_tos).
+  // load_klass clobbers tmp1; payload_addr overwrites Z_tos in-place using tmp1 as the klass.
+  load_klass(tmp1, Z_tos);
+  payload_addr(Z_tos, Z_tos, tmp1);
+
+  // Load the InlineLayoutInfo for this field:
+  //   field_index (u2) from the entry, holder klass pointer from the entry.
+  // Reuse field_offset as the layout_info register from here on.
+  Register layout_info = field_offset;
+  load_sized_value(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::field_index_offset())), sizeof(u2), false);
+  load_sized_value(tmp2, Address(entry, in_bytes(ResolvedFieldEntry::field_holder_offset())), sizeof(void*), false);
+  inline_layout_info(tmp2, tmp1, layout_info);
+
+  // Inline byte-copy of the value's payload into the flat field slot.
+  flat_field_copy(IN_HEAP, Z_tos, obj, layout_info);
+  z_bru(done);
 
   bind(slow_path);
-  // Call runtime helper to perform the flat field write
-  // Arguments: obj (field address), Z_tos (value), entry (field entry)
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flat_field), obj, Z_tos, entry);
 
   bind(done);
