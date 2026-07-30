@@ -78,7 +78,7 @@ public class TestReturnBufferClassInitialization {
     }
 
     static Object test() throws Throwable {
-        // Late inlining exposes target's scalarized UninitializedValue return at this Object-returning call site.
+        // Late inlining 'target' through the MH requires buffering because the caller expects an oop return.
         // C2 must not initialize UninitializedValue by allocating an unused buffer when the result is null.
         return (Object) HANDLE.invokeExact();
     }
