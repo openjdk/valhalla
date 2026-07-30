@@ -870,7 +870,6 @@ void CallGenerator::do_late_inline_helper() {
 
               // Use cloned InlineTypeNode to propagate oop from now on
               vt = vt->clone_if_required(&kit.gvn(), kit.map());
-              vt->set_is_buffered(kit.gvn());
               vt->set_oop(kit.gvn(), kit.gvn().transform(oop));
               vt->set_is_buffered(kit.gvn());
               vt = kit.gvn().transform(vt)->as_InlineType();
