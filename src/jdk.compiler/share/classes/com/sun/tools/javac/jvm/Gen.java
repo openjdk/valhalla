@@ -792,6 +792,11 @@ public class Gen extends JCTree.Visitor {
             code.resolvePending();
 
             LetExpr tree = (LetExpr) inner_tree;
+
+            if (tree.needsLineNumberTableEntry) {
+                code.statBegin(tree.pos);
+            }
+
             int limit = code.nextreg;
             int prevLetExprStart = code.setLetExprStackPos(code.state.stacksize);
             try {
@@ -949,13 +954,6 @@ public class Gen extends JCTree.Visitor {
  * Visitor methods for statements and definitions
  *************************************************************************/
 
-    /** Thrown when the byte code size exceeds limit.
-     */
-    public static class CodeSizeOverflow extends RuntimeException {
-        private static final long serialVersionUID = 0;
-        public CodeSizeOverflow() {}
-    }
-
     public void visitMethodDef(JCMethodDecl tree) {
         // Create a new local environment that points pack at method
         // definition.
@@ -1002,13 +1000,7 @@ public class Gen extends JCTree.Visitor {
                 // Create a new code structure and initialize it.
                 int startpcCrt = initCode(tree, env, fatcode);
 
-                try {
-                    genStat(tree.body, env);
-                } catch (CodeSizeOverflow e) {
-                    // Failed due to code limit, try again with jsr/ret
-                    startpcCrt = initCode(tree, env, fatcode);
-                    genStat(tree.body, env);
-                }
+                genStat(tree.body, env);
 
                 if (code.state.stacksize != 0) {
                     log.error(tree.body.pos(), Errors.StackSimError(tree.sym));
@@ -2511,6 +2503,10 @@ public class Gen extends JCTree.Visitor {
 
     public void visitLetExpr(LetExpr tree) {
         code.resolvePending();
+
+        if (tree.needsLineNumberTableEntry) {
+            code.statBegin(tree.pos);
+        }
 
         int limit = code.nextreg;
         int prevLetExprStart = code.setLetExprStackPos(code.state.stacksize);
