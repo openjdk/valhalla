@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -432,7 +432,10 @@ class JImageTask {
                     }
                 }
             } catch (IOException ioe) {
-                throw TASK_HELPER.newBadArgs("err.invalid.jimage", file, ioe.getMessage());
+                boolean isVersionMismatch = ioe instanceof BasicImageReader.ImageVersionMismatchException;
+                // Both messages take the file name and underlying message.
+                String msgKey = isVersionMismatch ? "err.wrong.version" : "err.invalid.jimage";
+                throw TASK_HELPER.newBadArgs(msgKey, file, ioe.getMessage());
             }
         }
     }

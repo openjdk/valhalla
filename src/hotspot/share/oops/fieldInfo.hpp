@@ -36,6 +36,7 @@ static constexpr u4 flag_mask(int pos) {
   return (u4)1 << pos;
 }
 
+
 // Helper class for access to the underlying Array<u1> used to
 // store the compressed stream of FieldInfo
 template<typename ARR, typename OFF>
@@ -66,7 +67,6 @@ class FieldInfo {
 
   class FieldFlags {
     friend class VMStructs;
-    friend class JVMCIVMStructs;
     friend class FieldDesc;
 
     // The ordering of this enum is totally internal.  More frequent
@@ -332,7 +332,7 @@ class FieldStatus {
 
   // boilerplate:
   u1 _flags;
-  static constexpr u1 flag_mask(FieldStatusBitPosition pos) { return (u1)1 << (int)pos; }
+  static constexpr u1 flag_mask(FieldStatusBitPosition pos) { return checked_cast<u1>(1 << pos); }
   bool test_flag(FieldStatusBitPosition pos) { return (_flags & flag_mask(pos)) != 0; }
   // this performs an atomic update on a live status byte!
   void update_flag(FieldStatusBitPosition pos, bool z);

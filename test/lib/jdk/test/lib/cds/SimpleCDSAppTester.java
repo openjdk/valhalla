@@ -61,7 +61,6 @@ public class SimpleCDSAppTester {
     private Tester tester;
 
     private SimpleCDSAppTester(String name) {
-        super();
         this.name = name;
         this.tester = new Tester(name);
     }
@@ -211,5 +210,23 @@ public class SimpleCDSAppTester {
     public SimpleCDSAppTester run(String args[])  throws Exception {
         tester.run(args);
         return this;
+    }
+
+    public SimpleCDSAppTester rerunProduction(String... extraVmArgs) throws Exception {
+        tester.productionRun(extraVmArgs);
+        return this;
+    }
+
+    public SimpleCDSAppTester rerunProduction(String[] extraVmArgs, String... extraAppArgs) throws Exception {
+        tester.productionRun(extraVmArgs, extraAppArgs);
+        return this;
+    }
+
+    public String aotCacheFile() {
+        return tester.aotCacheFile();
+    }
+
+    public void setCheckExitValue(boolean b) {
+        tester.setCheckExitValue(b);
     }
 }

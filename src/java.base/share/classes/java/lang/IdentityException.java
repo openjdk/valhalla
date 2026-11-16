@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,7 +24,6 @@
  */
 package java.lang;
 
-
 import jdk.internal.javac.PreviewFeature;
 
 /**
@@ -33,10 +34,10 @@ import jdk.internal.javac.PreviewFeature;
  * objects do not have identity and cannot be used for synchronization, locking,
  * or any type of {@link java.lang.ref.Reference}.
  *
- * @since Valhalla
+ * @since 28
  */
 @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
-public class IdentityException extends RuntimeException {
+public final class IdentityException extends RuntimeException {
     @java.io.Serial
     private static final long serialVersionUID = 1L;
 
@@ -47,41 +48,11 @@ public class IdentityException extends RuntimeException {
     }
 
     /**
-     * Create an {@code IdentityException} with the class name and default message.
-     *
-     * @param clazz the class of the object
-     */
-    public IdentityException(Class<?> clazz) {
-        super(clazz.getName() + " is not an identity class");
-    }
-
-    /**
      * Create an {@code IdentityException} with a message.
      *
      * @param  message the detail message; can be {@code null}
      */
     public IdentityException(String message) {
         super(message);
-    }
-
-    /**
-     * Create an {@code IdentityException} with a cause.
-     *
-     * @param  cause the cause; {@code null} is permitted, and indicates
-     *               that the cause is nonexistent or unknown.
-     */
-    public IdentityException(Throwable cause) {
-        super(cause);
-    }
-
-    /**
-     * Create an {@code IdentityException} with a message and cause.
-     *
-     * @param  message the detail message; can be {@code null}
-     * @param  cause the cause; {@code null} is permitted, and indicates
-     *               that the cause is nonexistent or unknown.
-     */
-    public IdentityException(String message, Throwable cause) {
-        super(message, cause);
     }
 }

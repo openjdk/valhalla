@@ -55,10 +55,11 @@ class RecordComponent;
 
 //  InstanceKlass embedded field layout (after declared fields):
 //    [EMBEDDED Java vtable             ] size in words = vtable_len
+//    [EMBEDDED Java itable             ] size in words = itable_len
 //    [EMBEDDED nonstatic oop-map blocks] size in words = nonstatic_oop_map_size
 //      The embedded nonstatic oop-map blocks are short pairs (offset, length)
 //      indicating where oops are located in instances of this klass.
-//    [EMBEDDED implementor of the interface] only exist for interface
+//    [EMBEDDED implementor of the interface] only exists for interface
 //    [EMBEDDED InlineKlass::Members] only if is an InlineKlass instance
 
 
@@ -75,7 +76,6 @@ class JNIid;
 class JvmtiCachedClassFieldMap;
 class nmethodBucket;
 class OopMapCache;
-class BufferedInlineTypeBlob;
 class InterpreterOopMap;
 class PackageEntry;
 class ModuleEntry;
@@ -87,7 +87,9 @@ public:
 };
 
 // Print fields.
-// If "obj" argument to constructor is null, prints static fields, otherwise prints non-static fields.
+// If "obj" argument to constructor is null, prints fields as if they are static fields,
+// otherwise prints non-static fields. It is possible to print non-static fields the same
+// way as static fields when no oops are available, such as when debug printing classes.
 class FieldPrinter: public FieldClosure {
    oop _obj;
    outputStream* _st;
@@ -146,8 +148,6 @@ class InlineLayoutInfo : public MetaspaceObj {
 
  public:
   InlineLayoutInfo(): _klass(nullptr), _kind(LayoutKind::UNKNOWN), _null_marker_offset(-1)  {}
-  InlineLayoutInfo(InlineKlass* ik, LayoutKind kind, int size, int nm_offset):
-    _klass(ik), _kind(kind), _null_marker_offset(nm_offset) {}
 
   InlineKlass* klass() const { return _klass; }
   void set_klass(InlineKlass* k) { _klass = k; }
@@ -169,11 +169,14 @@ class InlineLayoutInfo : public MetaspaceObj {
 
   static ByteSize klass_offset() { return byte_offset_of(InlineLayoutInfo, _klass); }
   static ByteSize null_marker_offset_offset() { return byte_offset_of(InlineLayoutInfo, _null_marker_offset); }
+
+  // Print
+  void print() const;
+  void print_on(outputStream* st) const;
 };
 
 class InstanceKlass: public Klass {
   friend class VMStructs;
-  friend class JVMCIVMStructs;
   friend class ClassFileParser;
   friend class CompileReplay;
   friend class TemplateTable;
@@ -271,7 +274,7 @@ class InstanceKlass: public Klass {
   volatile ClassState _init_state;          // state of class
 
   u1              _reference_type;          // reference type
-  int             _acmp_maps_offset;        // offset to injected static field storing .acmp_maps for values classes
+  int             _acmp_maps_offset;        // offset to injected static field storing .acmp_maps for value classes
                                             // unfortunately, abstract values need one too so it cannot be stored in
                                             // the InlineKlass::Members that only exist for InlineKlass.
 
@@ -333,19 +336,6 @@ class InstanceKlass: public Klass {
   // Located here because sub-klasses can't have their own C++ fields
   address _adr_inline_klass_members;
 
-  // embedded Java vtable follows here
-  // embedded Java itables follows here
-  // embedded static fields follows here
-  // embedded nonstatic oop-map blocks follows here
-  // embedded implementor of this interface follows here
-  //   The embedded implementor only exists if the current klass is an
-  //   interface. The possible values of the implementor fall into following
-  //   three cases:
-  //     null: no implementor.
-  //     A Klass* that's not itself: one implementor.
-  //     Itself: more than one implementors.
-  //
-
   friend class SystemDictionary;
 
   static bool _disable_method_binary_search;
@@ -384,9 +374,6 @@ class InstanceKlass: public Klass {
   bool defined_by_other_loaders() const    { return _misc_flags.defined_by_other_loaders(); }
   void set_class_loader_type()             { _misc_flags.set_class_loader_type(_class_loader_data); }
 
-  // Check if the class can be shared in CDS
-  bool is_shareable() const;
-
   bool shared_loading_failed() const { return _misc_flags.shared_loading_failed(); }
 
   void set_shared_loading_failed() { _misc_flags.set_shared_loading_failed(true); }
@@ -400,7 +387,10 @@ class InstanceKlass: public Klass {
   bool has_inlined_fields() const { return _misc_flags.has_inlined_fields(); }
   void set_has_inlined_fields()   { _misc_flags.set_has_inlined_fields(true); }
 
-  bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
+  bool has_null_restricted_static_fields() const { return _misc_flags.has_null_restricted_static_fields(); }
+  void set_has_null_restricted_static_fields()   { _misc_flags.set_has_null_restricted_static_fields(true); }
+
+  bool is_naturally_atomic(bool null_free) const;
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
   // Query if this class has atomicity requirements (default is yes)
@@ -411,6 +401,9 @@ class InstanceKlass: public Klass {
   // and the presence of flat fields with atomicity requirements
   bool must_be_atomic() const { return _misc_flags.must_be_atomic(); }
   void set_must_be_atomic()   { _misc_flags.set_must_be_atomic(true); }
+
+  bool fail_over_verified() const { return _misc_flags.fail_over_verified(); }
+  void set_fail_over_verified() { _misc_flags.set_fail_over_verified(true); }
 
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
@@ -643,7 +636,7 @@ public:
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const override;  // means that initialize should be called
-  void initialize_with_aot_initialized_mirror(TRAPS);
+  void initialize_with_aot_initialized_mirror(bool early_init, TRAPS);
   void assert_no_clinit_will_run_for_aot_initialized_class() const NOT_DEBUG_RETURN;
   void initialize(TRAPS) override;
   void initialize_preemptable(TRAPS) override;
@@ -688,6 +681,9 @@ public:
 
   bool find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
+
+  bool find_local_flat_field_containing_offset(int offset, fieldDescriptor* fd) const;
+  bool find_flat_field_containing_offset(int offset, fieldDescriptor* fd) const;
 
  private:
   inline static int quick_search(const Array<Method*>* methods, const Symbol* name);
@@ -1001,6 +997,13 @@ public:
 #endif
 
   // Access to the implementor of an interface.
+  //   The embedded implementor only exists if the current klass is an
+  //   interface. The possible values of the implementor fall into following
+  //   three cases:
+  //     null: no implementor.
+  //     A Klass* that's not itself: one implementor.
+  //     Itself: more than one implementors.
+  //
   InstanceKlass* implementor() const;
   void set_implementor(InstanceKlass* ik);
   int  nof_implementors() const;
@@ -1060,10 +1063,10 @@ public:
 
   int size() const override;
 
+
   inline intptr_t* start_of_itable() const;
   inline intptr_t* end_of_itable() const;
   inline oop static_field_base_raw();
-  bool bounds_check(address addr, bool edge_ok = false, intptr_t size_in_bytes = -1) const PRODUCT_RETURN0;
 
   inline OopMapBlock* start_of_nonstatic_oop_maps() const;
   inline Klass** end_of_nonstatic_oop_maps() const;
@@ -1142,7 +1145,6 @@ public:
 
   // Naming
   const char* signature_name() const override;
-  const char* signature_name_of_carrier(char c) const;
 
   // Oop fields (and metadata) iterators
   //
@@ -1259,8 +1261,6 @@ private:
   void link_previous_versions(InstanceKlass* pv) { _previous_versions = pv; }
   void mark_newly_obsolete_methods(Array<Method*>* old_methods, int emcp_method_count);
 #endif
-  // log class name to classlist
-  void log_to_classlist() const;
 public:
 
 #if INCLUDE_CDS
@@ -1292,6 +1292,7 @@ public:
   // Printing
   void print_on(outputStream* st) const override;
   void print_value_on(outputStream* st) const override;
+  void print_class_flags(outputStream* st) const;
 
   void oop_print_value_on(oop obj, outputStream* st) override;
 
@@ -1305,6 +1306,9 @@ public:
 #endif
 
   const char* internal_name() const override;
+
+  template<typename T, typename TClosureType>
+  static void print_array_on(outputStream* st, Array<T>* array, TClosureType elem_printer);
 
   // Verification
   void verify_on(outputStream* st) override;

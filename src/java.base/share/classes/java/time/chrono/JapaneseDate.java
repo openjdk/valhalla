@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,13 +113,13 @@ import sun.util.calendar.LocalGregorianCalendar;
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
  * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
- * as interchangeable and should not use instances for synchronization, mutexes, or
+ * as interchangeable and should not use instances for synchronization or
  * with {@linkplain java.lang.ref.Reference object references}.
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code JapaneseDate} is a {@linkplain Class#isValue value class}.
- *          Use of value class instances for synchronization, mutexes, or with
+ *          Use of value class instances for synchronization or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.
  *      </div>
@@ -131,8 +131,8 @@ import sun.util.calendar.LocalGregorianCalendar;
  * @since 1.8
  */
 @jdk.internal.ValueBased
-@jdk.internal.MigratedValueClass
-public final class JapaneseDate
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class JapaneseDate
         extends ChronoLocalDateImpl<JapaneseDate>
         implements ChronoLocalDate, Serializable {
 
@@ -725,6 +725,7 @@ public final class JapaneseDate
      * @throws InvalidObjectException always
      */
     @java.io.Serial
+    @SuppressWarnings("serial") // this method is not invoked for value classes
     private void readObject(ObjectInputStream s) throws InvalidObjectException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

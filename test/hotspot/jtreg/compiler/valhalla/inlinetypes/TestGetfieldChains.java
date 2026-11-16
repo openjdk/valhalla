@@ -39,12 +39,12 @@ import jdk.test.lib.Asserts;
  * @key randomness
  * @summary Verify that chains of getfields on flat fields are correctly optimized.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
  * @compile GetfieldChains.jcod
- * @run main/timeout=300 compiler.valhalla.inlinetypes.TestGetfieldChains
+ * @run driver/timeout=300 ${test.main.class}
  */
 
 @LooselyConsistentValue

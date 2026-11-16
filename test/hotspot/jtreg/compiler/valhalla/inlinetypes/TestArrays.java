@@ -51,7 +51,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 import static compiler.lib.ir_framework.IRNode.ALLOC;
 import static compiler.lib.ir_framework.IRNode.ALLOC_ARRAY;
 import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
-import static compiler.lib.ir_framework.IRNode.INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP;
+import static compiler.lib.ir_framework.IRNode.INTRINSIC_TRAP;
 import static compiler.lib.ir_framework.IRNode.LOOP;
 import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
 import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
@@ -64,8 +64,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main compiler.valhalla.inlinetypes.TestArrays 0
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -76,8 +76,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main compiler.valhalla.inlinetypes.TestArrays 1
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -88,8 +88,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main compiler.valhalla.inlinetypes.TestArrays 2
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -100,8 +100,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main compiler.valhalla.inlinetypes.TestArrays 3
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @run driver ${test.main.class} 3
  */
 
 /*
@@ -112,8 +112,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main compiler.valhalla.inlinetypes.TestArrays 4
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -124,8 +124,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main compiler.valhalla.inlinetypes.TestArrays 5
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -136,8 +136,8 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run main compiler.valhalla.inlinetypes.TestArrays 6
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
+ * @run driver ${test.main.class} 6
  */
 
 @ForceCompileClassInitializer
@@ -146,7 +146,7 @@ public class TestArrays {
     public static void main(String[] args) {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
         scenarios[2].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
-        scenarios[3].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:+UseArrayFlattening", "-XX:-UncommonNullCast");
+        scenarios[3].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:+UnlockDiagnosticVMOptions", "-XX:+UseArrayFlattening", "-XX:-UncommonNullCast");
         scenarios[4].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
         scenarios[5].addFlags("--enable-preview", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
 
@@ -802,9 +802,10 @@ public class TestArrays {
 
     // non escaping allocations
     // TODO 8252027: Make sure this is optimized with ZGC
+    // TODO 8350865: Support flat arrays in LoadNode::find_previous_arraycopy
     @Test
-    @IR(applyIf = {"UseZGC", "false"},
-        failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // @IR(applyIf = {"UseZGC", "false"},
+    //     failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue2 test28() {
         MyValue2[] src = (MyValue2[])ValueClass.newNullRestrictedNonAtomicArray(MyValue2.class, 10, MyValue2.DEFAULT);
         src[0] = MyValue2.createWithFieldsInline(rI, rD);
@@ -1638,6 +1639,7 @@ public class TestArrays {
         return va;
     }
 
+    @Warmup(value=10000)
     @Run(test = "test66")
     public void test66_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -2664,9 +2666,9 @@ public class TestArrays {
     // Arraycopy with constant source and destination arrays
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
+        counts = {INTRINSIC_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
+        failOn = INTRINSIC_TRAP)
     public void test102() {
         System.arraycopy(val_src, 0, obj_dst, 0, 8);
     }
@@ -2693,7 +2695,7 @@ public class TestArrays {
 
     // Same as test102 but with Object[] src
     @Test
-    @IR(failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
+    @IR(failOn = INTRINSIC_TRAP)
     public void test104() {
         System.arraycopy(obj_src, 0, obj_dst, 0, 8);
     }
@@ -2706,7 +2708,7 @@ public class TestArrays {
 
     // Same as test103 but with Object[] src
     @Test
-    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
+    @IR(counts = {INTRINSIC_TRAP, "= 1"})
     public void test105() {
         System.arraycopy(obj_src, 0, val_dst, 0, 8);
     }
@@ -2719,7 +2721,7 @@ public class TestArrays {
 
     // Same as test103 but with Object[] src containing null
     @Test
-    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
+    @IR(counts = {INTRINSIC_TRAP, "= 1"})
     public void test105_null() {
         System.arraycopy(obj_null_src, 0, val_dst, 0, 8);
     }
@@ -2738,9 +2740,9 @@ public class TestArrays {
     // after the arraycopy intrinsic is emitted (with incremental inlining).
     @Test
     @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
+        counts = {INTRINSIC_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
+        failOn = INTRINSIC_TRAP)
     public void test106() {
         System.arraycopy(get_val_src(), 0, get_obj_dst(), 0, 8);
     }
@@ -2755,7 +2757,7 @@ public class TestArrays {
     // at parse time it looks as if src could be flat and dst could be not flat.
     @Test
     @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
+        failOn = INTRINSIC_TRAP)
     public void test107() {
         System.arraycopy(get_val_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2767,7 +2769,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(failOn = INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP)
+    @IR(failOn = INTRINSIC_TRAP)
     public void test108() {
         System.arraycopy(get_obj_src(), 0, get_obj_dst(), 0, 8);
     }
@@ -2779,7 +2781,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
+    @IR(counts = {INTRINSIC_TRAP, "= 1"})
     public void test109() {
         System.arraycopy(get_obj_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2791,7 +2793,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
+    @IR(counts = {INTRINSIC_TRAP, "= 1"})
     public void test109_null() {
         System.arraycopy(get_obj_null_src(), 0, get_val_dst(), 0, 8);
     }
@@ -2808,10 +2810,11 @@ public class TestArrays {
 
     // Arrays.copyOf with constant source and destination arrays
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
-    @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    // TODO 8251971 Re-enable
+    // @IR(applyIf = {"UseArrayFlattening", "true"},
+    //     counts = {INTRINSIC_TRAP, "= 1"})
+    // @IR(applyIf = {"UseArrayFlattening", "false"},
+    //     failOn = {INTRINSIC_TRAP, CLASS_CHECK_TRAP})
     public Object[] test110() {
         return Arrays.copyOf(val_src, 8, Object[].class);
     }
@@ -2824,7 +2827,7 @@ public class TestArrays {
 
     // Same as test110 but with MyValue2[] dst
     @Test
-    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_TRAP, CLASS_CHECK_TRAP})
     public Object[] test111() {
         return Arrays.copyOf(val_src2, 8, val_src2.getClass());
     }
@@ -2837,7 +2840,7 @@ public class TestArrays {
 
     // Same as test110 but with Object[] src
     @Test
-    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_TRAP, CLASS_CHECK_TRAP})
     public Object[] test112() {
         return Arrays.copyOf(obj_src, 8, Object[].class);
     }
@@ -2878,10 +2881,11 @@ public class TestArrays {
     // after the arraycopy intrinsic is emitted (with incremental inlining).
 
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, "= 1"})
-    @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    // TODO 8251971 Re-enable
+    // @IR(applyIf = {"UseArrayFlattening", "true"},
+    //     counts = {INTRINSIC_TRAP, "= 1"})
+    // @IR(applyIf = {"UseArrayFlattening", "false"},
+    //     failOn = {INTRINSIC_TRAP, CLASS_CHECK_TRAP})
     public Object[] test114() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_obj_class());
     }
@@ -2895,8 +2899,9 @@ public class TestArrays {
     // TODO 8251971: Should be optimized but we are bailing out because
     // at parse time it looks as if src could be flat and dst could be not flat
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "false"},
-        failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    // TODO 8251971 Re-enable
+    // @IR(applyIf = {"UseArrayFlattening", "false"},
+    //    failOn = {INTRINSIC_TRAP, CLASS_CHECK_TRAP})
     public Object[] test115() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_val_class());
     }
@@ -2908,7 +2913,7 @@ public class TestArrays {
     }
 
     @Test
-    @IR(failOn = {INTRINSIC_OR_TYPE_CHECKED_INLINING_TRAP, CLASS_CHECK_TRAP})
+    @IR(failOn = {INTRINSIC_TRAP, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
     }
@@ -3194,9 +3199,10 @@ public class TestArrays {
 
     // Verify that copyOf with known source and unknown destination class is optimized
     @Test
-    @IR(applyIf = {"UseArrayFlattening", "true"},
-        counts = {JLONG_ARRAYCOPY, "= 1"},
-        failOn = CHECKCAST_ARRAYCOPY)
+    // TODO 8251971 Re-enable
+    //@IR(applyIf = {"UseArrayFlattening", "true"},
+    //    counts = {JLONG_ARRAYCOPY, "= 1"},
+    //    failOn = CHECKCAST_ARRAYCOPY)
     public Object[] test128(Class klass) {
         return Arrays.copyOf(val_src, 8, klass);
     }
@@ -3852,5 +3858,331 @@ public class TestArrays {
     @Run(test = "test155")
     public void test155_verifier() {
         test155((Test151Value[])ValueClass.newNullRestrictedNonAtomicArray(Test151Value.class, 1, Test151Value.DEFAULT));
+    }
+
+    @LooselyConsistentValue
+    static abstract value class BadCastA {}
+
+    @LooselyConsistentValue
+    static value class BadCastV1 extends BadCastA {
+        byte a;
+        byte b;
+        byte c;
+        byte d;
+
+        BadCastV1(int i) {
+            a = (byte)i;
+            b = (byte)(i + 1);
+            c = (byte)(i + 2);
+            d = (byte)(i + 3);
+        }
+
+        BadCastV1() {
+            this(1);
+        }
+    }
+
+    @LooselyConsistentValue
+    static value class BadCastV2 extends BadCastA {
+        byte a;
+        byte b;
+        byte c;
+        byte d;
+
+        BadCastV2(int i) {
+            a = (byte)i;
+            b = (byte)(i + 1);
+            c = (byte)(i + 2);
+            d = (byte)(i + 3);
+        }
+
+        BadCastV2() {
+            this(1);
+        }
+    }
+
+    @LooselyConsistentValue
+    static value class BadCastV3 {
+        byte a;
+        byte b;
+        byte c;
+        byte d;
+
+        BadCastV3(int i) {
+            a = (byte)i;
+            b = (byte)(i + 1);
+            c = (byte)(i + 2);
+            d = (byte)(i + 3);
+        }
+
+        BadCastV3() {
+            this(1);
+        }
+    }
+
+    @LooselyConsistentValue
+    static value class BadCastV4 {
+        byte a;
+        byte b;
+        byte c;
+        byte d;
+
+        BadCastV4(int i) {
+            a = (byte)i;
+            b = (byte)(i + 1);
+            c = (byte)(i + 2);
+            d = (byte)(i + 3);
+        }
+
+        BadCastV4() {
+            this(1);
+        }
+    }
+
+    static BadCastV1 badCastv1 = new BadCastV1(11);
+    static BadCastV1 badCastv11 =  new BadCastV1(21);
+    static BadCastV2 badCastv2 =  new BadCastV2(31);
+    static BadCastV2 badCastv22 =  new BadCastV2(41);
+    static BadCastV3 badCastv3 = new BadCastV3(11);
+    static BadCastV4 badCastv4 = new BadCastV4(11);
+    static int badCastLen = Math.abs(rI) % 10;
+
+    @Test
+    static void testBadCastAbstractArray1(BadCastA[] src, BadCastA[] dst) {
+        System.arraycopy(src, 0, dst, 0, badCastLen);
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray2(boolean flag, BadCastA[] dst) {
+        BadCastA[] aArr;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+        }
+        // aArr is flat and null-free. This wrongly skips a check to set "can_be_flat" in GraphKit::get_layout_helper()
+        // because it relies on the old the assumption that a nullable array is never flat.
+        System.arraycopy(aArr, 0, dst, 0, badCastLen);
+        return aArr;
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray3(boolean flag,  BadCastA[] src) {
+        BadCastA[] aArr;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+        }
+
+        System.arraycopy(src, 0, aArr, 0, badCastLen);
+        return aArr;
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray4(boolean flag) {
+        BadCastA[] aArr;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+        }
+
+        BadCastA[] aArr2;
+        if (flag) {
+            aArr2 = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv11);
+        } else {
+            aArr2 = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv22);
+        }
+
+        System.arraycopy(aArr, 0, aArr2, 0, badCastLen);
+        return aArr2;
+    }
+
+    // Needs -XX:-ReduceInitialCardMarks to trigger.
+    @Test
+    static BadCastA[] testBadCastAbstractArray5(boolean flag) {
+        BadCastA[] aArr;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+        }
+
+        return Arrays.copyOf(aArr, badCastLen, BadCastA[].class);
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray5a(boolean flag) {
+        BadCastA[] aArr;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+        }
+
+        return Arrays.copyOfRange(aArr, 0, badCastLen, BadCastA[].class);
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray6(boolean flag) {
+        BadCastA[] aArr;
+        Class<? extends BadCastA[]> c;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+            c = BadCastV1[].class;
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+            c = BadCastV2[].class;
+        }
+
+        return Arrays.copyOf(aArr, badCastLen, c);
+    }
+
+    @Test
+    static BadCastA[] testBadCastAbstractArray6a(boolean flag) {
+        BadCastA[] aArr;
+        Class<? extends BadCastA[]> c;
+        if (flag) {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+            c = BadCastV1[].class;
+        } else {
+            aArr = (BadCastA[]) ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+            c = BadCastV2[].class;
+        }
+
+        return Arrays.copyOfRange(aArr, 0, badCastLen, c);
+    }
+
+    @Test
+    static Object[] testBadCastAbstractArray7(boolean flag) {
+        Object[] oArr;
+        Class<? extends Object[]> c;
+        if (flag) {
+            oArr = ValueClass.newNullRestrictedNonAtomicArray(BadCastV3.class, badCastLen, badCastv3);
+            c = BadCastV3[].class;
+        } else {
+            oArr = ValueClass.newNullRestrictedNonAtomicArray(BadCastV4.class, badCastLen, badCastv4);
+            c = BadCastV4[].class;
+        }
+
+        return Arrays.copyOf(oArr, badCastLen, c);
+    }
+
+    @Test
+    static Object[] testBadCastAbstractArray7a(boolean flag) {
+        Object[] oArr;
+        Class<? extends Object[]> c;
+        if (flag) {
+            oArr = ValueClass.newNullRestrictedNonAtomicArray(BadCastV3.class, badCastLen, badCastv3);
+            c = BadCastV3[].class;
+        } else {
+            oArr = ValueClass.newNullRestrictedNonAtomicArray(BadCastV4.class, badCastLen, badCastv4);
+            c = BadCastV4[].class;
+        }
+
+        return Arrays.copyOfRange(oArr, 0, badCastLen, c);
+    }
+
+    @Run(test = {"testBadCastAbstractArray1",
+                 "testBadCastAbstractArray2",
+                 "testBadCastAbstractArray3",
+                 "testBadCastAbstractArray4",
+                 "testBadCastAbstractArray5",
+                 "testBadCastAbstractArray5a",
+                 "testBadCastAbstractArray6",
+                 "testBadCastAbstractArray6a",
+                 "testBadCastAbstractArray7",
+                 "testBadCastAbstractArray7a"})
+    @Warmup(0)
+    static void testBadCastAbstractArray_verifier() {
+        boolean flag = true;
+
+        for (int i = 0; i < 10_000; i++) {
+            BadCastA[] arrV1 = resetBadCastV1();
+            BadCastA[] arrV11 = resetBadCastV11();
+            BadCastA[] arrV2 = resetBadCastV2();
+            BadCastA[] arrV22 = resetBadCastV22();
+            testBadCastAbstractArray1(arrV1, arrV11);
+            testBadCastAbstractArray1(arrV2, arrV22);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(arrV1[j], arrV11[j]);
+                Asserts.assertEQ(arrV2[j], arrV22[j]);
+            }
+
+            BadCastA[] dst = flag ? resetBadCastV11() : resetBadCastV22();
+            BadCastA[] src = testBadCastAbstractArray2(flag, dst);
+            dst = flag ? arrV1 : arrV2;
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            src = flag ? resetBadCastV1() : resetBadCastV2();
+            dst = testBadCastAbstractArray3(flag, src);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            dst = testBadCastAbstractArray4(flag);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            dst = testBadCastAbstractArray5(flag);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            dst = testBadCastAbstractArray5a(flag);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            dst = testBadCastAbstractArray6(flag);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            dst = testBadCastAbstractArray6a(flag);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(src[j], dst[j]);
+            }
+
+            Object[] srcObj = flag ? resetBadCastV3() : resetBadCastV4();
+            Object[] dstObj = testBadCastAbstractArray7(flag);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(srcObj[j], dstObj[j]);
+            }
+
+            dstObj = testBadCastAbstractArray7a(flag);
+            for (int j = 0; j < badCastLen; ++j) {
+                Asserts.assertEQ(srcObj[j], dstObj[j]);
+            }
+            flag = !flag;
+        }
+    }
+
+    static BadCastA[] resetBadCastV1() {
+        return (BadCastA[])ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv1);
+    }
+
+    static BadCastA[] resetBadCastV11() {
+        return (BadCastA[])ValueClass.newNullRestrictedNonAtomicArray(BadCastV1.class, badCastLen, badCastv11);
+    }
+
+    static BadCastA[] resetBadCastV2() {
+        return (BadCastA[])ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv2);
+    }
+
+    static BadCastA[] resetBadCastV22() {
+        return (BadCastA[])ValueClass.newNullRestrictedNonAtomicArray(BadCastV2.class, badCastLen, badCastv22);
+    }
+
+    static Object[] resetBadCastV3() {
+        return ValueClass.newNullRestrictedNonAtomicArray(BadCastV3.class, badCastLen, badCastv3);
+    }
+
+    static Object[] resetBadCastV4() {
+        return ValueClass.newNullRestrictedNonAtomicArray(BadCastV4.class, badCastLen, badCastv4);
     }
 }

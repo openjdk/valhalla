@@ -99,6 +99,7 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
     }
     if (fi.field_flags().is_flat()) {
       assert(fi.layout_kind() != LayoutKind::UNKNOWN, "Must be set");
+      assert(fi.layout_kind() != LayoutKind::BUFFERED, "Sanity check");
       _consumer->accept_uint((uint32_t)fi.layout_kind());
     }
     if (fi.field_flags().has_null_marker()) {

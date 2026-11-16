@@ -24,11 +24,11 @@
 /*
  * @test
  * @summary Testing ClassFile AccessFlags.
+ * @modules java.base/jdk.internal.reflect
  * @run junit AccessFlagsTest
  */
 import java.lang.classfile.ClassFile;
 import java.lang.constant.ClassDesc;
-import java.lang.reflect.ClassFileFormatVersion;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Random;
@@ -41,6 +41,8 @@ import static java.lang.classfile.ClassFile.ACC_STATIC;
 import static java.lang.constant.ConstantDescs.CD_int;
 import static java.lang.constant.ConstantDescs.MTD_void;
 import static org.junit.jupiter.api.Assertions.*;
+
+import jdk.internal.reflect.PreviewAccessFlags;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -120,7 +122,7 @@ class AccessFlagsTest {
 
         for (boolean preview : new boolean[] {false, true}) {
             var allFlags = EnumSet.allOf(AccessFlag.class);
-            allFlags.removeIf(preview ? f -> !f.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES).contains(ctx) : f -> !f.locations().contains(ctx));
+            allFlags.removeIf(preview ? f -> !PreviewAccessFlags.locations(f).contains(ctx) : f -> !f.locations().contains(ctx));
 
             var r = new Random(123);
             for (int i = 0; i < 1000; i++) {

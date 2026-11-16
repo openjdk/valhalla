@@ -57,13 +57,11 @@ class JvmtiTagMap :  public CHeapObj<mtServiceability> {
   // accessors
   inline JvmtiEnv* env() const              { return _env; }
 
-  void check_hashmap(GrowableArray<jlong>* objects);
-
   // moves entries from _flat_hashmap to _hashmap
   void convert_flat_object_entries();
 
  public:
-  // for inernal use
+  // for internal use
   jlong find(const JvmtiHeapwalkObject& obj) const;
   void add(const JvmtiHeapwalkObject& obj, jlong tag);
   void remove(const JvmtiHeapwalkObject& obj);

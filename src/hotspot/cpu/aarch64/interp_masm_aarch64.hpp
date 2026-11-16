@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -158,11 +158,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void get_cache_index_at_bcp(Register index, int bcp_offset, size_t index_size = sizeof(u2));
   void get_method_counters(Register method, Register mcs, Label& skip);
 
-  // Kills t1 and t2, perserves klass, return allocation in new_obj
-  void allocate_instance(Register klass, Register new_obj,
-                         Register t1, Register t2,
-                         bool clear_fields, Label& alloc_failed);
-
   // Allocate instance in "obj" and read in the content of the inline field
   // NOTES:
   //   - input holder object via "obj", which must be r0,
@@ -172,14 +167,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void write_flat_field(Register entry, Register field_offset,
                         Register tmp1, Register tmp2,
                         Register obj);
-
-  // Allocate value buffer in "obj" and read in flat element at the given index
-  // NOTES:
-  //   - Return via "obj" must be r0
-  //   - kills all given regs
-  void read_flat_element(Register array, Register index,
-                         Register t1, Register t2,
-                         Register obj = r0);
 
   // load cpool->resolved_references(index);
   void load_resolved_reference_at_index(Register result, Register index, Register tmp = r5);
@@ -308,8 +295,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void profile_not_taken_branch(Register mdp, bool acmp = false);
   void profile_call(Register mdp);
   void profile_final_call(Register mdp);
-  void profile_virtual_call(Register receiver, Register mdp,
-                            bool receiver_can_be_null = false);
+  void profile_virtual_call(Register receiver, Register mdp);
   void profile_ret(Register return_bci, Register mdp);
   void profile_null_seen(Register mdp);
   void profile_typecheck(Register mdp, Register klass);

@@ -371,7 +371,6 @@ public class Analyzer {
          */
         JCVariableDecl rewriteVarType(JCVariableDecl oldTree) {
             JCVariableDecl newTree = copier.copy(oldTree);
-            newTree.vartype = null;
             return newTree;
         }
 
@@ -752,7 +751,6 @@ public class Analyzer {
             if (oldLambda.paramKind == ParameterKind.IMPLICIT) {
                 //reset implicit lambda parameters (whose type might have been set during attr)
                 newLambda.paramKind = ParameterKind.IMPLICIT;
-                newLambda.params.forEach(p -> p.vartype = null);
             }
             return newLambda;
         }

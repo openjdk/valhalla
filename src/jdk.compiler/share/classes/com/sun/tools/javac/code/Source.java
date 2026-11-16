@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -163,6 +163,11 @@ public enum Source {
       * 27, tbd
       */
     JDK27("27"),
+
+    /**
+      * 28, tbd
+      */
+    JDK28("28"),
     ; // Reduce code churn when appending new constants
 
     private static final Context.Key<Source> sourceKey = new Context.Key<>();
@@ -228,6 +233,7 @@ public enum Source {
 
     public Target requiredTarget() {
         return switch(this) {
+        case JDK28  -> Target.JDK1_28;
         case JDK27  -> Target.JDK1_27;
         case JDK26  -> Target.JDK1_26;
         case JDK25  -> Target.JDK1_25;
@@ -285,19 +291,20 @@ public enum Source {
         CASE_NULL(JDK21, Fragments.FeatureCaseNull, DiagKind.NORMAL),
         PATTERN_SWITCH(JDK21, Fragments.FeaturePatternSwitch, DiagKind.PLURAL),
         REDUNDANT_STRICTFP(JDK17),
+        TYPE_ANNOTATIONS_ON_VAR_LAMBDA_PARAMETER(MIN, JDK19),
         UNCONDITIONAL_PATTERN_IN_INSTANCEOF(JDK21, Fragments.FeatureUnconditionalPatternsInInstanceof, DiagKind.PLURAL),
         RECORD_PATTERNS(JDK21, Fragments.FeatureDeconstructionPatterns, DiagKind.PLURAL),
         IMPLICIT_CLASSES(JDK25, Fragments.FeatureImplicitClasses, DiagKind.PLURAL),
         WARN_ON_ILLEGAL_UTF8(MIN, JDK21),
         UNNAMED_VARIABLES(JDK22, Fragments.FeatureUnnamedVariables, DiagKind.PLURAL),
         PRIMITIVE_PATTERNS(JDK23, Fragments.FeaturePrimitivePatterns, DiagKind.PLURAL),
-        VALUE_CLASSES(JDK22, Fragments.FeatureValueClasses, DiagKind.PLURAL),
         FLEXIBLE_CONSTRUCTORS(JDK25, Fragments.FeatureFlexibleConstructors, DiagKind.NORMAL),
         MODULE_IMPORTS(JDK25, Fragments.FeatureModuleImports, DiagKind.PLURAL),
         JAVA_BASE_TRANSITIVE(JDK25, Fragments.FeatureJavaBaseTransitive, DiagKind.PLURAL),
         PRIVATE_MEMBERS_IN_PERMITS_CLAUSE(JDK19),
         ERASE_POLY_SIG_RETURN_TYPE(JDK24),
         CAPTURE_MREF_RETURN_TYPE(JDK26),
+        VALUE_CLASSES(DEFAULT, Fragments.FeatureValueClasses, DiagKind.PLURAL),
         NULL_RESTRICTED_TYPES(JDK23, Fragments.FeatureNullRestrictedTypes, DiagKind.PLURAL),
         ;
 
@@ -388,6 +395,7 @@ public enum Source {
         case JDK25  -> RELEASE_25;
         case JDK26  -> RELEASE_26;
         case JDK27  -> RELEASE_27;
+        case JDK28  -> RELEASE_28;
         default     -> null;
         };
     }

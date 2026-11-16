@@ -51,11 +51,11 @@ import java.util.Arrays;
  * @key randomness
  * @summary Test nullable value class arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestNullableArrays 0
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -63,11 +63,11 @@ import java.util.Arrays;
  * @key randomness
  * @summary Test nullable value class arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestNullableArrays 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -75,11 +75,11 @@ import java.util.Arrays;
  * @key randomness
  * @summary Test nullable value class arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestNullableArrays 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -87,11 +87,11 @@ import java.util.Arrays;
  * @key randomness
  * @summary Test nullable value class arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestNullableArrays 3
+ * @run driver ${test.main.class} 3
  */
 
 /*
@@ -99,11 +99,11 @@ import java.util.Arrays;
  * @key randomness
  * @summary Test nullable value class arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestNullableArrays 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -111,11 +111,11 @@ import java.util.Arrays;
  * @key randomness
  * @summary Test nullable value class arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestNullableArrays 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -123,11 +123,11 @@ import java.util.Arrays;
  * @key randomness
  * @summary Test nullable value class arrays.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestNullableArrays 6
+ * @run driver ${test.main.class} 6
  */
 
 @ForceCompileClassInitializer
@@ -978,10 +978,10 @@ public class TestNullableArrays {
         Asserts.assertEQ(result, null);
     }
 
-    // non escaping allocations
     @Test
-    // TODO 8372332: Add LOAD_OF_ANY_KLASS when return values are not scalarized
     @IR(failOn = {ALLOC_ARRAY_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    @IR(failOn = LOAD_OF_ANY_KLASS, applyIf = {"InlineTypeReturnedAsFields", "false"})
+    @IR(counts = {LOAD_OF_ANY_KLASS, "4"}, applyIf = {"InlineTypeReturnedAsFields", "true"})
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -2333,6 +2333,7 @@ public class TestNullableArrays {
         return result;
     }
 
+    @Warmup(value = 10000)
     @Run(test = "test84")
     public void test84_verifier() {
         MyValue1[] res = test84(testValue1, testValue1);
@@ -2340,6 +2341,31 @@ public class TestNullableArrays {
         Asserts.assertEquals(testValue1, res[1]);
         try {
             test84(testValue1, null);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException npe) {
+            // Expected
+        }
+    }
+
+    @Test
+    @IR(applyIf = {"UseArrayFlattening", "true"},
+        failOn = {ALLOC_OF_MYVALUE_KLASS, LOOP, UNSTABLE_IF_TRAP, PREDICATE_TRAP},
+        counts = {STORE_OF_ANY_KLASS, "= 38"})
+    public static Object[] test84a(MyValue1 vt1, MyValue1 vt2) {
+        Object[] result = ValueClass.newNullRestrictedNonAtomicArray(MyValue1.class, 2, MyValue1.DEFAULT);
+        result[0] = vt1;
+        result[1] = vt2;
+        return result;
+    }
+
+    @Warmup(value = 10000)
+    @Run(test = "test84a")
+    public void test84a_verifier() {
+        Object[] res = test84a(testValue1, testValue1);
+        Asserts.assertEquals(testValue1, res[0]);
+        Asserts.assertEquals(testValue1, res[1]);
+        try {
+            test84a(testValue1, null);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException npe) {
             // Expected
@@ -2997,7 +3023,8 @@ public class TestNullableArrays {
 
     // Same as test112 but with call to hash()
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test113(boolean b) {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {

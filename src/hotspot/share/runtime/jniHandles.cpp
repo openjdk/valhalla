@@ -291,30 +291,25 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
 
   bool ret = obj1 == obj2;
 
-  if (Arguments::is_valhalla_enabled()) {
-    if (!ret && obj1 != nullptr && obj2 != nullptr && obj1->klass() == obj2->klass() && obj1->klass()->is_inline_klass()) {
+  if (!ret && Arguments::is_valhalla_enabled()) {
+    if (obj1 != nullptr && obj2 != nullptr &&
+        obj1->klass() == obj2->klass() && obj1->klass()->is_inline_klass()) {
       // The two references are different, they are not null and they are both inline types,
       // a full substitutability test is required, calling ValueObjectMethods.isSubstitutable()
-      // (similarly to InterpreterRuntime::is_substitutable)
+      // (similarly to InterpreterRuntime::is_substitutable).
+      // The jobjects must be re-resolved as the no-keepalive variants are not safe to use
+      // with the Java upcall.
       JavaThread* THREAD = JavaThread::current();
-      Handle ha(THREAD, obj1);
-      Handle hb(THREAD, obj2);
+      Handle ha(THREAD, resolve_non_null(handle1));
+      Handle hb(THREAD, resolve_non_null(handle2));
       JavaValue result(T_BOOLEAN);
       JavaCallArguments args;
       args.push_oop(ha);
       args.push_oop(hb);
       methodHandle method(THREAD, Universe::is_substitutable_method());
       JavaCalls::call(&result, method, &args, THREAD);
-      if (HAS_PENDING_EXCEPTION) {
-        // Something really bad happened because isSubstitutable() should not throw exceptions
-        // If it is an error, just let it propagate
-        // If it is an exception, wrap it into an InternalError
-        if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
-          Handle e(THREAD, PENDING_EXCEPTION);
-          CLEAR_PENDING_EXCEPTION;
-          THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);
-        }
-      }
+      Exceptions::wrap_exception_in_internal_error("Internal error in substitutability test", CHECK_false);
+
       ret = result.get_jboolean();
     }
   }

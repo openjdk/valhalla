@@ -262,6 +262,9 @@ class GraphBuilder {
   void load_local(ValueType* type, int index);
   void store_local(ValueType* type, int index);
   void store_local(ValueStack* state, Value value, int index);
+
+  ValueStack* state_before_for_indexed_access(BasicType type, int array_idx);
+
   void load_indexed (BasicType type);
   void store_indexed(BasicType type);
   void stack_op(Bytecodes::Code code);
@@ -296,7 +299,7 @@ class GraphBuilder {
   void throw_op(int bci);
 
   // inline types
-  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* encloding_field = nullptr);
+  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* enclosing_field = nullptr);
 
   // stack/code manipulation helpers
   Instruction* append_with_bci(Instruction* instr, int bci);

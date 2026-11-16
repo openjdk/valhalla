@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2017, 2023, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -43,7 +43,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-UseArrayFlattening
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
@@ -67,7 +67,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-UseArrayFlattening
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
@@ -92,7 +92,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray::test*
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
@@ -117,7 +117,7 @@
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:-UseArrayFlattening
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:-TieredCompilation -XX:-UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestUnloadedInlineTypeArray
  */
 
@@ -500,7 +500,8 @@ public class TestUnloadedInlineTypeArray {
         Asserts.assertEQ(MyValue8_inited, false);
 
         MyValue8UnloadedInlineTypeArray b[] = (MyValue8UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue8UnloadedInlineTypeArray.class, 0);
-        Asserts.assertEQ(MyValue8_inited, true);
+        Asserts.assertEQ(MyValue8_inited, false); // creation of a nullable array doesn't trigger the initialization
+                                                  // of the element's class (same behavior as anewarray and Array.newInstance())
     }
 
     static void test9() {
@@ -508,7 +509,8 @@ public class TestUnloadedInlineTypeArray {
         Asserts.assertEQ(MyValue9_inited, false);
 
         a[0] = (MyValue9UnloadedInlineTypeArray[])ValueClass.newNullableAtomicArray(MyValue9UnloadedInlineTypeArray.class, 0);
-        Asserts.assertEQ(MyValue9_inited, true);
+        Asserts.assertEQ(MyValue9_inited, false); // creation of a nullable array doesn't trigger the initialization
+                                                  // of the element's class (same behavior as anewarray and Array.newInstance())
     }
 
     static void test10(MyValue10UnloadedInlineTypeArray dummy) {

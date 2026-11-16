@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Alibaba Group Holding Limited. All Rights Reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,6 +102,10 @@ public class HeapDumpParallelTest {
         try {
             // Expect error message
             OutputAnalyzer out = attachJcmdHeapDump(heapDumpFile, theApp.getPid(), "-parallel=" + -1);
+            out.shouldContain("Invalid number of parallel dump threads.");
+
+            // Expect error message on value above 32 bit unsigned range
+            out = attachJcmdHeapDump(heapDumpFile, theApp.getPid(), "-parallel=" + 4294967297L);
             out.shouldContain("Invalid number of parallel dump threads.");
 
             // Expect serial dump because 0 implies to disable parallel dump

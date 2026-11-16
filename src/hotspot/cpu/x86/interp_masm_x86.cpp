@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -292,7 +292,7 @@ void InterpreterMacroAssembler::call_VM_leaf_base(address entry_point,
   // super call
   MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments);
   // interpreter specific
-  // LP64: Used to ASSERT that r13/r14 were equal to frame's bcp/locals
+  // Used to ASSERT that r13/r14 were equal to frame's bcp/locals
   // but since they may not have been saved (and we don't want to
   // save them here (see note above) the assert is invalid.
 }
@@ -430,7 +430,7 @@ void InterpreterMacroAssembler::call_VM_preemptable(Register oop_result,
                                          Register arg_1,
                                          Register arg_2,
                                          bool check_exceptions) {
-  LP64_ONLY(assert_different_registers(arg_1, c_rarg2));
+  assert_different_registers(arg_1, c_rarg2);
   pass_arg2(this, arg_2);
   pass_arg1(this, arg_1);
   call_VM_preemptable_helper(oop_result, entry_point, 2, check_exceptions);
@@ -1026,9 +1026,11 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     notify_method_exit(state, SkipNotifyJVMTI); // preserve TOSCA
   }
 
+  // remove activation
+  // get sender sp
+  movptr(rbx,
+         Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
   if (StackReservedPages > 0) {
-    movptr(rbx,
-               Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
     // testing if reserved zone needs to be re-enabled
     Register rthread = r15_thread;
     Label no_reserved_zone_enabling;
@@ -1052,11 +1054,6 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     bind(no_reserved_zone_enabling);
   }
 
-  // remove activation
-  // get sender sp
-  movptr(rbx,
-         Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
-
   if (state == atos && InlineTypeReturnedAsFields) {
     Label skip;
     Label not_null;
@@ -1071,12 +1068,9 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     jmp(skip);
     bind(not_null);
 
-    // Check if we are returning an non-null inline type and load its fields into registers
+    // Check if we are returning a non-null inline type and load its fields into registers
     test_oop_is_not_inline_type(rax, rscratch1, skip, /* can_be_null= */ false);
 
-#ifndef _LP64
-    super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
-#else
     // Load fields from a buffered value with an inline class specific handler
     load_klass(rdi, rax, rscratch1);
     movptr(rdi, Address(rdi, InlineKlass::adr_members_offset()));
@@ -1085,20 +1079,6 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     testptr(rdi, rdi);
     jcc(Assembler::zero, skip);
     call(rdi);
-#endif
-#ifdef ASSERT
-    // TODO 8284443 Enable
-    if (StressCallingConvention && false) {
-      Label skip_stress;
-      movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
-      movl(rscratch1, Address(rscratch1, Method::flags_offset()));
-      testl(rcx, MethodFlags::has_scalarized_return_flag());
-      jcc(Assembler::zero, skip_stress);
-      load_klass(rax, rax, rscratch1);
-      orptr(rax, 1);
-      bind(skip_stress);
-    }
-#endif
     // call above kills the value in rbx. Reload it.
     movptr(rbx, Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
     bind(skip);
@@ -1140,22 +1120,9 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
   bind(has_counters);
 }
 
-void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_obj,
-                                                  Register t1, Register t2,
-                                                  bool clear_fields, Label& alloc_failed) {
-  MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  if (DTraceAllocProbes) {
-    // Trigger dtrace event for fastpath
-    push(atos);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
-    pop(atos);
-  }
-}
-
 void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
-  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field),
           obj, entry);
-  get_vm_result_oop(obj);
 }
 
 void InterpreterMacroAssembler::write_flat_field(Register entry, Register tmp1, Register tmp2,
@@ -1495,28 +1462,15 @@ void InterpreterMacroAssembler::profile_final_call(Register mdp) {
 
 
 void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
-                                                     Register mdp,
-                                                     bool receiver_can_be_null) {
+                                                     Register mdp) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
     // If no method data exists, go to profile_continue.
     test_method_data_pointer(mdp, profile_continue);
 
-    Label skip_receiver_profile;
-    if (receiver_can_be_null) {
-      Label not_null;
-      testptr(receiver, receiver);
-      jccb(Assembler::notZero, not_null);
-      // We are making a call.  Increment the count for null receiver.
-      increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
-      jmp(skip_receiver_profile);
-      bind(not_null);
-    }
-
     // Record the receiver type.
     profile_receiver_type(receiver, mdp, 0);
-    bind(skip_receiver_profile);
 
     // The method data pointer needs to be updated to reflect the new target.
     update_mdp_by_constant(mdp, in_bytes(VirtualCallData::virtual_call_data_size()));
@@ -1833,7 +1787,7 @@ void InterpreterMacroAssembler::notify_method_exit(
   // the code to check if the event should be sent.
   Register rthread = r15_thread;
   Register rarg = c_rarg1;
-  if (mode == NotifyJVMTI && JvmtiExport::can_post_interpreter_events()) {
+  if (mode == NotifyJVMTI && (JvmtiExport::can_post_interpreter_events() || JvmtiExport::can_post_frame_pop())) {
     Label L;
     // Note: frame::interpreter_frame_result has a dependency on how the
     // method result is saved across the call to post_method_exit. If this
@@ -1842,9 +1796,18 @@ void InterpreterMacroAssembler::notify_method_exit(
 
     // template interpreter will leave the result on the top of the stack.
     push(state);
-    movl(rdx, Address(rthread, JavaThread::interp_only_mode_offset()));
-    testl(rdx, rdx);
+
+    movptr(rdx, Address(rthread, JavaThread::jvmti_thread_state_offset()));
+    testptr(rdx, rdx);
+    jcc(Assembler::zero, L); // if (thread->jvmti_thread_state() == nullptr) exit;
+
+    movl(rdx, Address(rdx, JvmtiThreadState::frame_pop_cnt_offset()));
+    movl(rcx, Address(rthread, JavaThread::interp_only_mode_offset()));
+
+    orl(rdx, rcx);
+    testl(rdx,rdx);
     jcc(Assembler::zero, L);
+
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
     bind(L);

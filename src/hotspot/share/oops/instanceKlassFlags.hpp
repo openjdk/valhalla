@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,6 @@ class ClassLoaderData;
 
 class InstanceKlassFlags {
   friend class VMStructs;
-  friend class JVMCIVMStructs;
 
 #define IK_FLAGS_DO(flag)  \
     flag(rewritten                          , 1 << 0) /* methods rewritten. */ \
@@ -61,19 +60,23 @@ class InstanceKlassFlags {
     flag(has_loosely_consistent_annotation  , 1 << 18) /* the class has the LooselyConsistentValue annotation WARNING: it doesn't automatically mean that the class allows tearing */ \
     flag(has_strict_static_fields           , 1 << 19) /* True if strict static fields declared */ \
     flag(trust_final_fields                 , 1 << 20) /* All instance final fields in this class should be trusted */ \
+    flag(has_null_restricted_static_fields  , 1 << 21) /* True if static null restricted fields declared */ \
+    flag(fail_over_verified                 , 1 << 22) /* class failed split verification but passed inference verification */ \
     /* end of list */
 
-  /* (*) An inline type is considered empty if it contains no non-static fields or
-     if it contains only empty inline fields. Note that JITs have a slightly different
-     definition: empty inline fields must be flat otherwise the container won't
-     be considered empty */
+    // (*) An inline type is considered empty if it contains no non-static fields or
+    //  if it contains only empty inline fields. Note that JITs have a slightly different
+    //  definition: empty inline fields must be flat otherwise the container won't
+    //  be considered empty.
 
+public:
 #define IK_FLAGS_ENUM_NAME(name, value)    _misc_##name = value,
   enum {
     IK_FLAGS_DO(IK_FLAGS_ENUM_NAME)
   };
 #undef IK_FLAGS_ENUM_NAME
 
+private:
 #define IK_STATUS_DO(status)  \
     status(is_being_redefined                , 1 << 0) /* True if the klass is being redefined */ \
     status(has_resolved_methods              , 1 << 1) /* True if the klass has resolved MethodHandle methods */ \
@@ -119,7 +122,6 @@ class InstanceKlassFlags {
 
   void set_class_loader_type(const ClassLoaderData* cld);
 
-
   u4 flags() const { return _flags; }
 
   static u4 is_empty_inline_type_value() {
@@ -144,6 +146,8 @@ class InstanceKlassFlags {
   void atomic_set_bits(u1 bits)   { AtomicAccess::fetch_then_or(&_status, bits); }
   void atomic_clear_bits(u1 bits) { AtomicAccess::fetch_then_and(&_status, (u1)(~bits)); }
   void print_on(outputStream* st) const;
+
+  static ByteSize flags_offset() { return byte_offset_of(InstanceKlassFlags, _flags); }
 };
 
 #endif // SHARE_OOPS_INSTANCEKLASSFLAGS_HPP

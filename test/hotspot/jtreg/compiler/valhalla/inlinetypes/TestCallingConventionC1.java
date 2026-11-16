@@ -38,11 +38,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/timeout=300 compiler.valhalla.inlinetypes.TestCallingConventionC1
+ * @run driver/timeout=300 ${test.main.class}
  */
 
 @ForceCompileClassInitializer

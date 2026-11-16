@@ -95,6 +95,7 @@ class SharedRuntime: AllStatic {
   static SafepointBlob* generate_handler_blob(StubId id, address call_ptr);
   static RuntimeStub*   generate_resolve_blob(StubId id, address destination);
   static RuntimeStub*   generate_throw_exception(StubId id, address runtime_entry);
+  static RuntimeStub*   generate_return_value_stub(address destination);
  public:
   static void generate_initial_stubs(void);
   static void generate_stubs(void);
@@ -298,6 +299,12 @@ class SharedRuntime: AllStatic {
   static address throw_delayed_StackOverflowError_entry()   {
     assert(_throw_delayed_StackOverflowError_blob != nullptr, "");
     return _throw_delayed_StackOverflowError_blob->entry_point();
+  }
+
+  // Value types
+  static address store_inline_type_fields_to_buf_entry()   {
+    assert(_store_inline_type_fields_to_buf_blob != nullptr, "");
+    return _store_inline_type_fields_to_buf_blob->entry_point();
   }
 
 #if INCLUDE_JFR
@@ -580,7 +587,7 @@ class SharedRuntime: AllStatic {
   static address handle_wrong_method_abstract(JavaThread* current);
   static address handle_wrong_method_ic_miss(JavaThread* current);
   static void allocate_inline_types(JavaThread* current, Method* callee, bool allocate_receiver);
-  static oop allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, TRAPS);
+  static oop allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, bool from_c1, TRAPS);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
 
@@ -735,6 +742,7 @@ class AdapterHandlerEntry : public MetaspaceObj {
 
   // Support for scalarized inline type calling convention
   const GrowableArray<SigEntry>* _sig_cc;
+  const GrowableArray<SigEntry>* _sig_cc_ro;
 
 #ifdef ASSERT
   // Captures code and signature used to generate this adapter when
@@ -748,7 +756,8 @@ class AdapterHandlerEntry : public MetaspaceObj {
     _adapter_blob(nullptr),
     _id(id),
     _linked(false),
-    _sig_cc(nullptr)
+    _sig_cc(nullptr),
+    _sig_cc_ro(nullptr)
 #ifdef ASSERT
     , _saved_code(nullptr),
     _saved_code_length(0)
@@ -848,8 +857,16 @@ class AdapterHandlerEntry : public MetaspaceObj {
   bool is_linked() const { return _linked; }
 
   // Support for scalarized inline type calling convention
-  void set_sig_cc(const GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
-  const GrowableArray<SigEntry>* get_sig_cc()    const { return _sig_cc; }
+  void set_sig_cc(const GrowableArray<SigEntry>* sig) {
+    assert(_sig_cc == nullptr, "Already initialized");
+    _sig_cc = sig;
+  }
+  const GrowableArray<SigEntry>* get_sig_cc() const { return _sig_cc; }
+  void set_sig_cc_ro(const GrowableArray<SigEntry>* sig) {
+    assert(_sig_cc_ro == nullptr, "Already initialized");
+    _sig_cc_ro = sig;
+  }
+  const GrowableArray<SigEntry>* get_sig_cc_ro() const { return _sig_cc_ro; }
 
   uint id() const { return _id; }
   AdapterFingerPrint* fingerprint() const { return _fingerprint; }
@@ -938,6 +955,7 @@ class AdapterHandlerLibrary: public AllStatic {
 //     Method::_from_compiled_inline_ro_entry     - sig_cc_ro
 //     Method::_from_compiled_inline_entry        - sig
 class CompiledEntrySignature : public StackObj {
+private:
   Method* _method;
   int  _num_inline_args;
   bool _has_inline_recv;
@@ -956,6 +974,8 @@ class CompiledEntrySignature : public StackObj {
   bool _c2_needs_stack_repair;
 
   GrowableArray<Method*>* _supers;
+  GrowableArray<Method*>* get_supers();
+  bool check_supers_and_deoptimize(int arg_num);
 
 public:
   Method* method()                     const { return _method; }
@@ -985,10 +1005,8 @@ public:
   bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
   CodeOffsets::Entries c1_inline_ro_entry_type() const;
 
-  GrowableArray<Method*>* get_supers();
-
   CompiledEntrySignature(Method* method = nullptr);
-  void compute_calling_conventions(bool init = true);
+  void compute_calling_conventions(bool link_time = true);
   void initialize_from_fingerprint(AdapterFingerPrint* fingerprint);
 };
 

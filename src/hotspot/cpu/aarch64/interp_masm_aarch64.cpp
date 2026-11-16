@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -210,21 +210,8 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
   bind(has_counters);
 }
 
-void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_obj,
-                                                  Register t1, Register t2,
-                                                  bool clear_fields, Label& alloc_failed) {
-  MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
-  if (DTraceAllocProbes) {
-    // Trigger dtrace event for fastpath
-    push(atos);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
-    pop(atos);
-  }
-}
-
 void InterpreterMacroAssembler::read_flat_field(Register entry, Register obj) {
   call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flat_field), obj, entry);
-  membar(Assembler::StoreStore);
 }
 
 void InterpreterMacroAssembler::write_flat_field(Register entry, Register field_offset,
@@ -240,7 +227,7 @@ void InterpreterMacroAssembler::write_flat_field(Register entry, Register field_
 
   add(obj, obj, field_offset);
 
-  load_klass(tmp1, r0);
+  load_klass(tmp1, r0, tmp2);
   payload_address(r0, r0, tmp1);
 
   Register layout_info = field_offset;
@@ -723,30 +710,17 @@ void InterpreterMacroAssembler::remove_activation(TosState state,
     b(skip);
     bind(not_null);
 
-    // Check if we are returning an non-null inline type and load its fields into registers
+    // Check if we are returning a non-null inline type and load its fields into registers
     test_oop_is_not_inline_type(r0, rscratch2, skip, /* can_be_null= */ false);
 
     // Load fields from a buffered value with an inline class specific handler
-    load_klass(rscratch1 /*dst*/, r0 /*src*/);
+    load_klass(rscratch1 /*dst*/, r0 /*src*/, rscratch2 /*tmp*/);
     ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
     ldr(rscratch1, Address(rscratch1, InlineKlass::unpack_handler_offset()));
     // Unpack handler can be null if inline type is not scalarizable in returns
     cbz(rscratch1, skip);
 
     blr(rscratch1);
-#ifdef ASSERT
-    // TODO 8284443 Enable
-    if (StressCallingConvention && false) {
-      Label skip_stress;
-      ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-      ldrw(rscratch1, Address(rscratch1, Method::flags_offset()));
-      tstw(rscratch1, MethodFlags::has_scalarized_return_flag());
-      br(Assembler::EQ, skip_stress);
-      load_klass(r0, r0);
-      orr(r0, r0, 1);
-      bind(skip_stress);
-    }
-#endif
     bind(skip);
     // Check above kills sender esp in rscratch2. Reload it.
     ldr(rscratch2, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
@@ -1083,26 +1057,15 @@ void InterpreterMacroAssembler::profile_final_call(Register mdp) {
 
 
 void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
-                                                     Register mdp,
-                                                     bool receiver_can_be_null) {
+                                                     Register mdp) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
     // If no method data exists, go to profile_continue.
     test_method_data_pointer(mdp, profile_continue);
 
-    Label skip_receiver_profile;
-    if (receiver_can_be_null) {
-      Label not_null;
-      // We are making a call.  Increment the count for null receiver.
-      increment_mdp_data_at(mdp, in_bytes(CounterData::count_offset()));
-      b(skip_receiver_profile);
-      bind(not_null);
-    }
-
     // Record the receiver type.
     profile_receiver_type(receiver, mdp, 0);
-    bind(skip_receiver_profile);
 
     // The method data pointer needs to be updated to reflect the new target.
     update_mdp_by_constant(mdp, in_bytes(VirtualCallData::virtual_call_data_size()));
@@ -1288,7 +1251,7 @@ void InterpreterMacroAssembler::profile_multiple_element_types(Register mdp, Reg
     b(done);
 
     bind(update);
-    load_klass(tmp, element);
+    load_klass(tmp, element, tmp2);
 
     // Record the object type.
     profile_receiver_type(tmp, mdp, 0);
@@ -1393,7 +1356,7 @@ void InterpreterMacroAssembler::notify_method_exit(
   // Whenever JVMTI is interp_only_mode, method entry/exit events are sent to
   // track stack depth.  If it is possible to enter interp_only_mode we add
   // the code to check if the event should be sent.
-  if (mode == NotifyJVMTI && JvmtiExport::can_post_interpreter_events()) {
+  if (mode == NotifyJVMTI && (JvmtiExport::can_post_interpreter_events() || JvmtiExport::can_post_frame_pop())) {
     Label L;
     // Note: frame::interpreter_frame_result has a dependency on how the
     // method result is saved across the call to post_method_exit. If this
@@ -1402,8 +1365,15 @@ void InterpreterMacroAssembler::notify_method_exit(
 
     // template interpreter will leave the result on the top of the stack.
     push(state);
-    ldrw(r3, Address(rthread, JavaThread::interp_only_mode_offset()));
-    cbz(r3, L);
+
+    ldr(rscratch1, Address(rthread, JavaThread::jvmti_thread_state_offset()));
+    cbz(rscratch1, L); // if (thread->jvmti_thread_state() == nullptr) exit;
+
+    ldrw(rscratch1, Address(rscratch1, JvmtiThreadState::frame_pop_cnt_offset()));
+    ldrw(rscratch2, Address(rthread, JavaThread::interp_only_mode_offset()));
+    orrw(rscratch1, rscratch1, rscratch2);
+    cbzw(rscratch1, L);
+
     call_VM(noreg,
             CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
     bind(L);
@@ -1615,7 +1585,7 @@ void InterpreterMacroAssembler::profile_obj_type(Register obj, const Address& md
   b(next);
 
   bind(update);
-  load_klass(obj, obj);
+  load_klass(obj, obj, rscratch1);
 
   ldr(rscratch1, mdo_addr);
   eor(obj, obj, rscratch1);

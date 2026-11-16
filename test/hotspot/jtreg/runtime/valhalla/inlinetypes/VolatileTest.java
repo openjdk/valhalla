@@ -31,7 +31,7 @@ package runtime.valhalla.inlinetypes;
  * @library /test/lib
  * @enablePreview
  * @compile VolatileTest.java
- * @run main/othervm -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.VolatileTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.VolatileTest
  */
 
 import jdk.internal.misc.Unsafe;

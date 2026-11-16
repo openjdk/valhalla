@@ -91,6 +91,10 @@ bool java_lang_String::deduplication_requested(oop java_string) {
   return is_flag_set(java_string, _deduplication_requested_mask);
 }
 
+bool java_lang_String::deduplication_requested_or_forbidden(oop java_string) {
+  return is_flag_set(java_string, _deduplication_requested_mask | _deduplication_forbidden_mask);
+}
+
 void java_lang_String::set_deduplication_forbidden(oop java_string) {
   test_and_set_flag(java_string, _deduplication_forbidden_mask);
 }
@@ -124,13 +128,6 @@ int java_lang_String::length(oop java_string) {
 
 bool java_lang_String::is_instance(oop obj) {
   return obj != nullptr && obj->klass() == vmClasses::String_klass();
-}
-
-// We need to be able to check if this is a string even when we are in an
-// erroneous state where the klass is corrupted/can't be read safely.
-// This happens when printing an oop during GC error reporting.
-bool java_lang_String::is_instance_without_asserts(oop obj) {
-  return obj != nullptr && obj->klass_without_asserts() == vmClasses::String_klass();
 }
 
 // Accessors

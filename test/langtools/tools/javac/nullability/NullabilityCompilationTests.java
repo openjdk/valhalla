@@ -719,8 +719,8 @@ public class NullabilityCompilationTests extends CompilationTestCase {
                                 void main() {
                                 }
                                 """,
-                                Result.Error,
-                                "compiler.err.null.restricted.field.not.have.been.initialized.before.super"),
+                                Result.Clean,
+                                ""),
                         new DiagAndCode(
                                 """
                                 String! test() {

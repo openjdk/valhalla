@@ -70,7 +70,6 @@ public abstract class Metadata extends VMObject {
     metadataConstructor.addMapping("RefArrayKlass", RefArrayKlass.class);
     metadataConstructor.addMapping("FlatArrayKlass", FlatArrayKlass.class);
     metadataConstructor.addMapping("Method", Method.class);
-    metadataConstructor.addMapping("MethodData", MethodData.class);
     metadataConstructor.addMapping("ConstMethod", ConstMethod.class);
     metadataConstructor.addMapping("ConstantPool", ConstantPool.class);
     metadataConstructor.addMapping("ConstantPoolCache", ConstantPoolCache.class);

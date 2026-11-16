@@ -38,6 +38,8 @@
  * @run main/othervm compiler.valhalla.inlinetypes.TestStrictFieldBarriers
  * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestStrictFieldBarriers
+ * @run main/othervm -Xbatch -XX:TieredStopAtLevel=1
+ *                   compiler.valhalla.inlinetypes.TestStrictFieldBarriers
  * @run main/othervm -Xbatch -XX:CompileCommand=compileonly,java.lang.Object::*init*
  *                   compiler.valhalla.inlinetypes.TestStrictFieldBarriers
  * @run main/othervm -Xbatch -XX:CompileCommand=compileonly,StrictInitTest$A::*init*

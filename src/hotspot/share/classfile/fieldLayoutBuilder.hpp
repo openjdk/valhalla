@@ -58,13 +58,13 @@ class LayoutRawBlock : public ResourceObj {
  public:
   // Some code relies on the order of values below.
   enum Kind {
-    EMPTY,                 // empty slot, space is taken from this to allocate fields
-    RESERVED,              // reserved for JVM usage (for instance object header)
-    PADDING,               // padding (because of alignment constraints or @Contended)
-    REGULAR,               // primitive or oop field (including not flat inline type fields)
-    FLAT,                  // flat field
-    INHERITED,             // field(s) inherited from super classes
-    NULL_MARKER            // stores the null marker for a flat field
+    EMPTY,         // empty slot, space is taken from this to allocate fields
+    RESERVED,      // reserved for JVM usage (for instance object header)
+    PADDING,       // padding (because of alignment constraints or @Contended)
+    REGULAR,       // primitive or oop field (including not flat inline type fields)
+    FLAT,          // flat field
+    INHERITED,     // field(s) inherited from super classes
+    NULL_MARKER    // stores the null marker for a flat field
   };
 
  private:
@@ -144,7 +144,6 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* _big_primitive_fields;
   GrowableArray<LayoutRawBlock*>* _oop_fields;
   int _contended_group;
-  int _oop_count;
   static const int INITIAL_LIST_SIZE = 16;
 
  public:
@@ -156,11 +155,10 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* big_primitive_fields() const { return _big_primitive_fields; }
   GrowableArray<LayoutRawBlock*>* oop_fields() const { return _oop_fields; }
   int contended_group() const { return _contended_group; }
-  int oop_count() const { return _oop_count; }
 
   void add_primitive_field(int idx, BasicType type);
   void add_oop_field(int idx);
-  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk, int size, int alignment);
+  void add_flat_field(int idx, InlineKlass* vk, LayoutKind lk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -250,8 +248,8 @@ class FieldLayout : public ResourceObj {
 
 // FieldLayoutBuilder is the main entry point for layout computation.
 // This class has two methods to generate layout: one for identity classes
-// and one for inline classes. The rational for having two methods
-// is that each kind of classes has a different set goals regarding
+// and one for inline classes. The rationale for having two methods
+// is that each kind of class has a different set of goals regarding
 // its layout, so instead of mixing two layout strategies into a
 // single method, each kind has its own method (see comments below
 // for more details about the allocation strategies).
@@ -286,7 +284,7 @@ class FieldLayoutBuilder : public ResourceObj {
   FieldGroup* _static_fields;
   FieldLayout* _layout;
   FieldLayout* _static_layout;
-  GrowableArray<Pair<int,int>>* _nonoop_acmp_map;
+  GrowableArray<AcmpMapSegment>* _nonoop_acmp_map;
   GrowableArray<int>* _oop_acmp_map;
   int _nonstatic_oopmap_count;
   int _payload_alignment;
@@ -300,6 +298,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int _nullable_non_atomic_layout_size_in_bytes;
   int _fields_size_sum;
   int _declared_nonstatic_fields_count;
+  int _flattening_budget;
   bool _has_non_naturally_atomic_fields;
   bool _is_naturally_atomic;
   bool _must_be_atomic;
@@ -337,7 +336,7 @@ class FieldLayoutBuilder : public ResourceObj {
   void build_layout();
   void compute_regular_layout();
   void compute_inline_class_layout();
-  void insert_contended_padding(LayoutRawBlock* slot);
+  LayoutRawBlock* insert_contended_padding(LayoutRawBlock* slot);
 
  protected:
   void prologue();

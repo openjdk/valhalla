@@ -63,7 +63,6 @@ class vtableEntry;
 class Klass : public Metadata {
 
   friend class VMStructs;
-  friend class JVMCIVMStructs;
  public:
   // Klass Kinds for all subclasses of Klass
    enum KlassKind : u2
@@ -456,10 +455,6 @@ protected:
   static ByteSize java_mirror_offset()           { return byte_offset_of(Klass, _java_mirror); }
   static ByteSize class_loader_data_offset()     { return byte_offset_of(Klass, _class_loader_data); }
   static ByteSize layout_helper_offset()         { return byte_offset_of(Klass, _layout_helper); }
-#if INCLUDE_JVMCI
-  static ByteSize subklass_offset()              { return byte_offset_of(Klass, _subklass); }
-  static ByteSize next_sibling_offset()          { return byte_offset_of(Klass, _next_sibling); }
-#endif
   static ByteSize secondary_supers_bitmap_offset()
                                                  { return byte_offset_of(Klass, _secondary_supers_bitmap); }
   static ByteSize hash_slot_offset()             { return byte_offset_of(Klass, _hash_slot); }
@@ -471,9 +466,9 @@ protected:
   static const int _lh_log2_element_size_shift = BitsPerByte*0;
   static const int _lh_log2_element_size_mask  = BitsPerLong-1;
   static const int _lh_element_type_shift      = BitsPerByte*1;
-  static const int _lh_element_type_mask       = right_n_bits(BitsPerByte);  // shifted mask
+  static const int _lh_element_type_mask       = right_n_bits<int>(BitsPerByte);  // shifted mask
   static const int _lh_header_size_shift       = BitsPerByte*2;
-  static const int _lh_header_size_mask        = right_n_bits(BitsPerByte);  // shifted mask
+  static const int _lh_header_size_mask        = right_n_bits<int>(BitsPerByte);  // shifted mask
   static const int _lh_array_tag_bits          = 4;
   static const int _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits;
 
@@ -730,10 +725,10 @@ public:
   bool is_refArray_klass()              const { return assert_same_query( _kind == RefArrayKlassKind, is_refArray_klass_slow()); }
   bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
   bool is_refined_objArray_klass()      const { return is_refArray_klass() || is_flatArray_klass(); }
+  bool is_unrefined_objArray_klass()    const { return _kind == ObjArrayKlassKind; }
   #undef assert_same_query
 
   inline bool is_null_free_array_klass() const { return !is_typeArray_klass() && layout_helper_is_null_free(layout_helper()); }
-
 
   virtual bool is_interface() const     { return false; }
   virtual bool is_abstract() const      { return false; }

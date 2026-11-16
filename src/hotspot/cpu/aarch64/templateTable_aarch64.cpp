@@ -97,10 +97,6 @@ static inline Address aaddress(Register r) {
   return iaddress(r);
 }
 
-static inline Address at_rsp() {
-  return Address(esp, 0);
-}
-
 // At top of Java expression stack which may be different than esp().  It
 // isn't for category 1 objects.
 static inline Address at_tos   () {
@@ -760,9 +756,9 @@ void TemplateTable::index_check(Register array, Register index)
   Label ok;
   __ br(Assembler::LO, ok);
   // ??? convention: move array into r3 for exception message
-   __ mov(r3, array);
-   __ mov(rscratch1, Interpreter::_throw_ArrayIndexOutOfBoundsException_entry);
-   __ br(rscratch1);
+  __ mov(r3, array);
+  __ mov(rscratch1, Interpreter::_throw_ArrayIndexOutOfBoundsException_entry);
+  __ br(rscratch1);
   __ bind(ok);
 }
 
@@ -833,9 +829,6 @@ void TemplateTable::aaload()
     __ b(done);
     __ bind(is_flat_array);
     __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::flat_array_load), r0, r1);
-    // Ensure the stores to copy the inline field contents are visible
-    // before any subsequent store that publishes this reference.
-    __ membar(Assembler::StoreStore);
     __ bind(done);
   } else {
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
@@ -1148,7 +1141,7 @@ void TemplateTable::aastore() {
   __ cbz(r0, is_null);
 
   // Move array class to r5
-  __ load_klass(r5, r3);
+  __ load_klass(r5, r3, rscratch1);
 
   if (UseArrayFlattening) {
     __ ldrw(r6, Address(r5, Klass::layout_helper_offset()));
@@ -1156,7 +1149,7 @@ void TemplateTable::aastore() {
   }
 
   // Move subklass into r1
-  __ load_klass(r1, r0);
+  __ load_klass(r1, r0, rscratch1);
 
   // Move array element superklass into r0
   __ ldr(r0, Address(r5, ObjArrayKlass::element_klass_offset()));
@@ -1233,7 +1226,7 @@ void TemplateTable::bastore()
 
   // Need to check whether array is boolean or byte
   // since both types share the bastore bytecode.
-  __ load_klass(r2, r3);
+  __ load_klass(r2, r3, rscratch1);
   __ ldrw(r2, Address(r2, Klass::layout_helper_offset()));
   int diffbit_index = exact_log2(Klass::layout_helper_boolean_diffbit());
   Label L_skip;
@@ -2033,14 +2026,15 @@ void TemplateTable::if_acmp(Condition cc) {
   __ mov(is_inline_type_mask, markWord::inline_type_pattern);
 
   if (Arguments::is_valhalla_enabled()) {
+    // The substitutability test is only necessary if r1 and r0 are not the same...
     __ cmp(r1, r0);
     __ br(Assembler::EQ, (cc == equal) ? taken : not_taken);
 
-    // might be substitutable, test if either r0 or r1 is null
-    __ andr(r2, r0, r1);
-    __ cbz(r2, (cc == equal) ? not_taken : taken);
+    // ... neither are null...
+    __ cbz(r1, (cc == equal) ? not_taken : taken);
+    __ cbz(r0, (cc == equal) ? not_taken : taken);
 
-    // and both are values ?
+    // ...and both are values...
     __ ldr(r2, Address(r1, oopDesc::mark_offset_in_bytes()));
     __ andr(r2, r2, is_inline_type_mask);
     __ ldr(r4, Address(r0, oopDesc::mark_offset_in_bytes()));
@@ -2049,7 +2043,7 @@ void TemplateTable::if_acmp(Condition cc) {
     __ cmp(r2,  is_inline_type_mask);
     __ br(Assembler::NE, (cc == equal) ? not_taken : taken);
 
-    // same value klass ?
+    // ...with the same value klass
     __ load_metadata(r2, r1);
     __ load_metadata(r4, r0);
     __ cmp(r2, r4);
@@ -2302,7 +2296,7 @@ void TemplateTable::_return(TosState state)
     assert(state == vtos, "only valid state");
 
     __ ldr(c_rarg1, aaddress(0));
-    __ load_klass(r3, c_rarg1);
+    __ load_klass(r3, c_rarg1, rscratch1);
     __ ldrb(r3, Address(r3, Klass::misc_flags_offset()));
     Label skip_register_finalizer;
     __ tbz(r3, exact_log2(KlassFlags::_misc_has_finalizer), skip_register_finalizer);
@@ -2732,7 +2726,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (!CompilerConfig::is_c1_or_interpreter_only_no_jvmci()){
+  if (!CompilerConfig::is_c1_or_interpreter_only()){
     Label notVolatile;
     __ tbz(flags, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::AnyAny);
@@ -3393,7 +3387,7 @@ void TemplateTable::fast_accessfield(TosState state)
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (!CompilerConfig::is_c1_or_interpreter_only_no_jvmci()) {
+  if (!CompilerConfig::is_c1_or_interpreter_only()) {
     Label notVolatile;
     __ tbz(r3, ResolvedFieldEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::AnyAny);
@@ -3463,7 +3457,7 @@ void TemplateTable::fast_xaccess(TosState state)
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (!CompilerConfig::is_c1_or_interpreter_only_no_jvmci()) {
+  if (!CompilerConfig::is_c1_or_interpreter_only()) {
     Label notVolatile;
     __ load_unsigned_byte(r3, Address(r2, in_bytes(ResolvedFieldEntry::flags_offset())));
     __ tbz(r3, ResolvedFieldEntry::is_volatile_shift, notVolatile);
@@ -3538,8 +3532,8 @@ void TemplateTable::invokevirtual_helper(Register index,
                                          Register recv,
                                          Register flags)
 {
-  // Uses temporary registers r0, r3
-  assert_different_registers(index, recv, r0, r3);
+  // Uses temporary registers r0, r3, rscratch1
+  assert_different_registers(index, recv, r0, r3, rscratch1);
   // Test for an invoke of a final method
   Label notFinal;
   __ tbz(flags, ResolvedMethodEntry::is_vfinal_shift, notFinal);
@@ -3563,7 +3557,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ bind(notFinal);
 
   // get receiver klass
-  __ load_klass(r0, recv);
+  __ load_klass(r0, recv, rscratch1);
 
   // profile this call
   __ profile_virtual_call(r0, rlocals);
@@ -3664,7 +3658,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ tbz(r3, ResolvedMethodEntry::is_vfinal_shift, notVFinal);
 
   // Get receiver klass into r3
-  __ load_klass(r3, r2);
+  __ load_klass(r3, r2, rscratch1);
 
   Label subtype;
   __ check_klass_subtype(r3, r0, r4, subtype);
@@ -3679,8 +3673,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ bind(notVFinal);
 
   // Get receiver klass into r3
-  __ restore_locals();
-  __ load_klass(r3, r2);
+  __ load_klass(r3, r2, rscratch1);
 
   Label no_such_method;
 
@@ -3829,8 +3822,81 @@ void TemplateTable::_new() {
   assert(VM_Version::supports_fast_class_init_checks(), "Optimization requires support for fast class initialization checks");
   __ clinit_barrier(r4, rscratch1, nullptr /*L_fast_path*/, &slow_case);
 
-  __ allocate_instance(r4, r0, r3, r1, true, slow_case);
-  __ b(done);
+  // get instance_size in InstanceKlass (scaled to a count of bytes)
+  __ ldrw(r3,
+          Address(r4,
+                  Klass::layout_helper_offset()));
+  // test to see if it is malformed in some way
+  __ tbnz(r3, exact_log2(Klass::_lh_instance_slow_path_bit), slow_case);
+
+  // Allocate the instance:
+  //  If TLAB is enabled:
+  //    Try to allocate in the TLAB.
+  //    If fails, go to the slow path.
+  //    Initialize the allocation.
+  //    Exit.
+  //
+  //  Go to slow path.
+
+  if (UseTLAB) {
+    __ tlab_allocate(r0, r3, 0, noreg, r1, slow_case);
+
+    if (ZeroTLAB) {
+      // the fields have been already cleared
+      __ b(initialize_header);
+    }
+
+    // The object is initialized before the header.  If the object size is
+    // zero, go directly to the header initialization.
+    int header_size = oopDesc::header_size() * HeapWordSize;
+    assert(is_aligned(header_size, BytesPerLong), "oop header size must be 8-byte-aligned");
+    __ sub(r3, r3, header_size);
+    __ cbz(r3, initialize_header);
+
+  #ifdef ASSERT
+    // make sure instance_size was multiple of 8
+    Label L;
+    __ tst(r3, 7);
+    __ br(Assembler::EQ, L);
+    __ stop("object size is not multiple of 8 - adjust this code");
+    __ bind(L);
+    // must be > 0, no extra check needed here
+  #endif
+
+    // Initialize object fields
+    {
+      __ add(r2, r0, header_size);
+      Label loop;
+      __ bind(loop);
+      __ str(zr, Address(__ post(r2, BytesPerLong)));
+      __ sub(r3, r3, BytesPerLong);
+      __ cbnz(r3, loop);
+    }
+
+    // initialize object header only.
+    __ bind(initialize_header);
+    if (UseCompactObjectHeaders || Arguments::is_valhalla_enabled()) {
+      __ ldr(rscratch1, Address(r4, Klass::prototype_header_offset()));
+      __ str(rscratch1, Address(r0, oopDesc::mark_offset_in_bytes()));
+    } else {
+      __ mov(rscratch1, (intptr_t)markWord::prototype().value());
+      __ str(rscratch1, Address(r0, oopDesc::mark_offset_in_bytes()));
+    }
+    if (!UseCompactObjectHeaders) {
+      __ store_klass_gap(r0, zr);  // zero klass gap for compressed oops
+      __ store_klass(r0, r4, rscratch1);      // store klass last
+    }
+
+    if (DTraceAllocProbes) {
+      // Trigger dtrace event for fastpath
+      __ push(atos); // save the return value
+      __ call_VM_leaf(
+           CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), r0);
+      __ pop(atos); // restore the return value
+
+    }
+    __ b(done);
+  }
 
   // slow case
   __ bind(slow_case);
@@ -3899,7 +3965,7 @@ void TemplateTable::checkcast()
   __ load_resolved_klass_at_offset(r2, r19, r0, rscratch1); // r0 = klass
 
   __ bind(resolved);
-  __ load_klass(r19, r3);
+  __ load_klass(r19, r3, rscratch1);
 
   // Generate subtype check.  Blows r2, r5.  Object in r3.
   // Superklass in r0.  Subklass in r19.
@@ -3921,7 +3987,6 @@ void TemplateTable::checkcast()
   if (ProfileInterpreter) {
     __ profile_null_seen(r2);
   }
-
   __ bind(done);
 }
 
@@ -3945,12 +4010,12 @@ void TemplateTable::instanceof() {
   __ get_vm_result_metadata(r0, rthread);
   __ pop(r3); // restore receiver
   __ verify_oop(r3);
-  __ load_klass(r3, r3);
+  __ load_klass(r3, r3, rscratch1);
   __ b(resolved);
 
   // Get superklass in r0 and subklass in r3
   __ bind(quicked);
-  __ load_klass(r3, r0);
+  __ load_klass(r3, r0, rscratch1);
   __ load_resolved_klass_at_offset(r2, r19, r0, rscratch1);
 
   __ bind(resolved);

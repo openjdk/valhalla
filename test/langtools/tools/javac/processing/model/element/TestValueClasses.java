@@ -111,11 +111,11 @@ public class TestValueClasses extends TestRunner {
 
         List<String> expected = List.of(
                 "- compiler.note.proc.messager: visiting: Interface Modifiers: [abstract]",
-                "- compiler.note.proc.messager: visiting: ValueClass Modifiers: [value, final]",
+                "- compiler.note.proc.messager: visiting: ValueClass Modifiers: [final, value]",
                 "- compiler.note.proc.messager:     constructor modifiers: []",
                 "- compiler.note.proc.messager: visiting: IdentityClass Modifiers: []",
                 "- compiler.note.proc.messager:     constructor modifiers: []",
-                "- compiler.note.proc.messager: visiting: ValueRecord Modifiers: [value, final]",
+                "- compiler.note.proc.messager: visiting: ValueRecord Modifiers: [final, value]",
                 "- compiler.note.proc.messager:     constructor modifiers: []",
                 "- compiler.note.preview.filename: Interface.java, DEFAULT",
                 "- compiler.note.preview.recompile"

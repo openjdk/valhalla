@@ -30,11 +30,14 @@ import java.lang.annotation.*;
 /**
  * A null-restricted field is a field that does not store {@code null}.
  * The field must be initialized according to the strict field initialization
- * rules, and attempts to write {@code null}
- * to the field will throw an exception.
+ * rules, and attempts to write {@code null} to the field will throw an exception.
  * <p>
  * The HotSpot VM uses this annotation to enable flattened encodings for the
  * field that would otherwise be impossible.
+ * <p>
+ * The annotation is ignored if the type of the field is not a concrete value type,
+ * or if the type of the field cannot be preloaded during the loading of the class
+ * that declares the field.
  * <p>
  * Because these behaviors are not specified by Java SE, this annotation should
  * only be used by internal JDK classes for experimental purposes and should not

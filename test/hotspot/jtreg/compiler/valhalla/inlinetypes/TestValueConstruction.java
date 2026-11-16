@@ -27,6 +27,7 @@ import java.lang.classfile.Label;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Constructor;
 import java.util.Random;
 
 import jdk.test.lib.Asserts;
@@ -42,9 +43,8 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
- *                   -XX:CompileCommand=MemLimit,*.*,2G~crash
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
@@ -55,9 +55,8 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
- *                   -XX:CompileCommand=MemLimit,*.*,2G~crash
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
@@ -68,7 +67,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
@@ -82,7 +81,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:CompileCommand=dontinline,compiler*::helper*
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
@@ -95,7 +94,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
@@ -108,7 +107,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
@@ -121,7 +120,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+IgnoreUnrecognizedVMOptions
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+IgnoreUnrecognizedVMOptions
  *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
@@ -134,10 +133,9 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
- *                   -XX:CompileCommand=MemLimit,*.*,2G~crash
  *                   compiler.valhalla.inlinetypes.TestValueConstruction
  */
 
@@ -148,7 +146,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=MemLimit,*.*,2G~crash
@@ -162,7 +160,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=compileonly,*TestValueConstruction::test* -Xbatch
@@ -175,7 +173,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyValue*::<init> -Xbatch
@@ -189,7 +187,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*Object::<init> -Xbatch
@@ -203,7 +201,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:CompileCommand=inline,TestValueConstruction::checkDeopt
  *                   -XX:CompileCommand=dontinline,*MyAbstract::<init> -Xbatch
@@ -218,7 +216,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @enablePreview
  * @build jdk.test.whitebox.WhiteBox test.java.lang.invoke.lib.InstructionHelper
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=400 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:-TieredCompilation -XX:+StressIncrementalInlining
  *                   -XX:Tier0BackedgeNotifyFreqLog=0 -XX:Tier2BackedgeNotifyFreqLog=0 -XX:Tier3BackedgeNotifyFreqLog=0
  *                   -XX:Tier2BackEdgeThreshold=1 -XX:Tier3BackEdgeThreshold=1 -XX:Tier4BackEdgeThreshold=1 -Xbatch
@@ -1726,6 +1724,40 @@ public class TestValueConstruction {
         return (MyValue1) OSR_LARVAL_LOCAL.invokeExact(dummy, x);
     }
 
+    static final Constructor<MyValue1> MY_VALUE1_CONSTRUCTOR;
+    static {
+        try {
+            MY_VALUE1_CONSTRUCTOR = MyValue1.class.getConstructor(int.class);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static MyValue1 testReflectionCon(int x) throws Exception {
+        return MY_VALUE1_CONSTRUCTOR.newInstance(x);
+    }
+
+    public static MyValue1 testReflectionVar(Constructor<MyValue1> constructor, int x) throws Exception {
+        return constructor.newInstance(x);
+    }
+
+    static final MethodHandle MY_VALUE1_CONSTRUCTOR_HANDLE;
+    static {
+        try {
+            MY_VALUE1_CONSTRUCTOR_HANDLE = MethodHandles.lookup().unreflectConstructor(MY_VALUE1_CONSTRUCTOR);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static MyValue1 testMethodHandleCon(int x) throws Throwable {
+        return (MyValue1) MY_VALUE1_CONSTRUCTOR_HANDLE.invoke(x);
+    }
+
+    public static MyValue1 testMethodHandleVar(MethodHandle mh, int x) throws Throwable {
+        return (MyValue1) mh.invoke(x);
+    }
+
     public static void main(String[] args) throws Throwable {
         Random rand = Utils.getRandomInstance();
 
@@ -1855,6 +1887,10 @@ public class TestValueConstruction {
         check(testBackAndForthAbstract2(x), new MyValue16(x), doCheck);
         check(testMultipleOccurrencesInJVMS(x), new MyValue1(x), doCheck);
         check(testOsrLarvalLocal(x), new MyValue1(x), doCheck);
+        check(testReflectionCon(x), new MyValue1(x), doCheck);
+        check(testReflectionVar(MY_VALUE1_CONSTRUCTOR, x), new MyValue1(x), doCheck);
+        check(testMethodHandleCon(x), new MyValue1(x), doCheck);
+        check(testMethodHandleVar(MY_VALUE1_CONSTRUCTOR_HANDLE, x), new MyValue1(x), doCheck);
     }
 
     private static void check(Object testResult, Object expectedResult, boolean check) {

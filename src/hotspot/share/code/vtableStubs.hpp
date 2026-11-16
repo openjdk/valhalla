@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "asm/macroAssembler.hpp"
 #include "code/vmreg.hpp"
 #include "memory/allStatic.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/checkedCast.hpp"
 
 // A VtableStub holds an individual code stub for a pair (vtable index, #args) for either itables or vtables
@@ -93,7 +94,7 @@ class VtableStubs : AllStatic {
   static VtableStub* lookup            (bool is_vtable_stub, int vtable_index, bool caller_is_c1);
   static void        enter             (bool is_vtable_stub, int vtable_index, bool caller_is_c1, VtableStub* s);
   static inline uint hash              (bool is_vtable_stub, int vtable_index, bool caller_is_c1);
-  static inline uint unsafe_hash       (address entry_point, bool caller_is_c1);
+  static inline uint unsafe_hash       (address entry_point);
   static address     find_stub         (bool is_vtable_stub, int vtable_index, bool caller_is_c1);
   static void        bookkeeping(MacroAssembler* masm, outputStream* out, VtableStub* s,
                                  address npe_addr, address ame_addr,   bool is_vtable_stub,
@@ -111,7 +112,9 @@ class VtableStubs : AllStatic {
   static bool        contains(address pc);                           // is pc within any stub?
   static VtableStub* stub_containing(address pc);                    // stub containing pc or nullptr
   static void        initialize();
-  static void        vtable_stub_do(void f(VtableStub*));            // iterates over all vtable stubs
+
+  template <typename F>
+  static void vtable_stub_do(F f);
 };
 
 
@@ -124,6 +127,11 @@ class VtableStub {
     vtable_stub,
   };
 
+  enum class CallerType : uint8_t {
+    c1,
+    unspecified,
+  };
+
 
   static address _chunk;             // For allocation
   static address _chunk_end;         // For allocation
@@ -134,7 +142,7 @@ class VtableStub {
   short          _ame_offset;        // Where an AbstractMethodError might occur
   short          _npe_offset;        // Where a NullPointerException might occur
   Type           _type;              // Type, either vtable stub or itable stub
-  bool           _caller_is_c1;      // True if this is for a caller compiled by C1,
+  CallerType     _caller_type;       // CallerType, either unspecified or C1,
                                      // which doesn't scalarize parameters.
   /* code follows here */            // The vtableStub code
 
@@ -142,20 +150,22 @@ class VtableStub {
 
   VtableStub(bool is_vtable_stub, short index, bool caller_is_c1)
         : _next(nullptr), _index(index), _ame_offset(-1), _npe_offset(-1),
-          _type(is_vtable_stub ? Type::vtable_stub : Type::itable_stub), _caller_is_c1(caller_is_c1) {}
+          _type(is_vtable_stub ? Type::vtable_stub : Type::itable_stub),
+          _caller_type(caller_is_c1 ? CallerType::c1 : CallerType::unspecified) {}
   VtableStub* next() const                       { return _next; }
-  int index() const                              { return _index; }
   static VMReg receiver_location()               { return _receiver_location; }
   void set_next(VtableStub* n)                   { _next = n; }
 
  public:
+  int index() const                              { return _index; }
+  int code_size() const                          { return VtableStubs::code_size_limit(is_vtable_stub()); }
   address code_begin() const                     { return (address)(this + 1); }
-  address code_end() const                       { return code_begin() + VtableStubs::code_size_limit(is_vtable_stub()); }
+  address code_end() const                       { return code_begin() + code_size(); }
   address entry_point() const                    { return code_begin(); }
   static int entry_offset()                      { return sizeof(class VtableStub); }
 
   bool matches(bool is_vtable_stub, int index, bool caller_is_c1) const {
-    return _index == index && this->is_vtable_stub() == is_vtable_stub && _caller_is_c1 == caller_is_c1;
+    return _index == index && this->is_vtable_stub() == is_vtable_stub && this->caller_is_c1() == caller_is_c1;
   }
   bool contains(address pc) const                { return code_begin() <= pc && pc < code_end(); }
 
@@ -183,7 +193,7 @@ class VtableStub {
   // Query
   bool is_itable_stub() const                    { return _type == Type::itable_stub; }
   bool is_vtable_stub() const                    { return _type == Type::vtable_stub; }
-  bool caller_is_c1()                            { return  _caller_is_c1;   }
+  bool caller_is_c1() const                      { return _caller_type == CallerType::c1; }
   bool is_abstract_method_error(address epc)     { return epc == code_begin()+_ame_offset; }
   bool is_null_pointer_exception(address epc)    { return epc == code_begin()+_npe_offset; }
 
@@ -191,5 +201,14 @@ class VtableStub {
   void print() const;
 
 };
+
+template <typename F>
+void VtableStubs::vtable_stub_do(F f) {
+  for (int i = 0; i < N; i++) {
+    for (VtableStub* s = AtomicAccess::load_acquire(&_table[i]); s != nullptr; s = s->next()) {
+      f(s);
+    }
+  }
+}
 
 #endif // SHARE_CODE_VTABLESTUBS_HPP

@@ -120,7 +120,7 @@ static LatestMethodCache _value_object_hash_code_cache;     // ValueObjectMethod
 
 // Known objects
 TypeArrayKlass* Universe::_typeArrayKlasses[T_LONG+1] = { nullptr /*, nullptr...*/ };
-ObjArrayKlass* Universe::_objectArrayKlass            = nullptr;
+RefArrayKlass* Universe::_objectArrayKlass            = nullptr;
 Klass* Universe::_fillerArrayKlass                    = nullptr;
 OopHandle Universe::_basic_type_mirrors[T_VOID+1];
 #if INCLUDE_CDS_JAVA_HEAP
@@ -395,7 +395,7 @@ static void initialize_basic_type_klass(Klass* k, TRAPS) {
     if (k->is_instance_klass()) {
       InstanceKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), nullptr, CHECK);
     } else {
-      ArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
+      TypeArrayKlass::cast(k)->restore_unshareable_info(loader_data, Handle(), CHECK);
     }
   } else
 #endif
@@ -517,8 +517,8 @@ void Universe::genesis(TRAPS) {
     oak->append_to_sibling_list();
 
     // Create a RefArrayKlass (which is the default) and initialize.
-    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayKlass::ArrayProperties::DEFAULT, THREAD);
-    _objectArrayKlass = rak;
+    ObjArrayKlass* rak = ObjArrayKlass::cast(oak)->klass_with_properties(ArrayProperties::Default(), CHECK);
+    _objectArrayKlass = RefArrayKlass::cast(rak);
   }
 
   #ifdef ASSERT
@@ -889,7 +889,7 @@ jint universe_init() {
   ObjLayout::initialize();
 
 #ifdef _LP64
-  AOTMetaspace::adjust_heap_sizes_for_dumping();
+  AOTMetaspace::init_heap_settings();
 #endif // _LP64
 
   GCConfig::arguments()->initialize_heap_sizes();
@@ -1199,12 +1199,11 @@ bool universe_post_init() {
     Universe::heap()->update_capacity_and_used_at_gc();
   }
 
-  // ("weak") refs processing infrastructure initialization
+  // Initialize serviceability
+  MemoryService::initialize(Universe::heap());
+
+  // Complete initialization
   Universe::heap()->post_initialize();
-
-  MemoryService::add_metaspace_memory_pools();
-
-  MemoryService::set_universe_heap(Universe::heap());
 
 #if INCLUDE_CDS
   AOTMetaspace::post_initialize(CHECK_false);
@@ -1274,7 +1273,7 @@ void Universe::initialize_verify_flags() {
     }
     token = strtok_r(nullptr, delimiter, &save_ptr);
   }
-  FREE_C_HEAP_ARRAY(char, subset_list);
+  FREE_C_HEAP_ARRAY(subset_list);
 }
 
 bool Universe::should_verify_subset(uint subset) {
@@ -1366,7 +1365,7 @@ static void log_cpu_time() {
   const double gc_string_dedup_cpu_time = (double) CPUTimeUsage::GC::stringdedup() / NANOSECS_PER_SEC;
   const double gc_cpu_time = (double) gc_threads_cpu_time + gc_vm_thread_cpu_time + gc_string_dedup_cpu_time;
 
-  const double elasped_time = os::elapsedTime();
+  const double elapsed_time = os::elapsedTime();
   const bool has_error = CPUTimeUsage::Error::has_error();
 
   if (gc_cpu_time < process_cpu_time) {
@@ -1377,13 +1376,13 @@ static void log_cpu_time() {
     cpuLog.print("                                                                            CPUs");
     cpuLog.print("                                                               s       %%  utilized");
     cpuLog.print("   Process");
-    cpuLog.print("     Total                        %30.4f  %6.2f  %8.1f", process_cpu_time, 100.0, process_cpu_time / elasped_time);
-    cpuLog.print("     Garbage Collection           %30.4f  %6.2f  %8.1f", gc_cpu_time, percent_of(gc_cpu_time, process_cpu_time), gc_cpu_time / elasped_time);
-    cpuLog.print("       GC Threads                 %30.4f  %6.2f  %8.1f", gc_threads_cpu_time, percent_of(gc_threads_cpu_time, process_cpu_time), gc_threads_cpu_time / elasped_time);
-    cpuLog.print("       VM Thread                  %30.4f  %6.2f  %8.1f", gc_vm_thread_cpu_time, percent_of(gc_vm_thread_cpu_time, process_cpu_time), gc_vm_thread_cpu_time / elasped_time);
+    cpuLog.print("     Total                        %30.4f  %6.2f  %8.1f", process_cpu_time, 100.0, process_cpu_time / elapsed_time);
+    cpuLog.print("     Garbage Collection           %30.4f  %6.2f  %8.1f", gc_cpu_time, percent_of(gc_cpu_time, process_cpu_time), gc_cpu_time / elapsed_time);
+    cpuLog.print("       GC Threads                 %30.4f  %6.2f  %8.1f", gc_threads_cpu_time, percent_of(gc_threads_cpu_time, process_cpu_time), gc_threads_cpu_time / elapsed_time);
+    cpuLog.print("       VM Thread                  %30.4f  %6.2f  %8.1f", gc_vm_thread_cpu_time, percent_of(gc_vm_thread_cpu_time, process_cpu_time), gc_vm_thread_cpu_time / elapsed_time);
 
     if (UseStringDeduplication) {
-      cpuLog.print("       String Deduplication       %30.4f  %6.2f  %8.1f", gc_string_dedup_cpu_time, percent_of(gc_string_dedup_cpu_time, process_cpu_time), gc_string_dedup_cpu_time / elasped_time);
+      cpuLog.print("       String Deduplication       %30.4f  %6.2f  %8.1f", gc_string_dedup_cpu_time, percent_of(gc_string_dedup_cpu_time, process_cpu_time), gc_string_dedup_cpu_time / elapsed_time);
     }
     cpuLog.print("=====================================================================================");
   }

@@ -116,16 +116,8 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
   // Push cast through InlineTypeNode
-  InlineTypeNode* vt = in(1)->isa_InlineType();
-  if (vt != nullptr && phase->type(vt)->filter_speculative(_type) != Type::TOP) {
-    Node* cast = clone();
-    cast->set_req(1, vt->get_oop());
-    vt = vt->clone()->as_InlineType();
-    if (!_type->maybe_null()) {
-      vt->as_InlineType()->set_null_marker(*phase);
-    }
-    vt->set_oop(*phase, phase->transform(cast));
-    return vt;
+  if (in(1)->is_InlineType()) {
+    return ideal_cast_of_inline_type_node(phase);
   }
 
   if (in(1) != nullptr && phase->type(in(1)) != Type::TOP) {
@@ -225,6 +217,54 @@ bool ConstraintCastNode::higher_equal_types(PhaseGVN* phase, const Node* other) 
   return true;
 }
 
+Node* ConstraintCastNode::pin_node_under_control_impl() const {
+  assert(_dependency.is_floating(), "already pinned");
+  return make_cast_for_type(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), _extra_types);
+}
+
+Node* ConstraintCastNode::ideal_cast_of_inline_type_node(PhaseGVN* phase) {
+  InlineTypeNode* vt = in(1)->as_InlineType();
+  const Type* join = vt->type()->filter(type());
+  if (join == Type::TOP) {
+    // Do not push a dead Cast since its type can be unrelated
+    return nullptr;
+  }
+
+  if (join == vt->type()->remove_speculative()) {
+    // Redundant cast, let Identity handle
+    return nullptr;
+  }
+
+  if (join == TypePtr::NULL_PTR) {
+    // Will collapse to the constant null
+    return nullptr;
+  }
+
+  // The only possible case left is that the cast is a cast to not-null
+  assert(join == vt->type()->filter(TypePtr::NOTNULL), "must be");
+  InlineTypeNode* res = vt->clone()->as_InlineType();
+  res->set_null_marker(*phase);
+
+  // Push the cast to the oop input if possible
+  if (vt->is_allocated(phase)) {
+    Node* new_oop = clone();
+    new_oop->set_req(1, vt->get_oop());
+    res->set_oop(*phase, phase->transform(new_oop));
+  }
+
+  // Push the cast to the null-free inputs of vt
+  for (uint i = 0; i < vt->field_count(); i++) {
+    if (vt->field(i)->is_null_free()) {
+      const ConstraintCastNode::DependencyType& dep = _dependency.is_floating() ? ConstraintCastNode::DependencyType::FloatingNarrowing
+                                                                                : ConstraintCastNode::DependencyType::NonFloatingNarrowing;
+      Node* new_fv = new CastPPNode(in(0), vt->field_value(i), TypePtr::NOTNULL, dep);
+      res->set_field_value(i, phase->transform(new_fv));
+    }
+  }
+
+  return res;
+}
+
 #ifndef PRODUCT
 void ConstraintCastNode::dump_spec(outputStream *st) const {
   TypeNode::dump_spec(st);
@@ -295,12 +335,9 @@ void CastIINode::dump_spec(outputStream* st) const {
 }
 #endif
 
-CastIINode* CastIINode::pin_array_access_node() const {
+CastIINode* CastIINode::pin_node_under_control_impl() const {
   assert(_dependency.is_floating(), "already pinned");
-  if (has_range_check()) {
-    return new CastIINode(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), has_range_check());
-  }
-  return nullptr;
+  return new CastIINode(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), _range_check_dependency, _extra_types);
 }
 
 void CastIINode::remove_range_check_cast(Compile* C) {
@@ -439,6 +476,43 @@ Node* CheckCastPPNode::Identity(PhaseGVN* phase) {
   return ConstraintCastNode::Identity(phase);
 }
 
+// CastPPNodes are removed before matching, while alias classes are needed in global code motion.
+// As a result, it is not valid for a CastPPNode to change the oop such that the derived pointers
+// lie in different alias classes with and without the node. For example, a CastPPNode c may not
+// cast an Object to a Bottom[], because later removal of c would affect the alias class of c's
+// array length field (c + arrayOopDesc::length_offset_in_bytes()).
+//
+// This function verifies that a CastPPNode on an oop does not violate the aforementioned property.
+//
+// TODO 8382147: Currently, this verification only applies during the construction of a CastPPNode,
+// we may want to apply the same verification during IGVN transformations, as well as final graph
+// reshaping.
+void CastPPNode::verify_type(const Type* in_type, const Type* out_type) {
+#ifdef ASSERT
+  out_type = out_type->join(in_type);
+  if (in_type->empty() || out_type->empty()) {
+    return;
+  }
+  if (in_type == TypePtr::NULL_PTR || out_type == TypePtr::NULL_PTR) {
+    return;
+  }
+  if (!in_type->isa_oopptr() && !out_type->isa_oopptr()) {
+    return;
+  }
+
+  assert(in_type->isa_oopptr() && out_type->isa_oopptr(), "must be both oops or both non-oops");
+  if (in_type->isa_aryptr() && out_type->isa_aryptr()) {
+    const Type* e1 = in_type->is_aryptr()->elem();
+    const Type* e2 = out_type->is_aryptr()->elem();
+    assert(e1->basic_type() == e2->basic_type(), "must both be arrays of the same primitive type or both be oops arrays");
+    return;
+  }
+
+  assert(in_type->isa_instptr() && out_type->isa_instptr(), "must be both array oops or both non-array oops");
+  assert(in_type->is_instptr()->instance_klass() == out_type->is_instptr()->instance_klass(), "must not cast to a different type");
+#endif // ASSERT
+}
+
 //------------------------------Value------------------------------------------
 // Take 'join' of input and cast-up type, unless working with an Interface
 const Type* CheckCastPPNode::Value(PhaseGVN* phase) const {
@@ -467,6 +541,11 @@ const Type* CheckCastPPNode::Value(PhaseGVN* phase) const {
     }
     TypePtr::PTR in_ptr = in_type->ptr();
     if (in_ptr == TypePtr::Null) {
+      // A null input cast to a type that cannot be null (e.g. NotNull) describes
+      // an impossible value: the join is empty, so the result must be TOP.
+      if (my_type->join_ptr(TypePtr::Null) == TypePtr::TopPTR) {
+        return Type::TOP;
+      }
       result = in_type;
     } else if (in_ptr != TypePtr::Constant) {
       result = my_type->cast_to_ptr_type(my_type->join_ptr(in_ptr));
@@ -474,6 +553,11 @@ const Type* CheckCastPPNode::Value(PhaseGVN* phase) const {
   }
 
   return result;
+}
+
+Node* CheckCastPPNode::pin_node_under_control_impl() const {
+  assert(_dependency.is_floating(), "already pinned");
+  return new CheckCastPPNode(in(0), in(1), bottom_type(), _dependency.with_pinned_dependency(), _extra_types);
 }
 
 //=============================================================================
@@ -506,9 +590,7 @@ static inline Node* addP_of_X2P(PhaseGVN *phase,
   if (negate) {
     dispX = phase->transform(new SubXNode(phase->MakeConX(0), dispX));
   }
-  return new AddPNode(phase->C->top(),
-                      phase->transform(new CastX2PNode(base)),
-                      dispX);
+  return AddPNode::make_off_heap(phase->transform(new CastX2PNode(base)), dispX);
 }
 
 Node *CastX2PNode::Ideal(PhaseGVN *phase, bool can_reshape) {

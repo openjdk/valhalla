@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -255,7 +255,7 @@ checkStaticFieldID(JavaThread* thr, jfieldID fid, jclass cls, int ftype, bool se
   if (!id->find_local_field(&fd))
     ReportJNIFatalError(thr, fatal_static_field_not_found);
   if ((fd.field_type() != ftype) &&
-      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT))  {
+      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT)) {
     ReportJNIFatalError(thr, fatal_static_field_mismatch);
   }
 
@@ -358,9 +358,9 @@ check_primitive_array_type(JavaThread* thr, jarray jArray, BasicType elementType
 }
 
 static inline void
-check_is_obj_or_inline_array(JavaThread* thr, jarray jArray) {
+check_is_obj_array(JavaThread* thr, jarray jArray) {
   arrayOop aOop = check_is_array(thr, jArray);
-  if (!aOop->is_objArray() && !aOop->is_flatArray()) {
+  if (!aOop->is_objArray()) {
     ReportJNIFatalError(thr, fatal_object_array_expected);
   }
 }
@@ -1667,7 +1667,7 @@ JNI_ENTRY_CHECKED(jobject,
                                     jsize index))
     functionEnter(thr);
     IN_VM(
-      check_is_obj_or_inline_array(thr, array);
+      check_is_obj_array(thr, array);
     )
     jobject result = UNCHECKED()->GetObjectArrayElement(env,array,index);
     functionExit(thr);
@@ -1681,7 +1681,7 @@ JNI_ENTRY_CHECKED(void,
                                     jobject val))
     functionEnter(thr);
     IN_VM(
-      check_is_obj_or_inline_array(thr, array);
+      check_is_obj_array(thr, array);
     )
     UNCHECKED()->SetObjectArrayElement(env,array,index,val);
     functionExit(thr);
@@ -2055,6 +2055,15 @@ JNI_ENTRY_CHECKED(jboolean,
     return result;
 JNI_END
 
+JNI_ENTRY_CHECKED(jboolean,
+  checked_jni_HasIdentity(JNIEnv *env,
+                            jobject obj))
+    functionEnter(thr);
+    jboolean result = UNCHECKED()->HasIdentity(env, obj);
+    functionExit(thr);
+    return result;
+JNI_END
+
 /*
  * Structure containing all checked jni functions
  */
@@ -2348,7 +2357,11 @@ struct JNINativeInterface_  checked_jni_NativeInterface = {
 
     // Large UTF8 support
 
-    checked_jni_GetStringUTFLengthAsLong
+    checked_jni_GetStringUTFLengthAsLong,
+
+    // Value classes
+
+    checked_jni_HasIdentity
 
 };
 

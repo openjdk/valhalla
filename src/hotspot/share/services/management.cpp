@@ -40,6 +40,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/oopCast.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
+#include "oops/refArrayOop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/globals.hpp"
@@ -1147,6 +1148,7 @@ JVM_ENTRY(jint, jmm_GetThreadInfo(JNIEnv *env, jlongArray ids, jint maxDepth, jo
         // create dummy snapshot
         dump_result.add_thread_snapshot();
       } else {
+        assert(dump_result.t_list()->includes(jt), "Must be protected");
         dump_result.add_thread_snapshot(jt);
       }
     }
@@ -1574,7 +1576,7 @@ JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
     refArrayOop ta = oop_cast<refArrayOop>(JNIHandles::resolve_non_null(names));
     refArrayHandle names_ah(THREAD, ta);
     // Make sure we have a String array
-    Klass* element_klass = RefArrayKlass::cast(names_ah->klass())->element_klass();
+    Klass* element_klass = names_ah->klass()->element_klass();
     if (element_klass != vmClasses::String_klass()) {
       THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(),
                  "Array element type is not String class", 0);
@@ -1716,7 +1718,7 @@ ThreadTimesClosure::~ThreadTimesClosure() {
   for (int i = 0; i < _count; i++) {
     os::free(_names_chars[i]);
   }
-  FREE_C_HEAP_ARRAY(char *, _names_chars);
+  FREE_C_HEAP_ARRAY(_names_chars);
 }
 
 // Fills names with VM internal thread names and times with the corresponding
@@ -2002,7 +2004,7 @@ JVM_ENTRY(void, jmm_GetDiagnosticCommandInfo(JNIEnv *env, jobjectArray cmds,
   refArrayHandle cmds_ah(THREAD, ca);
 
   // Make sure we have a String array
-  Klass* element_klass = RefArrayKlass::cast(cmds_ah->klass())->element_klass();
+  Klass* element_klass = cmds_ah->klass()->element_klass();
   if (element_klass != vmClasses::String_klass()) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
                "Array element type is not String class");
@@ -2126,12 +2128,12 @@ JVM_ENTRY(jlong, jmm_GetTotalThreadAllocatedMemory(JNIEnv *env))
 
     // We keep a high water mark to ensure monotonicity in case threads counted
     // on a previous call end up in state (2).
-    static jlong high_water_result = 0;
+    static uint64_t high_water_result = 0;
 
     JavaThreadIteratorWithHandle jtiwh;
-    jlong result = ThreadService::exited_allocated_bytes();
+    uint64_t result = ThreadService::exited_allocated_bytes();
     for (; JavaThread* thread = jtiwh.next();) {
-      jlong size = thread->cooked_allocated_bytes();
+      uint64_t size = thread->cooked_allocated_bytes();
       result += size;
     }
 
@@ -2146,7 +2148,7 @@ JVM_ENTRY(jlong, jmm_GetTotalThreadAllocatedMemory(JNIEnv *env))
         high_water_result = result;
       }
     }
-    return result;
+    return checked_cast<jlong>(result);
 JVM_END
 
 // Gets the amount of memory allocated on the Java heap for a single thread.
@@ -2158,13 +2160,13 @@ JVM_ENTRY(jlong, jmm_GetOneThreadAllocatedMemory(JNIEnv *env, jlong thread_id))
   }
 
   if (thread_id == 0) { // current thread
-    return thread->cooked_allocated_bytes();
+    return checked_cast<jlong>(thread->cooked_allocated_bytes());
   }
 
   ThreadsListHandle tlh;
   JavaThread* java_thread = tlh.list()->find_JavaThread_from_java_tid(thread_id);
   if (is_platform_thread(java_thread)) {
-    return java_thread->cooked_allocated_bytes();
+    return checked_cast<jlong>(java_thread->cooked_allocated_bytes());
   }
   return -1;
 JVM_END

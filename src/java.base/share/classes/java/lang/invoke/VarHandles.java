@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,79 +48,81 @@ import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
 
 final class VarHandles {
 
-    static VarHandle makeFieldHandle(MemberName f, Class<?> refc, boolean isWriteAllowedOnFinalFields) {
+    static VarHandle makeFieldHandle(MemberName f, Class<?> refc, boolean trustedLookup) {
+        // No strict final or trusted final writes: we don't know the lifecycle of such a field.
+        boolean noWriting = f.isFinal() && (!trustedLookup || f.isStrictInit() || f.isTrustedFinalField());
         if (!f.isStatic()) {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
             Class<?> type = f.getFieldType();
             if (!type.isPrimitive()) {
-                if (type.isValue()) {
+                if (ValueClass.isConcreteValueClass(type)) {
                     int layout = f.getLayout();
                     boolean isAtomic = isAtomicFlat(f);
                     boolean isFlat = f.isFlat();
                     if (isFlat) {
                         if (isAtomic) {
-                            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                            return maybeAdapt(noWriting
                                     ? new VarHandleFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted(), layout)
                                     : new VarHandleFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted(), layout));
                         } else {
-                            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                            return maybeAdapt(noWriting
                                     ? new VarHandleNonAtomicFlatValues.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted(), layout)
                                     : new VarHandleNonAtomicFlatValues.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted(), layout));
                         }
                     } else {
                         if (isAtomic) {
-                            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                            return maybeAdapt(noWriting
                                     ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted())
                                     : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted()));
                         } else {
-                            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                            return maybeAdapt(noWriting
                                     ? new VarHandleNonAtomicReferences.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted())
                                     : new VarHandleNonAtomicReferences.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted()));
                         }
                     }
                 } else {
-                    return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                    return maybeAdapt(noWriting
                        ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type, f.isNullRestricted())
                        : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.isNullRestricted()));
                 }
             }
             else if (type == boolean.class) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                return maybeAdapt(noWriting
                        ? new VarHandleBooleans.FieldInstanceReadOnly(refc, foffset)
                        : new VarHandleBooleans.FieldInstanceReadWrite(refc, foffset));
             }
             else if (type == byte.class) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                return maybeAdapt(noWriting
                        ? new VarHandleBytes.FieldInstanceReadOnly(refc, foffset)
                        : new VarHandleBytes.FieldInstanceReadWrite(refc, foffset));
             }
             else if (type == short.class) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                return maybeAdapt(noWriting
                        ? new VarHandleShorts.FieldInstanceReadOnly(refc, foffset)
                        : new VarHandleShorts.FieldInstanceReadWrite(refc, foffset));
             }
             else if (type == char.class) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                return maybeAdapt(noWriting
                        ? new VarHandleChars.FieldInstanceReadOnly(refc, foffset)
                        : new VarHandleChars.FieldInstanceReadWrite(refc, foffset));
             }
             else if (type == int.class) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                return maybeAdapt(noWriting
                        ? new VarHandleInts.FieldInstanceReadOnly(refc, foffset)
                        : new VarHandleInts.FieldInstanceReadWrite(refc, foffset));
             }
             else if (type == long.class) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                return maybeAdapt(noWriting
                        ? new VarHandleLongs.FieldInstanceReadOnly(refc, foffset)
                        : new VarHandleLongs.FieldInstanceReadWrite(refc, foffset));
             }
             else if (type == float.class) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                return maybeAdapt(noWriting
                        ? new VarHandleFloats.FieldInstanceReadOnly(refc, foffset)
                        : new VarHandleFloats.FieldInstanceReadWrite(refc, foffset));
             }
             else if (type == double.class) {
-                return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                return maybeAdapt(noWriting
                        ? new VarHandleDoubles.FieldInstanceReadOnly(refc, foffset)
                        : new VarHandleDoubles.FieldInstanceReadWrite(refc, foffset));
             }
@@ -130,74 +132,105 @@ final class VarHandles {
         }
         else {
             Class<?> decl = f.getDeclaringClass();
-            var vh = makeStaticFieldVarHandle(decl, f, isWriteAllowedOnFinalFields);
+            var vh = makeStaticFieldVarHandle(decl, f, noWriting);
             return maybeAdapt((UNSAFE.shouldBeInitialized(decl) || CDS.needsClassInitBarrier(decl))
-                    ? new LazyInitializingVarHandle(vh, decl)
+                    ? new LazyInitializingVarHandle(vh, f.isStrictInit())
                     : vh);
         }
     }
 
-    static VarHandle makeStaticFieldVarHandle(Class<?> decl, MemberName f, boolean isWriteAllowedOnFinalFields) {
+    /// A root class for static field var handles. Allows [LazyInitializingVarHandle]
+    /// to access the declaring class and field offsets.
+    sealed static abstract class StaticFieldVarHandle extends VarHandle permits
+            VarHandleBooleans.FieldStaticReadOnly,
+            VarHandleBytes.FieldStaticReadOnly,
+            VarHandleChars.FieldStaticReadOnly,
+            VarHandleShorts.FieldStaticReadOnly,
+            VarHandleInts.FieldStaticReadOnly,
+            VarHandleLongs.FieldStaticReadOnly,
+            VarHandleFloats.FieldStaticReadOnly,
+            VarHandleDoubles.FieldStaticReadOnly,
+            VarHandleReferences.FieldStaticReadOnly,
+            VarHandleNonAtomicReferences.FieldStaticReadOnly {
+        final Class<?> declaringClass;
+        final Object base;
+        final long fieldOffset;
+
+        StaticFieldVarHandle(VarForm vform, boolean exact, Class<?> declaringClass, Object base, long fieldOffset) {
+            this.declaringClass = declaringClass;
+            this.base = base;
+            this.fieldOffset = fieldOffset;
+            super(vform, exact);
+        }
+
+        @Override
+        public abstract StaticFieldVarHandle withInvokeBehavior();
+
+        @Override
+        public abstract StaticFieldVarHandle withInvokeExactBehavior();
+    }
+
+    static StaticFieldVarHandle makeStaticFieldVarHandle(Class<?> decl, MemberName f, boolean noWriting) {
         Object base = MethodHandleNatives.staticFieldBase(f);
         long foffset = MethodHandleNatives.staticFieldOffset(f);
         Class<?> type = f.getFieldType();
         if (!type.isPrimitive()) {
             assert !f.isFlat() : ("static field is flat in " + decl + "." + f.getName());
-            if (type.isValue()) {
+            if (ValueClass.isConcreteValueClass(type)) {
                 if (isAtomicFlat(f)) {
-                    return f.isFinal() && !isWriteAllowedOnFinalFields
+                    return noWriting
                             ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
                             : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted());
                 } else {
-                    return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+                    return noWriting
                             ? new VarHandleNonAtomicReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
-                            : new VarHandleNonAtomicReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted()));
+                            : new VarHandleNonAtomicReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted());
                 }
             } else {
-                return f.isFinal() && !isWriteAllowedOnFinalFields
+                return noWriting
                         ? new VarHandleReferences.FieldStaticReadOnly(decl, base, foffset, type, f.isNullRestricted())
                         : new VarHandleReferences.FieldStaticReadWrite(decl, base, foffset, type, f.isNullRestricted());
             }
         }
         else if (type == boolean.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return noWriting
                     ? new VarHandleBooleans.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleBooleans.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleBooleans.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == byte.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return noWriting
                     ? new VarHandleBytes.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleBytes.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleBytes.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == short.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return noWriting
                     ? new VarHandleShorts.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleShorts.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleShorts.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == char.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return noWriting
                     ? new VarHandleChars.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleChars.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleChars.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == int.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return noWriting
                     ? new VarHandleInts.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleInts.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleInts.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == long.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return noWriting
                     ? new VarHandleLongs.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleLongs.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleLongs.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == float.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return noWriting
                     ? new VarHandleFloats.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleFloats.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleFloats.FieldStaticReadWrite(decl, base, foffset);
         }
         else if (type == double.class) {
-            return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
+            return noWriting
                     ? new VarHandleDoubles.FieldStaticReadOnly(decl, base, foffset)
-                    : new VarHandleDoubles.FieldStaticReadWrite(decl, base, foffset));
+                    : new VarHandleDoubles.FieldStaticReadWrite(decl, base, foffset);
         }
         else {
             throw new UnsupportedOperationException();
@@ -208,7 +241,7 @@ final class VarHandles {
         boolean hasAtomicAccess = (field.getModifiers() & Modifier.VOLATILE) != 0 ||
                 !(field.isNullRestricted()) ||
                 !field.getFieldType().isAnnotationPresent(LooselyConsistentValue.class);
-        return hasAtomicAccess && !HAS_OOPS.get(field.getFieldType());
+        return hasAtomicAccess && ValueClass.hasBinaryPayload(field.getFieldType());
     }
 
     static boolean isAtomicFlat(Object[] array) {
@@ -216,23 +249,8 @@ final class VarHandles {
         boolean hasAtomicAccess = ValueClass.isAtomicArray(array) ||
                 !ValueClass.isNullRestrictedArray(array) ||
                 !componentType.isAnnotationPresent(LooselyConsistentValue.class);
-        return hasAtomicAccess && !HAS_OOPS.get(componentType);
+        return hasAtomicAccess && ValueClass.hasBinaryPayload(componentType);
     }
-
-    static final ClassValue<Boolean> HAS_OOPS = new ClassValue<>() {
-        @Override
-        protected Boolean computeValue(Class<?> c) {
-            for (Field f : c.getDeclaredFields()) {
-                Class<?> ftype = f.getType();
-                if (UNSAFE.isFlatField(f) && HAS_OOPS.get(ftype)) {
-                    return true;
-                } else if (!ftype.isPrimitive()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    };
 
     // Required by instance field handles
     static Field getFieldFromReceiverAndOffset(Class<?> receiverType,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,8 @@
  *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
- * @compile --source 27 DirectMethodTest.java
- * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.DirectMethodTest
+ * @compile --source 28 DirectMethodTest.java
+ * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.DirectMethodTest
  */
 
 /*
@@ -43,8 +43,8 @@
  *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
- * @compile --source 27 DirectMethodTest.java
- * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.DirectMethodTest
+ * @compile --source 28 DirectMethodTest.java
+ * @run main/othervm -Djdk.reflect.useNativeAccessorOnly=true -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:-UseArrayFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.DirectMethodTest
  */
 
 package runtime.valhalla.inlinetypes;

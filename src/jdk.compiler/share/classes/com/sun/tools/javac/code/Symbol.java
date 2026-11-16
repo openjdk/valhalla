@@ -1373,7 +1373,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             this(
                 flags,
                 name,
-                new ClassType(Type.noType, null, null, List.nil()),
+                new ClassType(Type.noType, null, null),
                 owner);
             this.type.tsym = this;
         }

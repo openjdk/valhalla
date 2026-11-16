@@ -566,15 +566,11 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
           specified_super->external_name(), _super,
           k->super()->external_name());
   }
-  const int actual_num_interfaces = k->local_interfaces()->length();
-  const int specified_num_interfaces = _interfaces->length(); // specified in classlist
-  int expected_num_interfaces = actual_num_interfaces;
-
-  if (specified_num_interfaces != expected_num_interfaces) {
+  if (k->local_interfaces()->length() != _interfaces->length()) {
     print_specified_interfaces();
     print_actual_interfaces(k);
     error("The number of interfaces (%d) specified in class list does not match the class file (%d)",
-          specified_num_interfaces, expected_num_interfaces);
+          _interfaces->length(), k->local_interfaces()->length());
   }
   for (int i = 0; i < _interfaces->length(); i++) {
     InstanceKlass* specified_interface = specified_interfaces.at(i);

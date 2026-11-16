@@ -33,27 +33,21 @@ import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.LooselyConsistentValue;
 import jdk.internal.vm.annotation.NullRestricted;
 
+import static compiler.lib.ir_framework.IRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.LOAD_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_UNKNOWN_INLINE;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
-
-import static compiler.lib.ir_framework.IRNode.CLASS_CHECK_TRAP;
-import static compiler.lib.ir_framework.IRNode.NULL_ASSERT_TRAP;
-import static compiler.lib.ir_framework.IRNode.NULL_CHECK_TRAP;
-import static compiler.lib.ir_framework.IRNode.RANGE_CHECK_TRAP;
-import static compiler.lib.ir_framework.IRNode.STATIC_CALL;
-import static compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD;
 
 /*
  * @test
  * @key randomness
  * @summary Test value class specific type profiling.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/timeout=300 compiler.valhalla.inlinetypes.TestLWorldProfiling
+ * @run driver/timeout=300 ${test.main.class}
  */
 
 @ForceCompileClassInitializer
@@ -107,7 +101,7 @@ public class TestLWorldProfiling {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addFlags("-XX:+IgnoreUnrecognizedVMOptions", "--enable-preview",
+                   .addFlags("-XX:+UnlockDiagnosticVMOptions", "-XX:+IgnoreUnrecognizedVMOptions", "--enable-preview",
                              "--add-exports", "java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
                              "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED")
                    .addHelperClasses(MyValue1.class,
@@ -174,8 +168,6 @@ public class TestLWorldProfiling {
     private static final MyInteger[] testMyIntegerArray = new MyInteger[] { new MyInteger(42) };
     private static final MyLong[] testMyLongArray = new MyLong[] { new MyLong(42L) };
     private static final MyValue1[] testValue1NotFlatArray = new MyValue1[] { testValue1 };
-    private static final MyValue1[][] testValue1ArrayArray = new MyValue1[][] { testValue1Array };
-
     // Wrap these variables into helper class because
     // WhiteBox API needs to be initialized by TestFramework first.
     static class WBFlags {
@@ -1228,5 +1220,167 @@ public class TestLWorldProfiling {
     public void test42_verifier() {
         Long[] arg = (Long[])ValueClass.newNullRestrictedNonAtomicArray(Long.class, 1, 0L);
         test42(arg);
+    }
+
+    @Test
+    // TODO 8384979
+    // @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+    //     failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+    //     counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    // )
+    // @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+    //     failOn = {LOAD_OF_CLASS, "MyValue1"},
+    //     counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    // )
+    public static boolean test43(Object a, Object b) {
+        return a == b;
+    }
+
+    @Run(test = "test43")
+    @Warmup(10000)
+    public void test43_verifier() {
+        var other = MyValue1.createWithFieldsInline(rI + 1, rL);
+        Asserts.assertTrue(test43(testValue1, testValue1));
+        Asserts.assertFalse(test43(testValue1, other));
+    }
+
+    @Test
+    // TODO 8384979
+    // @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+    //     failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+    //     counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    // )
+    // @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+    //     failOn = {LOAD_OF_CLASS, "MyValue1"},
+    //     counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    // )
+    public static boolean test44(Object a, Object b) {
+        return a == b;
+    }
+
+    @Run(test = "test44")
+    @Warmup(10000)
+    public void test44_verifier() {
+        Asserts.assertTrue(test44(testValue1, testValue1));
+        Asserts.assertFalse(test44(testValue1, null));
+        Asserts.assertFalse(test44(null, testValue1));
+        Asserts.assertTrue(test44(null, null));
+    }
+
+    @Test
+    // TODO 8384979
+    // @IR(applyIfOr = {"UseACmpProfile", "true", "TypeProfileLevel", "= 222"},
+    //     failOn = {STATIC_CALL_OF_METHOD, "isSubstitutable.*"},
+    //     counts = {LOAD_OF_CLASS, "MyValue1", "> 30"} // Loading all the fields, there are many.
+    // )
+    // @IR(applyIfAnd = {"UseACmpProfile", "false", "TypeProfileLevel", "!= 222"},
+    //     failOn = {LOAD_OF_CLASS, "MyValue1"},
+    //     counts = {STATIC_CALL_OF_METHOD, "isSubstitutable.*", ">= 1"}
+    // )
+    public static boolean test45(Object a, Object b) {
+        return a == b;
+    }
+
+    @Run(test = "test45")
+    @Warmup(10000)
+    public void test45_verifier(RunInfo info) {
+        Asserts.assertTrue(test45(testValue1, testValue1));
+        if (!info.isWarmUp()) {
+            Asserts.assertFalse(test45(testValue1, null));
+            Asserts.assertFalse(test45(null, testValue1));
+            Asserts.assertTrue(test45(null, null));
+        }
+    }
+
+    @Test
+    public static Integer test46(Object a, Object b) {
+        if (a == b) {
+            if (b == null) {
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    @Run(test = "test46")
+    @Warmup(10000)
+    public void test46_verifier(RunInfo info) {
+        Asserts.assertEquals(test46(testValue1, null), 0);
+        Asserts.assertEquals(test46(null, null), 1);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test46(testValue1, testValue1), 2);
+        }
+    }
+
+    @Test
+    public static Integer test47(Object a, Object b) {
+        if (a == b) {
+            if (b == null) {
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    @Run(test = "test47")
+    @Warmup(10000)
+    public void test47_verifier(RunInfo info) {
+        Object o = new Object();
+        Asserts.assertEquals(test47(o, null), 0);
+        Asserts.assertEquals(test47(null, null), 1);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test47(o, o), 2);
+        }
+    }
+
+    @Test
+    public static Integer test48(Object a, Object b) {
+        if (a == b) {
+            if (b == null) {
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    @Run(test = "test48")
+    @Warmup(10000)
+    public void test48_verifier(RunInfo info) {
+        Object o = new Object();
+        Asserts.assertEquals(test48(testValue1, null), 0);
+        Asserts.assertEquals(test48(o, null), 0);
+        Asserts.assertEquals(test48(null, null), 1);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test48(o, o), 2);
+            Asserts.assertEquals(test48(testValue1, testValue1), 2);
+        }
+    }
+
+    @Test
+    public static Integer test49(Object a, Object b) {
+        if (a == b) {
+            if (b instanceof AClass) {
+                return 1;
+            }
+            return 2;
+        }
+        return 0;
+    }
+
+    static class AClass {}
+    AClass o = new AClass();
+
+    @Run(test = "test49")
+    @Warmup(10000)
+    public void test49_verifier(RunInfo info) {
+        Asserts.assertEquals(test49(null, o), 0);
+        Asserts.assertEquals(test49(o, o), 1);
+        Asserts.assertEquals(test49(testValue1, o), 0);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test49(null, null), 2);
+        }
     }
 }

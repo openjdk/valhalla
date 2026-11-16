@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,6 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool in_native = (decorators & IN_NATIVE) != 0;
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
-
   switch (type) {
   case T_OBJECT:
   case T_ARRAY: {
@@ -138,7 +137,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
 }
 
 void BarrierSetAssembler::flat_field_copy(MacroAssembler* masm, DecoratorSet decorators,
-                                     Register src, Register dst, Register inline_layout_info) {
+                                          Register src, Register dst, Register inline_layout_info) {
   // flat_field_copy implementation is fairly complex, and there are not any
   // "short-cuts" to be made from asm. What there is, appears to have the same
   // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
@@ -417,8 +416,13 @@ void BarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Register
   __ cbnz(tmp1, error);
 
   // make sure klass is 'reasonable', which is not zero.
-  __ load_klass(obj, obj); // get klass
-  __ cbz(obj, error);      // if klass is null it is broken
+  __ load_narrow_klass(tmp1, obj); // get klass
+  __ cbz(tmp1, error);      // if klass is null it is broken
+}
+
+void BarrierSetAssembler::try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj, Register tmp, Label& slow_path) {
+  // Load the oop from the weak handle without barriers.
+  __ ldr(obj, Address(weak_handle));
 }
 
 #ifdef COMPILER2
@@ -468,7 +472,6 @@ OptoReg::Name BarrierSetAssembler::refine_register(const Node* node, OptoReg::Na
 
   return opto_reg;
 }
-
 #undef __
 #define __ _masm->
 

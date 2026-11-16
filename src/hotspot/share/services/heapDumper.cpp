@@ -963,7 +963,7 @@ public:
   }
 };
 
-// Describes flat object (flatted field or element of flat array) in the holder oop
+// Describes flat object (flat field or element of flat array) in the holder oop
 class DumperFlatObject: public CHeapObj<mtServiceability> {
   friend class DumperFlatObjectList;
 private:
@@ -1264,8 +1264,8 @@ void DumperSupport::dump_static_fields(AbstractDumpWriter* writer, Klass* k) {
 }
 
 // dump the raw values of the instance fields of the given object, fills flat_fields
-void DumperSupport:: dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset,
-                                          DumperClassCacheTableEntry* class_cache_entry, DumperFlatObjectList* flat_fields) {
+void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset,
+                                         DumperClassCacheTableEntry* class_cache_entry, DumperFlatObjectList* flat_fields) {
   assert(class_cache_entry != nullptr, "Pre-condition: must be provided");
   for (int idx = 0; idx < class_cache_entry->field_count(); idx++) {
     const DumperClassCacheTableEntry::FieldDescriptor& field = class_cache_entry->field(idx);
@@ -1479,13 +1479,13 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop ar
   // [id]* elements
   if (array->is_flatArray()) {
     flatArrayOop farray = flatArrayOop(array);
-    FlatArrayKlass* faklass = FlatArrayKlass::cast(farray->klass());
+    FlatArrayKlass* fak = farray->klass();
 
-    InlineKlass* vk = faklass->element_klass();
-    bool need_null_check = LayoutKindHelper::is_nullable_flat(faklass->layout_kind());
+    InlineKlass* vk = fak->element_klass();
+    bool need_null_check = LayoutKindHelper::is_nullable_flat(fak->layout_kind());
 
     for (int index = 0; index < length; index++) {
-      address addr = (address)farray->value_at_addr(index, faklass->layout_helper());
+      address addr = (address)farray->value_at_addr(index, fak->layout_helper());
       // check for null
       if (need_null_check) {
         if (vk->is_payload_marked_as_null(addr)) {
@@ -2168,10 +2168,9 @@ void FlatObjectDumper::dump_flat_objects(AbstractDumpWriter* writer, oop holder,
 // Callback to dump thread-related data for unmounted virtual threads;
 // implemented by VM_HeapDumper.
 class UnmountedVThreadDumper {
-public:
+ public:
   virtual void dump_vthread(oop vt, AbstractDumpWriter* segment_writer) = 0;
 };
-
 
 // Support class used when iterating over the heap.
 class HeapObjectDumper : public ObjectClosure {
@@ -2543,7 +2542,7 @@ class VM_HeapDumper : public VM_GC_Operation, public WorkerTask, public Unmounte
       for (int i = 0; i < _thread_dumpers_count; i++) {
         delete _thread_dumpers[i];
       }
-      FREE_C_HEAP_ARRAY(ThreadDumper*, _thread_dumpers);
+      FREE_C_HEAP_ARRAY(_thread_dumpers);
     }
 
     if (_dumper_controller != nullptr) {

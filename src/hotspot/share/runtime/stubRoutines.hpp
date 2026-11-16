@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -112,6 +112,8 @@ class UnsafeMemoryAccess : public CHeapObj<mtCode> {
   address _end_pc;
   address _error_exit_pc;
  public:
+  // each table entry requires 3 addresses
+  static const int COLUMN_COUNT = 3;
   static address           _common_exit_stub_pc;
   static UnsafeMemoryAccess* _table;
   static int               _table_length;
@@ -130,6 +132,7 @@ class UnsafeMemoryAccess : public CHeapObj<mtCode> {
   static UnsafeMemoryAccess* add_to_table(address start_pc, address end_pc, address error_exit_pc) {
     guarantee(_table_length < _table_max_length, "Incorrect UnsafeMemoryAccess::_table_max_length");
     UnsafeMemoryAccess* entry = &_table[_table_length];
+    assert(start_pc != nullptr, "invalid start address");
     entry->set_start_pc(start_pc);
     entry->set_end_pc(end_pc);
     entry->set_error_exit_pc(error_exit_pc);
@@ -162,9 +165,6 @@ public:
   // Dependencies
   friend class StubGenerator;
   friend class VMStructs;
-#if INCLUDE_JVMCI
-  friend class JVMCIVMStructs;
-#endif
 
 #include CPU_HEADER(stubRoutines)
 
@@ -225,9 +225,6 @@ public:
 #define DECLARE_BLOB_INIT_METHOD(blob_name)     \
   static void initialize_ ## blob_name ## _stubs();
 
-  static address _load_inline_type_fields_in_regs;
-  static address _store_inline_type_fields_to_buf;
-
   STUBGEN_BLOBS_DO(DECLARE_BLOB_INIT_METHOD)
 
 #undef DECLARE_BLOB_INIT_METHOD
@@ -285,6 +282,11 @@ public:
 #ifdef ASSERT
   static BlobId stub_to_blob(StubId id);
 #endif
+
+#if INCLUDE_CDS
+  // AOT Initalization -- implementation is arch-specific
+  static void    init_AOTAddressTable();
+#endif // INCLUDE_CDS
 
   // Debugging
   static jint    verify_oop_count()                        { return _verify_oop_count; }
@@ -364,9 +366,6 @@ public:
   static void arrayof_jlong_copy     (HeapWord* src, HeapWord* dest, size_t count);
   static void arrayof_oop_copy       (HeapWord* src, HeapWord* dest, size_t count);
   static void arrayof_oop_copy_uninit(HeapWord* src, HeapWord* dest, size_t count);
-
-  static address load_inline_type_fields_in_regs() { return _load_inline_type_fields_in_regs; }
-  static address store_inline_type_fields_to_buf() { return _store_inline_type_fields_to_buf; }
 
 };
 

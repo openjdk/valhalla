@@ -26,12 +26,10 @@
 #define SHARE_VM_OPTO_INLINETYPENODE_HPP
 
 #include "ci/ciInlineKlass.hpp"
-#include "gc/shared/c2/barrierSetC2.hpp"
 #include "oops/accessDecorators.hpp"
 #include "opto/callnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/loopnode.hpp"
-#include "opto/multnode.hpp"
 #include "opto/node.hpp"
 
 class GraphKit;
@@ -61,26 +59,24 @@ private:
   // Get the klass defining the field layout of the inline type
   ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
 
-  void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
-  uint add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt);
+  void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) const;
+  uint add_fields_to_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt) const;
 
   // Checks if the inline type is loaded from memory and if so returns the oop
-  Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = nullptr, Node* base = nullptr, int holder_offset = 0);
+  Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = nullptr, Node* base = nullptr, int holder_offset = 0) const;
 
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
-  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool no_null_marker, Node* null_check_region, GrowableArray<ciType*>& visited);
+  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool no_null_marker, Node* null_check_region);
   // Initialize the inline type by loading its field values from memory
-  void load(GraphKit* kit, Node* base, Node* ptr, bool immutable_memory, bool trust_null_free_oop, DecoratorSet decorators, GrowableArray<ciType*>& visited);
+  void load(GraphKit* kit, Node* base, Node* ptr, bool immutable_memory, bool trust_null_free_oop, DecoratorSet decorators);
   // Store the field values to memory
   void store(GraphKit* kit, Node* base, Node* ptr, bool immutable_memory, DecoratorSet decorators) const;
 
-  InlineTypeNode* adjust_scalarization_depth_impl(GraphKit* kit, GrowableArray<ciType*>& visited);
-
-  static InlineTypeNode* make_all_zero_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited);
-  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, GrowableArray<ciType*>& visited);
-  static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited, bool transform = true);
+  static InlineTypeNode* make_all_zero_impl(PhaseGVN& gvn, ciInlineKlass* vk);
+  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk);
+  static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, bool transform = true);
   static InlineTypeNode* make_from_flat_impl(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, bool atomic, bool immutable_memory,
-                                             bool null_free, bool trust_null_free_oop, DecoratorSet decorators, GrowableArray<ciType*>& visited);
+                                             bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
 
 public:
   // Create with all-zero field values
@@ -99,10 +95,10 @@ public:
   static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk, bool transform = true);
 
   // Support for control flow merges
-  bool has_phi_inputs(Node* region);
+  bool has_phi_inputs(Node* region) const;
   InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, SafePointNode* map = nullptr, bool is_non_null = false, bool init_with_top = false);
   InlineTypeNode* merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int phi_index, bool transform);
-  void add_new_path(Node* region);
+  void add_new_path(Node* region) const;
 
   // Get oop for heap allocated inline type (may be TypePtr::NULL_PTR)
   Node* get_oop() const    { return in(Oop); }
@@ -127,44 +123,43 @@ public:
 
   // Replace InlineTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
   void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
+  // Variant that allows to limit to a single safepoint. If nullptr is given, all safepoint uses will be considered.
+  void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop, SafePointNode* safepoint);
 
   // Store the inline type as a flat (headerless) representation
   void store_flat(GraphKit* kit, Node* base, Node* ptr, bool atomic, bool immutable_memory, bool null_free, DecoratorSet decorators);
   // Store the inline type as a flat (headerless) representation into an array
   void store_flat_array(GraphKit* kit, Node* base, Node* idx);
-  // Make sure that inline type is fully scalarized
-  InlineTypeNode* adjust_scalarization_depth(GraphKit* kit);
 
   // Implementation of the substitutability check for acmp
-  bool can_emit_substitutability_check(Node* other) const;
-  void check_substitutability(PhaseIterGVN* igvn, RegionNode* region, Node* phi, Node** ctrl, Node* mem, Node* base, Node* other, bool flat = false) const;
+  static bool can_emit_substitutability_check(Node* lhs, Node* rhs);
+  static Node* emit_substitutability_check(GraphKit* kit, Node* lhs, Node* rhs);
 
   // Allocates the inline type (if not yet allocated)
   InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
 
-  void replace_call_results(GraphKit* kit, CallNode* call, Compile* C);
-  void replace_field_projs(Compile* C, CallNode* call, uint& proj_idx);
+  void replace_call_results(GraphKit* kit, CallNode* call, Compile* C) const;
+  void replace_field_projs(Compile* C, CallNode* call, uint& proj_idx) const;
 
   // Allocate all non-flat inline type fields
   InlineTypeNode* allocate_fields(GraphKit* kit);
 
-  Node* tagged_klass(PhaseGVN& gvn) {
+  Node* tagged_klass(PhaseGVN& gvn) const {
     return tagged_klass(inline_klass(), gvn);
   }
+
   static Node* tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn);
   // Pass inline type as fields at a call or return
-  void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true);
+  void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true, bool root = false);
 
   // Allocation optimizations
-  void remove_redundant_allocations(PhaseIdealLoop* phase);
+  void remove_redundant_allocations(PhaseIdealLoop* phase) const;
 
   InlineTypeNode* clone_if_required(PhaseGVN* gvn, SafePointNode* map, bool safe_for_replace = true);
 
   virtual const Type* Value(PhaseGVN* phase) const;
-
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
-
   virtual int Opcode() const;
 };
 
@@ -184,13 +179,23 @@ private:
   bool _null_free;
   DecoratorSet _decorators;
 
+  uint size_of() const override { return sizeof(*this); }
+
 public:
   static InlineTypeNode* load(GraphKit* kit, ciInlineKlass* vk, Node* base, Node* ptr, bool null_free, bool trust_null_free_oop, DecoratorSet decorators);
   Node* base() const { return in(TypeFunc::Parms); }
   Node* ptr() const { return in(TypeFunc::Parms + 1); }
   bool expand_constant(PhaseIterGVN& igvn, ciInstance* inst) const;
-  bool expand_non_atomic(PhaseIterGVN& igvn);
-  void expand_atomic(PhaseIterGVN& igvn);
+  bool expand_non_atomic(PhaseIterGVN& igvn) const;
+  void expand_atomic(PhaseIterGVN& igvn) const;
+
+  int Opcode() const override;
+  const Type* bottom_type() const override { return _type; }
+  Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
+  Node* Identity(PhaseGVN* phase) override { return this; }
+  const Type* Value(PhaseGVN* phase) const override;
+
+  bool is_mismatched() const;
 
 private:
   LoadFlatNode(ciInlineKlass* vk, const TypeTuple* type, bool null_free, DecoratorSet decorators)
@@ -199,16 +204,9 @@ private:
     Compile::current()->add_flat_access(this);
   }
 
-  virtual int Opcode() const override;
-  virtual const Type* bottom_type() const override { return _type; }
-  virtual uint size_of() const override { return sizeof(LoadFlatNode); }
-  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
-  virtual Node* Identity(PhaseGVN* phase) override { return this; }
-  virtual const Type* Value(PhaseGVN* phase) const override;
-
   static void collect_field_types(ciInlineKlass* vk, const Type** field_types, int idx, int limit, bool null_free, bool trust_null_free_oop);
   InlineTypeNode* collect_projs(GraphKit* kit, ciInlineKlass* vk, int proj_con, bool null_free);
-  void expand_projs_atomic(PhaseIterGVN& gvn, Node* ctrl, Node* payload);
+  void expand_projs_atomic(PhaseIterGVN& gvn, Node* ctrl, Node* payload) const;
   static Node* get_payload_value(PhaseIterGVN& igvn, Node* ctrl, BasicType payload_bt, Node* payload, const Type* value_type, BasicType value_bt, int offset);
 };
 
@@ -222,13 +220,23 @@ private:
   bool _null_free;
   DecoratorSet _decorators;
 
+  uint size_of() const override { return sizeof(*this); }
+
 public:
   static void store(GraphKit* kit, Node* base, Node* ptr, InlineTypeNode* value, bool null_free, DecoratorSet decorators);
   Node* base() const { return in(TypeFunc::Parms); }
   Node* ptr() const { return in(TypeFunc::Parms + 1); }
   InlineTypeNode* value() const { return in(TypeFunc::Parms + 2)->as_InlineType(); }
-  bool expand_non_atomic(PhaseIterGVN& igvn);
-  void expand_atomic(PhaseIterGVN& igvn);
+  bool expand_non_atomic(PhaseIterGVN& igvn) const;
+  void expand_atomic(PhaseIterGVN& igvn) const;
+
+  int Opcode() const override;
+  const Type* bottom_type() const override { return TypeTuple::MEMBAR; }
+  Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
+  Node* Identity(PhaseGVN* phase) override { return this; }
+  const Type* Value(PhaseGVN* phase) const override;
+
+  bool is_mismatched() const;
 
 private:
   StoreFlatNode(bool null_free, DecoratorSet decorators)
@@ -236,13 +244,6 @@ private:
     init_class_id(Class_StoreFlat);
     Compile::current()->add_flat_access(this);
   }
-
-  virtual int Opcode() const override;
-  virtual const Type* bottom_type() const override { return TypeTuple::MEMBAR; }
-  virtual uint size_of() const override { return sizeof(StoreFlatNode); }
-  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape) override { return nullptr; }
-  virtual Node* Identity(PhaseGVN* phase) override { return this; }
-  virtual const Type* Value(PhaseGVN* phase) const override;
 
   static Node* convert_to_payload(PhaseIterGVN& igvn, Node* ctrl, InlineTypeNode* value, bool null_free, int& oop_off_1, int& oop_off_2);
   static Node* set_payload_value(PhaseIterGVN& igvn, BasicType payload_bt, Node* payload, BasicType val_bt, Node* value, int offset);

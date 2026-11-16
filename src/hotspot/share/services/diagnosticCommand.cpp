@@ -100,6 +100,7 @@ void DCmd::register_dcmds() {
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VersionDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CommandLineDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintSystemPropertiesDCmd>(full_export));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintSecurityPropertiesDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintVMFlagsDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SetVMFlagDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VMDynamicLibrariesDCmd>(full_export));
@@ -118,7 +119,7 @@ void DCmd::register_dcmds() {
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SymboltableDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<StringtableDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<metaspace::MetaspaceDCmd>(full_export));
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintClassLayoutDCmd>(full_export));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<ClassPrintLayoutDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<EventLogDCmd>(full_export));
 #if INCLUDE_JVMTI // Both JVMTI and SERVICES have to be enabled to have this dcmd
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JVMTIAgentLoadDCmd>(full_export));
@@ -336,8 +337,8 @@ void JVMTIAgentLoadDCmd::execute(DCmdSource source, TRAPS) {
 #endif // INCLUDE_JVMTI
 #endif // INCLUDE_SERVICES
 
-void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
-  // load VMSupport
+// helper method for printing system and security properties
+static void print_properties(Symbol* method_name, outputStream* out, TRAPS) {
   Symbol* klass = vmSymbols::jdk_internal_vm_VMSupport();
   Klass* k = SystemDictionary::resolve_or_fail(klass, true, CHECK);
   InstanceKlass* ik = InstanceKlass::cast(k);
@@ -345,39 +346,36 @@ void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
     ik->initialize(THREAD);
   }
   if (HAS_PENDING_EXCEPTION) {
-    java_lang_Throwable::print(PENDING_EXCEPTION, output());
-    output()->cr();
+    java_lang_Throwable::print(PENDING_EXCEPTION, out);
+    out->cr();
     CLEAR_PENDING_EXCEPTION;
     return;
   }
-
-  // invoke the serializePropertiesToByteArray method
   JavaValue result(T_OBJECT);
   JavaCallArguments args;
-
   Symbol* signature = vmSymbols::void_byte_array_signature();
-  JavaCalls::call_static(&result,
-                         ik,
-                         vmSymbols::serializePropertiesToByteArray_name(),
-                         signature,
-                         &args,
-                         THREAD);
+  JavaCalls::call_static(&result, ik, method_name, signature, &args, THREAD);
+
   if (HAS_PENDING_EXCEPTION) {
-    java_lang_Throwable::print(PENDING_EXCEPTION, output());
-    output()->cr();
+    java_lang_Throwable::print(PENDING_EXCEPTION, out);
+    out->cr();
     CLEAR_PENDING_EXCEPTION;
     return;
   }
-
-  // The result should be a [B
   oop res = result.get_oop();
-  assert(res->is_typeArray(), "just checking");
-  assert(TypeArrayKlass::cast(res->klass())->element_type() == T_BYTE, "just checking");
-
-  // copy the bytes to the output stream
+  assert(res->is_typeArray(), "should be a byte array");
+  assert(TypeArrayKlass::cast(res->klass())->element_type() == T_BYTE, "should be a byte array");
   typeArrayOop ba = typeArrayOop(res);
-  jbyte* addr = typeArrayOop(res)->byte_at_addr(0);
-  output()->print_raw((const char*)addr, ba->length());
+  jbyte* addr = ba->byte_at_addr(0);
+  out->print_raw((const char*)addr, ba->length());
+}
+
+void PrintSystemPropertiesDCmd::execute(DCmdSource source, TRAPS) {
+  print_properties(vmSymbols::serializePropertiesToByteArray_name(), output(), THREAD);
+}
+
+void PrintSecurityPropertiesDCmd::execute(DCmdSource source, TRAPS) {
+  print_properties(vmSymbols::serializeSecurityPropertiesToByteArray_name(), output(), THREAD);
 }
 
 VMUptimeDCmd::VMUptimeDCmd(outputStream* output, bool heap) :
@@ -505,7 +503,7 @@ void HeapDumpDCmd::execute(DCmdSource source, TRAPS) {
   if (_parallel.is_set()) {
     parallel = _parallel.value();
 
-    if (parallel < 0) {
+    if (parallel < 0 || parallel > max_juint) {
       output()->print_cr("Invalid number of parallel dump threads.");
       return;
     } else if (parallel == 0) {
@@ -948,21 +946,21 @@ void ClassHierarchyDCmd::execute(DCmdSource source, TRAPS) {
   VMThread::execute(&printClassHierarchyOp);
 }
 
-PrintClassLayoutDCmd::PrintClassLayoutDCmd(outputStream* output, bool heap) :
+ClassPrintLayoutDCmd::ClassPrintLayoutDCmd(outputStream* output, bool heap) :
                                        DCmdWithParser(output, heap),
   _classname("classname", "Name of class whose layout should be printed. ",
              "STRING", true) {
   _dcmdparser.add_dcmd_argument(&_classname);
 }
 
-void PrintClassLayoutDCmd::execute(DCmdSource source, TRAPS) {
-  VM_PrintClassLayout printClassLayoutOp(output(), _classname.value());
-  VMThread::execute(&printClassLayoutOp);
+void ClassPrintLayoutDCmd::execute(DCmdSource source, TRAPS) {
+  VM_ClassPrintLayout classPrintLayoutOp(output(), _classname.value());
+  VMThread::execute(&classPrintLayoutOp);
 }
 
-int PrintClassLayoutDCmd::num_arguments() {
+int ClassPrintLayoutDCmd::num_arguments() {
   ResourceMark rm;
-  PrintClassLayoutDCmd* dcmd = new PrintClassLayoutDCmd(nullptr, false);
+  ClassPrintLayoutDCmd* dcmd = new ClassPrintLayoutDCmd(nullptr, false);
   if (dcmd != nullptr) {
     DCmdMark mark(dcmd);
     return dcmd->_dcmdparser.num_arguments();

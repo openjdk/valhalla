@@ -106,7 +106,6 @@ class MacroAssembler: public Assembler {
   void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
   void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
-  void test_field_has_null_marker(Register flags, Register temp_reg, Label& has_null_marker);
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
   void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
@@ -117,7 +116,6 @@ class MacroAssembler: public Assembler {
 
   // Check array klass layout helper for flat or null-free arrays...
   void test_flat_array_layout(Register lh, Label& is_flat_array);
-  void test_non_flat_array_layout(Register lh, Label& is_non_flat_array);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
@@ -186,6 +184,8 @@ class MacroAssembler: public Assembler {
   void incrementl(ArrayAddress   dst, Register rscratch);
 
   void incrementq(AddressLiteral dst, Register rscratch = noreg);
+
+  void movhlf(XMMRegister dst, XMMRegister src, Register rscratch = noreg);
 
   // Support optimal SSE move instructions.
   void movflt(XMMRegister dst, XMMRegister src) {
@@ -376,11 +376,11 @@ class MacroAssembler: public Assembler {
   // Load oopDesc._metadata without decode (useful for direct Klass* compare from oops)
   void load_metadata(Register dst, Register src);
   void load_narrow_klass_compact(Register dst, Register src);
+  void load_narrow_klass(Register dst, Register src);
   void load_klass(Register dst, Register src, Register tmp);
   void store_klass(Register dst, Register src, Register tmp);
 
-  // Compares the Klass pointer of an object to a given Klass (which might be narrow,
-  // depending on UseCompressedClassPointers).
+  // Compares the narrow Klass pointer of an object to a given narrow Klass.
   void cmp_klass(Register klass, Register obj, Register tmp);
 
   // Compares the Klass pointer of two objects obj1 and obj2. Result is in the condition flags.
@@ -397,9 +397,6 @@ class MacroAssembler: public Assembler {
   // inline type data payload offsets...
   void payload_offset(Register inline_klass, Register offset);
   void payload_addr(Register oop, Register data, Register inline_klass);
-  // get data payload ptr a flat value array at index, kills rcx and index
-  void data_for_value_array_index(Register array, Register array_klass,
-                                  Register index, Register data);
 
   void load_heap_oop(Register dst, Address src, Register tmp1 = noreg, DecoratorSet decorators = 0);
   void load_heap_oop_not_null(Register dst, Address src, Register tmp1 = noreg, DecoratorSet decorators = 0);
@@ -482,6 +479,9 @@ class MacroAssembler: public Assembler {
   void sign_extend_short(Register reg);
   void sign_extend_byte(Register reg);
 
+  // Clean up a subword typed value to the representation in compliance with JVMS §2.3
+  void narrow_subword_type(Register reg, BasicType bt);
+
   // Division by power of 2, rounding towards 0
   void division_with_shift(Register reg, int shift_value);
 
@@ -546,15 +546,6 @@ public:
   }
 
   // allocation
-
-  // Object / value buffer allocation...
-  // Allocate instance of klass, assumes klass initialized by caller
-  // new_obj prefers to be rax
-  // Kills t1 and t2, perserves klass, return allocation in new_obj (rsi on LP64)
-  void allocate_instance(Register klass, Register new_obj,
-                         Register t1, Register t2,
-                         bool clear_fields, Label& alloc_failed);
-
   void tlab_allocate(
     Register obj,                      // result: pointer to object after successful allocation
     Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
@@ -1228,6 +1219,8 @@ public:
   using Assembler::vmovdqa;
   void vmovdqa(XMMRegister dst, AddressLiteral src,                 Register rscratch = noreg);
   void vmovdqa(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch = noreg);
+  void vmovdqa(XMMRegister dst, Address        src, int vector_len);
+  void vmovdqa(Address     dst, XMMRegister    src, int vector_len);
 
   // AVX512 Unaligned
   void evmovdqu(BasicType type, KRegister kmask, Address     dst, XMMRegister src, bool merge, int vector_len);
@@ -1360,21 +1353,29 @@ public:
   void subss(XMMRegister dst, Address        src) { Assembler::subss(dst, src); }
   void subss(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
 
+  void evucomish(XMMRegister dst, XMMRegister    src) { Assembler::evucomish(dst, src); }
+  void evucomish(XMMRegister dst, Address        src) { Assembler::evucomish(dst, src); }
+  void evucomish(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
+
+  void evucomxsh(XMMRegister dst, XMMRegister    src) { Assembler::evucomxsh(dst, src); }
+  void evucomxsh(XMMRegister dst, Address        src) { Assembler::evucomxsh(dst, src); }
+  void evucomxsh(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
+
   void ucomiss(XMMRegister dst, XMMRegister    src) { Assembler::ucomiss(dst, src); }
   void ucomiss(XMMRegister dst, Address        src) { Assembler::ucomiss(dst, src); }
   void ucomiss(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
 
-  void vucomxss(XMMRegister dst, XMMRegister    src) { Assembler::vucomxss(dst, src); }
-  void vucomxss(XMMRegister dst, Address        src) { Assembler::vucomxss(dst, src); }
-  void vucomxss(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
+  void evucomxss(XMMRegister dst, XMMRegister    src) { Assembler::evucomxss(dst, src); }
+  void evucomxss(XMMRegister dst, Address        src) { Assembler::evucomxss(dst, src); }
+  void evucomxss(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
 
   void ucomisd(XMMRegister dst, XMMRegister    src) { Assembler::ucomisd(dst, src); }
   void ucomisd(XMMRegister dst, Address        src) { Assembler::ucomisd(dst, src); }
   void ucomisd(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
 
-  void vucomxsd(XMMRegister dst, XMMRegister    src) { Assembler::vucomxsd(dst, src); }
-  void vucomxsd(XMMRegister dst, Address        src) { Assembler::vucomxsd(dst, src); }
-  void vucomxsd(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
+  void evucomxsd(XMMRegister dst, XMMRegister    src) { Assembler::evucomxsd(dst, src); }
+  void evucomxsd(XMMRegister dst, Address        src) { Assembler::evucomxsd(dst, src); }
+  void evucomxsd(XMMRegister dst, AddressLiteral src, Register rscratch = noreg);
 
   // Bitwise Logical XOR of Packed Double-Precision Floating-Point Values
   void xorpd(XMMRegister dst, XMMRegister    src);
@@ -1920,6 +1921,9 @@ public:
   void mov_metadata(Register dst, Metadata* obj);
   void mov_metadata(Address  dst, Metadata* obj, Register rscratch);
 
+  void mov64(Register dst, int64_t imm64);
+  void mov64(Register dst, int64_t imm64, relocInfo::relocType rtype, int format);
+
   void movptr(Register     dst, Register       src);
   void movptr(Register     dst, Address        src);
   void movptr(Register     dst, AddressLiteral src);
@@ -1965,18 +1969,6 @@ public:
  public:
   // Inline type specific methods
   #include "asm/macroAssembler_common.hpp"
-
-  int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
-  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
-  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
-                            VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
-                            RegState reg_state[]);
-  bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                          VMRegPair* from, int from_count, int& from_index, VMReg to,
-                          RegState reg_state[], Register val_array);
-  int extend_stack_for_inline_args(int args_on_stack);
-  void remove_frame(int initial_framesize, bool needs_stack_repair);
-  VMReg spill_reg_for(VMReg reg);
 
   // clear memory of size 'cnt' qwords, starting at 'base';
   // if 'is_large' is set, do not try to produce short loop
@@ -2122,10 +2114,10 @@ public:
   void cache_wb(Address line);
   void cache_wbsync(bool is_pre);
 
-#ifdef COMPILER2_OR_JVMCI
+#ifdef COMPILER2
   void generate_fill_avx3(BasicType type, Register to, Register value,
                           Register count, Register rtmp, XMMRegister xtmp);
-#endif // COMPILER2_OR_JVMCI
+#endif // COMPILER2
 
   void vallones(XMMRegister dst, int vector_len);
 
@@ -2136,6 +2128,7 @@ public:
 
   void save_legacy_gprs();
   void restore_legacy_gprs();
+  void load_aotrc_address(Register reg, address a);
   void setcc(Assembler::Condition comparison, Register dst);
 };
 

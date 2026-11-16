@@ -202,10 +202,11 @@ class Eval {
      * @return usually a singleton list of Snippet, but may be empty or multiple
      */
     private List<Snippet> sourceToSnippets(String userSource) {
-        String compileSource = Util.trimEnd(new MaskCommentsAndModifiers(userSource, false).cleared());
-        if (compileSource.length() == 0) {
+        String emptyCheck = Util.trimEnd(new MaskCommentsAndModifiers(userSource, false, true).cleared());
+        if (emptyCheck.isEmpty()) {
             return Collections.emptyList();
         }
+        String compileSource = Util.trimEnd(new MaskCommentsAndModifiers(userSource, false, false).cleared());
         return state.taskFactory.parse(compileSource, pt -> {
             List<? extends Tree> units = pt.units();
             if (units.isEmpty()) {
@@ -223,7 +224,7 @@ class Eval {
             }
 
             // Erase illegal/ignored modifiers
-            String compileSourceInt = new MaskCommentsAndModifiers(compileSource, true).cleared();
+            String compileSourceInt = new MaskCommentsAndModifiers(compileSource, true, false).cleared();
 
             state.debug(DBG_GEN, "Kind: %s -- %s\n", unitTree.getKind(), unitTree);
             return switch (unitTree.getKind()) {
@@ -340,7 +341,8 @@ class Eval {
             Set<String> anonymousClasses = Collections.emptySet();
             StringBuilder sbBrackets = new StringBuilder();
             Tree baseType = vt.getType();
-            if (baseType != null) {
+            int variableDeclarationStart = dis.getStartPosition(vt);
+            if (vt.getType() != null && vt.getType().getKind() != Tree.Kind.VAR_TYPE) {
                 tds.scan(baseType); // Not dependent on initializer
                 fullTypeName = displayType = typeName = EvalPretty.prettyExpr((JCTree) vt.getType(), false);
                 if (baseType instanceof JCNullableTypeExpression nullable &&
@@ -357,7 +359,7 @@ class Eval {
             } else {
                 DiagList dl = trialCompile(Wrap.methodWrap(compileSource));
                 if (dl.hasErrors()) {
-                    return compileFailResult(dl, userSource, kindOfTree(unitTree));
+                    return compileFailResult(dl, userSource, kindOfTree(unitTree), variableDeclarationStart);
                 }
                 Tree init = vt.getInitializer();
                 if (init != null) {
@@ -431,7 +433,10 @@ class Eval {
                     wname = new Wrap.RangeWrap(compileSource, rname);
                 }
             }
-            Wrap guts = Wrap.varWrap(compileSource, typeWrap, sbBrackets.toString(), wname,
+            Wrap prefixWrap = variableDeclarationStart == 0
+                    ? null
+                    : Wrap.rangeWrap(compileSource, new Range(0, variableDeclarationStart));
+            Wrap guts = Wrap.varWrap(compileSource, prefixWrap, typeWrap, sbBrackets.toString(), wname,
                                      winit, nonNull, enhancedDesugaring, anonDeclareWrap);
             DiagList modDiag = modifierDiagnostics(vt.getModifiers(), dis, true);
             Snippet snip = new VarSnippet(state.keyMap.keyForVariable(name), userSource, guts,
@@ -738,7 +743,7 @@ class Eval {
         // Corralling
         Wrap corralled = new Corraller(dis, key.index(), compileSource).corralType(klassTree);
 
-        Wrap guts = Wrap.classMemberWrap(compileSource);
+        Wrap guts = Wrap.classMemberWrap(compileSource, dis.getStartPosition(klassTree));
         Snippet snip = new TypeDeclSnippet(key, userSource, guts,
                 name, snippetKind,
                 corralled, tds.declareReferences(), tds.bodyReferences(), modDiag);
@@ -784,6 +789,7 @@ class Eval {
         final MethodTree mt = (MethodTree) unitTree;
         //String name = userReadableName(mt.getName(), compileSource);
         final String name = mt.getName().toString();
+        int methodDeclarationStart = dis.getStartPosition(mt);
         if (objectMethods.contains(name)) {
             // The name matches a method on Object, short of an overhaul, this
             // fails, see 8187137.  Generate a descriptive error message
@@ -798,7 +804,7 @@ class Eval {
                     ? possibleStart // something wrong, punt
                     : possibleStart + offset;
 
-            return compileFailResult(new DiagList(objectMethodNameDiag(name, start)), userSource, Kind.METHOD);
+            return compileFailResult(new DiagList(objectMethodNameDiag(name, start)), userSource, Kind.METHOD, methodDeclarationStart);
         }
         String parameterTypes
                 = mt.getParameters()
@@ -808,7 +814,7 @@ class Eval {
         Tree returnType = mt.getReturnType();
         DiagList modDiag = modifierDiagnostics(mt.getModifiers(), dis, false);
         if (modDiag.hasErrors()) {
-            return compileFailResult(modDiag, userSource, Kind.METHOD);
+            return compileFailResult(modDiag, userSource, Kind.METHOD, methodDeclarationStart);
         }
         MethodKey key = state.keyMap.keyForMethod(name, parameterTypes);
 
@@ -830,7 +836,7 @@ class Eval {
         } else {
             // normal method
             corralled = new Corraller(dis, key.index(), compileSource).corralMethod(mt);
-            guts = Wrap.classMemberWrap(compileSource);
+            guts = Wrap.classMemberWrap(compileSource, methodDeclarationStart);
             unresolvedSelf = null;
         }
         Range typeRange = dis.treeToRange(returnType);
@@ -882,19 +888,31 @@ class Eval {
      * @return a rejected snippet
      */
     private List<Snippet> compileFailResult(DiagList diags, String userSource, Kind probableKind) {
+        return compileFailResult(diags, userSource, probableKind, 0);
+    }
+
+    /**
+     * The snippet has failed, return with the rejected snippet
+     *
+     * @param diags the failure diagnostics
+     * @param userSource the incoming bad user source
+     * @param declarationStart the start offset of the declaration (if any)
+     * @return a rejected snippet
+     */
+    private List<Snippet> compileFailResult(DiagList diags, String userSource, Kind probableKind, int declarationStart) {
         ErroneousKey key = state.keyMap.keyForErroneous();
         Snippet snip = new ErroneousSnippet(key, userSource, null,
                 probableKind, SubKind.UNKNOWN_SUBKIND);
         snip.setFailed(diags);
 
         // Install  wrapper for query by SourceCodeAnalysis.wrapper
-        String compileSource = Util.trimEnd(new MaskCommentsAndModifiers(userSource, true).cleared());
+        String compileSource = Util.trimEnd(new MaskCommentsAndModifiers(userSource, true, false).cleared());
         OuterWrap outer = switch (probableKind) {
             case IMPORT     -> state.outerMap.wrapImport(Wrap.simpleWrap(compileSource), snip);
             case EXPRESSION -> state.outerMap.wrapInTrialClass(Wrap.methodReturnWrap(compileSource));
             case VAR,
                  TYPE_DECL,
-                 METHOD     -> state.outerMap.wrapInTrialClass(Wrap.classMemberWrap(compileSource));
+                 METHOD     -> state.outerMap.wrapInTrialClass(Wrap.classMemberWrap(compileSource, declarationStart));
             default         -> state.outerMap.wrapInTrialClass(Wrap.methodWrap(compileSource));
         };
         snip.setOuterWrap(outer);

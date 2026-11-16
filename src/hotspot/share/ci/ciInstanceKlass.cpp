@@ -34,7 +34,6 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -143,12 +142,14 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
 
 
 // ------------------------------------------------------------------
-// ciInstanceKlass::compute_shared_is_initialized
-void ciInstanceKlass::compute_shared_init_state() {
-  GUARDED_VM_ENTRY(
-    InstanceKlass* ik = get_instanceKlass();
-    _init_state = ik->init_state();
-  )
+InstanceKlass::ClassState ciInstanceKlass::compute_init_state() {
+  if (_is_shared && is_loaded()) {
+    // Return cached init state of shared klass
+    ciEnv* env = CURRENT_ENV;
+    assert(env->task() != nullptr, "only calls from compilation are expected here");
+    return env->get_cached_init_state(ident());
+  }
+  return _init_state;
 }
 
 // ------------------------------------------------------------------
@@ -392,9 +393,7 @@ bool ciInstanceKlass::has_finalizable_subclass() {
   return Dependencies::find_finalizable_subclass(get_instanceKlass()) != nullptr;
 }
 
-// ------------------------------------------------------------------
-// ciInstanceKlass::contains_field_offset
-bool ciInstanceKlass::contains_field_offset(int offset) {
+bool ciInstanceKlass::contains_field_offset(int offset) const {
   VM_ENTRY_MARK;
   return get_instanceKlass()->contains_field_offset(offset);
 }
@@ -476,6 +475,55 @@ ciField* ciInstanceKlass::get_field_by_name(ciSymbol* name, ciSymbol* signature,
 
 const GrowableArray<ciField*> empty_field_array(0, MemTag::mtCompiler);
 
+#ifdef ASSERT
+static void assert_injected_field(InternalFieldStream& fs) {
+  assert(!fs.done(), "invarinat");
+  fieldDescriptor fd = fs.field_descriptor();
+  assert(fd.is_injected(), "invariant");
+}
+#endif
+
+// ------------------------------------------------------------------
+// ciInstanceKlass::get_injected_instance_field_by_name
+//
+// Implements also compute_injected_fields().
+//
+ciField* ciInstanceKlass::get_injected_instance_field_by_name(ciSymbol* name, ciSymbol* signature) {
+  VM_ENTRY_MARK;
+  InstanceKlass* const k = get_instanceKlass();
+  const Symbol* const name_symbol = name->get_symbol();
+  assert(name_symbol != nullptr, "invariant");
+  const Symbol* const sig_sym = signature->get_symbol();
+  assert(sig_sym != nullptr, "invariant");
+
+  if (_has_injected_fields == -1) {
+    if (super() != nullptr && super()->has_injected_fields()) {
+      _has_injected_fields = 1;
+    }
+  }
+
+  ciField* injected = nullptr;
+  for (InternalFieldStream fs(k); !fs.done(); fs.next()) {
+    if (fs.access_flags().is_static())  continue;
+    DEBUG_ONLY(assert_injected_field(fs);)
+    if (_has_injected_fields == -1) {
+      _has_injected_fields = 1;
+    }
+    if (fs.name() == name_symbol && fs.signature() == sig_sym) {
+      fieldDescriptor fd = fs.field_descriptor();
+      assert(fd.is_injected(), "invariant");
+      injected = new (CURRENT_THREAD_ENV->arena()) ciField(&fd);
+      break;
+    }
+  }
+
+  if (_has_injected_fields == -1) {
+    _has_injected_fields = 0;
+  }
+
+  return injected;
+}
+
 // This is essentially a shortcut for:
 //   get_field_by_offset(field_offset, is_static)->layout_type()
 // except this does not require allocating memory for a new ciField
@@ -519,7 +567,7 @@ void ciInstanceKlass::compute_nonstatic_fields() {
   ciInstanceKlass* super = this->super();
   assert(super != nullptr, "must have a super class, current class: %s", name()->as_utf8());
   super->compute_nonstatic_fields();
-  const GrowableArray<ciField*>* super_declared_fields = super->_declared_nonstatic_fields;;
+  const GrowableArray<ciField*>* super_declared_fields = super->_declared_nonstatic_fields;
   const GrowableArray<ciField*>* super_fields = super->_nonstatic_fields;
   assert(super_declared_fields != nullptr && super_fields != nullptr, "must have been initialized, current class: %s, super class: %s", name()->as_utf8(), super->name()->as_utf8());
 
@@ -834,9 +882,9 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
             _out->print("%s", klass_name);
           }
         } else if (value->is_array()) {
-          typeArrayOop ta = (typeArrayOop)value;
-          _out->print("%d", ta->length());
-          if (value->is_objArray() || value->is_flatArray()) {
+          arrayOop a = (arrayOop)value;
+          _out->print("%d", a->length());
+          if (value->is_objArray()) {
             objArrayOop oa = (objArrayOop)value;
             const char* klass_name  = value->klass()->name()->as_quoted_ascii();
             _out->print(" %s", klass_name);

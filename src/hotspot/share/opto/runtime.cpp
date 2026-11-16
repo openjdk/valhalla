@@ -24,6 +24,7 @@
 
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "code/aotCodeCache.hpp"
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
 #include "code/nmethod.hpp"
@@ -46,10 +47,12 @@
 #include "memory/resourceArea.hpp"
 #include "oops/flatArrayKlass.hpp"
 #include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "opto/ad.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -156,7 +159,8 @@ static bool check_compiled_frame(JavaThread* thread) {
 bool OptoRuntime::generate(ciEnv* env) {
 
   C2_STUBS_DO(GEN_C2_BLOB, GEN_C2_STUB)
-
+  // disallow any further c2 stub generation
+  AOTCodeCache::set_c2_stubs_complete();
   return true;
 }
 
@@ -210,6 +214,7 @@ const TypeFunc* OptoRuntime::_digestBase_implCompress_without_sha3_Type   = null
 const TypeFunc* OptoRuntime::_digestBase_implCompressMB_with_sha3_Type    = nullptr;
 const TypeFunc* OptoRuntime::_digestBase_implCompressMB_without_sha3_Type = nullptr;
 const TypeFunc* OptoRuntime::_double_keccak_Type                  = nullptr;
+const TypeFunc* OptoRuntime::_quad_keccak_Type                    = nullptr;
 const TypeFunc* OptoRuntime::_multiplyToLen_Type                  = nullptr;
 const TypeFunc* OptoRuntime::_montgomeryMultiply_Type             = nullptr;
 const TypeFunc* OptoRuntime::_montgomerySquare_Type               = nullptr;
@@ -237,6 +242,8 @@ const TypeFunc* OptoRuntime::_string_IndexOf_Type                 = nullptr;
 const TypeFunc* OptoRuntime::_poly1305_processBlocks_Type         = nullptr;
 const TypeFunc* OptoRuntime::_intpoly_montgomeryMult_P256_Type    = nullptr;
 const TypeFunc* OptoRuntime::_intpoly_assign_Type                 = nullptr;
+const TypeFunc* OptoRuntime::_intpoly_mult_25519_Type             = nullptr;
+const TypeFunc* OptoRuntime::_intpoly_square_25519_Type           = nullptr;
 const TypeFunc* OptoRuntime::_updateBytesCRC32_Type               = nullptr;
 const TypeFunc* OptoRuntime::_updateBytesCRC32C_Type              = nullptr;
 const TypeFunc* OptoRuntime::_updateBytesAdler32_Type             = nullptr;
@@ -257,11 +264,10 @@ address OptoRuntime::generate_stub(ciEnv* env,
                                    bool return_pc) {
 
   // Matching the default directive, we currently have no method to match.
-  DirectiveSet* directive = DirectivesStack::getDefaultDirective(CompileBroker::compiler(CompLevel_full_optimization));
-  CompilationMemoryStatisticMark cmsm(directive);
+  CompilerDirectiveMatcher default_directive(CompileBroker::compiler(CompLevel_full_optimization));
+  CompilationMemoryStatisticMark cmsm(default_directive.directive_set());
   ResourceMark rm;
-  Compile C(env, gen, C_function, name, stub_id, is_fancy_jump, pass_tls, return_pc, directive);
-  DirectivesStack::release(directive);
+  Compile C(env, gen, C_function, name, stub_id, is_fancy_jump, pass_tls, return_pc, default_directive.directive_set());
   return  C.stub_entry_point();
 }
 
@@ -301,7 +307,7 @@ void OptoRuntime::complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, Java
 // and try allocation again.
 
 // object allocation
-JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, bool is_larval, JavaThread* current))
+JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, JavaThread* current))
   JRT_BLOCK;
 #ifndef PRODUCT
   SharedRuntime::_new_instance_ctr++;         // new instance requires GC
@@ -321,11 +327,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, bool is_larval, 
   if (!HAS_PENDING_EXCEPTION) {
     // Scavenge and allocate an instance.
     Handle holder(current, klass->klass_holder()); // keep the klass alive
-    instanceOop result = InstanceKlass::cast(klass)->allocate_instance(THREAD);
-    if (is_larval) {
-      // Check if this is a larval buffer allocation
-      result->set_mark(result->mark().enter_larval_state());
-    }
+    oop result = InstanceKlass::cast(klass)->allocate_instance(THREAD);
     current->set_vm_result_oop(result);
 
     // Pass oops back through thread local storage.  Our apparent type to Java
@@ -589,10 +591,9 @@ JRT_END
 
 static const TypeFunc* make_new_instance_Type() {
   // create input type (domain)
-  const Type **fields = TypeTuple::fields(2);
+  const Type **fields = TypeTuple::fields(1);
   fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // Klass to be allocated
-  fields[TypeFunc::Parms+1] = TypeInt::BOOL;        // is_larval
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
 
   // create result type (range)
   fields = TypeTuple::fields(1);
@@ -1253,6 +1254,26 @@ static const TypeFunc* make_double_keccak_Type() {
     return TypeFunc::make(domain, range);
 }
 
+static const TypeFunc* make_quad_keccak_Type() {
+    int argcnt = 4;
+
+    const Type** fields = TypeTuple::fields(argcnt);
+    int argp = TypeFunc::Parms;
+    fields[argp++] = TypePtr::NOTNULL;      // status0
+    fields[argp++] = TypePtr::NOTNULL;      // status1
+    fields[argp++] = TypePtr::NOTNULL;      // status2
+    fields[argp++] = TypePtr::NOTNULL;      // status3
+
+    assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+    const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + argcnt, fields);
+
+    // result type needed
+    fields = TypeTuple::fields(1);
+    fields[TypeFunc::Parms + 0] = TypeInt::INT;
+    const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 1, fields);
+    return TypeFunc::make(domain, range);
+}
+
 static const TypeFunc* make_multiplyToLen_Type() {
   // create input type (domain)
   int num_args      = 5;
@@ -1787,6 +1808,41 @@ static const TypeFunc* make_intpoly_assign_Type() {
   fields[argp++] = TypePtr::NOTNULL;    // a array (result)
   fields[argp++] = TypePtr::NOTNULL;    // b array (if set is set)
   fields[argp++] = TypeInt::INT;        // array length
+  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+
+  // result type needed
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms + 0] = nullptr; // void
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+  return TypeFunc::make(domain, range);
+}
+
+static const TypeFunc* make_intpoly_mult_25519_Type() {
+  int argcnt = 3;
+
+  const Type** fields = TypeTuple::fields(argcnt);
+  int argp = TypeFunc::Parms;
+  fields[argp++] = TypePtr::NOTNULL;    // a array
+  fields[argp++] = TypePtr::NOTNULL;    // b array
+  fields[argp++] = TypePtr::NOTNULL;    // r(esult) array
+  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+
+  // result type needed
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms + 0] = nullptr; // void
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+  return TypeFunc::make(domain, range);
+}
+
+static const TypeFunc* make_intpoly_square_25519_Type() {
+  int argcnt = 2;
+
+  const Type** fields = TypeTuple::fields(argcnt);
+  int argp = TypeFunc::Parms;
+  fields[argp++] = TypePtr::NOTNULL;    // a array
+  fields[argp++] = TypePtr::NOTNULL;    // r(esult) array
   assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
   const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
 
@@ -2338,6 +2394,7 @@ void OptoRuntime::initialize_types() {
   _digestBase_implCompressMB_with_sha3_Type    = make_digestBase_implCompressMB_Type(/* is_sha3= */ true);
   _digestBase_implCompressMB_without_sha3_Type = make_digestBase_implCompressMB_Type(/* is_sha3= */ false);
   _double_keccak_Type                 = make_double_keccak_Type();
+  _quad_keccak_Type                   = make_quad_keccak_Type();
   _multiplyToLen_Type                 = make_multiplyToLen_Type();
   _montgomeryMultiply_Type            = make_montgomeryMultiply_Type();
   _montgomerySquare_Type              = make_montgomerySquare_Type();
@@ -2365,6 +2422,8 @@ void OptoRuntime::initialize_types() {
   _poly1305_processBlocks_Type        = make_poly1305_processBlocks_Type();
   _intpoly_montgomeryMult_P256_Type   = make_intpoly_montgomeryMult_P256_Type();
   _intpoly_assign_Type                = make_intpoly_assign_Type();
+  _intpoly_mult_25519_Type            = make_intpoly_mult_25519_Type();
+  _intpoly_square_25519_Type          = make_intpoly_square_25519_Type();
   _updateBytesCRC32_Type              = make_updateBytesCRC32_Type();
   _updateBytesCRC32C_Type             = make_updateBytesCRC32C_Type();
   _updateBytesAdler32_Type            = make_updateBytesAdler32_Type();

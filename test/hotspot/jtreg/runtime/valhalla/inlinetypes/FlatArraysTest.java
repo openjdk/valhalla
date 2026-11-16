@@ -50,8 +50,8 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
- * @compile --source 27 FlatArraysTest.java
- * @run main/othervm -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @compile --source 28 FlatArraysTest.java
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
 
 /*
@@ -63,8 +63,8 @@ import static jdk.test.lib.Asserts.*;
  *          java.base/jdk.internal.misc
  * @library /test/lib
  * @enablePreview
- * @compile --source 27 FlatArraysTest.java
- * @run main/othervm -XX:-UseArrayFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
+ * @compile --source 28 FlatArraysTest.java
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:-UseArrayFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullableAtomicValueFlattening runtime.valhalla.inlinetypes.FlatArraysTest
  */
 
 public class FlatArraysTest {

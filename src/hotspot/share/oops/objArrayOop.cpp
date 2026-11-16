@@ -22,9 +22,8 @@
  *
  */
 
-#include "oops/access.inline.hpp"
 #include "oops/objArrayKlass.hpp"
-#include "oops/objArrayOop.inline.hpp"
+#include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 
 Klass* objArrayOopDesc::element_klass() {

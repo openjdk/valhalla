@@ -24,19 +24,15 @@
  */
 package java.lang.classfile.attribute;
 
+import java.lang.classfile.Attribute;
 import java.lang.classfile.AttributeMapper;
 import java.lang.classfile.Attributes;
-import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassElement;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.lang.constant.ClassDesc;
 import java.util.Arrays;
 import java.util.List;
 
-import java.lang.classfile.Attribute;
-import java.lang.classfile.ClassElement;
-import java.lang.classfile.constantpool.ClassEntry;
-
-import jdk.internal.classfile.impl.AbstractPoolEntry;
 import jdk.internal.classfile.impl.BoundAttribute;
 import jdk.internal.classfile.impl.UnboundAttribute;
 import jdk.internal.classfile.impl.Util;
@@ -44,20 +40,20 @@ import jdk.internal.javac.PreviewFeature;
 
 /**
  * Models the {@link Attributes#loadableDescriptors() LoadableDescriptors}
- * attribute (JVMS {@jvms value-objects-4.7.32}), which suggests the JVM may load mentioned
- * types before the {@code class} file carrying this attribute is loaded.
+ * attribute (JVMS {@jvms value-objects-4.7.32}), which permits the JVM to
+ * load mentioned classes and interfaces before the {@code class} file carrying
+ * this attribute is loaded.
  * <p>
  * This attribute only appears on classes, and does not permit {@linkplain
  * AttributeMapper#allowMultiple multiple instances} in a class.  It has a
  * data dependency on the {@linkplain AttributeMapper.AttributeStability#CP_REFS
  * constant pool}.
  * <p>
- * The attribute was introduced in the Java SE Platform version XX, major
- * version {@value ClassFile#JAVA_25_VERSION}. (FIXME)
+ * The attribute is a preview VM feature in the current Java SE release.
  *
  * @see Attributes#loadableDescriptors()
  * @jvms value-objects-4.7.32 The {@code LoadableDescriptors} Attribute
- * @since Valhalla
+ * @since 28
  */
 @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS, reflective = true)
 public sealed interface LoadableDescriptorsAttribute
@@ -79,6 +75,8 @@ public sealed interface LoadableDescriptorsAttribute
     /**
      * {@return a {@code LoadableDescriptors} attribute}
      * @param loadableDescriptors the loadable descriptors
+     * @throws IllegalArgumentException if the number of loadable descriptors
+     *         exceeds the limit of {@link java.lang.classfile##u2 u2}
      */
     static LoadableDescriptorsAttribute of(List<Utf8Entry> loadableDescriptors) {
         return new UnboundAttribute.UnboundLoadableDescriptorsAttribute(loadableDescriptors);
@@ -87,8 +85,30 @@ public sealed interface LoadableDescriptorsAttribute
     /**
      * {@return a {@code LoadableDescriptors} attribute}
      * @param loadableDescriptors the loadable descriptors
+     * @throws IllegalArgumentException if the number of loadable descriptors
+     *         exceeds the limit of {@link java.lang.classfile##u2 u2}
      */
     static LoadableDescriptorsAttribute of(Utf8Entry... loadableDescriptors) {
         return of(List.of(loadableDescriptors));
+    }
+
+    /**
+     * {@return a {@code LoadableDescriptors} attribute}
+     * @param loadableDescriptors the loadable descriptors
+     * @throws IllegalArgumentException if the number of loadable descriptors
+     *         exceeds the limit of {@link java.lang.classfile##u2 u2}
+     */
+    static LoadableDescriptorsAttribute ofSymbols(List<ClassDesc> loadableDescriptors) {
+        return of(Util.fieldDescriptorList(loadableDescriptors));
+    }
+
+    /**
+     * {@return a {@code LoadableDescriptors} attribute}
+     * @param loadableDescriptors the loadable descriptors
+     * @throws IllegalArgumentException if the number of loadable descriptors
+     *         exceeds the limit of {@link java.lang.classfile##u2 u2}
+     */
+    static LoadableDescriptorsAttribute ofSymbols(ClassDesc... loadableDescriptors) {
+        return ofSymbols(Arrays.asList(loadableDescriptors));
     }
 }

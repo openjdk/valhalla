@@ -41,11 +41,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 0
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -53,11 +53,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -65,11 +65,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -77,11 +77,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/timeout=240 compiler.valhalla.inlinetypes.TestOnStackReplacement 3
+ * @run driver/timeout=240 ${test.main.class} 3
  */
 
 /*
@@ -89,11 +89,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -101,11 +101,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -113,18 +113,18 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @key randomness
  * @summary Test on stack replacement (OSR) with value classes.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestOnStackReplacement 6
+ * @run driver ${test.main.class} 6
  */
 
 public class TestOnStackReplacement {
 
     public static void main(String[] args) throws Throwable {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[3].addFlags("-XX:-UseArrayFlattening");
+        scenarios[3].addFlags("-XX:+UnlockDiagnosticVMOptions", "-XX:-UseArrayFlattening");
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios[Integer.parseInt(args[0])])

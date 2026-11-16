@@ -60,7 +60,7 @@ public class TestValueClasses extends JavadocTester {
 
         checkOutput("p/ValueClass.html", true,
                 """
-                <div class="type-signature"><span class="modifiers">public value final class </span><span class="element-name type-name-label">ValueClass</span>
+                <div class="type-signature"><span class="modifiers">public final value class </span><span class="element-name type-name-label">ValueClass</span>
                 """);
     }
 

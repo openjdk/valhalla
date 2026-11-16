@@ -66,7 +66,6 @@ const Type* Conv2BNode::Value(PhaseGVN* phase) const {
   return TypeInt::BOOL;
 }
 
-//------------------------------Ideal------------------------------------------
 Node* Conv2BNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (in(1)->is_InlineType()) {
     // Null checking a scalarized but nullable inline type. Check the null marker

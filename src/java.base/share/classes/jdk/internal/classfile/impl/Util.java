@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,6 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.constant.ModuleDesc;
 import java.lang.reflect.AccessFlag;
-import java.lang.reflect.ClassFileFormatVersion;
 import java.util.AbstractList;
 import java.util.Collection;
 import java.util.List;
@@ -46,6 +45,7 @@ import java.util.function.Function;
 
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.constant.ClassOrInterfaceDescImpl;
+import jdk.internal.reflect.PreviewAccessFlags;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
 
@@ -195,16 +195,27 @@ public final class Util {
 
     public static List<ClassEntry> entryList(List<? extends ClassDesc> list) {
         var result = new Object[list.size()]; // null check
-        for (int i = 0; i < result.length; i++) {
-            result[i] = TemporaryConstantPool.INSTANCE.classEntry(list.get(i));
+        int i = 0;
+        for (var entry : list) {
+            result[i++] = TemporaryConstantPool.INSTANCE.classEntry(entry);
+        }
+        return SharedSecrets.getJavaUtilCollectionAccess().listFromTrustedArray(result);
+    }
+
+    public static List<Utf8Entry> fieldDescriptorList(List<? extends ClassDesc> list) {
+        var result = new Object[list.size()]; // null check
+        int i = 0;
+        for (var entry : list) {
+            result[i++] = TemporaryConstantPool.INSTANCE.utf8Entry(entry);
         }
         return SharedSecrets.getJavaUtilCollectionAccess().listFromTrustedArray(result);
     }
 
     public static List<ModuleEntry> moduleEntryList(List<? extends ModuleDesc> list) {
         var result = new Object[list.size()]; // null check
-        for (int i = 0; i < result.length; i++) {
-            result[i] = TemporaryConstantPool.INSTANCE.moduleEntry(TemporaryConstantPool.INSTANCE.utf8Entry(list.get(i).name()));
+        int i = 0;
+        for (var entry : list) {
+            result[i++] = TemporaryConstantPool.INSTANCE.moduleEntry(entry);
         }
         return SharedSecrets.getJavaUtilCollectionAccess().listFromTrustedArray(result);
     }
@@ -258,7 +269,7 @@ public final class Util {
     public static int flagsToBits(AccessFlag.Location location, AccessFlag... flags) {
         int i = 0;
         for (AccessFlag f : flags) {
-            if (!f.locations().contains(location) && !f.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES).contains(location)) {
+            if (!f.locations().contains(location) && !PreviewAccessFlags.locations(f).contains(location)) {
                 throw new IllegalArgumentException("unexpected flag: " + f + " use in target location: " + location);
             }
             i |= f.mask();
@@ -268,7 +279,7 @@ public final class Util {
 
     public static boolean has(AccessFlag.Location location, int flagsMask, AccessFlag flag) {
         return (flag.mask() & flagsMask) == flag.mask() && (flag.locations().contains(location)
-                || flag.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES).contains(location));
+                || PreviewAccessFlags.locations(flag).contains(location));
     }
 
     public static ClassDesc fieldTypeSymbol(Utf8Entry utf8) {

@@ -48,6 +48,7 @@
 #include "opto/subtypenode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 #ifndef PRODUCT
@@ -75,7 +76,7 @@ Node* Parse::record_profile_for_speculation_at_array_load(Node* ld) {
 //---------------------------------array_load----------------------------------
 void Parse::array_load(BasicType bt) {
   const Type* elemtype = Type::TOP;
-  Node* adr = array_addressing(bt, 0, elemtype);
+  Node* prep_array = prepare_array_addressing(bt, 0, elemtype);
   if (stopped())  return;     // guaranteed null or range check
 
   Node* array_index = pop();
@@ -97,15 +98,20 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (!array_type->is_flat()) {
         assert(array_type->is_flat() || control()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
+        // Loading from a non-flat array, casting array to not flat.
+        const TypeAryPtr* ary_type = _gvn.type(prep_array)->is_aryptr();
+        ary_type = ary_type->cast_to_not_flat();
+        Node* not_flat_ary = _gvn.transform(new CheckCastPPNode(control(), prep_array, ary_type));
+        Node* adr = get_ptr_to_array_element(not_flat_ary, array_index, bt, ary_type->size(), control());
         const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
         DecoratorSet decorator_set = IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD;
-        if (needs_range_check(array_type->size(), array_index)) {
+        if (needs_range_check(ary_type->size(), array_index)) {
           // We've emitted a RangeCheck but now insert an additional check between the range check and the actual load.
           // We cannot pin the load to two separate nodes. Instead, we pin it conservatively here such that it cannot
           // possibly float above the range check at any point.
           decorator_set |= C2_UNKNOWN_CONTROL_LOAD;
         }
-        Node* ld = access_load_at(array, adr, adr_type, element_ptr, bt, decorator_set);
+        Node* ld = access_load_at(not_flat_ary, adr, adr_type, element_ptr, bt, decorator_set);
         if (element_ptr->is_inlinetypeptr()) {
           ld = InlineTypeNode::make_from_oop(this, ld, element_ptr->inline_klass());
         }
@@ -125,7 +131,8 @@ void Parse::array_load(BasicType bt) {
           // Element type is unknown, and thus we cannot statically determine the exact flat array layout. Emit a
           // runtime call to correctly load the inline type element from the flat array.
           Node* inline_type = load_from_unknown_flat_array(array, array_index, element_ptr);
-          bool is_null_free = array_type->is_null_free() || !UseNullableValueFlattening;
+          bool is_null_free = array_type->is_null_free() ||
+                              (!UseNullableAtomicValueFlattening && !UseNullableNonAtomicValueFlattening);
           if (is_null_free) {
             inline_type = cast_not_null(inline_type);
           }
@@ -145,6 +152,7 @@ void Parse::array_load(BasicType bt) {
     bt = T_BOOLEAN;
   }
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+  Node* adr = get_ptr_to_array_element(prep_array, array_index, bt, array_type->size(), control());
   Node* ld = access_load_at(array, adr, adr_type, elemtype, bt,
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   ld = record_profile_for_speculation_at_array_load(ld);
@@ -188,8 +196,12 @@ Node* Parse::load_from_unknown_flat_array(Node* array, Node* array_index, const 
 //--------------------------------array_store----------------------------------
 void Parse::array_store(BasicType bt) {
   const Type* elemtype = Type::TOP;
-  Node* adr = array_addressing(bt, type2size[bt], elemtype);
+  Node* prep_array = prepare_array_addressing(bt, type2size[bt], elemtype);
   if (stopped())  return;     // guaranteed null or range check
+
+  Node* adr = get_ptr_to_array_element(prep_array, /* index */peek(0+type2size[bt]), bt,
+    _gvn.type(prep_array)->is_aryptr()->size(), control());
+
   Node* stored_value_casted = nullptr;
   if (bt == T_OBJECT) {
     stored_value_casted = array_store_check(adr, elemtype);
@@ -238,17 +250,19 @@ void Parse::array_store(BasicType bt) {
     }
 
     if (!array_type->is_not_flat()) {
-      // Array might be a flat array, emit runtime checks (for nullptr, a simple inline_array_null_guard is sufficient).
+      // Array might be a flat array, emit runtime checks (for null, a simple inline_array_null_guard is sufficient).
       assert(UseArrayFlattening && !not_flat && elemtype->is_oopptr()->can_be_inline_type() &&
              (!array_type->klass_is_exact() || array_type->is_flat()), "array can't be a flat array");
       // TODO 8350865 Depending on the available layouts, we can avoid this check in below flat/not-flat branches. Also the safe_for_replace arg is now always true.
       array = inline_array_null_guard(array, stored_value_casted, 3, true);
+      // Reload array type which could have been updated by inline_array_null_guard().
+      array_type = _gvn.type(array)->is_aryptr();
       IdealKit ideal(this);
       ideal.if_then(flat_array_test(array, /* flat = */ false)); {
         // Non-flat array
         if (!array_type->is_flat()) {
           sync_kit(ideal);
-          assert(array_type->is_flat() || ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
+          assert(array_type->is_not_flat() || ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
           inc_sp(3);
           access_store_at(array, adr, adr_type, stored_value_casted, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
           dec_sp(3);
@@ -330,7 +344,7 @@ void Parse::store_to_unknown_flat_array(Node* array, Node* const idx, Node* non_
 
 //------------------------------array_addressing-------------------------------
 // Pull array and index from the stack.  Compute pointer-to-element.
-Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
+Node* Parse::prepare_array_addressing(BasicType type, int vals, const Type*& elemtype) {
   Node *idx   = peek(0+vals);   // Get from stack without popping
   Node *ary   = peek(1+vals);   // in case of exception
 
@@ -377,9 +391,13 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   // Check for always knowing you are throwing a range-check exception
   if (stopped())  return top();
 
+  return ary;
+}
+
+Node* Parse::get_ptr_to_array_element(Node* array, Node* idx, BasicType elembt, const TypeInt* sizetype, Node* control) {
   // Make array address computation control dependent to prevent it
   // from floating above the range check during loop optimizations.
-  Node* ptr = array_element_address(ary, idx, type, sizetype, control());
+  Node* ptr = array_element_address(array, idx, elembt, sizetype, control);
   assert(ptr != top(), "top should go hand-in-hand with stopped");
 
   return ptr;
@@ -1340,12 +1358,28 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
     _max_switch_depth = 0;
     _est_switch_depth = log2i_graceful((hi - lo + 1) - 1) + 1;
   }
+  SwitchRange* orig_lo = lo;
+  SwitchRange* orig_hi = hi;
 #endif
 
-  assert(lo <= hi, "must be a non-empty set of ranges");
-  if (lo == hi) {
-    jump_if_always_fork(lo->dest(), trim_ranges && lo->cnt() == 0);
-  } else {
+  // The lower-range processing is done iteratively to avoid O(N) stack depth
+  // when the profiling-based pivot repeatedly selects mid==lo (JDK-8366138).
+  // The upper-range processing remains recursive but is only reached for
+  // balanced splits, bounding its depth to O(log N).
+  // Termination: every iteration either exits or strictly decreases hi-lo:
+  //   lo == mid && mid < hi, increments lo
+  //   lo < mid <= hi, sets hi = mid - 1.
+  for (int depth = switch_depth;; depth++) {
+#ifndef PRODUCT
+    _max_switch_depth = MAX2(depth, _max_switch_depth);
+#endif
+
+    assert(lo <= hi, "must be a non-empty set of ranges");
+    if (lo == hi) {
+      jump_if_always_fork(lo->dest(), trim_ranges && lo->cnt() == 0);
+      break;
+    }
+
     assert(lo->hi() == (lo+1)->lo()-1, "contiguous ranges");
     assert(hi->lo() == (hi-1)->hi()+1, "contiguous ranges");
 
@@ -1355,7 +1389,12 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
     float total_cnt = sum_of_cnts(lo, hi);
 
     int nr = hi - lo + 1;
-    if (UseSwitchProfiling) {
+    // With total_cnt==0 the profiling pivot degenerates to mid==lo
+    // (0 >= 0/2), producing a linear chain of If nodes instead of a
+    // balanced tree. A balanced tree is strictly better here: all paths
+    // are cold, so a balanced split gives fewer comparisons at runtime
+    // and avoids pathological memory usage in the optimizer.
+    if (UseSwitchProfiling && total_cnt > 0) {
       // Don't keep the binary search tree balanced: pick up mid point
       // that split frequencies in half.
       float cnt = 0;
@@ -1376,7 +1415,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
       assert(nr != 2 || mid == hi,   "should pick higher of 2");
       assert(nr != 3 || mid == hi-1, "should pick middle of 3");
     }
-
+    assert(mid != nullptr, "mid must be set");
 
     Node *test_val = _gvn.intcon(mid == lo ? mid->hi() : mid->lo());
 
@@ -1399,7 +1438,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
         Node   *iffalse = _gvn.transform( new IfFalseNode(iff_lt) );
         { PreserveJVMState pjvms(this);
           set_control(iffalse);
-          jump_switch_ranges(key_val, mid+1, hi, switch_depth+1);
+          jump_switch_ranges(key_val, mid+1, hi, depth+1);
         }
         set_control(iftrue);
       }
@@ -1417,21 +1456,22 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
         Node *iffalse = _gvn.transform( new IfFalseNode(iff_ge) );
         { PreserveJVMState pjvms(this);
           set_control(iftrue);
-          jump_switch_ranges(key_val, mid == lo ? mid+1 : mid, hi, switch_depth+1);
+          jump_switch_ranges(key_val, mid == lo ? mid+1 : mid, hi, depth+1);
         }
         set_control(iffalse);
       }
     }
 
-    // in any case, process the lower range
+    // Process the lower range: iterate instead of recursing.
     if (mid == lo) {
       if (mid->is_singleton()) {
-        jump_switch_ranges(key_val, lo+1, hi, switch_depth+1);
+        lo++;
       } else {
         jump_if_always_fork(lo->dest(), trim_ranges && lo->cnt() == 0);
+        break;
       }
     } else {
-      jump_switch_ranges(key_val, lo, mid-1, switch_depth+1);
+      hi = mid - 1;
     }
   }
 
@@ -1446,23 +1486,22 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
   }
 
 #ifndef PRODUCT
-  _max_switch_depth = MAX2(switch_depth, _max_switch_depth);
   if (TraceOptoParse && Verbose && WizardMode && switch_depth == 0) {
     SwitchRange* r;
     int nsing = 0;
-    for( r = lo; r <= hi; r++ ) {
+    for (r = orig_lo; r <= orig_hi; r++) {
       if( r->is_singleton() )  nsing++;
     }
     tty->print(">>> ");
     _method->print_short_name();
     tty->print_cr(" switch decision tree");
     tty->print_cr("    %d ranges (%d singletons), max_depth=%d, est_depth=%d",
-                  (int) (hi-lo+1), nsing, _max_switch_depth, _est_switch_depth);
+                  (int) (orig_hi-orig_lo+1), nsing, _max_switch_depth, _est_switch_depth);
     if (_max_switch_depth > _est_switch_depth) {
       tty->print_cr("******** BAD SWITCH DEPTH ********");
     }
     tty->print("   ");
-    for( r = lo; r <= hi; r++ ) {
+    for (r = orig_lo; r <= orig_hi; r++) {
       r->print();
     }
     tty->cr();
@@ -1820,7 +1859,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
 }
 
 //------------------------------------do_if------------------------------------
-void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken, Node** stress_count_mem) {
+void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, Node** ctrl_taken, Node** mem_taken, Node** io_taken) {
   int target_bci = iter().get_dest();
 
   Block* branch_block = successor_for_bci(target_bci);
@@ -1851,9 +1890,6 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, N
   bool do_stress_trap = StressUnstableIfTraps && ((C->random() % 2) == 0);
   if (do_stress_trap) {
     increment_trap_stress_counter(counter, incr_store);
-    if (stress_count_mem != nullptr) {
-      *stress_count_mem = incr_store;
-    }
   }
 
   // Sanity check the probability value
@@ -1927,6 +1963,12 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool can_trap, bool new_path, N
         } else if (ctrl_taken != nullptr) {
           // Don't merge but save taken branch to be wired by caller
           *ctrl_taken = control();
+          if (mem_taken != nullptr) {
+            *mem_taken = reset_memory();
+          }
+          if (io_taken != nullptr) {
+            *io_taken = i_o();
+          }
         } else {
           merge(target_bci);
         }
@@ -1967,22 +2009,25 @@ static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
 }
 
 void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region) {
-  inc_sp(2);
-  Node* cast = null_check_common(input, T_OBJECT, true, nullptr,
-                                 !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
-                                 speculative_ptr_kind(tinput) == ProfileAlwaysNull);
-  dec_sp(2);
   if (btest == BoolTest::ne) {
     {
       PreserveJVMState pjvms(this);
-      replace_in_map(input, cast);
+      inc_sp(2);
+      null_check_common(input, T_OBJECT, true, nullptr,
+                        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                        speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+      dec_sp(2);
       int target_bci = iter().get_dest();
       merge(target_bci);
     }
     record_for_igvn(eq_region);
     set_control(_gvn.transform(eq_region));
   } else {
-    replace_in_map(input, cast);
+    inc_sp(2);
+    null_check_common(input, T_OBJECT, true, nullptr,
+                      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                      speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+    dec_sp(2);
   }
 }
 
@@ -1998,60 +2043,37 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
   return cast;
 }
 
-void Parse::acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
-  Node* ne_region = new RegionNode(1);
-  Node* null_ctl;
-  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
-  ne_region->add_req(null_ctl);
-
-  Node* slow_ctl = type_check_receiver(cast, input_type, 1.0, &cast);
+void Parse::acmp_type_check_or_trap(Node** non_null_input, ciKlass* input_type, Deoptimization::DeoptReason reason) {
+  Node* slow_ctl = type_check_receiver(*non_null_input, input_type, 1.0, non_null_input);
   {
     PreserveJVMState pjvms(this);
     inc_sp(2);
     set_control(slow_ctl);
+    uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+  }
+}
+
+void Parse::acmp_type_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
+  Node* null_ctl;
+  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
+
+  if (input_type != nullptr) {
     Deoptimization::DeoptReason reason;
     if (tinput->speculative_type() != nullptr && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       reason = Deoptimization::Reason_speculate_class_check;
     } else {
       reason = Deoptimization::Reason_class_check;
     }
-    uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
-  }
-  ne_region->add_req(control());
-
-  record_for_igvn(ne_region);
-  set_control(_gvn.transform(ne_region));
-  if (btest == BoolTest::ne) {
-    {
-      PreserveJVMState pjvms(this);
-      if (null_ctl == top()) {
-        replace_in_map(input, cast);
-      }
-      int target_bci = iter().get_dest();
-      merge(target_bci);
-    }
-    record_for_igvn(eq_region);
-    set_control(_gvn.transform(eq_region));
+    acmp_type_check_or_trap(&cast, input_type, reason);
   } else {
-    if (null_ctl == top()) {
-      replace_in_map(input, cast);
-    }
-    set_control(_gvn.transform(ne_region));
-  }
-}
-
-void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, BoolTest::mask btest, Node* eq_region) {
-  Node* ne_region = new RegionNode(1);
-  Node* null_ctl;
-  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
-  ne_region->add_req(null_ctl);
-
-  {
+    // No specific type, check for inline type
     BuildCutout unless(this, inline_type_test(cast, /* is_inline = */ false), PROB_MAX);
     inc_sp(2);
     uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_maybe_recompile);
   }
 
+  Node* ne_region = new RegionNode(2);
+  ne_region->add_req(null_ctl);
   ne_region->add_req(control());
 
   record_for_igvn(ne_region);
@@ -2161,7 +2183,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     Node* is_not_equal = nullptr;
-    eq_region = new RegionNode(3);
+    eq_region = new RegionNode(4);
     {
       PreserveJVMState pjvms(this);
       // Pointers are not equal, but more checks are needed to determine if the operands are (not) substitutable
@@ -2217,54 +2239,68 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
   if (left_type != nullptr && !left_type->is_inlinetype()) {
     // Comparison with an object of known type
-    acmp_known_non_inline_type_input(left, tleft, left_ptr, left_type, btest, eq_region);
+    acmp_type_check(left, tleft, left_ptr, left_type, btest, eq_region);
     return;
   }
   if (right_type != nullptr && !right_type->is_inlinetype()) {
     // Comparison with an object of known type
-    acmp_known_non_inline_type_input(right, tright, right_ptr, right_type, btest, eq_region);
+    acmp_type_check(right, tright, right_ptr, right_type, btest, eq_region);
     return;
   }
   if (!left_inline_type) {
     // Comparison with an object known not to be an inline type
-    acmp_unknown_non_inline_type_input(left, tleft, left_ptr, btest, eq_region);
+    acmp_type_check(left, tleft, left_ptr, nullptr, btest, eq_region);
     return;
   }
   if (!right_inline_type) {
     // Comparison with an object known not to be an inline type
-    acmp_unknown_non_inline_type_input(right, tright, right_ptr, btest, eq_region);
+    acmp_type_check(right, tright, right_ptr, nullptr, btest, eq_region);
     return;
   }
 
   // Pointers are not equal, check if first operand is non-null
-  Node* ne_region = new RegionNode(6);
+  Node* ne_region = new RegionNode(7);
   Node* null_ctl = nullptr;
   Node* not_null_left = nullptr;
   Node* not_null_right = acmp_null_check(right, tright, right_ptr, null_ctl);
   ne_region->init_req(1, null_ctl);
 
+  Node* kls_right = nullptr;
   if (!stopped()) {
-    // First operand is non-null, check if it is an inline type
-    Node* is_value = inline_type_test(not_null_right);
-    IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
-    Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
-    ne_region->init_req(2, not_value);
-    set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+    // First operand is non-null, check if it is the speculative inline type if possible
+    // (which later allows isSubstitutable to be intrinsified), or any inline type if no
+    // speculation is available.
+    if (right_type != nullptr && right_type->is_inlinetype()) {
+      acmp_type_check_or_trap(&not_null_right, right_type, Deoptimization::Reason_speculate_class_check);
+    } else {
+      Node* is_value = inline_type_test(not_null_right);
+      IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
+      Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
+      ne_region->init_req(2, not_value);
+      set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
+    }
 
     // The first operand is an inline type, check if the second operand is non-null
     not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
     ne_region->init_req(3, null_ctl);
-
     if (!stopped()) {
-      // Check if both operands are of the same class.
-      Node* kls_left = load_object_klass(not_null_left);
-      Node* kls_right = load_object_klass(not_null_right);
-      Node* kls_cmp = CmpP(kls_left, kls_right);
-      Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
-      IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
-      Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
-      set_control(_gvn.transform(new IfFalseNode(kls_iff)));
-      ne_region->init_req(4, kls_ne);
+      // Check if lhs operand is of a specific speculative inline type (see above).
+      // If not, we don't need to enforce that the lhs is a value object since we know
+      // it already for the rhs, and must enforce that they have the same type.
+      if (left_type != nullptr && left_type->is_inlinetype()) {
+        acmp_type_check_or_trap(&not_null_left, left_type, Deoptimization::Reason_speculate_class_check);
+      }
+      if (!stopped()) {
+        // Check if both operands are of the same class.
+        Node* kls_left = load_object_klass(not_null_left);
+        kls_right = load_object_klass(not_null_right);
+        Node* kls_cmp = CmpP(kls_left, kls_right);
+        Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
+        IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
+        Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
+        set_control(_gvn.transform(new IfFalseNode(kls_iff)));
+        ne_region->init_req(4, kls_ne);
+      }
     }
   }
 
@@ -2281,6 +2317,64 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       set_control(_gvn.transform(eq_region));
     }
     return;
+  }
+  assert(kls_right != nullptr, "");
+
+  IfNode* mask_iff = nullptr;
+  // If any operand has a precisely known type, isSubstitutable will be intrinsified, so we don't need the fast path
+  if (UseAcmpFastPath && !_gvn.type(not_null_left)->is_inlinetypeptr() && !_gvn.type(not_null_right)->is_inlinetypeptr()) {
+    /* Here, we are generating the fast path (the slow path being the call to isSubstitutable)
+     * See the declarations of _fast_acmp_offset and _fast_acmp_mask in InlineKlass::Members
+     * for details about the fast path logic, and the meaning of these values.
+     */
+    Node* members_addr = off_heap_plus_addr(kls_right, in_bytes(InlineKlass::adr_members_offset()));
+    Node* members = make_load(control(), members_addr, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
+    Node* offset_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_offset_offset()));
+    Node* offset = make_load(control(), offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+
+    Node* offset_cmp = CmpI(offset, zerocon(T_INT));
+    Node* offset_bol = _gvn.transform(new BoolNode(offset_cmp, BoolTest::lt));
+    mask_iff = create_and_map_if(control(), offset_bol, PROB_FAIR, COUNT_UNKNOWN);
+    Node* slow_path_ctl = _gvn.transform(new IfTrueNode(mask_iff));
+    Node* fast_path_ctl = _gvn.transform(new IfFalseNode(mask_iff));
+    set_control(slow_path_ctl);
+
+    {
+      PreserveJVMState jvms(this);
+      set_control(fast_path_ctl);
+
+      Node* offset_l = ConvI2L(offset);
+      Node* fast_acmp_mask_addr = off_heap_plus_addr(members, in_bytes(InlineKlass::fast_acmp_mask_offset()));
+      Node* fast_acmp_mask = make_load(control(), fast_acmp_mask_addr, TypeLong::LONG, T_LONG, MemNode::unordered);
+
+      // *(left + offset) & mask == *(right + offset) & mask
+      Node* left_payload_addr = basic_plus_adr(not_null_left, offset_l);
+      Node* left_payload = make_load(control(), left_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
+      Node* left_masked = _gvn.transform(new AndLNode(left_payload, fast_acmp_mask));
+
+      Node* right_payload_addr = basic_plus_adr(not_null_right, offset_l);
+      Node* right_payload = make_load(control(), right_payload_addr, TypeLong::LONG, T_LONG, MemNode::unordered, LoadNNode::DependsOnlyOnTest, false, true, true, true);
+      Node* right_masked = _gvn.transform(new AndLNode(right_payload, fast_acmp_mask));
+
+      Node* masked_cmp = CmpL(left_masked, right_masked);
+
+      Node* ctl = C->top();
+      if (btest == BoolTest::eq) {
+        PreserveJVMState pjvms(this);
+        do_if(btest, masked_cmp, !can_trap, true, nullptr);
+        if (!stopped()) {
+          ctl = control();
+        }
+      } else {
+        assert(btest == BoolTest::ne, "only eq or ne");
+        PreserveJVMState pjvms(this);
+        do_if(btest, masked_cmp, !can_trap, false, &ctl);
+        if (!stopped()) {
+          eq_region->init_req(3, control());
+        }
+      }
+      ne_region->init_req(6, ctl);
+    }
   }
 
   // Both operands are values types of the same class, we need to perform a
@@ -2310,51 +2404,136 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   Node* ret = set_results_for_java_call(call, false, true);
   dec_sp(2);
 
+  assert(acmp_fast_path_if_from_substitutable_call(&_gvn, call) == mask_iff, "");
+
   // Test the return value of ValueObjectMethods::isSubstitutable()
   // This is the last check, do_if can emit traps now.
   Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
   Node* ctl = C->top();
-  Node* stress_count_mem = nullptr;
+  Node* mem_taken = nullptr;
+  Node* io_taken = nullptr;
   if (btest == BoolTest::eq) {
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, can_trap, false, nullptr, &stress_count_mem);
+    // Also merges branch block.
+    do_if(btest, subst_cmp, can_trap, false, nullptr, &mem_taken, &io_taken);
     if (!stopped()) {
       ctl = control();
+      mem_taken = reset_memory();
+      io_taken = i_o();
     }
   } else {
     assert(btest == BoolTest::ne, "only eq or ne");
     PreserveJVMState pjvms(this);
-    do_if(btest, subst_cmp, can_trap, false, &ctl, &stress_count_mem);
+    do_if(btest, subst_cmp, can_trap, false, &ctl, &mem_taken, &io_taken);
     if (!stopped()) {
       eq_region->init_req(2, control());
       eq_io_phi->init_req(2, i_o());
       eq_mem_phi->init_req(2, reset_memory());
     }
   }
-  if (stress_count_mem != nullptr) {
-    set_memory(stress_count_mem, stress_count_mem->adr_type());
-  }
   ne_region->init_req(5, ctl);
-  ne_io_phi->init_req(5, i_o());
-  ne_mem_phi->init_req(5, reset_memory());
+  ne_io_phi->init_req(5, io_taken);
+  ne_mem_phi->init_req(5, mem_taken);
 
+  // BoolTest::eq: ne_region is fall-through block.
+  // BoolTest::ne: ne_region is branch block -> merge below.
   record_for_igvn(ne_region);
   set_control(_gvn.transform(ne_region));
   set_i_o(_gvn.transform(ne_io_phi));
   set_all_memory(_gvn.transform(ne_mem_phi));
 
   if (btest == BoolTest::ne) {
-    {
+    int target_bci = iter().get_dest();
+    if (!stopped()) {
       PreserveJVMState pjvms(this);
-      int target_bci = iter().get_dest();
       merge(target_bci);
+    } else if (C->eliminate_boxing()) {
+      // Mark the branch block as parsed.
+      Block* branch_block = successor_for_bci(target_bci);
+      branch_block->next_path_num();
     }
 
+    // Fall-through block.
     record_for_igvn(eq_region);
     set_control(_gvn.transform(eq_region));
     set_i_o(_gvn.transform(eq_io_phi));
     set_all_memory(_gvn.transform(eq_mem_phi));
   }
+}
+
+/* Detects whether a call to isSubstitutable is under an IfNode guarding the fast path for acmp.
+ * If so, returns the IfNode branching between the call and the fast path. Returns null otherwise.
+ *
+ * The fast path is a LOT easier to generate at parsing time, but can be later proven useless if further
+ * optimization narrows down the type of operands and allows intrinsification of the substitutability
+ * check. In this case, the fast path might still apply, but it comes with various downsides, such as
+ * mismatch access that may hinder optimizations, or buffering requirement. So, when intrinsifying the call,
+ * we try to remove the fast path.
+ *
+ * This test isn't so bad. Loading the fast acmp offset is pretty unique to the fast acmp path.
+ *
+ * Clearly, this is only a step before a proper solution for acmp, such as a macro node.
+ */
+IfNode* Parse::acmp_fast_path_if_from_substitutable_call(PhaseGVN* phase, CallStaticJavaNode* call) {
+  auto is_con_offset = [](Node* node, ByteSize n) -> bool {
+    if (!node->is_Con()) return false;
+    TypeNode* con = node->as_Type();
+    assert(con->type()->is_intptr_t(), "");
+    return con->type()->is_intptr_t()->is_con(in_bytes(n));
+  };
+
+  assert(call->in(TypeFunc::Control) != nullptr, "");
+  if (!call->in(TypeFunc::Control)->is_IfProj()) return nullptr;
+  IfProjNode* if_proj = call->in(TypeFunc::Control)->as_IfProj();
+  if (if_proj->_con != 1) return nullptr;
+
+  assert(if_proj->in(0) != nullptr, "");
+  assert(if_proj->in(0)->is_If(), "");
+  IfNode* iff = if_proj->in(0)->as_If();
+
+  assert(iff->in(1) != nullptr, "");
+  if (!iff->in(1)->is_Bool()) return nullptr;
+  BoolNode* lt = iff->in(1)->as_Bool();
+  if (lt->_test._test != BoolTest::lt) return nullptr;
+
+  assert(lt->in(1) != nullptr, "");
+  if (lt->in(1)->Opcode() != Op_CmpI) return nullptr;
+  CmpNode* cmp_i = lt->in(1)->as_Cmp();
+
+  assert(cmp_i->in(1) != nullptr, "");
+  assert(cmp_i->in(2) != nullptr, "");
+
+  if (cmp_i->in(1)->Opcode() != Op_LoadI) return nullptr;
+  LoadNode* load_offset = cmp_i->in(1)->as_Load();
+  if (!cmp_i->in(2)->is_ConI()) return nullptr;
+  ConINode* zero_i = cmp_i->in(2)->as_ConI();
+  assert(zero_i->type()->is_int() != nullptr, "");
+  if (!zero_i->type()->is_int()->is_con(0)) return nullptr;
+
+  assert(load_offset->in(2) != nullptr, "");
+  if (!load_offset->in(2)->is_AddP()) return nullptr;
+  AddPNode* offset_addr_add = load_offset->in(2)->as_AddP();
+
+  assert(offset_addr_add->in(AddPNode::Base) != nullptr, "");
+  assert(offset_addr_add->in(AddPNode::Address) != nullptr, "");
+  assert(offset_addr_add->in(AddPNode::Offset) != nullptr, "");
+  if (!offset_addr_add->in(AddPNode::Base)->is_top()) return nullptr;
+  if (offset_addr_add->in(AddPNode::Address)->Opcode() != Op_LoadP) return nullptr;
+  LoadNode* load_members = offset_addr_add->in(AddPNode::Address)->as_Load();
+  if (!is_con_offset(offset_addr_add->in(AddPNode::Offset), InlineKlass::fast_acmp_offset_offset())) return nullptr;
+
+  assert(load_members->in(2) != nullptr, "");
+  if (!load_members->in(2)->is_AddP()) return nullptr;
+  AddPNode* members_addr_add = load_members->in(2)->as_AddP();
+
+  assert(members_addr_add->in(AddPNode::Base) != nullptr, "");
+  assert(members_addr_add->in(AddPNode::Address) != nullptr, "");
+  assert(members_addr_add->in(AddPNode::Offset) != nullptr, "");
+  if (!members_addr_add->in(AddPNode::Base)->is_top()) return nullptr;
+  if (!phase->type(members_addr_add->in(AddPNode::Address))->isa_instklassptr()) return nullptr;
+  if (!is_con_offset(members_addr_add->in(AddPNode::Offset), InlineKlass::adr_members_offset())) return nullptr;
+
+  return iff;
 }
 
 // Force unstable if traps to be taken randomly to trigger intermittent bugs such as incorrect debug information.
@@ -2523,6 +2702,10 @@ static bool match_type_check(PhaseGVN& gvn,
                              Node* con, const Type* tcon,
                              Node* val, const Type* tval,
                              Node** obj, const TypeOopPtr** cast_type) { // out-parameters
+  assert(tcon->singleton(), "not a constant: %s", Type::str(tcon));
+  assert(tcon == gvn.type(con), "mismatch: %s != %s", Type::str(tcon), Type::str(gvn.type(con)));
+  assert(tval == gvn.type(val), "mismatch: %s != %s", Type::str(tval), Type::str(gvn.type(val)));
+
   // Look for opportunities to sharpen the type of a node whose klass is compared with a constant klass.
   // The constant klass being tested against can come from many bytecode instructions (implicitly or explicitly),
   // and also from profile data used by speculative casts.
@@ -2531,7 +2714,13 @@ static bool match_type_check(PhaseGVN& gvn,
     //   Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq])
     // or the narrowOop equivalent.
     (*obj) = extract_obj_from_klass_load(&gvn, val);
-    (*cast_type) = tcon->isa_klassptr()->as_instance_type();
+    // Some klass comparisons are not directly in the form
+    // Bool(CmpP(LoadKlass(obj._klass), ConP(Foo.klass)), [eq]),
+    // e.g. Bool(CmpP(CastPP(LoadKlass(...)), ConP(klass)), [eq]).
+    // These patterns with nullable klasses arise from example from
+    // load_array_klass_from_mirror.
+    if (*obj == nullptr) { return false; }
+    (*cast_type) = tcon->isa_klassptr()->as_exact_instance_type();
     return true; // found
   }
 
@@ -2551,14 +2740,14 @@ static bool match_type_check(PhaseGVN& gvn,
   //              Region
   //                 \  ConI ConI
   //                  \  |  /
-  //          val ->    Phi  ConI  <- con
-  //                     \  /
-  //                     CmpI
-  //                      |
-  //                    Bool [btest]
-  //                      |
+  //            val ->  Phi   ConI|CastII <- con
+  //                      \     /
+  //                       CmpI
+  //                        |
+  //                      Bool [btest]
+  //                        |
   //
-  if (tval->isa_int() && val->is_Phi() && val->in(0)->as_Region()->is_diamond()) {
+  if (tcon->isa_int() && val->is_Phi() && val->in(0)->as_Region()->is_diamond()) {
     RegionNode* diamond = val->in(0)->as_Region();
     IfNode* if1 = diamond->in(1)->in(0)->as_If();
     BoolNode* b1 = if1->in(1)->isa_Bool();
@@ -2567,12 +2756,16 @@ static bool match_type_check(PhaseGVN& gvn,
              b1->_test._test == BoolTest::ne, "%d", b1->_test._test);
 
       ProjNode* success_proj = if1->proj_out(b1->_test._test == BoolTest::eq ? 1 : 0);
-      int idx = diamond->find_edge(success_proj);
-      assert(idx == 1 || idx == 2, "");
-      Node* vcon = val->in(idx);
+      int success_idx = diamond->find_edge(success_proj);
+      assert(success_idx == 1 || success_idx == 2, "");
+      assert(val->req() == 3, "not a diamond");
 
-      assert(val->find_edge(con) > 0, "");
-      if ((btest == BoolTest::eq && vcon == con) || (btest == BoolTest::ne && vcon != con)) {
+      // gen_instanceof() emits 1 on success and 0 on failure.
+      // Check whether current comparison selects the success value.
+      const Type* success_tval = gvn.type(val->in(success_idx));
+      assert(success_tval->isa_int(), "not an int: %s", Type::str(success_tval));
+      if ((btest == BoolTest::eq && tcon == success_tval) ||
+          (btest == BoolTest::ne && tcon->join(success_tval)->empty())) {
         SubTypeCheckNode* sub = b1->in(1)->as_SubTypeCheck();
         Node* obj_or_subklass = sub->in(SubTypeCheckNode::ObjOrSubKlass);
         Node* superklass = sub->in(SubTypeCheckNode::SuperKlass);
@@ -2582,7 +2775,7 @@ static bool match_type_check(PhaseGVN& gvn,
           const TypeKlassPtr* improved_klass_ptr_type = klass_ptr_type->try_improve();
 
           (*obj) = obj_or_subklass;
-          (*cast_type) = improved_klass_ptr_type->cast_to_exactness(false)->as_instance_type();
+          (*cast_type) = improved_klass_ptr_type->as_subtype_instance_type();
           return true; // found
         }
       }
@@ -2601,21 +2794,25 @@ void Parse::sharpen_type_after_if(BoolTest::mask btest,
                        &obj, &cast_type)) {
     assert(obj != nullptr && cast_type != nullptr, "missing type check info");
     const Type* obj_type = _gvn.type(obj);
-    const TypeOopPtr* tboth = obj_type->join_speculative(cast_type)->isa_oopptr();
-    if (tboth != nullptr && tboth != obj_type && tboth->higher_equal(obj_type)) {
+    const Type* tboth = obj_type->filter_speculative(cast_type);
+    assert(tboth->higher_equal(obj_type) && tboth->higher_equal(cast_type), "sanity");
+    if (tboth == Type::TOP && KillPathsReachableByDeadTypeNode) {
+      // Let dead type node cleaning logic prune effectively dead path for us.
+      // CheckCastPP::Value() == TOP and it will trigger the cleanup during GVN.
+      // Don't materialize the cast when cleanup is disabled, because
+      // it kills data and control leaving IR in broken state.
+      tboth = cast_type;
+    }
+    if (tboth != Type::TOP && tboth != obj_type) {
       int obj_in_map = map()->find_edge(obj);
-      JVMState* jvms = this->jvms();
       if (obj_in_map >= 0 &&
-          (jvms->is_loc(obj_in_map) || jvms->is_stk(obj_in_map))) {
+          (jvms()->is_loc(obj_in_map) || jvms()->is_stk(obj_in_map))) {
         TypeNode* ccast = new CheckCastPPNode(control(), obj, tboth);
-        const Type* tcc = ccast->as_Type()->type();
-        assert(tcc != obj_type && tcc->higher_equal(obj_type), "must improve");
-        // Delay transform() call to allow recovery of pre-cast value
-        // at the control merge.
+        // Delay transform() call to allow recovery of pre-cast value at the control merge.
         _gvn.set_type_bottom(ccast);
         record_for_igvn(ccast);
         if (tboth->is_inlinetypeptr()) {
-          ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->exact_klass(true)->as_inline_klass());
+          ccast = InlineTypeNode::make_from_oop(this, ccast, tboth->isa_oopptr()->exact_klass(true)->as_inline_klass());
         }
         // Here's the payoff.
         replace_in_map(obj, ccast);
@@ -3424,17 +3621,17 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_i2b:
     // Sign extend
     a = pop();
-    a = Compile::narrow_value(T_BYTE, a, nullptr, &_gvn, true);
+    a = Compile::narrow_value(T_BYTE, a, TypeInt::BYTE, &_gvn, true);
     push(a);
     break;
   case Bytecodes::_i2s:
     a = pop();
-    a = Compile::narrow_value(T_SHORT, a, nullptr, &_gvn, true);
+    a = Compile::narrow_value(T_SHORT, a, TypeInt::SHORT, &_gvn, true);
     push(a);
     break;
   case Bytecodes::_i2c:
     a = pop();
-    a = Compile::narrow_value(T_CHAR, a, nullptr, &_gvn, true);
+    a = Compile::narrow_value(T_CHAR, a, TypeInt::CHAR, &_gvn, true);
     push(a);
     break;
 

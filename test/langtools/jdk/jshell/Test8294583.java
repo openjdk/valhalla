@@ -27,7 +27,6 @@
  * @summary JShell: NPE in switch with non existing record pattern
  * @build KullaTesting TestingInputStream
  * @run junit Test8294583
- * @ignore 8316628
  */
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

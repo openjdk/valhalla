@@ -544,8 +544,8 @@ void ciMethodData::clear_escape_info() {
   if (mdo != nullptr) {
     mdo->clear_escape_info();
     ArgInfoData *aid = arg_info();
-    int arg_count = (aid == nullptr) ? 0 : aid->number_of_args();
-    for (int i = 0; i < arg_count; i++) {
+    int arg_size = (aid == nullptr) ? 0 : aid->size_of_args();
+    for (int i = 0; i < arg_size; i++) {
       set_arg_modified(i, 0);
     }
   }
@@ -561,8 +561,8 @@ void ciMethodData::update_escape_info() {
     mdo->set_arg_local(_arg_local);
     mdo->set_arg_stack(_arg_stack);
     mdo->set_arg_returned(_arg_returned);
-    int arg_count = mdo->method()->size_of_parameters();
-    for (int i = 0; i < arg_count; i++) {
+    int arg_size = mdo->method()->size_of_parameters();
+    for (int i = 0; i < arg_size; i++) {
       mdo->set_arg_modified(i, arg_modified(i));
     }
   }
@@ -659,7 +659,7 @@ void ciMethodData::set_arg_modified(int arg, uint val) {
   ArgInfoData *aid = arg_info();
   if (aid == nullptr)
     return;
-  assert(arg >= 0 && arg < aid->number_of_args(), "valid argument number");
+  assert(arg >= 0 && arg < aid->size_of_args(), "valid argument number");
   aid->set_arg_modified(arg, val);
 }
 
@@ -679,7 +679,7 @@ uint ciMethodData::arg_modified(int arg) const {
   ArgInfoData *aid = arg_info();
   if (aid == nullptr)
     return 0;
-  assert(arg >= 0 && arg < aid->number_of_args(), "valid argument number");
+  assert(arg >= 0 && arg < aid->size_of_args(), "valid argument number");
   return aid->arg_modified(arg);
 }
 
@@ -724,9 +724,9 @@ void ciMethodData::dump_replay_data_type_helper(outputStream* out, int round, in
     } else {
       if (k->is_obj_array_klass()) {
         // We also record the array property to load the correct array class during replay compilation.
-        ArrayKlass::ArrayProperties array_properties = k->as_obj_array_klass()->properties();
+        const ArrayProperties array_properties = k->as_obj_array_klass()->properties();
         out->print(" %d %s %d", static_cast<int>(dp_to_di(pdata->dp() + in_bytes(offset)) / sizeof(intptr_t)),
-                                      CURRENT_ENV->replay_name(k), static_cast<int>(array_properties));
+                                      CURRENT_ENV->replay_name(k), array_properties.value());
       } else {
         out->print(" %d %s", static_cast<int>(dp_to_di(pdata->dp() + in_bytes(offset)) / sizeof(intptr_t)),
                              CURRENT_ENV->replay_name(k));
