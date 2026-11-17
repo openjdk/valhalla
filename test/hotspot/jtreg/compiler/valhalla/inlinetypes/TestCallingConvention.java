@@ -38,6 +38,7 @@ import static compiler.valhalla.inlinetypes.InlineTypeIRNode.STORE_OF_ANY_KLASS;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import static compiler.lib.ir_framework.IRNode.ALLOC;
+import static compiler.lib.ir_framework.IRNode.CALL_OF_METHOD;
 import static compiler.lib.ir_framework.IRNode.PREDICATE_TRAP;
 import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
 
@@ -50,13 +51,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.test.whitebox.WhiteBox
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 0
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -64,13 +63,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.test.whitebox.WhiteBox
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -78,13 +75,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.test.whitebox.WhiteBox
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -92,13 +87,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.test.whitebox.WhiteBox
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 3
+ * @run driver ${test.main.class} 3
  */
 
 /*
@@ -106,13 +99,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.test.whitebox.WhiteBox
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -120,13 +111,11 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.test.whitebox.WhiteBox
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -134,19 +123,15 @@ import jdk.internal.vm.annotation.NullRestricted;
  * @key randomness
  * @summary Test value class calling convention optimizations.
  * @library /test/lib /
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.test.whitebox.WhiteBox
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI compiler.valhalla.inlinetypes.TestCallingConvention 6
+ * @run driver ${test.main.class} 6
  */
 
 @ForceCompileClassInitializer
 public class TestCallingConvention {
-
-    private final static WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
     static {
         try {
@@ -167,6 +152,9 @@ public class TestCallingConvention {
 
             mt = MethodType.methodType(MyValue2.class, boolean.class);
             test56_mh = lookup.findVirtual(clazz, "test56_callee", mt);
+
+            mt = MethodType.methodType(MyValue2.class, MyValue2.class);
+            test59_mh = lookup.findStatic(clazz, "test59_callee", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
@@ -1418,17 +1406,16 @@ public class TestCallingConvention {
         }
     }
 
-    static boolean expectedUseArrayFlattening = WHITE_BOX.getBooleanVMFlag("UseArrayFlattening");
-
-    // Test value class return from native method
+    // Test value class (Boolean) return from native method
     @Test
-    public boolean test57() {
-        return WHITE_BOX.getBooleanVMFlag("UseArrayFlattening");
+    public boolean test57(WhiteBox wb) {
+        return wb.getBooleanVMFlag("UseArrayFlattening");
     }
 
     @Run(test = "test57")
     public void test57_verifier() {
-        Asserts.assertEQ(test57(), expectedUseArrayFlattening);
+        WhiteBox wb = WhiteBox.getWhiteBox();
+        Asserts.assertEQ(test57(wb), wb.getBooleanVMFlag("UseArrayFlattening"));
     }
 
     // Test abstract value class with flat fields
@@ -1475,5 +1462,140 @@ public class TestCallingConvention {
     @Run(test = "test58")
     public void test58_verifier() {
         Asserts.assertEQ(test58(new MyValue58A(), new MyValue58B(), new MyValue58C()), new MyValue58C());
+    }
+
+    static MethodHandle test59_mh;
+
+    public static MyValue2 test59_callee(MyValue2 arg) {
+        int div = 0;
+        int res = 42 / div; // Always throws an ArithmeticException
+        return arg;
+    }
+
+    // Method handle with a scalarized return that will always throw an exception
+    @Test
+    public static MyValue2 test59(MyValue2 val) throws Throwable {
+        return (MyValue2)test59_mh.invokeExact(val);
+    }
+
+    @Run(test = "test59")
+    @Warmup(10000) // Trigger compilation of LambdaForm method
+    public void test59_verifier() throws Throwable {
+        try {
+            test59(null);
+        } catch (ArithmeticException e) {
+            // Expected
+        }
+    }
+
+    static interface Interface60 {
+        public void m(MyValue2 val);
+    }
+
+    static class Impl60_1 implements Interface60 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+        }
+    }
+
+    static class Impl60_2 implements Interface60 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+        }
+    }
+
+    static class Impl60_3 implements Interface60 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+        }
+    }
+
+    // Verify that the scalarized calling convention works for abstract methods
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC})
+    public void test60(Interface60 intf) {
+        intf.m(MyValue2.createWithFieldsInline(rI, rD));
+    }
+
+    @Run(test = "test60")
+    public void test60_verifier() {
+        test60(new Impl60_1());
+        test60(new Impl60_2());
+        test60(new Impl60_3());
+    }
+
+    static abstract value class ValueClass61 {
+        public abstract void m(MyValue2 val);
+    }
+
+    static value class Impl61_1 extends ValueClass61 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+        }
+    }
+
+    static value class Impl61_2 extends ValueClass61 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+        }
+    }
+
+    static value class Impl61_3 extends ValueClass61 {
+        public void m(MyValue2 val) {
+            Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+        }
+    }
+
+    // Same as test60 but with abstract value class
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC})
+    public void test61(ValueClass61 intf) {
+        intf.m(MyValue2.createWithFieldsInline(rI, rD));
+    }
+
+    @Run(test = "test61")
+    public void test61_verifier() {
+        test61(new Impl61_1());
+        test61(new Impl61_2());
+        test61(new Impl61_3());
+    }
+
+    public static abstract value class ValueClass62 {
+        public abstract void m(MyValue2 val);
+    }
+
+    public static value class Impl62_1 extends ValueClass62 {
+        @ForceInline
+        public void m(MyValue2 val) {
+            // Empty to keep IR matching in test62 simple
+        }
+    }
+
+    // Hide the second subclass from the IR framework to prevent it from class loading
+    static class Holder {
+        static value class Impl62_2 extends ValueClass62 {
+            public void m(MyValue2 val) {
+                Asserts.assertEQ(val, MyValue2.createWithFieldsInline(rI, rD));
+            }
+        }
+    }
+
+    // Test strength reduction of virtual call to static call with scalarized receiver
+    @Test
+    @IR(failOn = {ALLOC, CALL_OF_METHOD, "m"})
+    public static void test62(ValueClass62 intf, MyValue2 val) {
+        intf.m(val);
+    }
+
+    static boolean alwaysFalse = false;
+
+    @Run(test = "test62")
+    public void test62_verifier(RunInfo info) {
+        test62(new Impl62_1(), MyValue2.createWithFieldsInline(rI, rD));
+        if (!info.isWarmUp()) {
+            test62(new Holder.Impl62_2(), MyValue2.createWithFieldsInline(rI, rD));
+        }
     }
 }

@@ -48,6 +48,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/array.hpp"
+#include "oops/bsmAttribute.inline.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -154,9 +155,8 @@ void ConstantPool::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_tags, MetaspaceClosure::_writable);
   it->push(&_cache);
   it->push(&_pool_holder);
-  it->push(&bsm_entries().offsets());
-  it->push(&bsm_entries().bootstrap_methods());
   it->push(&_resolved_klasses, MetaspaceClosure::_writable);
+  bsm_entries().metaspace_pointers_do(it);
 
   for (int i = 0; i < length(); i++) {
     // The only MSO's embedded in the CP entries are Symbols:
@@ -313,8 +313,9 @@ void ConstantPool::iterate_archivable_resolved_references(Function function) {
     if (method_entries != nullptr) {
       for (int i = 0; i < method_entries->length(); i++) {
         ResolvedMethodEntry* rme = method_entries->adr_at(i);
+        const char* rejection_reason = nullptr;
         if (rme->is_resolved(Bytecodes::_invokehandle) && rme->has_appendix() &&
-            cache()->can_archive_resolved_method(this, rme)) {
+                               cache()->can_archive_resolved_method(this, rme, rejection_reason)) {
           int rr_index = rme->resolved_references_index();
           assert(resolved_reference_at(rr_index) != nullptr, "must exist");
           function(rr_index);
@@ -679,7 +680,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int cp_ind
     verify_constant_pool_resolve(this_cp, k, THREAD);
   }
 
-#ifdef DEBUG
+#ifdef ASSERT
   if (!HAS_PENDING_EXCEPTION && k->is_objArray_klass()) {
     Klass* bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
     assert(bottom_klass != nullptr, "Should be set");
@@ -2433,4 +2434,9 @@ void BSMAttributeEntries::end_extension(InsertionIterator& iter, ClassLoaderData
   deallocate_contents(loader_data);
   _offsets = new_offsets;
   _bootstrap_methods = new_array;
+}
+
+void BSMAttributeEntries::metaspace_pointers_do(MetaspaceClosure* it) {
+  it->push(&_offsets);
+  it->push(&_bootstrap_methods);
 }

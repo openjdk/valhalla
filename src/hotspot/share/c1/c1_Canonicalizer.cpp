@@ -645,14 +645,14 @@ void Canonicalizer::do_CheckCast      (CheckCast*       x) {
                           klass->as_instance_klass()->is_interface();
       // Interface casts can't be statically optimized away since verifier doesn't
       // enforce interface types in bytecode.
-      if (!is_interface && klass->is_subtype_of(x->klass()) && (!x->is_null_free() || obj->is_null_free())) {
+      if (!is_interface && klass->is_subtype_of(x->klass())) {
         assert(!x->klass()->is_inlinetype() || x->klass() == klass, "Inline klasses can't have subtypes");
         set_canonical(obj);
         return;
       }
     }
     // checkcast of null returns null for non null-free klasses
-    if (!x->is_null_free() && obj->is_null_obj()) {
+    if (obj->is_null_obj()) {
       set_canonical(obj);
     }
   }
@@ -666,7 +666,7 @@ void Canonicalizer::do_InstanceOf     (InstanceOf*      x) {
       return;
     }
     // instanceof null returns false
-    if (obj->as_Constant() && obj->is_null_obj()) {
+    if (obj->is_null_obj()) {
       set_constant(0);
     }
   }
@@ -724,7 +724,9 @@ void Canonicalizer::do_If(If* x) {
     return;
   }
 
-  if (lt->is_constant() && rt->is_constant()) {
+  // Simplify further when we have two constants. However, if we have a substitutability check
+  // we must not constant fold as this would loose the substitutability semantics.
+  if (lt->is_constant() && rt->is_constant() && !x->substitutability_check()) {
     if (x->x()->as_Constant() != nullptr) {
       // pattern: If (lc cond rc) => simplify to: Goto
       BlockBegin* sux = x->x()->as_Constant()->compare(x->cond(), x->y(),

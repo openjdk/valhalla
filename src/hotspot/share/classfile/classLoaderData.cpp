@@ -1,5 +1,5 @@
  /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@
 // The bootstrap loader (represented by null) also has a ClassLoaderData,
 // the singleton class the_null_class_loader_data().
 
+#include "cds/heapShared.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataGraph.inline.hpp"
 #include "classfile/dictionary.hpp"
@@ -289,19 +290,6 @@ void ClassLoaderData::verify_not_claimed(int claim) {
 }
 #endif
 
-bool ClassLoaderData::try_claim(int claim) {
-  for (;;) {
-    int old_claim = AtomicAccess::load(&_claim);
-    if ((old_claim & claim) == claim) {
-      return false;
-    }
-    int new_claim = old_claim | claim;
-    if (AtomicAccess::cmpxchg(&_claim, old_claim, new_claim) == old_claim) {
-      return true;
-    }
-  }
-}
-
 void ClassLoaderData::demote_strong_roots() {
   // The oop handle area contains strong roots that the GC traces from. We are about
   // to demote them to strong native oops that the GC does *not* trace from. Conceptually,
@@ -369,11 +357,7 @@ void ClassLoaderData::dec_keep_alive_ref_count() {
   }
 }
 
-void ClassLoaderData::oops_do(OopClosure* f, int claim_value, bool clear_mod_oops) {
-  if (claim_value != ClassLoaderData::_claim_none && !try_claim(claim_value)) {
-    return;
-  }
-
+void ClassLoaderData::oops_do_slow(OopClosure* f, bool clear_mod_oops) {
   // Only clear modified_oops after the ClassLoaderData is claimed.
   if (clear_mod_oops) {
     clear_modified_oops();
@@ -912,6 +896,7 @@ void ClassLoaderData::free_deallocate_list() {
       if (m->is_method()) {
         MetadataFactory::free_metadata(this, (Method*)m);
       } else if (m->is_constantPool()) {
+        HeapShared::remove_scratch_resolved_references((ConstantPool*)m);
         MetadataFactory::free_metadata(this, (ConstantPool*)m);
       } else if (m->is_klass()) {
         if (!((Klass*)m)->is_inline_klass()) {

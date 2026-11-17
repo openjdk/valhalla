@@ -23,8 +23,6 @@
  */
 
 #include "oops/access.inline.hpp"
-#include "oops/oop.inline.hpp"
-#include "oops/refArrayKlass.hpp"
 #include "oops/refArrayOop.inline.hpp"
 
 oop refArrayOopDesc::replace_if_null(int index, oop exchange_value) {
@@ -35,8 +33,4 @@ oop refArrayOopDesc::replace_if_null(int index, oop exchange_value) {
     offs = refArrayOopDesc::obj_at_offset<oop>(index);
   }
   return HeapAccess<IS_ARRAY>::oop_atomic_cmpxchg_at(as_oop(), offs, (oop)nullptr, exchange_value);
-}
-
-Klass* refArrayOopDesc::element_klass() {
-  return RefArrayKlass::cast(klass())->element_klass();
 }

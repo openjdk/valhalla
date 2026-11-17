@@ -48,7 +48,7 @@ import jdk.test.whitebox.WhiteBox;
 
  public class AnnotationsTests {
     private static final WhiteBox WHITEBOX = WhiteBox.getWhiteBox();
-    private static final boolean UseNullableValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableValueFlattening");
+    private static final boolean UseNullableAtomicValueFlattening = WHITEBOX.getBooleanVMFlag("UseNullableAtomicValueFlattening");
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
@@ -67,28 +67,6 @@ import jdk.test.whitebox.WhiteBox;
                 }
             }
         }
-    }
-
-    static class BadClass0 {
-        @NullRestricted
-        String s;
-
-        BadClass0() {
-            s = new String("bad");
-            super();
-        }
-    }
-
-    // Test detection of illegal usage of NullRestricted on an identity field
-    void test_0() {
-        Throwable exception = null;
-        try {
-            BadClass0 bc = new BadClass0();
-        } catch (IncompatibleClassChangeError e) {
-            exception = e;
-            System.out.println("Received " + e);
-        }
-        Asserts.assertNotNull(exception, "Failed to detect illegal use of @NullRestricted");
     }
 
     // Test invalid usage of @LooselyConsistentValue on an identity class
@@ -132,7 +110,7 @@ import jdk.test.whitebox.WhiteBox;
         try {
             GoodClass5 vc = new GoodClass5();
             Field f0 = vc.getClass().getDeclaredField("f0");
-            if (UseNullableValueFlattening) {
+            if (UseNullableAtomicValueFlattening) {
                 Asserts.assertTrue(UNSAFE.isFlatField(f0), "Flat field expected, but field is not flat");
             } else {
                 Asserts.assertFalse(UNSAFE.isFlatField(f0), "Unexpected flat field");
@@ -175,11 +153,11 @@ import jdk.test.whitebox.WhiteBox;
         Throwable exception = null;
         try {
             BadClass6 bc = new BadClass6();
-        } catch (ClassCircularityError e) {
+        } catch (StackOverflowError e) {
             exception = e;
             System.out.println("Received " + e);
         }
-        Asserts.assertNotNull(exception, "Failed to detect circularity");
+        Asserts.assertNotNull(exception, "Failed to trigger infinite recursion");
     }
 
     // Test null restricted static field

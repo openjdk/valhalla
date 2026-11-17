@@ -67,7 +67,7 @@
 #define NOFAILOVER_MAJOR_VERSION                       51
 #define NONZERO_PADDING_BYTES_IN_SWITCH_MAJOR_VERSION  51
 #define STATIC_METHOD_IN_INTERFACE_MAJOR_VERSION       52
-#define INLINE_TYPE_MAJOR_VERSION                       56
+#define INLINE_TYPE_MAJOR_VERSION                      56
 #define MAX_ARRAY_DIMENSIONS 255
 
 // Access to external entry for VerifyClassForMajorVersion - old byte code verifier
@@ -224,9 +224,9 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
     split_verifier.verify_class(THREAD);
     exception_name = split_verifier.result();
 
-    // If dumping {classic, final} static archive, don't bother to run the old verifier, as
+    // If dumping classic static archive, don't bother to run the old verifier, as
     // the class will be excluded from the archive anyway.
-    bool can_failover = !(CDSConfig::is_dumping_classic_static_archive() || CDSConfig::is_dumping_final_static_archive()) &&
+    bool can_failover = !(CDSConfig::is_dumping_classic_static_archive()) &&
       klass->major_version() < NOFAILOVER_MAJOR_VERSION;
 
     if (can_failover && !HAS_PENDING_EXCEPTION &&  // Split verifier doesn't set PENDING_EXCEPTION for failure
@@ -235,9 +235,9 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
       log_info(verification)("Fail over class verification to old verifier for: %s", klass->external_name());
       log_info(class, init)("Fail over class verification to old verifier for: %s", klass->external_name());
 #if INCLUDE_CDS
-      // Exclude any classes that are verified with the old verifier, as the old verifier
-      // doesn't call SystemDictionaryShared::add_verification_constraint()
-      if (CDSConfig::is_dumping_archive()) {
+      // Exclude any classes that are verified with the old verifier when the verification constraints
+      // cannot be preserved.
+      if (CDSConfig::is_dumping_archive() && !CDSConfig::is_preserving_verification_constraints()) {
         SystemDictionaryShared::log_exclusion(klass, "Verified with old verifier");
         SystemDictionaryShared::set_excluded(klass);
       }
@@ -246,6 +246,10 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
       exception_message = message_buffer;
       exception_name = inference_verify(
         klass, message_buffer, message_buffer_len, THREAD);
+
+      if (exception_name == nullptr && !HAS_PENDING_EXCEPTION) {
+        klass->set_fail_over_verified();
+      }
     }
     if (exception_name != nullptr) {
       exception_message = split_verifier.exception_message();
@@ -639,9 +643,6 @@ static bool supports_strict_fields(InstanceKlass* klass) {
 
 void ClassVerifier::verify_class(TRAPS) {
   log_info(verification)("Verifying class %s with new format", _klass->external_name());
-
-  // Either verifying both local and remote classes or just remote classes.
-  assert(BytecodeVerificationRemote, "Should not be here");
 
   Array<Method*>* methods = _klass->methods();
   int num_methods = methods->length();

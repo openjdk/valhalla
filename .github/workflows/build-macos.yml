@@ -75,7 +75,7 @@ jobs:
 
     steps:
       - name: 'Checkout the JDK source'
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: 'Get the BootJDK'
         id: bootjdk
@@ -110,7 +110,6 @@ jobs:
           --with-gtest=${{ steps.gtest.outputs.path }}
           --with-zlib=system
           --with-jmod-compress=zip-1
-          --disable-jvm-feature-shenandoahgc
           --with-external-symbols-in-bundles=none
           --with-native-debug-symbols-level=1
           ${{ inputs.extra-conf-options }} ${{ inputs.configure-arguments }} || (

@@ -134,8 +134,9 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     assert(!field->is_static(), "must not be a static field");
     InlineTypeNode* vt = obj->as_InlineType();
     Node* value = vt->field_value_by_offset(field->offset_in_bytes(), false);
-    if (value->is_InlineType()) {
-      value = value->as_InlineType()->adjust_scalarization_depth(this);
+    const Type* value_type = _gvn.type(value);
+    if (value_type->is_inlinetypeptr()) {
+      value = InlineTypeNode::make_from_oop(this, value, value_type->inline_klass());
     }
     pop();
     push_node(field->layout_type(), value);
@@ -151,17 +152,21 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
          "slice of address and input slice don't match");
 
   Node* ld = nullptr;
-  if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
-    // Loading from a field of an empty inline type. Just return the default instance.
-    ld = InlineTypeNode::make_all_zero(_gvn, field_klass->as_inline_klass());
-  } else if (field->is_flat()) {
-    // Loading from a flat inline type field.
-    ciInlineKlass* vk = field->type()->as_inline_klass();
-    bool is_immutable = field->is_final() && field->is_strict();
-    bool atomic = field->is_atomic();
-    ld = InlineTypeNode::make_from_flat(this, field_klass->as_inline_klass(), obj, adr, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
-  } else {
+  if (field_klass->is_inlinetype()) { // could also have an abstract value class
+    ciInlineKlass* vk = field_klass->as_inline_klass();
+    if (field->is_null_free() && vk->is_empty()) {
+      // Loading from a field of an empty inline type. Just return the default instance.
+      ld = InlineTypeNode::make_all_zero(_gvn, vk);
+    } else if (field->is_flat()) {
+      // Loading from a flat inline type field.
+      bool is_immutable = field->is_final() && field->is_strict();
+      bool atomic = field->is_atomic();
+      ld = InlineTypeNode::make_from_flat(this, vk, obj, adr, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
+    }
+  }
+  if (ld == nullptr) {
     // Build the resultant type of the load
+    assert(!field->is_flat(), "cannot be flat");
     const Type* type;
     if (is_reference_type(bt)) {
       if (!field_klass->is_loaded()) {
@@ -270,23 +275,31 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
 
   // We cannot store into a non-larval object, so obj must not be an InlineTypeNode
   assert(!obj->is_InlineType(), "InlineTypeNodes are non-larval value objects");
-  if (field->is_null_free() && field->type()->as_inline_klass()->is_empty() && (!method()->is_object_constructor() || field->is_flat())) {
-    // Storing to a field of an empty, null-free inline type that is already initialized. Ignore.
-    return;
-  } else if (field->is_flat()) {
-    // Storing to a flat inline type field.
-    ciInlineKlass* vk = field->type()->as_inline_klass();
-    if (!val->is_InlineType()) {
-      assert(gvn().type(val) == TypePtr::NULL_PTR, "Unexpected value");
-      val = InlineTypeNode::make_null(gvn(), vk);
+  ciType* field_klass = field->type();
+  bool do_store = true;
+  if (field_klass->is_inlinetype()) { // could also have an abstract value class
+    ciInlineKlass* vk = field_klass->as_inline_klass();
+    if (field->empty_null_free_initialized_value_field(!method()->is_object_constructor())) {
+      // Storing to an empty, null-free inline type field that is already initialized. Ignore.
+      return;
     }
-    inc_sp(1);
-    bool is_immutable = field->is_final() && field->is_strict();
-    bool atomic = field->is_atomic();
-    val->as_InlineType()->store_flat(this, obj, adr, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
-    dec_sp(1);
-  } else {
+    if (field->is_flat()) {
+      // Storing to a flat inline type field.
+      if (!val->is_InlineType()) {
+        assert(gvn().type(val) == TypePtr::NULL_PTR, "Unexpected value");
+        val = InlineTypeNode::make_null(gvn(), vk);
+      }
+      inc_sp(1);
+      bool is_immutable = field->is_final() && field->is_strict();
+      bool atomic = field->is_atomic();
+      val->as_InlineType()->store_flat(this, obj, adr, atomic, is_immutable, field->is_null_free(), IN_HEAP | MO_UNORDERED);
+      dec_sp(1);
+      do_store = false;
+    }
+  }
+  if (do_store) {
     // Store the value.
+    assert(!field->is_flat(), "cannot be flat");
     const Type* field_type;
     if (!field->type()->is_loaded()) {
       field_type = TypeInstPtr::BOTTOM;
@@ -325,8 +338,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     // can insert a memory barrier later on to keep the writes from floating
     // out of the constructor.
     if (field->is_final() || field->is_stable()) {
-      if (field->is_final()) {
-        set_wrote_final(true);
+      if (field->is_final() && !field->is_strict()) {
+        set_wrote_non_strict_final(true);
       }
       if (field->is_stable()) {
         set_wrote_stable(true);

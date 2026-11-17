@@ -43,11 +43,14 @@ import java.io.File;
 
 import java.lang.classfile.Attributes;
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
 import java.lang.classfile.Instruction;
+import java.lang.classfile.MethodModel;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.instruction.FieldInstruction;
 import java.lang.constant.ConstantDescs;
 import java.lang.reflect.AccessFlag;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -167,7 +170,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
 
     private static final List<TestData> superClassConstraints = List.of(
             new TestData(
-                    "compiler.err.super.class.method.cannot.be.synchronized",
+                    "compiler.err.value.type.has.identity.super.type",
                     """
                     abstract class I {
                         synchronized void foo() {}
@@ -176,7 +179,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """
             ),
             new TestData(
-                    "compiler.err.concrete.supertype.for.value.class",
+                    "compiler.err.value.type.has.identity.super.type",
                     """
                     class ConcreteSuperType {
                         static abstract value class V extends ConcreteSuperType {}  // Error: concrete super.
@@ -870,11 +873,11 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertOK(
+        assertFail("compiler.err.var.might.not.have.been.initialized",
                 """
                 value class V {
                     int x;
-                    int y = x + 1; // allowed
+                    int y = x + 1; // error
                     V() {
                         x = 12;
                         // super();
@@ -882,6 +885,17 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+        assertOK("""
+                value class V {
+                    int y;
+                    int x = (y = 1);
+
+                    V() {
+                        int z = y; // ok
+                        super();
+                    }
+                }
+                """);
         assertFail("compiler.err.cant.ref.before.ctor.called",
                 """
                 value class V2 {
@@ -904,7 +918,7 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertOK(
+        assertFail("compiler.err.var.might.not.have.been.initialized",
                 """
                 value class V4 {
                     int x;
@@ -1041,6 +1055,88 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+    }
+
+    @Test
+    void testSyntheticCapturesInEarlyInitializers() throws Exception {
+        File dir = assertOK(true, """
+          class Test {
+              class Inner { }
+              value class V {
+                  Object o = new Inner(); // this$0 ref
+                  V() { super(); }
+              }
+              public static void main(String[] args) {
+                  Test t = new Test();
+                  t.new V();
+              }
+          }
+          """);
+        invokeMain("Test", dir);
+
+        dir = assertOK(true, """
+          class Test {
+              static class Box { Box(int i) { } }
+              static void test() {
+                  int x = 42;
+                  value class V {
+                      Object o = new Box(x); // capture ref
+                      V() { super(); }
+                  }
+                  new V();
+              }
+              public static void main(String[] args) {
+                  test();
+              }
+          }
+          """);
+        invokeMain("Test", dir);
+
+        dir = assertOK(true, """
+          import java.util.function.Supplier;
+
+          class Test {
+              static int seen;
+              static class Box { Box(int i) { } }
+              static void test() {
+                  int x = 42;
+                  value class V {
+                      Supplier<Box> s = () -> new Box(x); // lambda capture ref
+                      V() { super(); }
+                  }
+                  new V().s.get();
+              }
+              public static void main(String[] args) {
+                  test();
+              }
+          }
+          """);
+        invokeMain("Test", dir);
+
+        dir = assertOK(true, """
+          import java.util.function.Supplier;
+
+          class Test {
+              static int seen;
+              class Inner { }
+              value class V {
+                  Supplier<Inner> s = () -> new Inner(); // lambda this$0 ref
+                  V() { super(); }
+              }
+              public static void main(String[] args) {
+                  Test t = new Test();
+                  t.new V().s.get();
+              }
+          }
+          """);
+        invokeMain("Test", dir);
+    }
+
+    void invokeMain(String className, File dir) throws Exception {
+        Method method = loadClass(className, dir)
+                .getDeclaredMethod("main", String[].class);
+        method.setAccessible(true);
+        method.invoke(null, (Object) new String[0]);
     }
 
     void checkMnemonicsFor(String source, String expectedMnemonics) throws Exception {
@@ -1188,6 +1284,30 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     import java.io.*;
                     value class VC implements Serializable {
                         private static final long serialVersionUID = 0;
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.ineffectual.serial.method.value.class",
+                    """
+                    import java.io.*;
+                    value class VC implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        private void writeObject(ObjectOutputStream stream) throws IOException {}
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.ineffectual.serial.method.value.class",
+                    """
+                    import java.io.*;
+                    value class VC implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        private void readObject(ObjectInputStream stream) throws IOException, ClassNotFoundException {}
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.ineffectual.serial.method.value.class",
+                    """
+                    import java.io.*;
+                    value class VC implements Serializable {
+                        private static final long serialVersionUID = 0;
+                        private void readObjectNoData() throws ObjectStreamException {}
                     }
                     """);
             assertOK(
@@ -1542,5 +1662,90 @@ class ValueObjectCompilationTests extends CompilationTestCase {
                     """,
                     "aconst_null,putstatic,getstatic,astore_2,aload_0,aload_2,putfield,aload_0,aload_2," +
                     "putfield,aload_0,invokespecial,return");
+    }
+
+    @Test
+    void testIdentityRecordUsesPreview() throws Exception {
+        String source_withComponents =
+                """
+                record IdentityRecord(int x, int y) {
+                    IdentityRecord(int x, int y) {
+                        this.x = x;
+                        if (x < 0) {
+                            y = -y;
+                        }
+                        this.y = y;
+                    }
+                }
+                """;
+        String source_noComponents =
+                """
+                record IdentityRecord() {}
+                """;
+
+        // --enable-preview - use preview VM features
+        String[] previousOptions = getCompileOptions();
+        try {
+            setCompileOptions("--enable-preview",
+                    "-source", Integer.toString(Runtime.version().feature()),
+                    "-Xlint:preview");
+
+            File dir = assertOK(true, source_withComponents);
+            File classFile = new File(dir, "IdentityRecord.class");
+            Assert.check(classFile.exists(), "missing class file");
+            var classModel = ClassFile.of().parse(classFile.toPath());
+            Assert.check(classModel.minorVersion() == ClassFile.PREVIEW_MINOR_VERSION,
+                    "identity records should produce preview class files when compiled with preview enabled");
+            Assert.check(classModel.fields().stream().allMatch(f -> f.flags().has(AccessFlag.STRICT_INIT)),
+                    "identity record component instance field should be strictly initialized with preview enabled");
+            var constructor = classModel.methods()
+                    .stream()
+                    .filter(mm -> mm.methodName().equalsString(ConstantDescs.INIT_NAME))
+                    .findFirst()
+                    .orElseThrow();
+            System.err.println(constructor.toDebugString());
+            var stackMaps = constructor.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
+            Assert.check(stackMaps.entries().getFirst().frameType() == 246,
+                    "identity record constructor StackMapTable should declare unset fields with preview enabled");
+
+            dir = assertOK(true, source_noComponents);
+            classFile = new File(dir, "IdentityRecord.class");
+            Assert.check(classFile.exists(), "missing class file");
+            Assert.check(ClassFile.of().parse(classFile.toPath()).minorVersion() == 0,
+                    "identity records with no components should not produce preview class files even with preview enabled");
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+
+        // No preview - no preview VM features
+        previousOptions = getCompileOptions();
+        try {
+            setCompileOptions("-source", "28");
+
+            File dir = assertOK(true, source_withComponents);
+            File classFile = new File(dir, "IdentityRecord.class");
+            Assert.check(classFile.exists(), "missing class file");
+            var classModel = ClassFile.of().parse(classFile.toPath());
+            Assert.check(classModel.minorVersion() == 0,
+                    "identity records should not preview class files for older releases");
+            Assert.check(classModel.fields().stream().noneMatch(f -> f.flags().has(AccessFlag.STRICT_INIT)),
+                    "identity record component instance field should not be strictly initialized for older releases");
+            var constructor = classModel.methods()
+                    .stream()
+                    .filter(mm -> mm.methodName().equalsString(ConstantDescs.INIT_NAME))
+                    .findFirst()
+                    .orElseThrow();
+            var stackMaps = constructor.code().orElseThrow().findAttribute(Attributes.stackMapTable()).orElseThrow();
+            Assert.check(stackMaps.entries().getFirst().frameType() != 246,
+                    "identity record constructor StackMapTable should not declare unset fields for older releases");
+
+            dir = assertOK(true, source_noComponents);
+            classFile = new File(dir, "IdentityRecord.class");
+            Assert.check(classFile.exists(), "missing class file");
+            Assert.check(ClassFile.of().parse(classFile.toPath()).minorVersion() == 0,
+                    "identity records with no components should not produce preview class files for older releases");
+        } finally {
+            setCompileOptions(previousOptions);
+        }
     }
 }

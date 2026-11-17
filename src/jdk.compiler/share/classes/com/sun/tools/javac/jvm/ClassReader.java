@@ -73,6 +73,7 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.ByteBuffer.UnderflowException;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.Fragment;
+import com.sun.tools.javac.util.Log.DeferredDiagnosticHandler;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -298,8 +299,7 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         warnOnIllegalUtf8 = Feature.WARN_ON_ILLEGAL_UTF8.allowedInSource(source);
@@ -598,19 +598,17 @@ public class ClassReader {
                                                          startSbp,
                                                          sbp - startSbp));
 
-                Type result;
                 try {
                     if (outer == Type.noType) {
                         ClassType et = (ClassType) t.erasure(types);
-                        result = new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
-                    } else {
-                        result = new ClassType(outer, List.nil(), t, List.nil());
+                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
                     }
-                    return result;
+                    return new ClassType(outer, List.nil(), t);
                 } finally {
                     sbp = startSbp;
                 }
             }
+
             case '<':           // generic arguments
                 ClassSymbol t = enterClass(readName(signatureBuffer,
                                                          startSbp,
@@ -627,7 +625,7 @@ public class ClassReader {
                  * could change in the future
                  */
                 final List<Type> actualsCp = actuals;
-                outer = new ClassType(outer, actuals, t, List.nil()) {
+                outer = new ClassType(outer, actuals, t) {
                         boolean completed = false;
                         boolean typeArgsSet = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -706,7 +704,7 @@ public class ClassReader {
                     signatureBuffer[sbp++] = (byte)'$';
                     break;
                 default:
-                    throw new AssertionError((char)signature[sigp-1]);
+                    throw new AssertionError(signature[sigp-1]);
                 }
                 continue;
 
@@ -716,7 +714,7 @@ public class ClassReader {
                     t = enterClass(readName(signatureBuffer,
                                                  startSbp,
                                                  sbp - startSbp));
-                    outer = new ClassType(outer, List.nil(), t, List.nil());
+                    outer = new ClassType(outer, List.nil(), t);
                 }
                 signatureBuffer[sbp++] = (byte)'$';
                 continue;
@@ -1393,9 +1391,7 @@ public class ClassReader {
         else
             self.fullname = ClassSymbol.formFullName(self.name, self.owner);
 
-        if (m != null) {
-            ((ClassType)sym.type).setEnclosingType(m.type);
-        } else if ((self.flags_field & STATIC) == 0) {
+        if ((self.flags_field & STATIC) == 0 && (m == null || (m.flags_field & STATIC) == 0)) {
             ((ClassType)sym.type).setEnclosingType(c.type);
         } else {
             ((ClassType)sym.type).setEnclosingType(Type.noType);
@@ -1587,10 +1583,10 @@ public class ClassReader {
                 } else if (proxy.type.tsym == syms.deprecatedType.tsym) {
                     sym.flags_field |= (DEPRECATED | DEPRECATED_ANNOTATION);
                     setFlagIfAttributeTrue(proxy, sym, names.forRemoval, DEPRECATED_REMOVAL);
-                }  else if (proxy.type.tsym == syms.previewFeatureType.tsym) {
+                } else if (proxy.type.tsym == syms.previewFeatureType.tsym) {
                     sym.flags_field |= PREVIEW_API;
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
-                }  else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
+                } else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
                 } else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
@@ -2070,15 +2066,27 @@ public class ClassReader {
         }
 
         Attribute.Compound deproxyCompound(CompoundAnnotationProxy a) {
-            Type annotationType = resolvePossibleProxyType(a.type);
-            ListBuffer<Pair<Symbol.MethodSymbol,Attribute>> buf = new ListBuffer<>();
-            for (List<Pair<Name,Attribute>> l = a.values;
-                 l.nonEmpty();
-                 l = l.tail) {
-                MethodSymbol meth = findAccessMethod(annotationType, l.head.fst);
-                buf.append(new Pair<>(meth, deproxy(meth.type.getReturnType(), l.head.snd)));
+            DeferredDiagnosticHandler deferred = log.new DeferredDiagnosticHandler();
+            Type annotationType = syms.objectType;
+            try {
+                annotationType = resolvePossibleProxyType(a.type);
+                ListBuffer<Pair<Symbol.MethodSymbol,Attribute>> buf = new ListBuffer<>();
+                for (List<Pair<Name,Attribute>> l = a.values;
+                     l.nonEmpty();
+                     l = l.tail) {
+                    MethodSymbol meth = findAccessMethod(annotationType, l.head.fst);
+                    buf.append(new Pair<>(meth, deproxy(meth.type.getReturnType(), l.head.snd)));
+                }
+                return new Attribute.Compound(annotationType, buf.toList());
+            } finally {
+                if (!annotationType.tsym.type.hasTag(TypeTag.ERROR)) {
+                    //if the annotation type does not exists
+                    //throw away warnings reported while de-proxying the annotation,
+                    //as the annotation's library is probably missing from the classpath:
+                    deferred.reportDeferredDiagnostics();
+                }
+                log.popDiagnosticHandler(deferred);
             }
-            return new Attribute.Compound(annotationType, buf.toList());
         }
 
         MethodSymbol findAccessMethod(Type container, Name name) {
@@ -2173,15 +2181,21 @@ public class ClassReader {
                 failure = ex;
             }
             if (enumerator == null) {
-                if (failure != null) {
-                    log.warning(Warnings.UnknownEnumConstantReason(currentClassFile,
-                                                                   enumTypeSym,
-                                                                   proxy.enumerator,
-                                                                   failure.getDiagnostic()));
-                } else {
-                    log.warning(Warnings.UnknownEnumConstant(currentClassFile,
-                                                             enumTypeSym,
-                                                             proxy.enumerator));
+                // The enumerator wasn't found: emit a warning and recover
+                JavaFileObject prevSource = log.useSource(requestingOwner.classfile);
+                try {
+                    if (failure != null) {
+                        log.warning(LintWarnings.UnknownEnumConstantReason(currentClassFile,
+                                                                       enumTypeSym,
+                                                                       proxy.enumerator,
+                                                                       failure.getDiagnostic()));
+                    } else {
+                        log.warning(LintWarnings.UnknownEnumConstant(currentClassFile,
+                                                                 enumTypeSym,
+                                                                 proxy.enumerator));
+                    }
+                } finally {
+                    log.useSource(prevSource);
                 }
                 result = new Attribute.Enum(enumTypeSym.type,
                         new VarSymbol(0, proxy.enumerator, syms.botType, enumTypeSym));
@@ -2685,13 +2699,6 @@ public class ClassReader {
                                    Integer.toString(minorVersion));
             }
         }
-        if (names.isInit(name) && ((flags & STATIC) != 0)) {
-            flags &= ~STATIC;
-            type = new MethodType(type.getParameterTypes(),
-                    syms.voidType,
-                    type.getThrownTypes(),
-                    syms.methodClass);
-        }
         validateMethodType(name, type);
         boolean forceLocal = false;
         if (name == names.init && currentOwner.hasOuterInstance()) {
@@ -2702,6 +2709,7 @@ public class ClassReader {
             // won't pass the "hasOuterInstance" check above, but those that don't have an
             // enclosing method (i.e. from initializers) will pass that check.
             boolean local = forceLocal =
+                    currentOwner.owner.kind != TYP ||
                     !currentOwner.owner.members().includes(currentOwner, LookupKind.NON_RECURSIVE);
             if (!currentOwner.name.isEmpty() && !local)
                 type = new MethodType(adjustMethodParams(flags, type.getParameterTypes()),
@@ -3053,7 +3061,9 @@ public class ClassReader {
      *  `typevars'.
      */
     protected void enterTypevars(Symbol sym, Type t) {
-        if (t.getEnclosingType() != null) {
+        if (sym.owner.kind == MTH) {
+            enterTypevars(sym.owner, sym.owner.type);
+        } else if (t.getEnclosingType() != null) {
             if (!t.getEnclosingType().hasTag(TypeTag.NONE)) {
                 enterTypevars(sym.owner, t.getEnclosingType());
             }
@@ -3357,7 +3367,7 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags))
+        if (((flags & ACC_IDENTITY) != 0)
                 || (majorVersion <= Version.MAX().major && minorVersion != PREVIEW_MINOR_VERSION && (flags & INTERFACE) == 0)) {
             flags |= IDENTITY_TYPE;
         } else if (needsValueFlag(c, flags)) {
@@ -3371,16 +3381,11 @@ public class ClassReader {
     private boolean needsValueFlag(Symbol c, long flags) {
         boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
         if (allowValueClasses) {
-            if (previewClassFile && majorVersion >= V67.major && (flags & INTERFACE) == 0 ||
-                    majorVersion >= V67.major && isMigratedValueClass(flags)) {
+            if (previewClassFile && majorVersion >= Version.MAX().major && (flags & INTERFACE) == 0) {
                 return true;
             }
         }
         return false;
-    }
-
-    private boolean isMigratedValueClass(long flags) {
-        return allowValueClasses && ((flags & MIGRATED_VALUE_CLASS) != 0);
     }
 
     /**

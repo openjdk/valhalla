@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,25 +59,16 @@ inline frame FreezeBase::sender(const frame& f) {
   if (FKind::interpreted) {
     return frame(f.sender_sp(), f.interpreter_frame_sender_sp(), f.link(), f.sender_pc());
   }
-  intptr_t** link_addr = link_address<FKind>(f);
 
-  intptr_t* sender_sp = (intptr_t*)(link_addr + frame::sender_sp_offset); //  f.unextended_sp() + (fsize/wordSize); //
-  address sender_pc = ContinuationHelper::return_address_at(sender_sp - 1);
-  assert(sender_sp != f.sp(), "must have changed");
+  frame::CompiledFramePointers cfp = f.compiled_frame_details();
 
   int slot = 0;
-  CodeBlob* sender_cb = CodeCache::find_blob_and_oopmap(sender_pc, slot);
-
-  // Repair the sender sp if the frame has been extended
-  if (sender_cb->is_nmethod()) {
-    sender_sp = f.repair_sender_sp(sender_sp, link_addr);
-  }
+  CodeBlob* sender_cb = CodeCache::find_blob_and_oopmap(*cfp.sender_pc_addr, slot);
 
   return sender_cb != nullptr
-    ? frame(sender_sp, sender_sp, *link_addr, sender_pc, sender_cb,
-            slot == -1 ? nullptr : sender_cb->oop_map_for_slot(slot, sender_pc),
-            false /* on_heap ? */)
-    : frame(sender_sp, sender_sp, *link_addr, sender_pc);
+    ? frame(cfp.sender_sp, cfp.sender_sp, *cfp.saved_fp_addr, *cfp.sender_pc_addr, sender_cb,
+            slot == -1 ? nullptr : sender_cb->oop_map_for_slot(slot, *cfp.sender_pc_addr), false)
+    : frame(cfp.sender_sp, cfp.sender_sp, *cfp.saved_fp_addr, *cfp.sender_pc_addr);
 }
 
 template<typename FKind>
@@ -121,8 +112,8 @@ frame FreezeBase::new_heap_frame(frame& f, frame& caller, int size_adjust) {
       // so we make more room by moving sp down by argsize
       int argsize = FKind::stack_argsize(f);
       sp -= argsize;
+      caller.set_sp(sp + fsize);
     }
-    caller.set_sp(sp + fsize);
 
     assert(_cont.tail()->is_in_chunk(sp), "");
 
@@ -222,7 +213,8 @@ inline intptr_t* AnchorMark::anchor_mark_set_pd() {
     if (sp != _last_sp_from_frame) {
       // We need to move up return pc and fp. They will be read next in
       // set_anchor() and set as _last_Java_pc and _last_Java_fp respectively.
-      _last_sp_from_frame[-1] = (intptr_t)_top_frame.pc();
+      ContinuationHelper::patch_return_address_at(&_last_sp_from_frame[-1],
+                                                  _top_frame.pc());
       _last_sp_from_frame[-2] = (intptr_t)_top_frame.fp();
     }
     _is_interpreted = true;
@@ -237,7 +229,7 @@ inline void AnchorMark::anchor_mark_clear_pd() {
     _top_frame.interpreter_frame_set_last_sp(_last_sp_from_frame);
     intptr_t* sp = _top_frame.sp();
     if (sp != _last_sp_from_frame) {
-      sp[-1] = (intptr_t)_top_frame.pc();
+      ContinuationHelper::patch_return_address_at(&sp[-1], _top_frame.pc());
     }
   }
 }
@@ -300,8 +292,8 @@ template<typename FKind> frame ThawBase::new_stack_frame(const frame& hf, frame&
         frame_sp -= argsize;
       }
       frame_sp = align(hf, frame_sp, caller, bottom);
+      caller.set_sp(frame_sp + fsize + size_adjust);
     }
-    caller.set_sp(frame_sp + fsize);
     assert(is_aligned(frame_sp, frame::frame_alignment), "");
 
     assert(hf.cb() != nullptr, "");
@@ -327,6 +319,7 @@ inline intptr_t* ThawBase::align(const frame& hf, intptr_t* frame_sp, frame& cal
   }
   assert(is_aligned(frame_sp, frame::frame_alignment), "");
 #endif
+
   return frame_sp;
 }
 
@@ -346,7 +339,8 @@ inline intptr_t* ThawBase::push_cleanup_continuation() {
   intptr_t* sp = enterSpecial.sp();
 
   // We only need to set the return pc. rfp will be restored back in gen_continuation_enter().
-  sp[-1] = (intptr_t)ContinuationEntry::cleanup_pc();
+  ContinuationHelper::patch_return_address_at(&sp[-1],
+                                              ContinuationEntry::cleanup_pc());
   return sp;
 }
 
@@ -355,7 +349,8 @@ inline intptr_t* ThawBase::push_preempt_adapter() {
   intptr_t* sp = enterSpecial.sp();
 
   // We only need to set the return pc. rfp will be restored back in generate_cont_preempt_stub().
-  sp[-1] = (intptr_t)StubRoutines::cont_preempt_stub();
+  ContinuationHelper::patch_return_address_at(&sp[-1],
+                                              StubRoutines::cont_preempt_stub());
   return sp;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -467,11 +467,11 @@ frame frame::sender_for_interpreter_frame(RegisterMap* map) const {
   intptr_t* unextended_sp = interpreter_frame_sender_sp();
   intptr_t* sender_fp = link();
 
-#if defined(COMPILER1) || COMPILER2_OR_JVMCI
+#if COMPILER1_OR_COMPILER2
   if (map->update_map()) {
     update_map_with_saved_link(map, (intptr_t**) addr_at(link_offset));
   }
-#endif // defined(COMPILER1) || COMPILER1_OR_COMPILER2
+#endif // COMPILER1_OR_COMPILER2
 
   // For ROP protection, Interpreter will have signed the sender_pc,
   // but there is no requirement to authenticate it here.
@@ -625,16 +625,24 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
       ret_pc_loc = fp() + return_addr_offset;
       fp_loc = fp();
     } else {
-      ret_pc_loc = real_fp() - return_addr_offset;
-      fp_loc = real_fp() - sender_sp_offset;
-      if (cb()->is_nmethod() && cb()->as_nmethod_or_null()->needs_stack_repair()) {
-        values.describe(frame_no, fp_loc - 1, err_msg("fsize for #%d", frame_no), 1);
+      if (cb()->is_nmethod() && cb()->as_nmethod()->needs_stack_repair()) {
+        values.describe(frame_no, real_fp() - sender_sp_offset - 1, err_msg("fsize for #%d", frame_no), 1);
       }
+      frame::CompiledFramePointers cfp = compiled_frame_details();
+      ret_pc_loc = (intptr_t*)cfp.sender_pc_addr;
+      fp_loc = (intptr_t*)cfp.saved_fp_addr;
     }
     address ret_pc = *(address*)ret_pc_loc;
     values.describe(frame_no, ret_pc_loc,
       Continuation::is_return_barrier_entry(ret_pc) ? "return address (return barrier)" : "return address");
     values.describe(-1, fp_loc, "saved fp", 0); // "unowned" as value belongs to sender
+
+    intptr_t* ret_pc_loc2 = real_fp() - return_addr_offset;
+    if (ret_pc_loc2 != ret_pc_loc) {
+      intptr_t* fp_loc2 = real_fp() - sender_sp_offset;
+      values.describe(frame_no, ret_pc_loc2, "return address copy #2");
+      values.describe(-1, fp_loc2, "saved fp copy #2", 0);
+    }
   }
 }
 #endif
@@ -791,10 +799,11 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
   nmethod* nm = _cb->as_nmethod_or_null();
   if (nm != nullptr && nm->needs_stack_repair()) {
     // The stack increment resides just below the saved FP on the stack and
-    // records the total frame size excluding the two words for saving FP and LR.
+    // records the total frame size excluding the two words for saving FP and LR
+    // (see MacroAssembler::remove_frame).
     intptr_t* sp_inc_addr = (intptr_t*) (saved_fp_addr - 1);
     assert(*sp_inc_addr % StackAlignmentInBytes == 0, "sp_inc not aligned");
-    int real_frame_size = (*sp_inc_addr / wordSize) + 2;
+    int real_frame_size = (*sp_inc_addr / wordSize) + metadata_words_at_bottom;
     assert(real_frame_size >= _cb->frame_size() && real_frame_size <= 1000000, "invalid frame size");
     sender_sp = unextended_sp() + real_frame_size;
   }
@@ -833,9 +842,10 @@ frame::CompiledFramePointers frame::compiled_frame_details() const {
 intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp_addr) {
   assert(nm != nullptr && nm->needs_stack_repair(), "");
   // The stack increment resides just below the saved FP on the stack and
-  // records the total frame size excluding the two words for saving FP and LR.
+  // records the total frame size excluding the two words for saving FP and LR
+  // (see MacroAssembler::remove_frame).
   intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
-  int real_frame_size = (*real_frame_size_addr / wordSize) + 2;
+  int real_frame_size = (*real_frame_size_addr / wordSize) + metadata_words_at_bottom;
   assert(real_frame_size >= nm->frame_size() && real_frame_size <= 1000000, "invalid frame size");
   return sp + real_frame_size;
 }
@@ -843,9 +853,12 @@ intptr_t* frame::repair_sender_sp(nmethod* nm, intptr_t* sp, intptr_t** saved_fp
 bool frame::was_augmented_on_entry(int& real_size) const {
   assert(is_compiled_frame(), "");
   if (_cb->as_nmethod_or_null()->needs_stack_repair()) {
+    // The stack increment resides just below the saved FP on the stack and
+    // records the total frame size excluding the two words for saving FP and LR
+    // (see MacroAssembler::remove_frame).
     intptr_t* real_frame_size_addr = unextended_sp() + _cb->frame_size() - sender_sp_offset - 1;
     log_trace(continuations)("real_frame_size is addr is " INTPTR_FORMAT, p2i(real_frame_size_addr));
-    real_size = (*real_frame_size_addr / wordSize) + 2;
+    real_size = (*real_frame_size_addr / wordSize) + metadata_words_at_bottom;
     return real_size != _cb->frame_size();
   }
   real_size = _cb->frame_size();

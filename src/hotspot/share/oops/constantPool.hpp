@@ -27,7 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "oops/arrayOop.hpp"
-#include "oops/bsmAttribute.inline.hpp"
+#include "oops/bsmAttribute.hpp"
 #include "oops/cpCache.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oopHandle.hpp"
@@ -80,7 +80,6 @@ public:
 
 class ConstantPool : public Metadata {
   friend class VMStructs;
-  friend class JVMCIVMStructs;
   friend class BytecodeInterpreter;  // Directly extracts a klass in the pool for fast instanceof/checkcast
   friend class Universe;             // For null constructor
   friend class AOTConstantPoolResolver;
@@ -272,7 +271,7 @@ class ConstantPool : public Metadata {
 
   // Storing constants
 
-  // For temporary use while constructing constant pool. Used during a retransform/class redefinition as well.
+  // For temporary use while constructing constant pool
   void klass_index_at_put(int cp_index, int name_index) {
     tag_at_put(cp_index, JVM_CONSTANT_ClassIndex);
     *int_at_addr(cp_index) = name_index;
@@ -554,8 +553,8 @@ class ConstantPool : public Metadata {
   u2 bootstrap_argument_index_at(int cp_index, int j) {
     int bsmai = bootstrap_methods_attribute_index(cp_index);
     BSMAttributeEntry* bsme = bsm_attribute_entry(bsmai);
-    assert((uint)j < (uint)bsme->argument_count(), "oob");
-    return bsm_attribute_entry(bsmai)->argument(j);
+    assert(j < bsme->argument_count(), "oob");
+    return bsm_attribute_entry(bsmai)->argument(checked_cast<u2>(j));
   }
 
   // The following methods (name/signature/klass_ref_at, klass_ref_at_noresolve,

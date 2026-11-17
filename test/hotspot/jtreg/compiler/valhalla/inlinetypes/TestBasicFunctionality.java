@@ -49,12 +49,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 0
+ * @run driver ${test.main.class} 0
  */
 
 /*
@@ -62,12 +62,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 1
+ * @run driver ${test.main.class} 1
  */
 
 /*
@@ -75,12 +75,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 2
+ * @run driver ${test.main.class} 2
  */
 
 /*
@@ -88,12 +88,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 3
+ * @run driver ${test.main.class} 3
  */
 
 /*
@@ -101,12 +101,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 4
+ * @run driver ${test.main.class} 4
  */
 
 /*
@@ -114,12 +114,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 5
+ * @run driver ${test.main.class} 5
  */
 
 /*
@@ -127,12 +127,12 @@ import static compiler.lib.ir_framework.IRNode.UNSTABLE_IF_TRAP;
  * @key randomness
  * @bug 8327695
  * @summary Test the basic value class implementation in C2.
- * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64" | os.simpleArch == "riscv64")
  * @library /test/lib /
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main compiler.valhalla.inlinetypes.TestBasicFunctionality 6
+ * @run driver ${test.main.class} 6
  */
 
 @ForceCompileClassInitializer
@@ -196,7 +196,9 @@ public class TestBasicFunctionality {
     // Return incoming value object without accessing fields
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", STORE_OF_ANY_KLASS, "= 19"},
+        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1"},
+// TODO: JDK-8380875
+//                STORE_OF_ANY_KLASS, "= 19"},
         failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_OF_MYVALUE_KLASS, LOAD_OF_ANY_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
@@ -285,7 +287,8 @@ public class TestBasicFunctionality {
 
     // Merge value objects created from two branches
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP}, phase = CompilePhase.BEFORE_MACRO_EXPANSION)
     public long test8(boolean b) {
         MyValue1 v;
         if (b) {
@@ -305,13 +308,13 @@ public class TestBasicFunctionality {
 static MyValue1 tmp = null;
     // Merge value objects created from two branches
     @Test
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", LOAD_OF_ANY_KLASS, "= 19",
-                  STORE_OF_ANY_KLASS, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
-        failOn = {UNSTABLE_IF_TRAP, PREDICATE_TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_OF_MYVALUE_KLASS, "= 2", STORE_OF_ANY_KLASS, "= 19"},
-        failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // TODO 8380875, 8384979
+    // @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+    //     counts = {ALLOC_OF_MYVALUE_KLASS, "= 1", LOAD_OF_ANY_KLASS, "= 19", STORE_OF_ANY_KLASS, "= 3"},
+    //     failOn = {UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+    //     counts = {ALLOC_OF_MYVALUE_KLASS, "= 2", STORE_OF_ANY_KLASS, "= 19"},
+    //     failOn = {LOAD_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
         if (b) {
@@ -851,6 +854,7 @@ static MyValue1 tmp = null;
         return copy;
     }
 
+    @Warmup(value=10000)
     @Run(test = "test32")
     public void test32_verifier() {
         MyValue3 vt = MyValue3.create();
@@ -961,7 +965,8 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
+    // TODO 8384979
+    // @IR(failOn = {ALLOC_OF_MYVALUE_KLASS, STORE_OF_ANY_KLASS, UNSTABLE_IF_TRAP, PREDICATE_TRAP})
     public long test36(boolean b) {
         Object o;
         if (b) {
@@ -1243,7 +1248,7 @@ static MyValue1 tmp = null;
 
     @Test
     // TODO 8357580 more aggressive flattening
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_I, "1", IRNode.LOAD_B, "1"})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_I, "1", IRNode.LOAD_B, "1"})
     public Integer test45(Object arg) {
         return ((MyValue45ValueHolder) arg).v.v;
     }
@@ -1258,8 +1263,8 @@ static MyValue1 tmp = null;
 
     @Test
     // TODO 8357580 more aggressive flattening
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, counts = {IRNode.LOAD_L, "1"})
-    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableValueFlattening", "true"}, failOn = {IRNode.LOAD_I, IRNode.LOAD_B})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_L, "1"})
+    // @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullableAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_I, IRNode.LOAD_B})
     public Integer test46(Object arg) {
         return ((MyValue45Holder) arg).v.v;
     }
@@ -1304,8 +1309,8 @@ static MyValue1 tmp = null;
     }
 
     @Test
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
     public MyValue47Holder test47(MyValue47HolderHolder arg) {
         return arg.v;
     }
@@ -1319,8 +1324,8 @@ static MyValue1 tmp = null;
     static final MyValue47Holder[] MY_VALUE_47_HOLDERS = (MyValue47Holder[]) ValueClass.newNullRestrictedAtomicArray(MyValue47Holder.class, 2, new MyValue47Holder(rI));
 
     @Test
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
-    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, counts = {IRNode.LOAD_S, "1"})
+    @IR(applyIfAnd = {"UseFieldFlattening", "true", "UseArrayFlattening", "true", "UseNullFreeAtomicValueFlattening", "true"}, failOn = {IRNode.LOAD_B})
     public MyValue47Holder test48() {
         return MY_VALUE_47_HOLDERS[0];
     }

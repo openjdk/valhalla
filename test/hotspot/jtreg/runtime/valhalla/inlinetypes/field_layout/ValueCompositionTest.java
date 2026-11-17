@@ -345,16 +345,95 @@ public class ValueCompositionTest {
   }
 
 
+  // Naturally atomic value
+  static value class Value9a {
+    int i = 0;
+  }
+
+  // Also a naturally atomic value
+  static value class Value9b {
+    @NullRestricted
+    Value9a f0 = new Value9a();
+  }
+
+  // Not a naturally atomic value because it contains two "fields":
+  //   - the int field from class Value9a
+  //   - the null marker of field f1 (included in f1 flat payload)
+  static value class Value9c {
+    Value9a f1 = new Value9a();
+  }
+
+  static class Container9 {
+    @NullRestricted
+    Value9b f2;
+    @NullRestricted
+    Value9c f3;
+
+    Container9() {
+      f2 = new Value9b();
+      f3 = new Value9c();
+      super();
+    }
+  }
+
+  static public void test_9() {
+    var c = new Container9();
+  }
+
+  static public void check_9(FieldLayoutAnalyzer fla) {
+    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container9");
+    if(useNullableNonAtomicFlat) {
+      FieldLayoutAnalyzer.FieldBlock f2 = cl.getFieldFromName("f2", false);
+      // Flat null-free naturally atomic value, should have a NULL_FREE_NON_ATOMIC_FLAT layout
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f2.layoutKind());
+      // Flat null-free non-naturally atomic value, must not have a NULL_FREE_NON_ATOMIC_FLAT layout
+      FieldLayoutAnalyzer.FieldBlock f3 = cl.getFieldFromName("f3", false);
+      Asserts.assertNotEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f3.layoutKind());
+    }
+  }
+
+  static abstract value class Value10a { }
+
+  static value class Value10b extends Value10a {}
+
+  static class Container10 {
+    @NullRestricted
+    Value10b f0;
+    Value10b f1;
+
+    Container10() {
+      f0 = new Value10b();
+      f1 = new Value10b();
+      super();
+    }
+  }
+
+  static public void test_10() {
+    var c = new Container10();
+  }
+
+  static  public void check_10(FieldLayoutAnalyzer fla) {
+    FieldLayoutAnalyzer.ClassLayout cl = fla.getClassLayoutFromName("runtime/valhalla/inlinetypes/field_layout/ValueCompositionTest$Container10");
+    if(useNullableNonAtomicFlat) {
+      FieldLayoutAnalyzer.FieldBlock f0 = cl.getFieldFromName("f0", false);
+      // Flat null-free empty value, should have a NULL_FREE_NON_ATOMIC_FLAT layout
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULL_FREE_NON_ATOMIC_FLAT, f0.layoutKind());
+      // Flat nullable empty value, should have a NULLABLE_NON_ATOMIC_FLAT layout
+      FieldLayoutAnalyzer.FieldBlock f1 = cl.getFieldFromName("f1", false);
+      Asserts.assertEquals(FieldLayoutAnalyzer.LayoutKind.NULLABLE_NON_ATOMIC_FLAT, f1.layoutKind());
+    }
+  }
+
   static ProcessBuilder exec(String... args) throws Exception {
     List<String> argsList = new ArrayList<>();
     Collections.addAll(argsList, "--enable-preview");
-    Collections.addAll(argsList, "-Xint");
     Collections.addAll(argsList, "-XX:+UnlockDiagnosticVMOptions");
+    Collections.addAll(argsList, "-XX:+UnlockExperimentalVMOptions");
     Collections.addAll(argsList, "-XX:+PrintFieldLayout");
     Collections.addAll(argsList, "-Xshare:off");
-    Collections.addAll(argsList, "-Xmx256m");
-    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseAtomicValueFlattening" : "-XX:-UseAtomicValueFlattening");
-    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableValueFlattening" : "-XX:-UseNullableValueFlattening");
+    Collections.addAll(argsList, "-Xmx512m");
+    Collections.addAll(argsList, useAtomicFlat ? "-XX:+UseNullFreeAtomicValueFlattening" : "-XX:-UseNullFreeAtomicValueFlattening");
+    Collections.addAll(argsList, useNullableAtomicFlat ?  "-XX:+UseNullableAtomicValueFlattening" : "-XX:-UseNullableAtomicValueFlattening");
     Collections.addAll(argsList, useNullableNonAtomicFlat ? "-XX:+UseNullableNonAtomicValueFlattening" : "-XX:-UseNullableNonAtomicValueFlattening");
     Collections.addAll(argsList, "-cp", System.getProperty("java.class.path") + System.getProperty("path.separator") + ".");
     Collections.addAll(argsList, args);
@@ -402,13 +481,8 @@ public class ValueCompositionTest {
     ProcessBuilder pb = exec("runtime.valhalla.inlinetypes.field_layout.ValueCompositionTest$TestRunner");
     OutputAnalyzer out = new OutputAnalyzer(pb.start());
 
-    if (out.getExitValue() != 0) {
-      System.out.print(out.getOutput());
-    }
-    Asserts.assertEquals(out.getExitValue(), 0, "Something went wrong while running the tests");
-
-    // To help during test development
-    System.out.print(out.getOutput());
+    // Checking the status of the process execution before trying to parse the output
+    out.shouldHaveExitValue(0);
 
     // Get and parse the test output
     FieldLayoutAnalyzer.LogOutput lo = new FieldLayoutAnalyzer.LogOutput(out.asLines());
@@ -426,7 +500,12 @@ public class ValueCompositionTest {
       }
 
     // Verify that all layouts are correct
-    fla.check();
+    try {
+      fla.check();
+    } catch (Throwable t) {
+      System.out.print(out.getOutput());
+      throw t;
+    }
   }
 
 }

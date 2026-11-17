@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ public class InnerClassesInLocalClassTest extends InnerClassesTestBase {
         for (Modifier outerModifier : LOCAL_CLASS_MODIFIERS) {
             StringBuilder sb = new StringBuilder();
             sb.append(outerModifier.getString()).append(' ');
-            sb.append("class Local { int f; "); // impose identity to make testing predictable.
+            sb.append("class Local {");
             Map<String, Set<String>> class2Flags = new HashMap<>();
             for (int i = 0; i < LOCAL_CLASS_MODIFIERS.length; ++i) {
                 Modifier innerModifier = LOCAL_CLASS_MODIFIERS[i];

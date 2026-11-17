@@ -256,7 +256,7 @@ void LinearScan::assign_spill_slot(Interval* it) {
 }
 
 void LinearScan::propagate_spill_slots() {
-  if (!frame_map()->finalize_frame(max_spills(), compilation()->needs_stack_repair())) {
+  if (!frame_map()->finalize_frame(max_spills(), compilation()->method()->c1_needs_stack_repair())) {
     bailout("frame too large");
   }
 }

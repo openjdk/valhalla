@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,8 @@ package java.lang;
 
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
@@ -69,9 +70,13 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * Character information is based on the Unicode Standard, version 17.0.
  * <p>
  * The Java platform has supported different versions of the Unicode
- * Standard over time. Upgrades to newer versions of the Unicode Standard
- * occurred in the following Java releases, each indicating the new version:
+ * Standard over time. The following tables list the version of Unicode used
+ * in each Java release. Unless otherwise specified, all update releases in a
+ * given Java release family use the same Unicode version.
  * <table class="striped">
+ * <!-- The expanded table should include the current Java release, followed
+ * by commonly used releases, with other releases listed in the details
+ * section -->
  * <caption style="display:none">Shows Java releases and supported Unicode versions</caption>
  * <thead>
  * <tr><th scope="col">Java release</th>
@@ -80,26 +85,56 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * <tbody>
  * <tr><th scope="row" style="text-align:left">Java SE 26</th>
  *     <td>Unicode 17.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 25</th>
+ *     <td>Unicode 16.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 21</th>
+ *     <td>Unicode 15.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 17</th>
+ *     <td>Unicode 13.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 11</th>
+ *     <td>Unicode 10.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 8</th>
+ *     <td>Unicode 6.2</td></tr>
+ * </tbody>
+ * </table>
+ * <details>
+ * <summary>Show other Java releases</summary>
+ * <p>Java releases prior to Java SE 8 are listed only if they upgraded the
+ * Unicode version</p>
+ * <table class="striped">
+ * <caption style="display:none">Shows other Java releases and supported Unicode
+ * versions</caption>
+ * <thead>
+ * <tr><th scope="col">Java release</th>
+ *     <th scope="col">Unicode version</th></tr>
+ * </thead>
+ * <tbody>
  * <tr><th scope="row" style="text-align:left">Java SE 24</th>
  *     <td>Unicode 16.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 23</th>
+ *     <td>Unicode 15.1</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 22</th>
  *     <td>Unicode 15.1</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 20</th>
  *     <td>Unicode 15.0</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 19</th>
  *     <td>Unicode 14.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 18</th>
+ *     <td>Unicode 13.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 16</th>
+ *     <td>Unicode 13.0</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 15</th>
  *     <td>Unicode 13.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 14</th>
+ *     <td>Unicode 12.1</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 13</th>
  *     <td>Unicode 12.1</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 12</th>
  *     <td>Unicode 11.0</td></tr>
- * <tr><th scope="row" style="text-align:left">Java SE 11</th>
- *     <td>Unicode 10.0</td></tr>
+ * <tr><th scope="row" style="text-align:left">Java SE 10</th>
+ *     <td>Unicode 8.0</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 9</th>
  *     <td>Unicode 8.0</td></tr>
- * <tr><th scope="row" style="text-align:left">Java SE 8</th>
- *     <td>Unicode 6.2</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 7</th>
  *     <td>Unicode 6.0</td></tr>
  * <tr><th scope="row" style="text-align:left">Java SE 5.0</th>
@@ -112,6 +147,8 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  *     <td>Unicode 1.1.5</td></tr>
  * </tbody>
  * </table>
+ * </details>
+ * <p>
  * Variations from these base Unicode versions, such as recognized appendixes,
  * are documented elsewhere.
  * <h2><a id="unicode">Unicode Character Representations</a></h2>
@@ -172,13 +209,13 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
  * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
- * as interchangeable and should not use instances for synchronization, mutexes, or
+ * as interchangeable and should not use instances for synchronization or
  * with {@linkplain java.lang.ref.Reference object references}.
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code Character} is a {@linkplain Class#isValue value class}.
- *          Use of value class instances for synchronization, mutexes, or with
+ *          Use of value class instances for synchronization or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.
  *      </div>
@@ -192,9 +229,10 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * @author  Ulf Zibis
  * @since   1.0
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Character implements java.io.Serializable, Comparable<Character>, Constable {
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Character
+        implements java.io.Serializable, Comparable<Character>, Constable {
     /**
      * The minimum radix available for conversion to and from strings.
      * The constant value of this field is the smallest value permitted
@@ -9386,10 +9424,14 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
+    @Deserializer("value")
     public Character(char value) {
         this.value = value;
     }
 
+    // When preview features are enabled, the cache does not affect object
+    // equality == semantics, but exists for performance.
+    // See doc/value-class-preview.md "Wrapper Class Caches" section.
     @AOTSafeClassInitializer
     private static final class CharacterCache {
         private CharacterCache(){}
@@ -9404,7 +9446,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(CharacterCache.class);
             if (archivedCache == null) {
-                Character[] c = new Character[size];
+                Character[] c = newCacheArray(size);
                 for (int i = 0; i < size; i++) {
                     c[i] = new Character((char) i);
                 }
@@ -9412,6 +9454,14 @@ public final class Character implements java.io.Serializable, Comparable<Charact
             }
             cache = archivedCache;
             assert cache.length == size;
+        }
+
+        private static Character[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
+            if (PreviewFeatures.isEnabled()) {
+                return (Character[]) ValueClass.newReferenceArray(Character.class, size);
+            }
+            return new Character[size];
         }
     }
 
@@ -9444,10 +9494,9 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
     public static Character valueOf(char c) {
         if (c <= 127) { // must cache
-            return CharacterCache.cache[(int)c];
+            return CharacterCache.cache[(int) c];
         }
         return new Character(c);
     }
@@ -11255,7 +11304,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Emoji;
      *          {@code false} otherwise.
-     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
+     * @spec https://www.unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmoji(int codePoint) {
@@ -11274,7 +11323,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character has the Emoji Presentation
      *          property; {@code false} otherwise.
-     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
+     * @spec https://www.unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmojiPresentation(int codePoint) {
@@ -11293,7 +11342,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Emoji Modifier;
      *          {@code false} otherwise.
-     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
+     * @spec https://www.unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmojiModifier(int codePoint) {
@@ -11312,7 +11361,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Emoji Modifier Base;
      *          {@code false} otherwise.
-     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
+     * @spec https://www.unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmojiModifierBase(int codePoint) {
@@ -11331,7 +11380,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Emoji Component;
      *          {@code false} otherwise.
-     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
+     * @spec https://www.unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isEmojiComponent(int codePoint) {
@@ -11350,7 +11399,7 @@ public final class Character implements java.io.Serializable, Comparable<Charact
      * @param   codePoint the character (Unicode code point) to be tested.
      * @return  {@code true} if the character is an Extended Pictographic;
      *          {@code false} otherwise.
-     * @spec https://unicode.org/reports/tr51/ Unicode Emoji
+     * @spec https://www.unicode.org/reports/tr51/ Unicode Emoji
      * @since   21
      */
     public static boolean isExtendedPictographic(int codePoint) {

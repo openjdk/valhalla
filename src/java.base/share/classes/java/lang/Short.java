@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,8 @@ package java.lang;
 
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
@@ -53,13 +54,13 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
  * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
- * as interchangeable and should not use instances for synchronization, mutexes, or
+ * as interchangeable and should not use instances for synchronization or
  * with {@linkplain java.lang.ref.Reference object references}.
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code Short} is a {@linkplain Class#isValue value class}.
- *          Use of value class instances for synchronization, mutexes, or with
+ *          Use of value class instances for synchronization or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.
  *      </div>
@@ -68,9 +69,10 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * @see     java.lang.Number
  * @since   1.1
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Short extends Number implements Comparable<Short>, Constable {
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Short extends Number
+        implements Comparable<Short>, Constable {
 
     /**
      * A constant holding the minimum value a {@code short} can
@@ -241,6 +243,9 @@ public final class Short extends Number implements Comparable<Short>, Constable 
         return Optional.of(DynamicConstantDesc.ofNamed(BSM_EXPLICIT_CAST, DEFAULT_NAME, CD_short, intValue()));
     }
 
+    // When preview features are enabled, the cache does not affect object
+    // equality == semantics, but exists for performance.
+    // See doc/value-class-preview.md "Wrapper Class Caches" section.
     @AOTSafeClassInitializer
     private static final class ShortCache {
         private ShortCache() {}
@@ -255,7 +260,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
             // Load and use the archived cache if it exists
             CDS.initializeFromArchive(ShortCache.class);
             if (archivedCache == null) {
-                Short[] c = new Short[size];
+                Short[] c = newCacheArray(size);
                 short value = -128;
                 for(int i = 0; i < size; i++) {
                     c[i] = new Short(value++);
@@ -264,6 +269,14 @@ public final class Short extends Number implements Comparable<Short>, Constable 
             }
             cache = archivedCache;
             assert cache.length == size;
+        }
+
+        private static Short[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
+            if (PreviewFeatures.isEnabled()) {
+                return (Short[]) ValueClass.newReferenceArray(Short.class, size);
+            }
+            return new Short[size];
         }
     }
 
@@ -295,14 +308,11 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
     public static Short valueOf(short s) {
-        if (!PreviewFeatures.isEnabled()) {
-            final int offset = 128;
-            int sAsInt = s;
-            if (sAsInt >= -128 && sAsInt <= 127) { // must cache
-                return ShortCache.cache[sAsInt + offset];
-            }
+        final int offset = 128;
+        int sAsInt = s;
+        if (sAsInt >= -128 && sAsInt <= 127) { // must cache
+            return ShortCache.cache[sAsInt + offset];
         }
         return new Short(s);
     }
@@ -377,6 +387,7 @@ public final class Short extends Number implements Comparable<Short>, Constable 
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
+    @Deserializer("value")
     public Short(short value) {
         this.value = value;
     }

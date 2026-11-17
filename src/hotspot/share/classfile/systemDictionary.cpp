@@ -1048,29 +1048,29 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
   return visible;
 }
 
-bool SystemDictionary::check_shared_class_super_type(InstanceKlass* klass, InstanceKlass* super_type,
+bool SystemDictionary::check_shared_class_dependency(InstanceKlass* klass, InstanceKlass* dependency,
                                                      Handle class_loader, bool is_superclass, TRAPS) {
-  assert(super_type->in_aot_cache(), "must be");
+  assert(dependency->in_aot_cache(), "must be");
 
-  // Quick check if the super type has been already loaded.
+  // Quick check if the dependency has been already loaded.
   // + Don't do it for unregistered classes -- they can be unloaded so
-  //   super_type->class_loader_data() could be stale.
-  // + Don't check if loader data is null, ie. the super_type isn't fully loaded.
-  if (!super_type->defined_by_other_loaders() && super_type->class_loader_data() != nullptr) {
-    // Check if the superclass is loaded by the current class_loader
-    Symbol* name = super_type->name();
+  //   dependency->class_loader_data() could be stale.
+  // + Don't check if loader data is null, ie. the dependency isn't fully loaded.
+  if (!dependency->defined_by_other_loaders() && dependency->class_loader_data() != nullptr) {
+    // Check if the dependency is loaded by the current class_loader.
+    Symbol* name = dependency->name();
     InstanceKlass* check = find_instance_klass(THREAD, name, class_loader);
-    if (check == super_type) {
+    if (check == dependency) {
       return true;
     }
   }
 
-  Klass *found = resolve_with_circularity_detection(klass->name(), super_type->name(),
+  Klass* found = resolve_with_circularity_detection(klass->name(), dependency->name(),
                                                     class_loader, is_superclass, CHECK_false);
-  if (found == super_type) {
+  if (found == dependency) {
     return true;
   } else {
-    // The dynamically resolved super type is not the same as the one we used during dump time,
+    // The dynamically resolved dependency is not the same as the one we used during dump time,
     // so we cannot use the class.
     return false;
   }
@@ -1085,7 +1085,7 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   // load <ik> from the shared archive.
 
   if (ik->super() != nullptr) {
-    bool check_super = check_shared_class_super_type(ik, ik->super(),
+    bool check_super = check_shared_class_dependency(ik, ik->super(),
                                                      class_loader, true,
                                                      CHECK_false);
     if (!check_super) {
@@ -1096,7 +1096,7 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   Array<InstanceKlass*>* interfaces = ik->local_interfaces();
   int num_interfaces = interfaces->length();
   for (int index = 0; index < num_interfaces; index++) {
-    bool check_interface = check_shared_class_super_type(ik, interfaces->at(index), class_loader, false,
+    bool check_interface = check_shared_class_dependency(ik, interfaces->at(index), class_loader, false,
                                                          CHECK_false);
     if (!check_interface) {
       return false;
@@ -1106,71 +1106,80 @@ bool SystemDictionary::check_shared_class_super_types(InstanceKlass* ik, Handle 
   return true;
 }
 
-// Pre-load class referred to in non-static null-free instance field. These fields trigger MANDATORY loading.
-// Some pre-loading does not fail fatally
-bool SystemDictionary::preload_from_null_free_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
-  TempNewSymbol name = Signature::strip_envelope(sig);
-  log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
-                           "Cause: a null-free non-static field is declared with this type",
-                           name->as_C_string(), ik->name()->as_C_string());
-  InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
-                                                                               class_loader, false, CHECK_false);
-  if (HAS_PENDING_EXCEPTION) {
-    log_info(class, preload)("Preloading of class %s during loading of class %s "
-                                "(cause: null-free non-static field) failed: %s",
-                                name->as_C_string(), ik->name()->as_C_string(),
-                                PENDING_EXCEPTION->klass()->name()->as_C_string());
-    return false; // Exception is still pending
+// Pre-load class referred to in fields with archived inline field metadata. These fields
+// must be checked against the resolved runtime class before the shared class can be used.
+bool SystemDictionary::preload_from_required_inline_field(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
+  if (log_is_enabled(Info, class, preload)) {
+    TempNewSymbol name = Signature::strip_envelope(sig);
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
+                             "Cause: archived flat/null-restricted field metadata",
+                             name->as_C_string(), ik->name()->as_C_string());
   }
 
   InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
-  if (real_k != k) {
-    // oops, the app has substituted a different version of k! Does not fail fatally
-    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                                "(cause: null-free non-static field) failed : "
-                                "app substituted a different version of %s",
-                                name->as_C_string(), ik->name()->as_C_string(),
-                                name->as_C_string());
+  bool check = check_shared_class_dependency(ik, k, class_loader, false, THREAD);
+  if (!check) {
+    const bool has_pending_exception = HAS_PENDING_EXCEPTION;
+    if (log_is_enabled(Info, class, preload)) {
+      TempNewSymbol name = Signature::strip_envelope(sig);
+      const char* reason = has_pending_exception ?
+                           PENDING_EXCEPTION->klass()->name()->as_C_string() :
+                           "app substituted a different version";
+      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                               "(cause: archived flat/null-restricted field metadata) failed : %s",
+                               name->as_C_string(), ik->name()->as_C_string(), reason);
+    }
+    if (has_pending_exception) {
+      CLEAR_PENDING_EXCEPTION;
+    }
     return false;
   }
-  log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                           "(cause: null-free non-static field) succeeded",
-                           name->as_C_string(), ik->name()->as_C_string());
 
-  assert(real_k != nullptr, "Sanity check");
-  InstanceKlass::check_can_be_annotated_with_NullRestricted(real_k, ik->name(), CHECK_false);
-
+  assert(k != nullptr, "Sanity check");
+  if (log_is_enabled(Info, class, preload)) {
+    TempNewSymbol name = Signature::strip_envelope(sig);
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                             "(cause: archived flat/null-restricted field metadata) succeeded",
+                             name->as_C_string(), ik->name()->as_C_string());
+  }
   return true;
 }
 
-// Tries to pre-load classes referred to in non-static nullable instance fields if they are found in the
-// loadable descriptors attribute. If loading fails, we can fail silently.
+// Optionally pre-load classes referred to in instance fields if they are found in the
+// LoadableDescriptors attribute. This mirrors the speculative preloading in
+// ClassFileParser::fetch_field_classes() when loading a class outside the archive.
+// Failures are ignored and do not fail shared class loading.
 void SystemDictionary::try_preload_from_loadable_descriptors(InstanceKlass* ik, Handle class_loader, Symbol* sig, int field_index, TRAPS) {
   TempNewSymbol name = Signature::strip_envelope(sig);
-  if (name != ik->name() && ik->is_class_in_loadable_descriptors_attribute(sig)) {
-    log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
-                             "Cause: field type in LoadableDescriptors attribute",
-                             name->as_C_string(), ik->name()->as_C_string());
-    InstanceKlass* real_k = SystemDictionary::resolve_with_circularity_detection(ik->name(), name,
-                                                                                 class_loader, false, THREAD);
+  if (name == ik->name() || !ik->is_class_in_loadable_descriptors_attribute(sig)) {
+    return;
+  }
+
+  log_info(class, preload)("Preloading of class %s during loading of shared class %s. "
+                           "Cause: field type in LoadableDescriptors attribute",
+                           name->as_C_string(), ik->name()->as_C_string());
+  InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
+  if (k == nullptr) {
+    SystemDictionary::resolve_with_circularity_detection(ik->name(), name, class_loader, false, THREAD);
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
     }
+    return;
+  }
 
-    InstanceKlass* k = ik->get_inline_type_field_klass_or_null(field_index);
-    if (real_k != k) {
-      // oops, the app has substituted a different version of k!
-      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                                  "(cause: field type in LoadableDescriptors attribute) failed : "
-                                  "app substituted a different version of %s",
-                                  name->as_C_string(), ik->name()->as_C_string(),
-                                  k->name()->as_C_string());
-      return;
-    } else if (real_k != nullptr) {
-      log_info(class, preload)("Preloading of class %s during loading of shared class %s "
-                               "(cause: field type in LoadableDescriptors attribute) succeeded",
-                                name->as_C_string(), ik->name()->as_C_string());
-    }
+  bool check = check_shared_class_dependency(ik, k, class_loader, false, THREAD);
+  if (HAS_PENDING_EXCEPTION) {
+    CLEAR_PENDING_EXCEPTION;
+  }
+  if (check) {
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                             "(cause: field type in LoadableDescriptors attribute) succeeded",
+                             name->as_C_string(), ik->name()->as_C_string());
+  } else {
+    log_info(class, preload)("Preloading of class %s during loading of shared class %s "
+                             "(cause: field type in LoadableDescriptors attribute) failed : "
+                             "app substituted a different version",
+                             name->as_C_string(), ik->name()->as_C_string());
   }
 }
 
@@ -1198,22 +1207,27 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return nullptr;
   }
 
-  if (ik->has_inlined_fields()) {
+  if (ik->has_inlined_fields() || ik->has_null_restricted_static_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (fs.access_flags().is_static()) continue;
+      if (fs.access_flags().is_static() && !fs.is_null_free_inline_type()) {
+        continue;
+      }
 
       Symbol* sig = fs.signature();
       int field_index = fs.index();
 
-      if (fs.is_null_free_inline_type()) {
-        // A false return means that the class didn't load for other reasons than an exception.
-        bool check = preload_from_null_free_field(ik, class_loader, sig, field_index, CHECK_NULL);
+      if (!Signature::has_envelope(sig)) {
+        continue;
+      }
+
+      if (fs.is_flat() || fs.is_null_free_inline_type()) {
+        bool check = preload_from_required_inline_field(ik, class_loader, sig, field_index, CHECK_NULL);
         if (!check) {
           ik->set_shared_loading_failed();
           return nullptr;
         }
-      } else if (Signature::has_envelope(sig)) {
-        // Pending exceptions are cleared so we can fail silently
+      } else {
+        // Optional LoadableDescriptors preloading. Failures are ignored.
         try_preload_from_loadable_descriptors(ik, class_loader, sig, field_index, CHECK_NULL);
       }
     }
@@ -1254,7 +1268,6 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   }
 
   load_shared_class_misc(ik, loader_data);
-
   return ik;
 }
 
@@ -1840,7 +1853,7 @@ void SystemDictionary::update_dictionary(JavaThread* current,
 // has already been defined by a parent loader.
 // This API is used by AOTLinkedClassBulkLoader and to register boxing
 // classes from java.lang in all class loaders to enable more value
-// classes optimizations
+// classes optimizations.
 void SystemDictionary::add_to_initiating_loader(JavaThread* current,
                                                 InstanceKlass* k,
                                                 ClassLoaderData* loader_data) {
@@ -2224,7 +2237,7 @@ void SystemDictionary::restore_archived_method_handle_intrinsics_impl(TRAPS) {
 // Helper for unpacking the return value from linkMethod and linkCallSite.
 static Method* unpack_method_and_appendix(Handle mname,
                                           Klass* accessing_klass,
-                                          objArrayHandle appendix_box,
+                                          refArrayHandle appendix_box,
                                           Handle* appendix_result,
                                           TRAPS) {
   if (mname.not_null()) {
@@ -2267,7 +2280,7 @@ Method* SystemDictionary::find_method_handle_invoker(Klass* klass,
   int ref_kind = JVM_REF_invokeVirtual;
   oop name_oop = StringTable::intern(name, CHECK_NULL);
   Handle name_str (THREAD, name_oop);
-  objArrayHandle appendix_box = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 1, CHECK_NULL);
+  refArrayHandle appendix_box = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 1, CHECK_NULL);
   assert(appendix_box->obj_at(0) == nullptr, "");
 
   // This should not happen.  JDK code should take care of that.
@@ -2378,7 +2391,7 @@ Handle SystemDictionary::find_method_handle_type(Symbol* signature,
   }
   bool can_be_cached = true;
   int npts = ArgumentCount(signature).size();
-  objArrayHandle pts = oopFactory::new_objArray_handle(vmClasses::Class_klass(), npts, CHECK_(empty));
+  refArrayHandle pts = oopFactory::new_refArray_handle(vmClasses::Class_klass(), npts, CHECK_(empty));
   int arg = 0;
   Handle rt; // the return type from the signature
   ResourceMark rm(THREAD);
@@ -2524,10 +2537,10 @@ void SystemDictionary::invoke_bootstrap_method(BootstrapInfo& bootstrap_specifie
   }
 
   bool is_indy = bootstrap_specifier.is_method_call();
-  objArrayHandle appendix_box;
+  refArrayHandle appendix_box;
   if (is_indy) {
     // Some method calls may require an appendix argument.  Arrange to receive it.
-    appendix_box = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 1, CHECK);
+    appendix_box = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 1, CHECK);
     assert(appendix_box->obj_at(0) == nullptr, "");
   }
 

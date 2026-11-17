@@ -285,6 +285,7 @@ public class Signatures {
                     }
                 }
 
+                @SuppressWarnings("preview")
                 void addValue(TypeElement e) {
                     if (e.getModifiers().contains(Modifier.VALUE)) {
                         list.add("value");

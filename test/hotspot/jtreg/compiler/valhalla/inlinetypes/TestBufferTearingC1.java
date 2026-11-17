@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, Arm Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -31,9 +31,9 @@ package compiler.valhalla.inlinetypes;
  * @enablePreview
  * @modules java.base/jdk.internal.value
  *          java.base/jdk.internal.vm.annotation
- * @run main/othervm -XX:+UseFieldFlattening -XX:+UseArrayFlattening
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
- * @run main/othervm -XX:+UseFieldFlattening -XX:+UseArrayFlattening
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:+UseArrayFlattening
  *                   -XX:TieredStopAtLevel=1
  *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
  */

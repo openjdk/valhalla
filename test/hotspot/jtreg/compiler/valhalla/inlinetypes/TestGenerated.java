@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986 8355299
+ * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831 8306986 8355299 8378780
  * @summary A selection of generated tests that triggered bugs not covered by other tests.
  * @enablePreview
  * @library /testlibrary /test/lib /
@@ -35,10 +35,13 @@
  *                   -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:-UseArrayFlattening
+ *                   -Xbatch -XX:ForceNonTearable=*
  *                   compiler.valhalla.inlinetypes.TestGenerated
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   -Xbatch -XX:+UseNullableValueFlattening -XX:+UseAtomicValueFlattening -XX:+UseNonAtomicValueFlattening
+ *                   -Xbatch -XX:-UseArrayFlattening
+ *                   compiler.valhalla.inlinetypes.TestGenerated
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
+ *                   -Xbatch -XX:+UseNullableAtomicValueFlattening -XX:+UseNullFreeAtomicValueFlattening -XX:+UseNullFreeNonAtomicValueFlattening
  *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 

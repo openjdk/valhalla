@@ -39,7 +39,7 @@ import jdk.internal.vm.annotation.LooselyConsistentValue;
  *          java.base/jdk.internal.misc
  *          java.base/jdk.internal.value
  * @enablePreview
- * @run main/othervm -XX:+UseArrayFlattening runtime.valhalla.inlinetypes.NullRestrictedArrayTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseArrayFlattening runtime.valhalla.inlinetypes.NullRestrictedArrayTest
  */
 
 public class NullRestrictedArrayTest {
@@ -86,11 +86,11 @@ public class NullRestrictedArrayTest {
       Throwable exception = null;
       try {
         ValueClass.newNullRestrictedNonAtomicArray(ValueClass1.class, -1, new ValueClass1());
-      } catch (IllegalArgumentException e) {
+      } catch (NegativeArraySizeException e) {
         System.out.println("Received: " + e);
         exception = e;
       }
-      Asserts.assertNotNull(exception, "Expected IllegalArgumentException not received");
+      Asserts.assertNotNull(exception, "Expected NegativeArraySizeException not received");
   }
 
   // Test valid creation of a flat array
@@ -103,7 +103,7 @@ public class NullRestrictedArrayTest {
   public void test_3() {
       Throwable exception = null;
       try {
-        Object array = ValueClass.newNullRestrictedNonAtomicArray(ValueClass3.class, 8, new ValueClass3());
+        Object[] array = ValueClass.newNullRestrictedNonAtomicArray(ValueClass3.class, 8, new ValueClass3());
         Asserts.assertTrue(ValueClass.isFlatArray(array), "Expecting flat array but array is not flat");
       } catch (Throwable e) {
         System.out.println("Received: " + e);

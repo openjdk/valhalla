@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -110,19 +110,6 @@ LIR_Opr LIRGenerator::rlock_byte(BasicType type) {
   return reg;
 }
 
-
-void LIRGenerator::init_temps_for_substitutability_check(LIR_Opr& tmp1, LIR_Opr& tmp2) {
-  // We just need one 32-bit temp register for x86/x64, to check whether both
-  // oops have markWord::always_locked_pattern. See LIR_Assembler::emit_opSubstitutabilityCheck().
-  // @temp = %r10d
-  // mov $0x405, %r10d
-  // and (%left), %r10d   /* if need to check left */
-  // and (%right), %r10d  /* if need to check right */
-  // cmp $0x405, $r10d
-  // jne L_oops_not_equal
-  tmp1 = new_register(T_INT);
-  tmp2 = LIR_OprFact::illegalOpr;
-}
 
 //--------- loading items into registers --------------------------------
 
@@ -295,8 +282,6 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
-  // Need a scratch register for inline types on x86
-  LIR_Opr scratch = new_register(T_ADDRESS);
 
   CodeEmitInfo* info_for_exception = nullptr;
   if (x->needs_null_check()) {
@@ -311,7 +296,8 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   // this CodeEmitInfo must not have the xhandlers because here the
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
-  monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
+  LIR_Opr tmp = new_register(T_ADDRESS);
+  monitor_enter(obj.result(), lock, syncTempOpr(), tmp,
                 x->monitor_no(), info_for_exception, info, throw_ie_stub);
 }
 
@@ -1226,7 +1212,8 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path, true, is_null_free || is_flat);
+  bool always_slow_path = is_null_free || is_flat;
+  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path, true /*zero_array*/, always_slow_path);
 
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
@@ -1317,9 +1304,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   }
   LIR_Opr reg = rlock_result(x);
   LIR_Opr tmp3 = LIR_OprFact::illegalOpr;
-  if (!x->klass()->is_loaded() || UseCompressedClassPointers) {
-    tmp3 = new_register(objectType);
-  }
+  tmp3 = new_register(objectType);
   __ checkcast(reg, obj.result(), x->klass(),
                new_register(objectType), new_register(objectType), tmp3,
                x->direct_compare(), info_for_exception, patching_info, stub,
@@ -1339,9 +1324,7 @@ void LIRGenerator::do_InstanceOf(InstanceOf* x) {
   }
   obj.load_item();
   LIR_Opr tmp3 = LIR_OprFact::illegalOpr;
-  if (!x->klass()->is_loaded() || UseCompressedClassPointers) {
-    tmp3 = new_register(objectType);
-  }
+  tmp3 = new_register(objectType);
   __ instanceof(reg, obj.result(), x->klass(),
                 new_register(objectType), new_register(objectType), tmp3,
                 x->direct_compare(), patching_info, x->profiled_method(), x->profiled_bci());
@@ -1466,4 +1449,5 @@ void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
   } else {
     __ load(address, result, info);
   }
+  __ membar_acquire();
 }

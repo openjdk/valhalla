@@ -42,17 +42,17 @@ package compiler.valhalla.inlinetypes;
  * @run main ${test.main.class}
  */
 
-value class MyValue1NewAcmp {
+value class MyValue1MissingOptAcmp {
     int x;
 
-    MyValue1NewAcmp(int x) {
+    MyValue1MissingOptAcmp(int x) {
         this.x = x;
     }
 }
 
 public class TestMissingOptAcmp {
     public static void main(String[] args) {
-        test(new MyValue1NewAcmp(1), new MyValue1NewAcmp(1));
+        test(new MyValue1MissingOptAcmp(1), new MyValue1MissingOptAcmp(1));
     }
 
     public static Object getNotNull(Object u) {
@@ -60,7 +60,7 @@ public class TestMissingOptAcmp {
         return (u != null) ? u : new Object();
     }
 
-    public static boolean test(MyValue1NewAcmp v, Object u) {
+    public static boolean test(MyValue1MissingOptAcmp v, Object u) {
         return (Object)v == getNotNull(u);
     }
 }

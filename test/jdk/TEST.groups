@@ -125,8 +125,7 @@ tier4 = \
     / \
    -:tier1 \
    -:tier2 \
-   -:tier3 \
-   :jdk_foreign_stress
+   -:tier3
 
 ###############################################################################
 #
@@ -159,9 +158,9 @@ jdk_lang = \
 
 # valhalla lworld tests
 jdk_valhalla = \
-    java/lang/invoke \
     valhalla \
     java/lang/instrument/valhalla \
+    com/sun/jdi/valhalla \
     java/lang/reflect/valhalla
 
 
@@ -171,6 +170,11 @@ jdk_util = \
     :jdk_collections \
     :jdk_concurrent \
     :jdk_stream
+
+valhalla_adopted = \
+    java/util/Collections/AddAll.java \
+    java/util/Arrays \
+    java/util/Collections
 
 # All util components not part of some other util category
 jdk_util_other = \
@@ -416,11 +420,7 @@ jdk_svc = \
 jdk_foreign = \
     java/foreign \
     jdk/internal/reflect/CallerSensitive/CheckCSMs.java \
-    -java/foreign/TestMatrix.java \
-    -java/foreign/TestUpcallStress.java
-
-jdk_foreign_stress = \
-    java/foreign/TestUpcallStress.java
+    -java/foreign/TestMatrix.java
 
 jdk_vector = \
     jdk/incubator/vector
@@ -583,6 +583,7 @@ jdk_jfr_sanity = \
     jdk/jfr/event/gc/collection/TestGCWithFasttime.java \
     jdk/jfr/event/gc/configuration/TestGCConfigurationEvent.java \
     jdk/jfr/event/metadata/TestDefaultConfigurations.java \
+    jdk/jfr/event/oldobject/TestDFSWithSmallStack.java \
     jdk/jfr/startupargs/TestDumpOnExit.java \
     jdk/jfr/api/consumer/recordingstream/TestBasics.java
 

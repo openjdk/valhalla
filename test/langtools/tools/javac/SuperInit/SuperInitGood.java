@@ -22,11 +22,13 @@
  */
 /*
  * @test
- * @bug 8194743 8345438 8356551 8349754
+ * @bug 8194743 8345438 8356551 8349754 8379833
+ * @library /tools/javac/lib
  * @summary Test valid placements of super()/this() in constructors
+ * @modules jdk.compiler/com.sun.tools.javac.tree
+ *          jdk.compiler/com.sun.tools.javac.util
+ * @enablePreview
  * @run main SuperInitGood
- * @build InitializationWarningTester
- * @run main InitializationWarningTester SuperInitGood SuperInitGoodWarnings.out
  */
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -525,6 +527,20 @@ public class SuperInitGood {
         }
     }
 
+    public static class Test26 {
+        Test26(Test26 t) {}
+
+        Test26(String s) {
+            this(new Test26());
+        }
+
+        Test26() {}
+
+        public static void main(String[] args) {
+            new Test26("test");
+        }
+    }
+
     public static void main(String[] args) {
         new Test0();
         new Test1();
@@ -573,5 +589,6 @@ public class SuperInitGood {
         new Test23();
         new Test24();
         new Test25(null);
+        new Test26("");
     }
 }

@@ -37,6 +37,7 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "interpreter/oopMapCache.hpp"
 #include "interpreter/templateTable.hpp"
 #include "jvm_io.h"
 #include "logging/log.hpp"
@@ -55,11 +56,12 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "oops/symbol.hpp"
+#include "oops/valuePayload.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
-#include "runtime/atomicAccess.hpp"
 #include "runtime/continuation.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -79,6 +81,7 @@
 #include "utilities/checkedCast.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
+#include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #if INCLUDE_JFR
 #include "jfr/jfr.inline.hpp"
@@ -233,44 +236,24 @@ JRT_END
 JRT_BLOCK_ENTRY(void, InterpreterRuntime::read_flat_field(JavaThread* current, oopDesc* obj, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
 
-  InstanceKlass* holder = InstanceKlass::cast(entry->field_holder());
-  assert(entry->field_holder()->field_is_flat(entry->field_index()), "Sanity check");
-
-  InlineLayoutInfo* layout_info = holder->inline_layout_info_adr(entry->field_index());
-  InlineKlass* field_klass = layout_info->klass();
-  const LayoutKind lk = layout_info->kind();
-  const int offset = entry->field_offset();
-
-  // If the field is nullable and is marked null, return early.
-  if (LayoutKindHelper::is_nullable_flat(lk) &&
-      field_klass->is_payload_marked_as_null(cast_from_oop<address>(obj) + offset)) {
+  FlatFieldPayload payload(instanceOop(obj), entry);
+  if (payload.is_payload_null()) {
+    // If the payload is null return before entering the JRT_BLOCK.
     current->set_vm_result_oop(nullptr);
     return;
   }
-
-#ifdef ASSERT
-  fieldDescriptor fd;
-  bool found = holder->find_field_from_offset(offset, false, &fd);
-  assert(found, "Field not found");
-  assert(fd.is_flat(), "Field must be flat");
-#endif // ASSERT
-
   JRT_BLOCK
-    oop res = field_klass->read_payload_from_addr(obj, (size_t)offset, lk, CHECK);
+    oop res = payload.read(CHECK);
     current->set_vm_result_oop(res);
   JRT_BLOCK_END
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::write_flat_field(JavaThread* current, oopDesc* obj, oopDesc* value, ResolvedFieldEntry* entry))
   assert(oopDesc::is_oop(obj), "Sanity check");
-  Handle obj_h(THREAD, obj);
-  assert(value == nullptr || oopDesc::is_oop(value), "Sanity check");
-  Handle val_h(THREAD, value);
+  assert(oopDesc::is_oop_or_null(value), "Sanity check");
 
-  InstanceKlass* holder = entry->field_holder();
-  InlineLayoutInfo* li = holder->inline_layout_info_adr(entry->field_index());
-  InlineKlass* vk = li->klass();
-  vk->write_value_to_addr(val_h(), ((char*)(oopDesc*)obj_h()) + entry->field_offset(), li->kind(), CHECK);
+  FlatFieldPayload payload(instanceOop(obj), entry);
+  payload.write(inlineOop(value), CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::newarray(JavaThread* current, BasicType type, jint size))
@@ -281,7 +264,7 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool* pool, int index, jint size))
   Klass*    klass = pool->klass_at(index, CHECK);
-  arrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
+  objArrayOop obj = oopFactory::new_objArray(klass, size, CHECK);
   current->set_vm_result_oop(obj);
 JRT_END
 
@@ -304,7 +287,7 @@ JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* current, jint* fi
   ConstantPool* constants = last_frame.method()->constants();
   int i = last_frame.get_index_u2(Bytecodes::_multianewarray);
   Klass* klass = constants->klass_at(i, CHECK);
-  int   nof_dims = last_frame.number_of_dimensions();
+  int nof_dims = last_frame.number_of_dimensions();
   assert(klass->is_klass(), "not a class");
   assert(nof_dims >= 1, "multianewarray rank must be nonzero");
 
@@ -344,16 +327,8 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* current, oo
   methodHandle method(current, Universe::is_substitutable_method());
   method->method_holder()->initialize(CHECK_false); // Ensure class ValueObjectMethods is initialized
   JavaCalls::call(&result, method, &args, THREAD);
-  if (HAS_PENDING_EXCEPTION) {
-    // Something really bad happened because isSubstitutable() should not throw exceptions
-    // If it is an error, just let it propagate
-    // If it is an exception, wrap it into an InternalError
-    if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
-      Handle e(THREAD, PENDING_EXCEPTION);
-      CLEAR_PENDING_EXCEPTION;
-      THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);
-    }
-  }
+  Exceptions::wrap_exception_in_internal_error("Internal error in substitutability test", CHECK_false);
+
   return result.get_jboolean();
 JRT_END
 
@@ -435,7 +410,7 @@ JRT_ENTRY(void, InterpreterRuntime::throw_StackOverflowError(JavaThread* current
                                  vmClasses::StackOverflowError_klass(),
                                  CHECK);
   // Increment counter for hs_err file reporting
-  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
+  Exceptions::increment_stack_overflow_errors();
   // Remove the ScopedValue bindings in case we got a StackOverflowError
   // while we were trying to manipulate ScopedValue bindings.
   current->clear_scopedValueBindings();
@@ -449,7 +424,7 @@ JRT_ENTRY(void, InterpreterRuntime::throw_delayed_StackOverflowError(JavaThread*
   java_lang_Throwable::set_message(exception(),
           Universe::delayed_stack_overflow_error_message());
   // Increment counter for hs_err file reporting
-  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
+  Exceptions::increment_stack_overflow_errors();
   // Remove the ScopedValue bindings in case we got a StackOverflowError
   // while we were trying to manipulate ScopedValue bindings.
   current->clear_scopedValueBindings();
@@ -615,22 +590,6 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     }
   } while (should_repeat == true);
 
-#if INCLUDE_JVMCI
-  if (EnableJVMCI && h_method->method_data() != nullptr) {
-    ResourceMark rm(current);
-    MethodData* mdo = h_method->method_data();
-
-    // Lock to read ProfileData, and ensure lock is not broken by a safepoint
-    MutexLocker ml(mdo->extra_data_lock(), Mutex::_no_safepoint_check_flag);
-
-    ProfileData* pdata = mdo->allocate_bci_to_data(current_bci, nullptr);
-    if (pdata != nullptr && pdata->is_BitData()) {
-      BitData* bit_data = (BitData*) pdata;
-      bit_data->set_exception_seen();
-    }
-  }
-#endif
-
   // notify JVMTI of an exception throw; JVMTI will detect if this is a first
   // time throw or a stack unwinding throw and accordingly notify the debugger
   if (JvmtiExport::can_post_on_exceptions()) {
@@ -644,10 +603,10 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     // handler in this method, or (b) after a stack overflow there is not yet
     // enough stack space available to reprotect the stack.
     continuation = Interpreter::remove_activation_entry();
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
     // Count this for compilation purposes
     h_method->interpreter_throwout_increment(THREAD);
-#endif
+#endif // COMPILER2
   } else {
     // handler in this method => change bci/bcp to handler bci/bcp and continue there
     handler_pc = h_method->code_base() + handler_bci;
@@ -702,11 +661,6 @@ JRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodErrorVerbose(JavaThread*
   methodHandle mh = methodHandle(current, missingMethod);
   LinkResolver::throw_abstract_method_error(mh, recvKlass, THREAD);
 JRT_END
-
-JRT_ENTRY(void, InterpreterRuntime::throw_InstantiationError(JavaThread* current))
-  THROW(vmSymbols::java_lang_InstantiationError());
-JRT_END
-
 
 JRT_ENTRY(void, InterpreterRuntime::throw_IncompatibleClassChangeError(JavaThread* current))
   THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
@@ -812,14 +766,7 @@ void InterpreterRuntime::resolve_get_put(Bytecodes::Code bytecode, int field_ind
   }
 
   ResolvedFieldEntry* entry = pool->resolved_field_entry_at(field_index);
-  entry->set_flags(info.access_flags().is_volatile(),
-                   info.access_flags().is_final(),
-                   info.is_flat(),
-                   info.is_null_free_inline_type(),
-                   info.has_null_marker());
-
-  entry->fill_in(info.field_holder(), info.offset(),
-                 checked_cast<u2>(info.index()), checked_cast<u1>(state),
+  entry->fill_in(info, checked_cast<u1>(state),
                  static_cast<u1>(get_code), static_cast<u1>(put_code));
 }
 
@@ -1195,6 +1142,10 @@ JRT_ENTRY(nmethod*,
 
   LastFrameAccessor last_frame(current);
   assert(last_frame.is_interpreted_frame(), "must come from interpreter");
+
+  if (JvmtiExport::can_post_frame_pop() && JvmtiExport::has_frame_pop_for_top_frame(current)) {
+    return nullptr; // no OSR if there is a FramePop event request for top frame
+  }
   methodHandle method(current, last_frame.method());
   const int branch_bci = branch_bcp != nullptr ? method->bci_from(branch_bcp) : InvocationEntryBci;
   const int bci = branch_bcp != nullptr ? method->bci_from(last_frame.bcp()) : InvocationEntryBci;
@@ -1308,11 +1259,9 @@ JRT_LEAF(void, InterpreterRuntime::at_unwind(JavaThread* current))
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDesc* obj,
-                                                      ResolvedFieldEntry *entry))
+                                                      ResolvedFieldEntry* entry))
 
-  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
   // check the access_flags for the field in the klass
-
   InstanceKlass* ik = entry->field_holder();
   int index = entry->field_index();
   if (!ik->field_status(index).is_access_watched()) return;
@@ -1333,12 +1282,10 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread* current, oopDe
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current, oopDesc* obj,
-                                                            ResolvedFieldEntry *entry, jvalue *value))
-
-  assert(entry->is_valid(), "Invalid ResolvedFieldEntry");
-  InstanceKlass* ik = entry->field_holder();
+                                                            ResolvedFieldEntry* entry, jvalue* value))
 
   // check the access_flags for the field in the klass
+  InstanceKlass* ik = entry->field_holder();
   int index = entry->field_index();
   // bail out if field modifications are not watched
   if (!ik->field_status(index).is_modification_watched()) return;
@@ -1616,23 +1563,32 @@ JRT_ENTRY(void, InterpreterRuntime::member_name_arg_or_null(JavaThread* current,
                                                             Method* method, address bcp))
   Bytecodes::Code code = Bytecodes::code_at(method, bcp);
   if (code != Bytecodes::_invokestatic) {
+    current->set_vm_result_oop(nullptr);
     return;
   }
+
   ConstantPool* cpool = method->constants();
   int cp_index = Bytes::get_native_u2(bcp + 1);
   Symbol* cname = cpool->klass_name_at(cpool->klass_ref_index_at(cp_index, code));
   Symbol* mname = cpool->name_ref_at(cp_index, code);
 
-  if (MethodHandles::has_member_arg(cname, mname)) {
-    oop member_name_oop = cast_to_oop(member_name);
-    if (java_lang_invoke_DirectMethodHandle::is_instance(member_name_oop)) {
-      // FIXME: remove after j.l.i.InvokerBytecodeGenerator code shape is updated.
-      member_name_oop = java_lang_invoke_DirectMethodHandle::member(member_name_oop);
-    }
-    current->set_vm_result_oop(member_name_oop);
-  } else {
+  if (!MethodHandles::has_member_arg(cname, mname)) {
     current->set_vm_result_oop(nullptr);
+    return;
   }
+
+  oop member_name_oop = cast_to_oop(member_name);
+
+  guarantee(member_name_oop != nullptr, "member_name_oop should not be nullptr");
+  guarantee(oopDesc::is_oop(member_name_oop), "member_name_oop should be an oop");
+  guarantee(java_lang_invoke_MemberName::is_instance(member_name_oop) ||
+    java_lang_invoke_DirectMethodHandle::is_instance(member_name_oop),
+    "member_name_oop is not MemberName or DMH");
+
+  if (java_lang_invoke_DirectMethodHandle::is_instance(member_name_oop)) {
+    member_name_oop = java_lang_invoke_DirectMethodHandle::member(member_name_oop);
+  }
+  current->set_vm_result_oop(member_name_oop);
 JRT_END
 #endif // INCLUDE_JVMTI
 
@@ -1646,7 +1602,9 @@ JRT_LEAF(intptr_t, InterpreterRuntime::trace_bytecode(JavaThread* current, intpt
   LastFrameAccessor last_frame(current);
   assert(last_frame.is_interpreted_frame(), "must be an interpreted frame");
   methodHandle mh(current, last_frame.method());
-  BytecodeTracer::trace_interpreter(mh, last_frame.bcp(), tos, tos2);
+  stringStream st;
+  BytecodeTracer::trace_interpreter(mh, last_frame.get_frame().real_fp(), last_frame.bcp(), tos, tos2, &st);
+  tty->print("%s", st.freeze());
   return preserve_this_value;
 JRT_END
 #endif // !PRODUCT
@@ -1656,5 +1614,18 @@ bool InterpreterRuntime::is_preemptable_call(address entry_point) {
   return entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter) ||
          entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache) ||
          entry_point == CAST_FROM_FN_PTR(address, InterpreterRuntime::_new);
+}
+
+void InterpreterRuntime::generate_oop_map_alot() {
+  JavaThread* current = JavaThread::current();
+  LastFrameAccessor last_frame(current);
+  if (last_frame.is_interpreted_frame()) {
+    ResourceMark rm(current);
+    InterpreterOopMap mask;
+    methodHandle mh(current, last_frame.method());
+    int bci = last_frame.bci();
+    log_info(generateoopmap)("Generating oopmap for method %s at bci %d", mh->name_and_sig_as_C_string(), bci);
+    OopMapCache::compute_one_oop_map(mh, bci, &mask);
+  }
 }
 #endif // ASSERT

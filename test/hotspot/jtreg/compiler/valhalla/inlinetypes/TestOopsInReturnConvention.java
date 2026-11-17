@@ -26,6 +26,7 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -55,6 +56,7 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -69,6 +71,7 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -99,6 +102,7 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -113,6 +117,7 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -144,6 +149,7 @@
  * @summary Test that oop fields in scalarized returns are properly handled.
  * @library /test/lib /compiler/whitebox /
  * @enablePreview
+ * @requires vm.compMode != "Xcomp"
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -164,7 +170,7 @@ import jdk.test.whitebox.WhiteBox;
 
 public class TestOopsInReturnConvention {
     static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
-    static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
+    static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2
 
     // Large value class with oops
     static value class LargeValueWithOops {

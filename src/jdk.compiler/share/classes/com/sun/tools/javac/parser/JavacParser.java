@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -199,10 +199,8 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
-        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
-        this.allowNullRestrictedTypes = (!preview.isPreview(Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
-                Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
+        this.allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowNullRestrictedTypes = preview.isEnabled() && Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
         updateUnexpectedTopLevelDefinitionStartError(false);
     }
 
@@ -226,10 +224,8 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
-        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
-        this.allowNullRestrictedTypes = (!preview.isPreview(Feature.NULL_RESTRICTED_TYPES) || preview.isEnabled()) &&
-                Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
+        this.allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowNullRestrictedTypes = preview.isEnabled() && Feature.NULL_RESTRICTED_TYPES.allowedInSource(source);
         updateUnexpectedTopLevelDefinitionStartError(false);
     }
 
@@ -281,18 +277,13 @@ public class JavacParser implements Parser {
     /** When terms are parsed, the mode determines which is expected:
      *     mode = EXPR        : an expression
      *     mode = TYPE        : a type
-     *     mode = NOPARAMS    : no parameters allowed for type
-     *     mode = TYPEARG     : type argument
-     *     mode |= NOLAMBDA   : lambdas are not allowed
-     *     mode |= ALLOW_BANGS: bang types are allowed
+     *     mode = NOLAMBDA    : lambdas are not allowed
+     *     mode = ALLOW_BANGS : bang types are allowed
      */
     protected static final int EXPR          = 1 << 0;
     protected static final int TYPE          = 1 << 1;
-    protected static final int NOPARAMS      = 1 << 2;
-    protected static final int TYPEARG       = 1 << 3;
-    protected static final int DIAMOND       = 1 << 4;
-    protected static final int NOLAMBDA      = 1 << 5;
-    protected static final int ALLOW_BANGS   = 1 << 6;
+    protected static final int NOLAMBDA      = 1 << 2;
+    protected static final int ALLOW_BANGS   = 1 << 3;
 
     protected void setMode(int mode) {
         this.mode = mode;
@@ -804,7 +795,7 @@ public class JavacParser implements Parser {
             }
         } else if (token.kind == UNDERSCORE) {
             if (Feature.UNDERSCORE_IDENTIFIER.allowedInSource(source)) {
-                log.warning(token.pos, Warnings.UnderscoreAsIdentifier);
+                log.warning(DiagnosticFlag.SYNTAX, token.pos, Warnings.UnderscoreAsIdentifier);
             } else if (asVariable) {
                 checkSourceLevel(Feature.UNNAMED_VARIABLES);
                 if (peekToken(LBRACKET)) {
@@ -1031,13 +1022,11 @@ public class JavacParser implements Parser {
             pattern = toP(F.at(token.pos).AnyPattern());
         }
         else {
-            int varTypePos = Position.NOPOS;
             if (parsedType == null) {
                 boolean var = token.kind == IDENTIFIER && token.name() == names.var;
                 e = unannotatedType(allowVar, TYPE | NOLAMBDA | ALLOW_BANGS);
                 if (var) {
-                    varTypePos = e.pos;
-                    e = null;
+                    e = replaceTypeWithVar(e);
                 }
             } else {
                 e = parsedType;
@@ -1075,12 +1064,9 @@ public class JavacParser implements Parser {
                     name = names.empty;
                 }
                 JCVariableDecl var = toP(F.at(varPos).VarDef(mods, name, e, null,
-                  varTypePos != Position.NOPOS ? JCVariableDecl.DeclKind.VAR : JCVariableDecl.DeclKind.EXPLICIT,
-                  varTypePos));
-                if (e == null) {
-                    if (var.name == names.underscore && !allowVar) {
-                        log.error(DiagnosticFlag.SYNTAX, varPos, Errors.UseOfUnderscoreNotAllowed);
-                    }
+                  e.hasTag(VARTYPE) ? JCVariableDecl.DeclKind.VAR : JCVariableDecl.DeclKind.EXPLICIT));
+                if (var.name == names.underscore && !allowVar) {
+                    log.error(DiagnosticFlag.SYNTAX, varPos, Errors.UseOfUnderscoreNotAllowed);
                 }
                 pattern = toP(F.at(pos).BindingPattern(var));
             }
@@ -1752,7 +1738,7 @@ public class JavacParser implements Parser {
                         break loop;
                     case LT:
                         if (!isMode(TYPE) && isParameterizedTypePrefix()) {
-                            //this is either an unbound method reference whose qualifier
+                            //this is an unbound method reference whose qualifier
                             //is a generic type i.e. A<S>::m
                             int pos1 = token.pos;
                             accept(LT);
@@ -2317,8 +2303,7 @@ public class JavacParser implements Parser {
                         && restrictedTypeName(param.vartype, true) != null) {
                     checkSourceLevel(param.pos, Feature.VAR_SYNTAX_IMPLICIT_LAMBDAS);
                     param.declKind = JCVariableDecl.DeclKind.VAR;
-                    param.typePos = TreeInfo.getStartPos(param.vartype);
-                    param.vartype = null;
+                    param.vartype = replaceTypeWithVar(param.vartype);
                 }
             }
         }
@@ -2484,7 +2469,7 @@ public class JavacParser implements Parser {
             if (allowYieldStatement) {
                 return true;
             } else {
-                log.warning(pos, Warnings.InvalidYield);
+                log.warning(DiagnosticFlag.SYNTAX, pos, Warnings.InvalidYield);
             }
         }
         return false;
@@ -3686,12 +3671,19 @@ public class JavacParser implements Parser {
                 case GT:
                     typeDepth--;
                     if (typeDepth == 0 && !peekToken(lookahead, DOT)) {
-                         return peekToken(lookahead, LAX_IDENTIFIER) ||
-                                peekToken(lookahead, tk -> tk == LPAREN) ||
-                                (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER)) ||
-                                (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, tk -> tk == LPAREN))
-                                 ? PatternResult.PATTERN
-                                                                         : PatternResult.EXPRESSION;
+                         if (peekToken(lookahead, LAX_IDENTIFIER) ||
+                            peekToken(lookahead, tk -> tk == LPAREN) ||
+                            (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, LAX_IDENTIFIER)) ||
+                            (allowNullRestrictedTypes && peekToken(lookahead, EMOTIONAL_QUALIFIER, tk -> tk == LPAREN))) {
+                             return PatternResult.PATTERN;
+                         }
+                         else if (peekToken(lookahead, LBRACKET) ||
+                                  peekToken(lookahead, MONKEYS_AT)) {
+                             break;
+                         }
+                         else {
+                             return PatternResult.EXPRESSION;
+                         }
                     } else if (typeDepth < 0) return PatternResult.EXPRESSION;
                     break;
                 case MONKEYS_AT:
@@ -4048,7 +4040,6 @@ public class JavacParser implements Parser {
      */
     JCVariableDecl variableDeclaratorRest(int pos, JCModifiers mods, JCExpression type, Name name,
                                   boolean reqInit, Comment dc, boolean localDecl, boolean compound) {
-        boolean declaredUsingVar = false;
         JCExpression init = null;
         type = bracketsOpt(type);
 
@@ -4074,7 +4065,6 @@ public class JavacParser implements Parser {
             syntaxError(token.pos, Errors.Expected(EQ));
         }
 
-        int varTypePos = Position.NOPOS;
         JCTree elemType = TreeInfo.innermostType(type, true);
         if (elemType.hasTag(IDENT)) {
             Name typeName = ((JCIdent) elemType).name;
@@ -4085,19 +4075,25 @@ public class JavacParser implements Parser {
                     //error - 'var' and arrays
                     reportSyntaxError(elemType.pos, Errors.RestrictedTypeNotAllowedArray(typeName));
                 } else {
-                    declaredUsingVar = true;
-                    varTypePos = elemType.pos;
+                    type = replaceTypeWithVar(type);
+
                     if (compound)
                         //error - 'var' in compound local var decl
                         reportSyntaxError(elemType.pos, Errors.RestrictedTypeNotAllowedCompound(typeName));
-                    //implicit type
-                    type = null;
                 }
             }
         }
         JCVariableDecl result = toP(F.at(pos).VarDef(mods, name, type, init,
-          declaredUsingVar ? JCVariableDecl.DeclKind.VAR : JCVariableDecl.DeclKind.EXPLICIT, varTypePos));
+          type.hasTag(VARTYPE) ? JCVariableDecl.DeclKind.VAR : JCVariableDecl.DeclKind.EXPLICIT));
         return attach(result, dc);
+    }
+
+    JCExpression replaceTypeWithVar(JCExpression type) {
+        JCVarType varType = F.at(type).VarType();
+
+        varType.endpos = type.endpos;
+
+        return varType;
     }
 
     Name restrictedTypeName(JCExpression e, boolean shouldWarn) {
@@ -4116,42 +4112,42 @@ public class JavacParser implements Parser {
             if (Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source)) {
                 return Source.JDK10;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK10));
+                log.warning(DiagnosticFlag.SYNTAX, pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK10));
             }
         }
         if (name == names.yield) {
             if (allowYieldStatement) {
                 return Source.JDK14;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK14));
+                log.warning(DiagnosticFlag.SYNTAX, pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK14));
             }
         }
         if (name == names.record) {
             if (allowRecords) {
                 return Source.JDK14;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK14));
+                log.warning(DiagnosticFlag.SYNTAX, pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK14));
             }
         }
         if (name == names.value) {
             if (allowValueClasses) {
-                return Source.JDK23;
+                return Source.DEFAULT;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK23));
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.DEFAULT));
             }
         }
         if (name == names.sealed) {
             if (allowSealedTypes) {
                 return Source.JDK15;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK15));
+                log.warning(DiagnosticFlag.SYNTAX, pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK15));
             }
         }
         if (name == names.permits) {
             if (allowSealedTypes) {
                 return Source.JDK15;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK15));
+                log.warning(DiagnosticFlag.SYNTAX, pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK15));
             }
         }
         return null;
@@ -4165,7 +4161,7 @@ public class JavacParser implements Parser {
         if (allowThisIdent ||
             !lambdaParameter ||
             LAX_IDENTIFIER.test(token.kind) ||
-            mods.flags != Flags.PARAMETER ||
+            (mods.flags & ~(Flags.PARAMETER | Flags.LAMBDA_PARAMETER)) != 0 ||
             mods.annotations.nonEmpty()) {
             JCExpression pn;
             if (token.kind == UNDERSCORE && (catchParameter || lambdaParameter)) {
@@ -4217,11 +4213,10 @@ public class JavacParser implements Parser {
             name = names.empty;
         }
 
-        boolean declaredUsingVar = type != null && type.hasTag(IDENT) && ((JCIdent)type).name == names.var;
+        boolean declaredUsingVar = type != null && type.hasTag(VARTYPE);
         JCVariableDecl.DeclKind declKind = declaredUsingVar ? JCVariableDecl.DeclKind.VAR :
           type != null ? JCVariableDecl.DeclKind.EXPLICIT : JCVariableDecl.DeclKind.IMPLICIT;
-        int typePos = type != null ? type.pos : pos;
-        return toP(F.at(pos).VarDef(mods, name, type, null, declKind, typePos));
+        return toP(F.at(pos).VarDef(mods, name, type, null, declKind));
     }
 
     /** Resources = Resource { ";" Resources }
@@ -4323,7 +4318,7 @@ public class JavacParser implements Parser {
                     if (source.compareTo(Source.JDK21) >= 0)
                         reportSyntaxError(semiList.first().pos, Errors.ExtraneousSemicolon);
                     else
-                        log.warning(semiList.first().pos, Warnings.ExtraneousSemicolon);
+                        log.warning(DiagnosticFlag.SYNTAX, semiList.first().pos, Warnings.ExtraneousSemicolon);
                 }
                 seenImport = true;
                 defs.append(importDeclaration());
@@ -4340,7 +4335,7 @@ public class JavacParser implements Parser {
                         if (source.compareTo(Source.JDK21) >= 0)
                             reportSyntaxError(semiList.first().pos, Errors.ExtraneousSemicolon);
                         else
-                            log.warning(semiList.first().pos, Warnings.ExtraneousSemicolon);
+                            log.warning(DiagnosticFlag.SYNTAX, semiList.first().pos, Warnings.ExtraneousSemicolon);
                     }
                     ModuleKind kind = ModuleKind.STRONG;
                     if (token.name() == names.open) {
@@ -4687,12 +4682,13 @@ public class JavacParser implements Parser {
                 JCMethodDecl methDef = (JCMethodDecl) def;
                 if (methDef.name == names.init && methDef.params.isEmpty() && (methDef.mods.flags & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0) {
                     ListBuffer<JCVariableDecl> tmpParams = new ListBuffer<>();
+                    TreeCopier<Void> copier = new TreeCopier<>(F);
                     for (JCVariableDecl param : headerFields) {
                         tmpParams.add(F.at(param)
                                 // we will get flags plus annotations from the record component
                                 .VarDef(F.Modifiers(Flags.PARAMETER | Flags.GENERATED_MEMBER | Flags.MANDATED | param.mods.flags & Flags.VARARGS,
-                                        param.mods.annotations),
-                                param.name, param.vartype, null));
+                                        copier.copy(param.mods.annotations)),
+                                param.name, copier.copy(param.vartype), null));
                     }
                     methDef.params = tmpParams.toList();
                 }
@@ -5272,14 +5268,13 @@ public class JavacParser implements Parser {
                 case CLASS: case INTERFACE: case ENUM:
                     isValueModifier = true;
                     break;
-                case IDENTIFIER: // value record R || value value || new value Comparable() {} ??
+                case IDENTIFIER: // value record R || value value
                     if (next.name() == names.record || next.name() == names.value
                             || (mode & EXPR) != 0)
                         isValueModifier = true;
                     break;
             }
             if (isValueModifier) {
-                checkSourceLevel(Feature.VALUE_CLASSES);
                 return true;
             }
         }
@@ -5696,7 +5691,19 @@ public class JavacParser implements Parser {
      *  LastFormalParameter = { FINAL | '@' Annotation } Type '...' Ident | FormalParameter
      */
     protected JCVariableDecl formalParameter(boolean lambdaParameter, boolean recordComponent) {
-        JCModifiers mods = !recordComponent ? optFinal(Flags.PARAMETER) : modifiersOpt();
+        JCModifiers mods;
+
+        if (recordComponent) {
+            mods = modifiersOpt();
+            /* it could be that the user added a javadoc with the @deprecated tag, when analyzing this
+             * javadoc, javac will set the DEPRECATED flag. This is correct in most cases but not for
+             * record components and thus should be removed in that case. Any javadoc applied to
+             * record components is ignored
+             */
+            mods.flags &= ~Flags.DEPRECATED;
+        } else {
+            mods = optFinal(Flags.PARAMETER | (lambdaParameter ? Flags.LAMBDA_PARAMETER : 0));
+        }
         if (recordComponent && mods.flags != 0) {
             log.error(mods.pos, Errors.RecordCantDeclareFieldModifiers);
         }
@@ -5732,7 +5739,7 @@ public class JavacParser implements Parser {
     }
 
     protected JCVariableDecl implicitParameter() {
-        JCModifiers mods = F.at(token.pos).Modifiers(Flags.PARAMETER);
+        JCModifiers mods = F.at(token.pos).Modifiers(Flags.PARAMETER | Flags.LAMBDA_PARAMETER);
         return variableDeclaratorId(mods, null, false, true, false);
     }
 
@@ -5902,7 +5909,7 @@ public class JavacParser implements Parser {
             log.error(pos, feature.error(source.name));
         } else if (preview.isPreview(feature)) {
             //use of preview feature, warn
-            preview.warnPreview(pos, feature);
+            preview.warnPreview(DiagnosticFlag.SYNTAX, pos, feature);
         }
     }
 

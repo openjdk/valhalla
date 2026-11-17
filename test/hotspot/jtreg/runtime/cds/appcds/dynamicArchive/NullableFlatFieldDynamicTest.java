@@ -64,8 +64,8 @@ public class NullableFlatFieldDynamicTest extends DynamicArchiveTestBase {
         String mainClass = "NullableFlatFieldApp";
         dump2(baseArchiveName, topArchiveName,
              "--enable-preview",
-             "-XX:+UseNullableValueFlattening",
              "-XX:+UnlockDiagnosticVMOptions",
+             "-XX:+UseNullableAtomicValueFlattening",
              "-XX:+PrintInlineLayout",
              "-Xlog:cds",
              "-Xlog:cds+dynamic=debug",
@@ -75,8 +75,8 @@ public class NullableFlatFieldDynamicTest extends DynamicArchiveTestBase {
                 });
         run2(baseArchiveName, topArchiveName,
             "--enable-preview",
-            "-XX:+UseNullableValueFlattening",
             "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+UseNullableAtomicValueFlattening",
             "-XX:+PrintInlineLayout",
             "-Xlog:class+load",
             "-Xlog:cds+dynamic=debug,cds=debug",

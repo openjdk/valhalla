@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import java.io.ObjectStreamClass;
 import java.io.ObjectStreamField;
 import java.io.OptionalDataException;
 import java.io.Serializable;
-import java.lang.classfile.ClassFile;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
@@ -41,6 +40,7 @@ import java.util.Set;
 import jdk.internal.access.JavaLangReflectAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.Stable;
 
 /** <P> The master factory for all reflective objects, both those in
@@ -105,7 +105,7 @@ public class ReflectionFactory {
             }
         }
         boolean isFinal = Modifier.isFinal(field.getModifiers());
-        boolean isReadOnly = isFinal && (!override || langReflectAccess.isTrustedFinalField(field));
+        boolean isReadOnly = isFinal && (!override || langReflectAccess.isTrustedFinalField(field) || field.isStrictInit());
         return MethodHandleAccessorFactory.newFieldAccessor(field, isReadOnly);
     }
 
@@ -218,9 +218,7 @@ public class ReflectionFactory {
             constructorToCall.setAccessible(true);
             return constructorToCall;
         }
-        if (cl.isValue()) {
-            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes");
-        }
+
         return generateConstructor(cl, constructorToCall);
     }
 
@@ -274,20 +272,21 @@ public class ReflectionFactory {
      * in step 11 of the deserialization process. If cl is not serializable, returns
      * cl's no-arg constructor. If no accessible constructor is found, or if the
      * class hierarchy is somehow malformed (e.g., a serializable class has no
-     * superclass), null is returned.
+     * superclass), or if this serializable class or a serializable superclass
+     * declares a strictly-initialized non-static field, null is returned.
      *
      * @param cl the class for which a constructor is to be found
      * @return the generated constructor, or null if none is available
      */
     public final Constructor<?> newConstructorForSerialization(Class<?> cl) {
         if (cl.isValue()) {
-            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes: " + cl);
+            return null;
         }
 
         Class<?> initCl = cl;
         while (Serializable.class.isAssignableFrom(initCl)) {
             Class<?> prev = initCl;
-            if ((initCl = initCl.getSuperclass()) == null ||
+            if ((initCl = initCl.getSuperclass()) == null || ValueClass.hasStrictInstanceField(prev) ||
                 (!disableSerialConstructorChecks() && !superHasAccessibleConstructor(prev))) {
                 return null;
             }
@@ -304,7 +303,8 @@ public class ReflectionFactory {
         } catch (NoSuchMethodException ex) {
             return null;
         }
-        return generateConstructor(cl, constructorToCall);
+
+        return newConstructorForSerialization(cl, constructorToCall);
     }
 
     private final Constructor<?> generateConstructor(Class<?> cl,
@@ -521,30 +521,6 @@ public class ReflectionFactory {
         } catch (ReflectiveOperationException e) {
             return null;
         }
-    }
-
-    public final Set<AccessFlag> parseAccessFlags(int mask, AccessFlag.Location location, Class<?> classFile) {
-        return AccessFlag.maskToAccessFlags(mask, location, classFileFormatVersion(classFile));
-    }
-
-    public final ClassFileFormatVersion classFileFormatVersion(Class<?> cl) {
-        if (cl.isArray() || cl.isPrimitive())
-            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
-        int raw = SharedSecrets.getJavaLangAccess().classFileVersion(cl);
-
-        int major = raw & 0xFFFF;
-        int minor = raw >>> Character.SIZE;
-
-        assert VM.isSupportedClassFileVersion(major, minor) : major + "." + minor;
-
-        if (major >= ClassFile.JAVA_12_VERSION) {
-            if (minor == 0)
-                return ClassFileFormatVersion.fromMajor(raw);
-            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
-        } else if (major == ClassFile.JAVA_1_VERSION) {
-            return minor < 3 ? ClassFileFormatVersion.RELEASE_0 : ClassFileFormatVersion.RELEASE_1;
-        }
-        return ClassFileFormatVersion.fromMajor(major);
     }
 
     //--------------------------------------------------------------------------

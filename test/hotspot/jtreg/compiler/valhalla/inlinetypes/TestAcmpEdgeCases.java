@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,15 +29,18 @@
  * @enablePreview
  * @run main compiler.valhalla.inlinetypes.TestAcmpEdgeCases
  * @run main/othervm -Xbatch
+ *                   -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UseFieldFlattening
  *                   compiler.valhalla.inlinetypes.TestAcmpEdgeCases
  * @run main/othervm -Xbatch
+ *                   -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-UseFieldFlattening
  *                   compiler.valhalla.inlinetypes.TestAcmpEdgeCases
  */
 
 package compiler.valhalla.inlinetypes;
 
+import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
 public class TestAcmpEdgeCases {
@@ -335,6 +338,12 @@ public class TestAcmpEdgeCases {
         return v1 == v2;
     }
 
+    public static Integer thirtyFour = 34;
+
+    public static boolean testNeRegionDeadInAcmp(Integer i) {
+        return i == 34 && i == thirtyFour;
+    }
+
     public static void main(String[] args) {
 
         for (int k = 0; k < 10_000; ++k) {
@@ -457,6 +466,11 @@ public class TestAcmpEdgeCases {
                     }
                 }
             }
+        }
+
+        for (int k = 0; k < 10_000; k++) {
+            Asserts.assertTrue(testNeRegionDeadInAcmp(34));
+            Asserts.assertFalse(testNeRegionDeadInAcmp(35));
         }
     }
 }

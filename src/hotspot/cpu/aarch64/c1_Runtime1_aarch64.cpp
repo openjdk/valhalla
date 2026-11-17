@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -708,8 +708,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
 
         __ enter();
         OopMap* map = save_live_registers(sasm);
-        int call_offset;
-        call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
+        int call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
         restore_live_registers_except_r0(sasm);
@@ -871,10 +870,6 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
         f.load_argument(0, r1); // r1,: index
         int call_offset = __ call_RT(r0, noreg, CAST_FROM_FN_PTR(address, load_flat_array), r0, r1);
 
-        // Ensure the stores that initialize the buffer are visible
-        // before any subsequent store that publishes this reference.
-        __ membar(Assembler::StoreStore);
-
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
         restore_live_registers_except_r0(sasm);
@@ -933,7 +928,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
         // load the klass and check the has finalizer flag
         Label register_finalizer;
         Register t = r5;
-        __ load_klass(t, r0);
+        __ load_klass(t, r0, rscratch1);
         __ ldrb(t, Address(t, Klass::misc_flags_offset()));
         __ tbnz(t, exact_log2(KlassFlags::_misc_has_finalizer), register_finalizer);
         __ ret(lr);
@@ -1068,7 +1063,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
         __ br(Assembler::EQ, is_secondary); // Klass is a secondary superclass
 
         // Klass is a concrete class
-        __ load_klass(r5, obj);
+        __ load_klass(r5, obj, rscratch1);
         __ ldr(rscratch1, Address(r5, r3));
         __ cmp(klass, rscratch1);
         __ cset(result, Assembler::EQ);
@@ -1076,7 +1071,7 @@ OopMapSet* Runtime1::generate_code_for(StubId id, StubAssembler* sasm) {
 
         __ bind(is_secondary);
 
-        __ load_klass(obj, obj);
+        __ load_klass(obj, obj, rscratch1);
 
         // This is necessary because I am never in my own secondary_super list.
         __ cmp(obj, klass);

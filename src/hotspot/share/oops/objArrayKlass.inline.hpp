@@ -37,7 +37,6 @@
 #include "utilities/devirtualizer.inline.hpp"
 #include "utilities/macros.hpp"
 
-
 inline ObjArrayKlass* ObjArrayKlass::next_refined_array_klass_acquire() const {
   return AtomicAccess::load_acquire(&_next_refined_array_klass);
 }

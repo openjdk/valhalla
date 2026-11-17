@@ -304,7 +304,9 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
     }
 
     /**
-     * {@inheritDoc} This implementation scans the children in left to right order.
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation scans the children in left to right order.
      *
      * @param node  {@inheritDoc}
      * @param p  {@inheritDoc}
@@ -934,6 +936,21 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
      */
     @Override
     public R visitPrimitiveType(PrimitiveTypeTree node, P p) {
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation returns {@code null}.
+     *
+     * @param node  {@inheritDoc}
+     * @param p  {@inheritDoc}
+     * @return the result of scanning
+     * @since 27
+     */
+    @Override
+    public R visitVarType(VarTypeTree node, P p) {
         return null;
     }
 

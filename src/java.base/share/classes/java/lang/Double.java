@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2025, Alibaba Group Holding Limited. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -35,7 +35,7 @@ import jdk.internal.math.FloatingDecimal;
 import jdk.internal.math.DoubleConsts;
 import jdk.internal.math.DoubleToDecimal;
 import jdk.internal.util.DecimalDigits;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -52,13 +52,13 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
  * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
- * as interchangeable and should not use instances for synchronization, mutexes, or
+ * as interchangeable and should not use instances for synchronization or
  * with {@linkplain java.lang.ref.Reference object references}.
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code Double} is a {@linkplain Class#isValue value class}.
- *          Use of value class instances for synchronization, mutexes, or with
+ *          Use of value class instances for synchronization or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.
  *      </div>
@@ -365,9 +365,9 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  *
  * @since 1.0
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Double extends Number
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Double extends Number
         implements Comparable<Double>, Constable, ConstantDesc {
     /**
      * A constant holding the positive infinity of type
@@ -968,18 +968,28 @@ public final class Double extends Number
     /**
      * Returns a {@code Double} instance representing the specified
      * {@code double} value.
-     * If a new {@code Double} instance is not required, this method
-     * should generally be used in preference to the constructor
-     * {@link #Double(double)}, as this method is likely to yield
-     * significantly better space and time performance by caching
-     * frequently requested values.
+     * <div class="preview-block">
+     *      <div class="preview-comment">
+     *          <p>
+     *              - When preview features are NOT enabled, {@code Double} is an identity class.
+     *              If a new {@code Double} instance is not required, this
+     *              method should generally be used in preference to the
+     *              constructor {@link #Double(double)}, as this method is
+     *              likely to yield significantly better space and time
+     *              performance by caching frequently requested values.
+     *          </p>
+     *          <p>
+     *              - When preview features are enabled, {@code Double} is a {@linkplain Class#isValue value class}.
+     *              The {@code valueOf} behavior is the same as invoking the constructor.
+     *          </p>
+     *      </div>
+     * </div>
      *
      * @param  d a double value.
      * @return a {@code Double} instance representing {@code d}.
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
     public static Double valueOf(double d) {
         return new Double(d);
     }
@@ -1075,6 +1085,7 @@ public final class Double extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
+    @Deserializer("value")
     public Double(double value) {
         this.value = value;
     }

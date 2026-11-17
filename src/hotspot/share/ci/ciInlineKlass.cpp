@@ -27,7 +27,6 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/array.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -39,11 +38,6 @@ int ciInlineKlass::payload_offset() const {
 // Could any array containing an instance of this value class ever be flat?
 bool ciInlineKlass::maybe_flat_in_array() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->maybe_flat_in_array();)
-}
-
-// Are arrays containing an instance of this value class always flat?
-bool ciInlineKlass::is_always_flat_in_array() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->is_always_flat_in_array();)
 }
 
 // Can this inline type be passed as multiple values?
@@ -63,9 +57,18 @@ bool ciInlineKlass::is_empty() {
   return nof_declared_nonstatic_fields() == 0;
 }
 
+bool ciInlineKlass::is_cloneable() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->is_cloneable();)
+}
+
+int ciInlineKlass::inline_arg_length() const {
+  VM_ENTRY_MARK;
+  return get_InlineKlass()->extended_sig()->length();
+}
+
 // When passing an inline type's fields as arguments, count the number
 // of argument slots that are needed
-int ciInlineKlass::inline_arg_slots() {
+int ciInlineKlass::inline_arg_slots() const {
   VM_ENTRY_MARK;
   const Array<SigEntry>* sig_vk = get_InlineKlass()->extended_sig();
   int slots = 0;
@@ -161,4 +164,8 @@ ciConstant ciInlineKlass::get_null_reset_value() {
   InlineKlass* vk = get_InlineKlass();
   oop null_reset_value = vk->null_reset_value();
   return ciConstant(T_OBJECT, CURRENT_ENV->get_object(null_reset_value));
+}
+
+ArrayDescription ciInlineKlass::array_description_of_array_properties(const ArrayProperties& requested_properties) {
+  GUARDED_VM_ENTRY(return ObjArrayKlass::array_layout_selection(get_InlineKlass(), requested_properties);)
 }

@@ -30,7 +30,6 @@
 #include "oops/access.hpp"
 #include "oops/accessBackend.hpp"
 #include "oops/oopsHierarchy.hpp"
-#include "utilities/exceptions.hpp"
 #include "utilities/fakeRttiSupport.hpp"
 #include "utilities/macros.hpp"
 
@@ -314,10 +313,13 @@ public:
       Raw::clone(src, dst, size);
     }
 
-    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
-      Raw::value_copy(src, dst, md, lk);
+    static void value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
+      Raw::value_copy(src, dst);
     }
 
+    static void value_store_null_in_heap(const ValuePayload& dst) {
+      Raw::value_store_null(dst);
+    }
   };
 };
 

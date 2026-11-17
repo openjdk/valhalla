@@ -82,9 +82,14 @@ public sealed interface StackMapFrameInfo
 
     /**
      * {@return the expanded unset fields}
+     * <p>
+     * If this stack map frame is declared in a {@code class} file that does not
+     * depend on preview features, the list of unset fields is always empty.
+     * If the {@code class} file depends on preview features, this method
+     * returns the list of unset fields.
      *
      * @jvms strict-fields-4.7.4 The {@code StackMapTable} Attribute
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
     List<NameAndTypeEntry> unsetFields();
@@ -107,6 +112,12 @@ public sealed interface StackMapFrameInfo
 
     /**
      * {@return a new stack map frame}
+     * <p>
+     * If this stack map frame is declared in a {@code class} file that does not
+     * depend on preview features, the list of unset fields must be empty;
+     * otherwise, the {@code class} file must declare that it depends on preview
+     * features if the unset fields list contains any item.
+     *
      * @param target the location of the frame
      * @param locals the complete list of frame locals
      * @param stack the complete frame stack
@@ -116,7 +127,7 @@ public sealed interface StackMapFrameInfo
      *         {@link java.lang.classfile##u2 u2}; or if unset fields has
      *         elements, but no {@link SimpleVerificationTypeInfo#UNINITIALIZED_THIS
      *         uninitializedThis} is present in {@code locals}
-     * @since Valhalla
+     * @since 28
      */
     @PreviewFeature(feature = PreviewFeature.Feature.STRICT_FIELDS, reflective = true)
     public static StackMapFrameInfo of(Label target,

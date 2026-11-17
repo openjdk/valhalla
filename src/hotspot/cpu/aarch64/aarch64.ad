@@ -1182,12 +1182,12 @@ class CallStubImpl {
  public:
   // Size of call trampoline stub.
   static uint size_call_trampoline() {
-    return 0; // no call trampolines on this platform
+    return MacroAssembler::max_trampoline_stub_size();
   }
 
   // number of relocations needed by a call trampoline stub
   static uint reloc_call_trampoline() {
-    return 0; // no call trampolines on this platform
+    return 5; // metadata; call dest; trampoline address; trampoline destination; trampoline_owner_metadata
   }
 };
 
@@ -1198,8 +1198,12 @@ class HandlerImpl {
   static int emit_deopt_handler(C2_MacroAssembler* masm);
 
   static uint size_deopt_handler() {
-    // count one branch instruction and one far call instruction sequence
-    return NativeInstruction::instruction_size + MacroAssembler::far_codestub_branch_size();
+    bool use_far_branch = MacroAssembler::target_needs_far_branch(SharedRuntime::deopt_blob()->unpack());
+    // far: adrp, add, blr; near: bl
+    uint target_branch_instructions = use_far_branch ? 3 : 1;
+    // target branch + one branch instruction
+    uint deopt_handler_instructions = target_branch_instructions + 1;
+    return deopt_handler_instructions * NativeInstruction::instruction_size;
   }
 };
 
@@ -1508,8 +1512,6 @@ source %{
     case Op_CompareAndSwapL:
     case Op_CompareAndSwapP:
     case Op_CompareAndSwapN:
-    case Op_ShenandoahCompareAndSwapP:
-    case Op_ShenandoahCompareAndSwapN:
     case Op_CompareAndSwapB:
     case Op_CompareAndSwapS:
     case Op_GetAndSetI:
@@ -1531,10 +1533,6 @@ source %{
     case Op_WeakCompareAndSwapL:
     case Op_WeakCompareAndSwapP:
     case Op_WeakCompareAndSwapN:
-    case Op_ShenandoahWeakCompareAndSwapP:
-    case Op_ShenandoahWeakCompareAndSwapN:
-    case Op_ShenandoahCompareAndExchangeP:
-    case Op_ShenandoahCompareAndExchangeN:
       return maybe_volatile;
     default:
       return false;
@@ -1664,19 +1662,19 @@ bool needs_acquiring_load_exclusive(const Node *n)
 //       from the start of the call to the point where the return address
 //       will point.
 
-int MachCallStaticJavaNode::ret_addr_offset()
+int MachCallStaticJavaNode::ret_addr_offset() const
 {
   // call should be a simple bl
   int off = 4;
   return off;
 }
 
-int MachCallDynamicJavaNode::ret_addr_offset()
+int MachCallDynamicJavaNode::ret_addr_offset() const
 {
   return 16; // movz, movk, movk, bl
 }
 
-int MachCallRuntimeNode::ret_addr_offset() {
+int MachCallRuntimeNode::ret_addr_offset() const {
   // for generated stubs the call will be
   //   bl(addr)
   // or with far branches
@@ -1944,7 +1942,7 @@ uint MachSpillCopyNode::implementation(C2_MacroAssembler *masm, PhaseRegAlloc *r
 
   assert(src_lo != OptoReg::Bad && dst_lo != OptoReg::Bad, "must move at least 1 register");
 
-  if (src_hi != OptoReg::Bad && !bottom_type()->isa_vectmask()) {
+  if (src_hi != OptoReg::Bad && !bottom_type()->isa_pvectmask()) {
     assert((src_lo&1)==0 && src_lo+1==src_hi &&
            (dst_lo&1)==0 && dst_lo+1==dst_hi,
            "expected aligned-adjacent pairs");
@@ -1959,7 +1957,7 @@ uint MachSpillCopyNode::implementation(C2_MacroAssembler *masm, PhaseRegAlloc *r
   int src_offset = ra_->reg2offset(src_lo);
   int dst_offset = ra_->reg2offset(dst_lo);
 
-  if (bottom_type()->isa_vect() && !bottom_type()->isa_vectmask()) {
+  if (bottom_type()->isa_vect() && !bottom_type()->isa_pvectmask()) {
     uint ireg = ideal_reg();
     DEBUG_ONLY(int algm = MIN2(RegMask::num_registers(ireg), (int)Matcher::stack_alignment_in_slots()) * VMRegImpl::stack_slot_size);
     assert((src_lo_rc != rc_stack) || is_aligned(src_offset, algm), "unaligned vector spill sp offset %d (src)", src_offset);
@@ -2107,7 +2105,7 @@ uint MachSpillCopyNode::implementation(C2_MacroAssembler *masm, PhaseRegAlloc *r
     } else {
       st->print("%s", Matcher::regName[dst_lo]);
     }
-    if (bottom_type()->isa_vect() && !bottom_type()->isa_vectmask()) {
+    if (bottom_type()->isa_vect() && !bottom_type()->isa_pvectmask()) {
       int vsize = 0;
       switch (ideal_reg()) {
       case Op_VecD:
@@ -2203,8 +2201,9 @@ void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
   if (!_verified) {
     __ ic_check(1);
   } else {
-    // TODO 8284443 Avoid creation of temporary frame
     if (ra_->C->stub_function() == nullptr) {
+      // Emit the entry barrier in a temporary frame before unpacking because
+      // it can deopt, which would require packing the scalarized args again.
       __ verified_entry(ra_->C, 0);
       __ entry_barrier();
       int framesize = ra_->C->output()->frame_slots() << LogBytesPerInt;
@@ -2229,15 +2228,9 @@ void MachVEPNode::emit(C2_MacroAssembler *masm, PhaseRegAlloc* ra_) const
 void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 {
   st->print_cr("# MachUEPNode");
-  if (UseCompressedClassPointers) {
-    st->print_cr("\tldrw rscratch1, [j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
-    st->print_cr("\tldrw r10, [rscratch2 + CompiledICData::speculated_klass_offset()]\t# compressed klass");
-    st->print_cr("\tcmpw rscratch1, r10");
-  } else {
-    st->print_cr("\tldr rscratch1, [j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
-    st->print_cr("\tldr r10, [rscratch2 + CompiledICData::speculated_klass_offset()]\t# compressed klass");
-    st->print_cr("\tcmp rscratch1, r10");
-  }
+  st->print_cr("\tldrw rscratch1, [j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
+  st->print_cr("\tldrw r10, [rscratch2 + CompiledICData::speculated_klass_offset()]\t# compressed klass");
+  st->print_cr("\tcmpw rscratch1, r10");
   st->print_cr("\tbne, SharedRuntime::_ic_miss_stub");
 }
 #endif
@@ -2458,11 +2451,8 @@ bool Matcher::is_generic_vector(MachOper* opnd)  {
   return opnd->opcode() == VREG;
 }
 
+#ifdef ASSERT
 // Return whether or not this register is ever used as an argument.
-// This function is used on startup to build the trampoline stubs in
-// generateOptoStub.  Registers not mentioned will be killed by the VM
-// call in the trampoline, and arguments in those registers not be
-// available to the callee.
 bool Matcher::can_be_java_arg(int reg)
 {
   return
@@ -2483,11 +2473,7 @@ bool Matcher::can_be_java_arg(int reg)
     reg ==  V6_num || reg == V6_H_num ||
     reg ==  V7_num || reg == V7_H_num;
 }
-
-bool Matcher::is_spillable_arg(int reg)
-{
-  return can_be_java_arg(reg);
-}
+#endif
 
 uint Matcher::int_pressure_limit()
 {
@@ -2522,29 +2508,25 @@ uint Matcher::float_pressure_limit()
   return (FLOATPRESSURE == -1) ? _FLOAT_REG_mask.size() : FLOATPRESSURE;
 }
 
-bool Matcher::use_asm_for_ldiv_by_con(jlong divisor) {
-  return false;
-}
-
-const RegMask& Matcher::divI_proj_mask() {
+const RegMask& Matcher::firstI_proj_mask() {
   ShouldNotReachHere();
   return RegMask::EMPTY;
 }
 
-// Register for MODI projection of divmodI.
-const RegMask& Matcher::modI_proj_mask() {
+// Register for the second projection of an int pair
+const RegMask& Matcher::secondI_proj_mask() {
   ShouldNotReachHere();
   return RegMask::EMPTY;
 }
 
-// Register for DIVL projection of divmodL.
-const RegMask& Matcher::divL_proj_mask() {
+// Register for the first projection of a long pair
+const RegMask& Matcher::firstL_proj_mask() {
   ShouldNotReachHere();
   return RegMask::EMPTY;
 }
 
-// Register for MODL projection of divmodL.
-const RegMask& Matcher::modL_proj_mask() {
+// Register for the second projection of a long pair
+const RegMask& Matcher::secondL_proj_mask() {
   ShouldNotReachHere();
   return RegMask::EMPTY;
 }
@@ -2655,11 +2637,36 @@ static bool is_valid_sve_arith_imm_pattern(Node* n, Node* m) {
 }
 
 // (XorV src (Replicate m1))
-// (XorVMask src (MaskAll m1))
 static bool is_vector_bitwise_not_pattern(Node* n, Node* m) {
   if (n != nullptr && m != nullptr) {
-    return (n->Opcode() == Op_XorV || n->Opcode() == Op_XorVMask) &&
+    return n->Opcode() == Op_XorV &&
            VectorNode::is_all_ones_vector(m);
+  }
+  return false;
+}
+
+// Returns true if (n, m) matches "(XorVMask vm2 (MaskAll m1))" and that XorVMask
+// is used only by an AndVMask. In that case, cloning m (the MaskAll) lets the
+// matcher avoid sharing the MaskAll node and subsume the pattern into rule:
+//   "(AndVMask vm1 (XorVMask vm2 (MaskAll m1)))".
+//
+// Limitation: the "andNot" rule still cannot be matched if "m" has other
+// uses outside this pattern.
+static bool is_vector_mask_not_operand_in_andnot_pattern(Node* n, Node* m) {
+  if (n == nullptr || m == nullptr) {
+    return false;
+  }
+
+  if (VectorNode::is_all_ones_vector(m) &&
+      n->Opcode() == Op_XorVMask &&
+      n->outcnt() == 1 &&
+      n->unique_out()->Opcode() == Op_AndVMask) {
+    // If another input of the AndVMask is also a mask-not pattern that would
+    // qualify for the `maskAll` cloning, do not clone the "maskAll" here,
+    // because the match rule can only consume one such pattern.
+    Node* use = n->unique_out();
+    Node* other_input = use->in(1) == n ? use->in(2) : use->in(1);
+    return !VectorNode::is_vectormask_bitwise_not_pattern(other_input);
   }
   return false;
 }
@@ -2668,6 +2675,7 @@ static bool is_vector_bitwise_not_pattern(Node* n, Node* m) {
 bool Matcher::pd_clone_node(Node* n, Node* m, Matcher::MStack& mstack) {
   if (is_vshift_con_pattern(n, m) ||
       is_vector_bitwise_not_pattern(n, m) ||
+      is_vector_mask_not_operand_in_andnot_pattern(n, m) ||
       is_valid_sve_arith_imm_pattern(n, m) ||
       is_encode_and_store_pattern(n, m)) {
     mstack.push(m, Visit);
@@ -3394,13 +3402,16 @@ encode %{
       } else if (rtype == relocInfo::metadata_type) {
         __ mov_metadata(dst_reg, (Metadata*)con);
       } else {
-        assert(rtype == relocInfo::none, "unexpected reloc type");
+        assert(rtype == relocInfo::none || rtype == relocInfo::external_word_type, "unexpected reloc type");
+        // load fake address constants using a normal move
         if (! __ is_valid_AArch64_address(con) ||
-            con < (address)(uintptr_t)os::vm_page_size()) {
+            con < (address)(uintptr_t)os::vm_page_size() ||
+            rtype == relocInfo::none) {
           __ mov(dst_reg, con);
         } else {
+          // use shorter adrp/add sequence for external_word relocation
           uint64_t offset;
-          __ adrp(dst_reg, con, offset);
+          __ adrp(dst_reg, Address(con, rtype), offset);
           __ add(dst_reg, dst_reg, offset);
         }
       }
@@ -3674,7 +3685,7 @@ encode %{
     }
     if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic() && _method->return_type()->is_loaded()) {
       // The last return value is not set by the callee but used to pass the null marker to compiled code.
-      // Search for the corresponding projection, get the register and emit code that initialized it.
+      // Search for the corresponding projection, get the register and emit code that initializes it.
       uint con = (tf()->range_cc()->cnt() - 1);
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
         ProjNode* proj = fast_out(i)->as_Proj();
@@ -3833,11 +3844,6 @@ frame %{
 
   // Compiled code's Frame Pointer
   frame_pointer(R31);
-
-  // Interpreter stores its frame pointer in a register which is
-  // stored to the stack by I2CAdaptors.
-  // I2CAdaptors convert from interpreted java to compiled java.
-  interpreter_frame_pointer(R29);
 
   // Stack alignment requirement
   stack_alignment(StackAlignmentInBytes); // Alignment size in bytes (128-bit -> 16 bytes)
@@ -4560,6 +4566,18 @@ operand immP0()
 operand immP_1()
 %{
   predicate(n->get_ptr() == 1);
+  match(ConP);
+
+  op_cost(0);
+  format %{ %}
+  interface(CONST_INTER);
+%}
+
+// AOT Runtime Constants Address
+operand immAOTRuntimeConstantsAddress()
+%{
+  // Check if the address is in the range of AOT Runtime Constants
+  predicate(AOTRuntimeConstants::contains((address)(n->get_ptr())));
   match(ConP);
 
   op_cost(0);
@@ -6894,7 +6912,7 @@ instruct loadConP(iRegPNoSp dst, immP con)
 
   ins_cost(INSN_COST * 4);
   format %{
-    "mov  $dst, $con\t# ptr"
+    "mov  $dst, $con\t# ptr\n\t"
   %}
 
   ins_encode(aarch64_enc_mov_p(dst, con));
@@ -6926,6 +6944,20 @@ instruct loadConP1(iRegPNoSp dst, immP_1 con)
   format %{ "mov  $dst, $con\t# nullptr ptr" %}
 
   ins_encode(aarch64_enc_mov_p1(dst, con));
+
+  ins_pipe(ialu_imm);
+%}
+
+instruct loadAOTRCAddress(iRegPNoSp dst, immAOTRuntimeConstantsAddress con)
+%{
+  match(Set dst con);
+
+  ins_cost(INSN_COST);
+  format %{ "adr  $dst, $con\t# AOT Runtime Constants Address" %}
+
+  ins_encode %{
+    __ load_aotrc_address($dst$$Register, (address)$con$$constant);
+  %}
 
   ins_pipe(ialu_imm);
 %}
@@ -7734,10 +7766,11 @@ instruct bytes_reverse_unsigned_short(iRegINoSp dst, iRegIorL2I src) %{
   match(Set dst (ReverseBytesUS src));
 
   ins_cost(INSN_COST);
-  format %{ "rev16w  $dst, $src" %}
+  format %{ "rev16w $dst, $src\t# $dst -> unsigned short" %}
 
   ins_encode %{
     __ rev16w(as_Register($dst$$reg), as_Register($src$$reg));
+    __ narrow_subword_type(as_Register($dst$$reg), T_CHAR);
   %}
 
   ins_pipe(ialu_reg);
@@ -8040,6 +8073,21 @@ instruct membar_release_lock() %{
   ins_pipe(pipe_serial);
 %}
 
+instruct membar_storeload() %{
+  match(MemBarStoreLoad);
+  ins_cost(VOLATILE_REF_COST*100);
+
+  format %{ "MEMBAR-store-load\n\t"
+            "dmb ish" %}
+
+  ins_encode %{
+    __ block_comment("membar_storeload");
+    __ membar(Assembler::StoreLoad);
+  %}
+
+  ins_pipe(pipe_serial);
+%}
+
 instruct unnecessary_membar_volatile() %{
   predicate(unnecessary_volatile(n));
   match(MemBarVolatile);
@@ -8064,6 +8112,20 @@ instruct membar_volatile() %{
   ins_encode %{
     __ block_comment("membar_volatile");
     __ membar(Assembler::StoreLoad);
+  %}
+
+  ins_pipe(pipe_serial);
+%}
+
+instruct membar_full() %{
+  match(MemBarFull);
+  ins_cost(VOLATILE_REF_COST*100);
+
+  format %{ "membar_full\n\t"
+            "dmb ish" %}
+  ins_encode %{
+    __ block_comment("membar_full");
+    __ membar(Assembler::AnyAny);
   %}
 
   ins_pipe(pipe_serial);
@@ -8229,7 +8291,7 @@ instruct encodeKlass_not_null(iRegNNoSp dst, iRegP src) %{
   ins_encode %{
     Register src_reg = as_Register($src$$reg);
     Register dst_reg = as_Register($dst$$reg);
-    __ encode_klass_not_null(dst_reg, src_reg);
+    __ encode_klass_not_null(dst_reg, src_reg, rscratch1);
   %}
 
    ins_pipe(ialu_reg);
@@ -8244,11 +8306,7 @@ instruct decodeKlass_not_null(iRegPNoSp dst, iRegN src) %{
   ins_encode %{
     Register src_reg = as_Register($src$$reg);
     Register dst_reg = as_Register($dst$$reg);
-    if (dst_reg != src_reg) {
-      __ decode_klass_not_null(dst_reg, src_reg);
-    } else {
-      __ decode_klass_not_null(dst_reg);
-    }
+    __ decode_klass_not_null(dst_reg, src_reg, rscratch1);
   %}
 
    ins_pipe(ialu_reg);
@@ -8287,6 +8345,34 @@ instruct castII(iRegI dst)
 %}
 
 instruct castII_checked(iRegI dst, rFlagsReg cr)
+%{
+  predicate(VerifyConstraintCasts > 0);
+  match(Set dst (CastII dst));
+  effect(KILL cr);
+
+  format %{ "# castII_checked of $dst" %}
+  ins_encode %{
+    __ verify_int_in_range(_idx, bottom_type()->is_int(), $dst$$Register, rscratch1);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// The unchecked and checked variants for CastII below both use iRegINoSp for src and dst
+// as some consumers of CastII node like ConvHF2F forbid the stack pointer as an input
+// (please see convHF2F_reg_reg rule which requires input to be in an iRegINoSp register).
+instruct castII_nosp(iRegINoSp dst)
+%{
+  predicate(VerifyConstraintCasts == 0);
+  match(Set dst (CastII dst));
+
+  size(0);
+  format %{ "# castII of $dst" %}
+  ins_encode(/* empty encoding */);
+  ins_cost(0);
+  ins_pipe(pipe_class_empty);
+%}
+
+instruct castII_checked_nosp(iRegINoSp dst, rFlagsReg cr)
 %{
   predicate(VerifyConstraintCasts > 0);
   match(Set dst (CastII dst));
@@ -14140,12 +14226,12 @@ instruct clearArray_reg_reg(iRegL_R11 cnt, iRegP_R10 base, iRegL val, Universe d
   ins_pipe(pipe_class_memory);
 %}
 
-instruct clearArray_imm_reg(immL cnt, iRegP_R10 base, iRegL_R11 temp, Universe dummy, rFlagsReg cr)
+instruct clearArray_imm_reg(immL cnt, iRegP_R10 base, iRegL_R11 temp, immL0 zero, Universe dummy, rFlagsReg cr)
 %{
-  predicate((uint64_t)n->in(2)->get_long()
+  predicate((uint64_t)n->in(2)->in(1)->get_long()
             < (uint64_t)(BlockZeroingLowLimit >> LogBytesPerWord)
             && !((ClearArrayNode*)n)->word_copy_only());
-  match(Set dummy (ClearArray cnt base));
+  match(Set dummy (ClearArray (Binary cnt base) zero));
   effect(TEMP temp, USE_KILL base, KILL cr);
 
   ins_cost(4 * INSN_COST);

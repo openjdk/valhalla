@@ -30,8 +30,6 @@
  * @enablePreview
  * @run main/othervm ValueArrayReferenceTest
  *                   --add-modules java.base --add-exports java.base/jdk.internal.value=ALL-UNNAMED
- *                   -XX:+UseArrayFlattening -XX:+UseFieldFlattening -XX:+UseAtomicValueFlattening -XX:+UseNullableValueFlattening
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+PrintInlineLayout -XX:+PrintFlatArrayLayout
  */
 import com.sun.jdi.ArrayReference;
 import com.sun.jdi.Field;

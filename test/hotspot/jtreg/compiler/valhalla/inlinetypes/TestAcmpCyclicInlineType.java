@@ -29,8 +29,8 @@ package compiler.valhalla.inlinetypes;
  * @summary Test acmp with cyclic value classes
  * @enablePreview
  * @run main ${test.main.class}
- * @run main/othervm -Xbatch -XX:+UseFieldFlattening ${test.main.class}
- * @run main/othervm -Xbatch -XX:-UseFieldFlattening ${test.main.class}
+ * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening ${test.main.class}
+ * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:-UseFieldFlattening ${test.main.class}
  */
 public class TestAcmpCyclicInlineType {
 

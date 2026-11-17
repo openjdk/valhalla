@@ -29,7 +29,8 @@ import jdk.internal.misc.CDS;
 import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.VM;
 import jdk.internal.util.DecimalDigits;
-import jdk.internal.value.DeserializeConstructor;
+import jdk.internal.value.Deserializer;
+import jdk.internal.value.ValueClass;
 import jdk.internal.vm.annotation.AOTRuntimeSetup;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
@@ -59,13 +60,13 @@ import static java.lang.String.COMPACT_STRINGS;
  *
  * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
  * class; programmers should treat instances that are {@linkplain #equals(Object) equal}
- * as interchangeable and should not use instances for synchronization, mutexes, or
+ * as interchangeable and should not use instances for synchronization or
  * with {@linkplain java.lang.ref.Reference object references}.
  *
  * <div class="preview-block">
  *      <div class="preview-comment">
  *          When preview features are enabled, {@code Integer} is a {@linkplain Class#isValue value class}.
- *          Use of value class instances for synchronization, mutexes, or with
+ *          Use of value class instances for synchronization or with
  *          {@linkplain java.lang.ref.Reference object references} result in
  *          {@link IdentityException}.
  *      </div>
@@ -80,9 +81,9 @@ import static java.lang.String.COMPACT_STRINGS;
  *
  * @since 1.0
  */
-@jdk.internal.MigratedValueClass
 @jdk.internal.ValueBased
-public final class Integer extends Number
+// See doc/value-class-preview.md for an overview of value class generation
+public final /*value*/ class Integer extends Number
         implements Comparable<Integer>, Constable, ConstantDesc {
     /**
      * A constant holding the minimum value an {@code int} can
@@ -891,6 +892,10 @@ public final class Integer extends Number
      * Cache to support the object identity semantics of autoboxing for values between
      * -128 and 127 (inclusive) as required by JLS.
      *
+     * When preview features are enabled, the cache does not affect object
+     * equality {@code ==} semantics, but exists for performance.
+     * See doc/value-class-preview.md "Wrapper Class Caches" section.
+     *
      * The cache is initialized on first usage.  The size of the cache
      * may be controlled by the {@code -XX:AutoBoxCacheMax=<size>} option.
      * During VM initialization, java.lang.Integer.IntegerCache.high property
@@ -933,7 +938,7 @@ public final class Integer extends Number
             }
             high = h;
 
-            Integer[] precomputed = null;
+            Integer[] precomputed;
             if (cache != null) {
                 // IntegerCache has been AOT-initialized.
                 precomputed = cache;
@@ -958,7 +963,7 @@ public final class Integer extends Number
                 return precomputed;
             }
 
-            Integer[] c = new Integer[size];
+            Integer[] c = newCacheArray(size);
             int j = low;
             // If we loading a precomputed cache (from AOT cache or CDS archive),
             // we must use all instances from it.
@@ -975,6 +980,14 @@ public final class Integer extends Number
                 c[i] = new Integer(j++);
             }
             return c;
+        }
+
+        private static Integer[] newCacheArray(int size) {
+            // ValueClass.newReferenceArray requires a value class component.
+            if (PreviewFeatures.isEnabled()) {
+                return (Integer[]) ValueClass.newReferenceArray(Integer.class, size);
+            }
+            return new Integer[size];
         }
 
         private IntegerCache() {}
@@ -1008,12 +1021,9 @@ public final class Integer extends Number
      * @since  1.5
      */
     @IntrinsicCandidate
-    @DeserializeConstructor
     public static Integer valueOf(int i) {
-        if (!PreviewFeatures.isEnabled()) {
-            if (i >= IntegerCache.low && i <= IntegerCache.high)
-                return IntegerCache.cache[i + (-IntegerCache.low)];
-        }
+        if (i >= IntegerCache.low && i <= IntegerCache.high)
+            return IntegerCache.cache[i + (-IntegerCache.low)];
         return new Integer(i);
     }
 
@@ -1037,6 +1047,7 @@ public final class Integer extends Number
      * likely to yield significantly better space and time performance.
      */
     @Deprecated(since="9")
+    @Deserializer("value")
     public Integer(int value) {
         this.value = value;
     }

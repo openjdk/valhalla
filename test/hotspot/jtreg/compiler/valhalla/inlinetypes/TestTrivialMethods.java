@@ -39,7 +39,7 @@
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:-StressCallingConvention
  *                   -XX:CompileCommand=dontinline,*::getter* -XX:CompileCommand=dontinline,*::setter*
- *                   -XX:CompileCommand=dontinline,*::constantGetter*
+ *                   -XX:CompileCommand=dontinline,*::constantGetter* -XX:+PreloadClasses
  *                   compiler.valhalla.inlinetypes.TestTrivialMethods
  */
 

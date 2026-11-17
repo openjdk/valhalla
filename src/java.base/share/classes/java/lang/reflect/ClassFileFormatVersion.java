@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,6 @@
  */
 
 package java.lang.reflect;
-
-import java.lang.classfile.ClassFile;
-
-import jdk.internal.javac.PreviewFeature;
 
 /**
  * Class file format versions of the Java virtual machine.
@@ -400,14 +396,21 @@ public enum ClassFileFormatVersion {
      */
     RELEASE_27(71),
 
-    // Reduce code churn when appending new constants
+    /**
+     * The version introduced by the Java Platform, Standard Edition
+     * 28.
+     *
+     * @since 28
+     *
+     * @see <a
+     * href="https://docs.oracle.com/en/java/javase/28/docs/specs/jvms/index.html">
+     * <cite>The Java Virtual Machine Specification, Java SE 28 Edition</cite></a>
+     */
+    RELEASE_28(72),
+    ; // Reduce code churn when appending new constants
+
     // Note to maintainers: when adding constants for newer releases,
     // the implementation of latest() must be updated too.
-
-    /// The preview features of Valhalla.
-    /// @since Valhalla
-    @PreviewFeature(feature = PreviewFeature.Feature.LANGUAGE_MODEL, reflective = true)
-    CURRENT_PREVIEW_FEATURES(ClassFile.latestMajorVersion());
 
     private final int major;
 
@@ -419,7 +422,7 @@ public enum ClassFileFormatVersion {
      * {@return the latest class file format version}
      */
     public static ClassFileFormatVersion latest() {
-        return RELEASE_27;
+        return RELEASE_28;
     }
 
     /**

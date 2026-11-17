@@ -144,7 +144,7 @@ void LambdaFormInvokers::regenerate_holder_classes(TRAPS) {
 
   HandleMark hm(THREAD);
   int len = _lambdaform_lines->length();
-  objArrayHandle list_lines = oopFactory::new_objArray_handle(vmClasses::String_klass(), len, CHECK);
+  refArrayHandle list_lines = oopFactory::new_refArray_handle(vmClasses::String_klass(), len, CHECK);
   for (int i = 0; i < len; i++) {
     Handle h_line = java_lang_String::create_from_str(_lambdaform_lines->at(i), CHECK);
     list_lines->obj_at_put(i, h_line());

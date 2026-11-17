@@ -170,6 +170,11 @@ public class Flags {
     @Use({FlagTarget.CLASS})
     public static final int IMPLICIT_CLASS    = 1<<19;
 
+    /** Variable with implicit/inferred type.
+     */
+    @Use(FlagTarget.VARIABLE)
+    public static final int VAR_VARIABLE     = 1<<21;
+
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
@@ -179,6 +184,11 @@ public class Flags {
     /** Marks a type as a value class */
     @Use({FlagTarget.CLASS})
     public static final int VALUE_CLASS      = 1<<20;
+
+    /** A parameter of a lambda function.
+     */
+    @Use(FlagTarget.VARIABLE)
+    public static final int LAMBDA_PARAMETER     = 1<<23;
 
     /** Flag is set for ClassSymbols that are being compiled from source.
      */
@@ -378,6 +388,11 @@ public class Flags {
     @Use({FlagTarget.CLASS})
     public static final long TYPE_TRANSLATED = 1L<<50;
 
+    /** Flag is set for the outer this field of an inner class.
+     */
+    @Use({FlagTarget.VARIABLE})
+    public static final long OUTER_THIS_FIELD = 1L<<50;
+
     /**
      * Flag to indicate class symbol is for module-info
      */
@@ -413,12 +428,6 @@ public class Flags {
      */
     @Use({FlagTarget.CLASS})
     public static final long VALUE_BASED = 1L<<53;
-
-    /**
-     * Flag to indicate the given ClassSymbol is a value based.
-     */
-    @Use({FlagTarget.CLASS})
-    public static final long MIGRATED_VALUE_CLASS = 1L<<57; //ClassSymbols only
 
     /**
      * Flag to indicate the given symbol has a @Deprecated annotation.
@@ -571,6 +580,7 @@ public class Flags {
         LocalVarFlags                     = FINAL | PARAMETER,
         ReceiverParamFlags                = PARAMETER;
 
+    @SuppressWarnings("preview") // allow use of VALUE_CLASS when building jdk.compiler.interim
     public static Set<Modifier> asModifierSet(long flags) {
         Set<Modifier> modifiers = modifierSets.get(flags);
         if (modifiers == null) {

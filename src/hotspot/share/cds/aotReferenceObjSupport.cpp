@@ -97,7 +97,7 @@ class KeepAliveObjectsTable : public HashTable<oop, bool,
     36137, // prime number
     AnyObj::C_HEAP,
     mtClassShared,
-    HeapShared::oop_hash> {};
+    HeapShared::oop_address_hash> {};
 
 static KeepAliveObjectsTable* _keep_alive_objs_table;
 static OopHandle _keep_alive_objs_array;
@@ -142,6 +142,16 @@ void AOTReferenceObjSupport::stabilize_cached_reference_objects(TRAPS) {
                            method_name,
                            vmSymbols::void_method_signature(),
                            CHECK);
+    }
+    {
+      TempNewSymbol method_name = SymbolTable::new_symbol("assemblySetup");
+      JavaValue result(T_VOID);
+      Symbol* baseLocale_name = vmSymbols::sun_util_locale_BaseLocale();
+      Klass* baseLocale_klass = SystemDictionary::resolve_or_fail(baseLocale_name, true, CHECK);
+      JavaCalls::call_static(&result, baseLocale_klass,
+                             method_name,
+                             vmSymbols::void_method_signature(),
+                             CHECK);
     }
 
     {

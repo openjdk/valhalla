@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -277,8 +277,6 @@ public abstract class InnerClassesTestBase extends TestResult {
                     .append(toString(outerMod)).append(' ')
                     .append(outerClassType).append(' ')
                     .append(prefix).append(' ').append('\n');
-            if (outerClassType == ClassType.CLASS && outerMod.contains(Modifier.ABSTRACT))
-                sb.append("int f;\n"); // impose identity to make testing predicatable
             int count = 0;
             Map<String, Set<String>> class2Flags = new HashMap<>();
             List<String> syntheticClasses = new ArrayList<>();
@@ -289,10 +287,8 @@ public abstract class InnerClassesTestBase extends TestResult {
                     privateConstructor = "private A" + count + "() {}";
                     syntheticClasses.add("new A" + count + "();");
                 }
-                String instField = innerClassType == ClassType.CLASS && innerMod.contains(Modifier.ABSTRACT) ?
-                                                "int f; " : ""; // impose identity to make testing predicatable
                 sb.append(toString(innerMod)).append(' ');
-                sb.append(String.format("%s A%d { %s %s}\n", innerClassType, count, instField, privateConstructor));
+                sb.append(String.format("%s A%d {%s}\n", innerClassType, count, privateConstructor));
                 Set<String> flags = getFlags(innerClassType, innerMod);
                 class2Flags.put("A" + count, flags);
             }

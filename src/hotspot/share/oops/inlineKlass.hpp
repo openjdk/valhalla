@@ -25,9 +25,12 @@
 #ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
 #define SHARE_VM_OOPS_INLINEKLASS_HPP
 
+#include "oops/inlineOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/layoutKind.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "oops/valuePayload.hpp"
+#include "runtime/handles.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -96,7 +99,24 @@ class InlineKlass: public InstanceKlass {
     int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
                                    // payload_offset must be subtracted to get the offset from the beginning of the payload
 
+    // When we can't intrinsify the substitutability check, we can still avoid the call to isSubstitutable at runtime if the
+    // value object is small enough.  If all the fields are contained at once in a single long, we can load such a long from
+    // both operands, use a bitwise mask to remove the extra bits (from header, padding...), and compare these masked long.
+    //
+    // This doesn't always apply, for instance, if there are oops among the fields, we shouldn't carelessly load and compare:
+    // the GC might move the object in between.
+    // To signal this fast path cannot be done on this current class, simply put 0 in _fast_acmp_mask.
+    //
+    // We also should take care of not loading further than the object, even if it means reading part of the header.
+    // For this reason, we can't use _payload_offset, but we need our special offset.
+    // The offset doesn't need to be aligned on word boundary, or anything else.
+    //
+    int _fast_acmp_offset;    // if < 0, fast acmp doesn't apply
+    int64_t _fast_acmp_mask;  // can be 0 for empty value classes
+
     Members();
+
+    void print_on(outputStream* st) const;
   };
 
   InlineKlass();
@@ -143,7 +163,7 @@ class InlineKlass: public InstanceKlass {
   address unpack_handler() const                              { return members()._unpack_handler; }
   void set_unpack_handler(address unpack_handler)             { members()._unpack_handler = unpack_handler; }
 
-  int null_reset_value_offset() {
+  int null_reset_value_offset() const {
     int offset = members()._null_reset_value_offset;
     assert(offset != 0, "must not be called if not initialized");
     return offset;
@@ -186,6 +206,12 @@ class InlineKlass: public InstanceKlass {
   void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
 
+  int fast_acmp_offset() const                                { return members()._fast_acmp_offset; }
+  void set_fast_acmp_offset(int offset)                       { members()._fast_acmp_offset = offset; }
+
+  int64_t fast_acmp_mask() const                              { return members()._fast_acmp_mask; }
+  void set_fast_acmp_mask(int64_t mask)                       { members()._fast_acmp_mask = mask; }
+
   bool supports_nullable_layouts() const {
     return has_nullable_non_atomic_layout() || has_nullable_atomic_layout();
   }
@@ -210,10 +236,12 @@ class InlineKlass: public InstanceKlass {
     *null_marker_address(payload) = 0;
   }
 
-  bool is_layout_supported(LayoutKind lk);
+  inline bool layout_has_null_marker(LayoutKind lk) const;
 
-  int layout_alignment(LayoutKind kind) const;
-  int layout_size_in_bytes(LayoutKind kind) const;
+  inline bool is_layout_supported(LayoutKind lk) const;
+
+  inline int layout_alignment(LayoutKind kind) const;
+  inline int layout_size_in_bytes(LayoutKind kind) const;
 
 #if INCLUDE_CDS
   void remove_unshareable_info() override;
@@ -242,35 +270,23 @@ class InlineKlass: public InstanceKlass {
 
   // Allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
-  instanceOop allocate_instance(TRAPS);
+  inlineOop allocate_instance(TRAPS);
 
   address payload_addr(oop o) const;
 
   bool maybe_flat_in_array();
-  bool is_always_flat_in_array();
 
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
-
-  // Methods to copy payload between containers
-  //
-  // Methods taking a LayoutKind argument expect that both the source and the destination
-  // layouts are compatible with the one specified in argument (alignment, size, presence
-  // of a null marker). Reminder: the BUFFERED layout, used in values buffered in heap,
-  // is compatible with all the other layouts.
-
-  void write_value_to_addr(oop src, void* dst, LayoutKind lk, TRAPS);
-  oop read_payload_from_addr(const oop src, size_t offset, LayoutKind lk, TRAPS);
-  void copy_payload_to_addr(void* src, void* dst, LayoutKind lk);
 
   // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
   inline void oop_iterate_specialized(const address oop_addr, OopClosureType* closure);
 
   template <typename T, class OopClosureType>
-  inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi);
+  inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, uintptr_t lo, uintptr_t hi);
 
-  // calling convention support
+  // Support for the scalarized calling convention
   void initialize_calling_convention(TRAPS);
 
   bool can_be_passed_as_fields() const;
@@ -310,16 +326,25 @@ class InlineKlass: public InstanceKlass {
     return byte_offset_of(Members, _null_marker_offset);
   }
 
-  oop null_reset_value();
+  static ByteSize fast_acmp_offset_offset() {
+    return byte_offset_of(Members, _fast_acmp_offset);
+  }
+
+  static ByteSize fast_acmp_mask_offset() {
+    return byte_offset_of(Members, _fast_acmp_mask);
+  }
+
+  oop null_reset_value() const;
   void set_null_reset_value(oop val);
 
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(InlineKlass* ik) ;
 
+  void print_on(outputStream* st) const override;
+
   // Verification
   void verify_on(outputStream* st) override;
   void oop_verify_on(oop obj, outputStream* st) override;
-
 };
 
 #endif // SHARE_VM_OOPS_INLINEKLASS_HPP

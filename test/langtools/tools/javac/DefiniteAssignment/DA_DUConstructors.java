@@ -16,6 +16,17 @@ public class DA_DUConstructors {
         }
     }
 
+    class C2_Base {
+        C2_Base(int i) {}
+    }
+    class C2 extends C2_Base {
+        final int x;
+        C2() {
+            super(x = 3); // error
+            x = 4;
+        }
+    }
+
     class C3 {
         C3(int i) {}
     }

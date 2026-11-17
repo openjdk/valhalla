@@ -62,6 +62,34 @@ bool CallGenerator::is_inlined_method_handle_intrinsic(ciMethod* symbolic_info, 
   return symbolic_info->is_method_handle_intrinsic() && !m->is_method_handle_intrinsic();
 }
 
+// If late inlining for this call happens in a dead part of the graph it can leave a dead loop behind
+void CallGenerator::mark_projs_not_dead_loop_safe(Node* ret) const {
+  if (!is_late_inline()) {
+    return;
+  }
+  CallNode* call = call_node();
+  if (ret->is_Proj() && ret->in(0) == call) {
+    ret->mark_not_dead_loop_safe();
+  } else if (ret->isa_InlineType()) {
+    InlineTypeNode* vt = ret->as_InlineType();
+    Node* oop = vt->get_oop();
+    if (oop->is_Proj() && oop->in(0) == call) {
+      oop->mark_not_dead_loop_safe();
+    }
+    Node* null_marker = vt->get_null_marker();
+    if (null_marker->is_Proj() && null_marker->in(0) == call) {
+      null_marker->mark_not_dead_loop_safe();
+    }
+
+    for (uint i = 0; i < vt->field_count(); i++) {
+      Node* field = vt->field_value(i);
+      if (field->is_Proj() && field->in(0) == call) {
+        field->mark_not_dead_loop_safe();
+      }
+    }
+  }
+}
+
 //-----------------------------ParseGenerator---------------------------------
 // Internal class which handles all direct bytecode traversal.
 class ParseGenerator : public InlineCallGenerator {
@@ -80,7 +108,7 @@ public:
 
   virtual bool      is_parse() const           { return true; }
   virtual JVMState* generate(JVMState* jvms);
-  int is_osr() { return _is_osr; }
+  bool              is_osr() const             { return _is_osr; }
 
 };
 
@@ -153,7 +181,6 @@ protected:
 
 JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   GraphKit kit(jvms);
-  PhaseGVN& gvn = kit.gvn();
   bool is_static = method()->is_static();
   address target = is_static ? SharedRuntime::get_resolve_static_call_stub()
                              : SharedRuntime::get_resolve_opt_virtual_call_stub();
@@ -182,12 +209,12 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
     // Mark the call node as virtual, sort of:
     call->set_optimized_virtual(true);
   }
-  kit.set_arguments_for_java_call(call, is_late_inline());
-  if (kit.stopped()) {
-    return kit.transfer_exceptions_into_jvms();
-  }
+  kit.set_arguments_for_java_call(call);
   kit.set_edges_for_java_call(call, false, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
+  if (!call->is_boxing_method()) {
+    mark_projs_not_dead_loop_safe(ret);
+  }
   kit.push_node(method()->return_type()->basic_type(), ret);
   return kit.transfer_exceptions_into_jvms();
 }
@@ -283,11 +310,9 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   _call_node = call;  // Save the call node in case we need it later
 
   kit.set_arguments_for_java_call(call);
-  if (kit.stopped()) {
-    return kit.transfer_exceptions_into_jvms();
-  }
   kit.set_edges_for_java_call(call, false /*must_throw*/, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
+  mark_projs_not_dead_loop_safe(ret);
   kit.push_node(method()->return_type()->basic_type(), ret);
 
   // Represent the effect of an implicit receiver null_check
@@ -638,6 +663,20 @@ void CallGenerator::do_late_inline_helper() {
   }
 
   Compile* C = Compile::current();
+
+  uint endoff = call->jvms()->endoff();
+  if (C->inlining_incrementally()) {
+    // No reachability edges should be present when incremental inlining takes place.
+    // Inlining logic doesn't expect any extra edges past debug info and fails with
+    // an assert in SafePointNode::grow_stack.
+    assert(endoff == call->req(), "reachability edges not supported");
+  } else {
+    if (call->req() > endoff) { // reachability edges present
+      assert(OptimizeReachabilityFences, "required");
+      return; // keep the original call node as the holder of reachability info
+    }
+  }
+
   // Remove inlined methods from Compiler's lists.
   if (call->is_macro()) {
     C->remove_macro_node(call);
@@ -670,6 +709,12 @@ void CallGenerator::do_late_inline_helper() {
     for (uint i1 = 0; i1 < size; i1++) {
       map->init_req(i1, call->in(i1));
     }
+    // Call node has in(ReturnAdr) set to top() node.
+    // We have to set map->in(ReturnAdr) to correct value
+    // because it is used by uncommon traps.
+    Node* ret_adr = C->start()->proj_out_or_null(TypeFunc::ReturnAdr);
+    precond(ret_adr != nullptr);
+    map->set_req(TypeFunc::ReturnAdr, ret_adr);
 
     PhaseGVN& gvn = *C->initial_gvn();
     // Make sure the state is a MergeMem for parsing.
@@ -684,6 +729,7 @@ void CallGenerator::do_late_inline_helper() {
       map->set_req(i1, C->top());
     }
     jvms->set_map(map);
+    precond(ret_adr == jvms->map()->returnadr());
 
     // Make enough space in the expression stack to transfer
     // the incoming arguments and return value.
@@ -701,6 +747,9 @@ void CallGenerator::do_late_inline_helper() {
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
         Node* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
+        // GraphKit::access_load_at() may be called from InlineTypeNode::make_from_multi() and it may change the map
+        // that arg_kit uses.
+        map = arg_kit.map();
         map->set_control(arg_kit.control());
         map->set_argument(jvms, i1, vt);
       } else {
@@ -725,6 +774,8 @@ void CallGenerator::do_late_inline_helper() {
     ciType* return_type = inline_method->return_type();
     if (!call->tf()->returns_inline_type_as_fields() &&
         return_type->is_inlinetype() && return_type->as_inline_klass()->can_be_returned_as_fields()) {
+      assert(is_mh_late_inline(), "Unexpected return type");
+
       // Allocate a buffer for the inline type returned as fields because the caller expects an oop return.
       // Do this before the method handle call in case the buffer allocation triggers deoptimization and
       // we need to "re-execute" the call in the interpreter (to make sure the call is only executed once).
@@ -764,79 +815,89 @@ void CallGenerator::do_late_inline_helper() {
       C->inline_printer()->record(method(), jvms, InliningResult::SUCCESS, "late inline succeeded");
     }
 
-    // Capture any exceptional control flow
-    GraphKit kit(new_jvms);
-
-    // Find the result object
-    Node* result = C->top();
-    int   result_size = method()->return_type()->size();
-    if (result_size != 0 && !kit.stopped()) {
-      result = (result_size == 1) ? kit.pop() : kit.pop_pair();
-    }
-
-    if (call->is_CallStaticJava() && call->as_CallStaticJava()->is_boxing_method()) {
-      result = kit.must_be_not_null(result, false);
-    }
-
     if (inline_cg()->is_inline()) {
       C->set_has_loops(C->has_loops() || inline_method->has_loops());
       C->env()->notice_inlined_method(inline_method);
     }
     C->set_inlining_progress(true);
-    C->set_do_cleanup(kit.stopped()); // path is dead; needs cleanup
 
-    // Handle inline type returns
-    InlineTypeNode* vt = result->isa_InlineType();
-    if (vt != nullptr) {
-      if (call->tf()->returns_inline_type_as_fields()) {
-        vt->replace_call_results(&kit, call, C);
-      } else {
-        // Result might still be allocated (for example, if it has been stored to a non-flat field)
-        if (!vt->is_allocated(&kit.gvn())) {
-          assert(buffer_oop != nullptr, "should have allocated a buffer");
-          RegionNode* region = new RegionNode(3);
+    // Find the result object and capture any exceptional control flow.
+    GraphKit kit(new_jvms);
+    Node* result = C->top();
 
-          // Check if result is null
-          Node* null_ctl = kit.top();
-          kit.null_check_common(vt->get_null_marker(), T_INT, false, &null_ctl);
-          region->init_req(1, null_ctl);
-          PhiNode* oop = PhiNode::make(region, kit.gvn().zerocon(T_OBJECT), TypeInstPtr::make(TypePtr::BotPTR, vt->type()->inline_klass()));
-          Node* init_mem = kit.reset_memory();
-          PhiNode* mem = PhiNode::make(region, init_mem, Type::MEMORY, TypePtr::BOTTOM);
-
-          // Not null, initialize the buffer
-          kit.set_all_memory(init_mem);
-
-          Node* payload_ptr = kit.basic_plus_adr(buffer_oop, kit.gvn().type(vt)->inline_klass()->payload_offset());
-          vt->store_flat(&kit, buffer_oop, payload_ptr, false, true, true, IN_HEAP | MO_UNORDERED);
-          // Do not let stores that initialize this buffer be reordered with a subsequent
-          // store that would make this buffer accessible by other threads.
-          AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop);
-          assert(alloc != nullptr, "must have an allocation node");
-          kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
-          region->init_req(2, kit.control());
-          oop->init_req(2, buffer_oop);
-          mem->init_req(2, kit.merged_memory());
-
-          // Update oop input to buffer
-          kit.gvn().hash_delete(vt);
-          vt->set_oop(kit.gvn(), kit.gvn().transform(oop));
-          vt->set_is_buffered(kit.gvn());
-          vt = kit.gvn().transform(vt)->as_InlineType();
-
-          kit.set_control(kit.gvn().transform(region));
-          kit.set_all_memory(kit.gvn().transform(mem));
-          kit.record_for_igvn(region);
-          kit.record_for_igvn(oop);
-          kit.record_for_igvn(mem);
-        }
-        result = vt;
-      }
-      DEBUG_ONLY(buffer_oop = nullptr);
+    assert(!C->do_cleanup(), "already set");
+    if (kit.stopped()) {
+      C->set_do_cleanup(true); // path is dead; needs cleanup
     } else {
-      assert(result->is_top() || !call->tf()->returns_inline_type_as_fields() || !call->as_CallJava()->method()->return_type()->is_loaded(), "Unexpected return value");
+      result = kit.pop_node(method()->return_type()->basic_type());
+      if (result != C->top() && !result_not_used) {
+        if (call->is_CallStaticJava() &&
+            call->as_CallStaticJava()->is_boxing_method()) {
+          result = kit.must_be_not_null(result, false);
+        }
+        // Handle inline type returns
+        InlineTypeNode* vt = result->isa_InlineType();
+        if (vt != nullptr) {
+          if (call->tf()->returns_inline_type_as_fields()) {
+            vt->replace_call_results(&kit, call, C);
+          } else {
+            // Result might still be allocated (for example, if it has been stored to a non-flat field)
+            if (!vt->is_allocated(&kit.gvn())) {
+              assert(buffer_oop != nullptr, "should have allocated a buffer");
+              RegionNode* region = new RegionNode(3);
+
+              // Check if result is null
+              Node* null_ctl = kit.top();
+              kit.null_check_common(vt->get_null_marker(), T_INT, false, &null_ctl);
+              region->init_req(1, null_ctl);
+              PhiNode* oop = PhiNode::make(region, kit.gvn().zerocon(T_OBJECT), TypeInstPtr::make(TypePtr::BotPTR, vt->type()->inline_klass()));
+              Node* init_mem = kit.reset_memory();
+              PhiNode* mem = PhiNode::make(region, init_mem, Type::MEMORY, TypePtr::BOTTOM);
+
+              // Not null, initialize the buffer
+              kit.set_all_memory(init_mem);
+
+              Node* payload_ptr = kit.basic_plus_adr(buffer_oop, kit.gvn().type(vt)->inline_klass()->payload_offset());
+              vt->store_flat(&kit, buffer_oop, payload_ptr, false, true, true, IN_HEAP | MO_UNORDERED);
+              // Do not let stores that initialize this buffer be reordered with a subsequent
+              // store that would make this buffer accessible by other threads.
+              AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop);
+              assert(alloc != nullptr, "must have an allocation node");
+              kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+              region->init_req(2, kit.control());
+              oop->init_req(2, buffer_oop);
+              mem->init_req(2, kit.merged_memory());
+
+              // Update oop input to buffer
+              kit.gvn().hash_delete(vt);
+              vt->set_oop(kit.gvn(), kit.gvn().transform(oop));
+              vt->set_is_buffered(kit.gvn());
+              vt = kit.gvn().transform(vt)->as_InlineType();
+
+              kit.set_control(kit.gvn().transform(region));
+              kit.set_all_memory(kit.gvn().transform(mem));
+              kit.record_for_igvn(region);
+              kit.record_for_igvn(oop);
+              kit.record_for_igvn(mem);
+            }
+            result = vt;
+          }
+          DEBUG_ONLY(buffer_oop = nullptr);
+        } else {
+          assert(!call->tf()->returns_inline_type_as_fields() || !call->as_CallJava()->method()->return_type()->is_loaded(), "Unexpected return value");
+        }
+        assert(buffer_oop == nullptr, "unused buffer allocation");
+
+        // Note: scalarized results are guarded per projection
+        if (!call->tf()->returns_inline_type_as_fields()) {
+          assert(callprojs->nb_resproj == 1 && callprojs->resproj[0] != nullptr,
+                 "single result projection expected");
+          // Limit result type propagation until next IGVN cleanup.
+          const Type* result_type = kit.gvn().type(callprojs->resproj[0]);
+          result = kit.gvn().transform(new OpaqueParseNode(C, result, result_type));
+        }
+      }
     }
-    assert(buffer_oop == nullptr, "unused buffer allocation");
 
     kit.replace_call(call, result, true, do_asserts);
   }
@@ -1066,29 +1127,6 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     return kit.transfer_exceptions_into_jvms();
   }
 
-  // Allocate inline types if they are merged with objects (similar to Parse::merge_common())
-  uint tos = kit.jvms()->stkoff() + kit.sp();
-  uint limit = slow_map->req();
-  for (uint i = TypeFunc::Parms; i < limit; i++) {
-    Node* m = kit.map()->in(i);
-    Node* n = slow_map->in(i);
-    const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
-    // TODO 8284443 still needed?
-    if (m->is_InlineType() && !t->is_inlinetypeptr()) {
-      // Allocate inline type in fast path
-      m = m->as_InlineType()->buffer(&kit);
-      kit.map()->set_req(i, m);
-    }
-    if (n->is_InlineType() && !t->is_inlinetypeptr()) {
-      // Allocate inline type in slow path
-      PreserveJVMState pjvms(&kit);
-      kit.set_map(slow_map);
-      n = n->as_InlineType()->buffer(&kit);
-      kit.map()->set_req(i, n);
-      slow_map = kit.stop();
-    }
-  }
-
   // There are 2 branches and the replaced nodes are only valid on
   // one: restore the replaced nodes to what they were before the
   // branch.
@@ -1112,6 +1150,8 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
       mms.set_memory(gvn.transform(phi));
     }
   }
+  uint tos = kit.jvms()->stkoff() + kit.sp();
+  uint limit = slow_map->req();
   for (uint i = TypeFunc::Parms; i < limit; i++) {
     // Skip unused stack slots; fast forward to monoff();
     if (i == tos) {
@@ -1121,6 +1161,12 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     Node* m = kit.map()->in(i);
     Node* n = slow_map->in(i);
     if (m != n) {
+#ifdef ASSERT
+      if (m->is_InlineType() != n->is_InlineType()) {
+        InlineTypeNode* unique_vt = m->is_InlineType() ? m->as_InlineType() : n->as_InlineType();
+        assert(unique_vt->is_allocated(&gvn), "InlineType can be merged with an oop only if it is allocated");
+      }
+#endif
       const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
       Node* phi = PhiNode::make(region, m, t);
       phi->set_req(2, n);
@@ -1227,7 +1273,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         // Cast receiver to its type.
         if (!target->is_static()) {
           Node* recv = kit.argument(0);
-          Node* casted_recv = kit.maybe_narrow_object_type(recv, signature->accessing_klass());
+          Node* casted_recv = kit.maybe_narrow_object_type(recv, signature->accessing_klass(), target->receiver_maybe_larval());
           if (casted_recv->is_top()) {
             print_inlining_failure(C, callee, jvms, "argument types mismatch");
             return nullptr; // FIXME: effectively dead; issue a halt node instead
@@ -1240,7 +1286,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
             Node* arg = kit.argument(receiver_skip + j);
-            Node* casted_arg = kit.maybe_narrow_object_type(arg, t->as_klass());
+            Node* casted_arg = kit.maybe_narrow_object_type(arg, t->as_klass(), false);
             if (casted_arg->is_top()) {
               print_inlining_failure(C, callee, jvms, "argument types mismatch");
               return nullptr; // FIXME: effectively dead; issue a halt node instead

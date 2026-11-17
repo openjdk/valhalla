@@ -25,11 +25,7 @@
 #ifndef SHARE_VM_CI_CIINLINEKLASS_HPP
 #define SHARE_VM_CI_CIINLINEKLASS_HPP
 
-#include "ci/ciConstantPoolCache.hpp"
-#include "ci/ciEnv.hpp"
-#include "ci/ciFlags.hpp"
 #include "ci/ciInstanceKlass.hpp"
-#include "ci/ciSymbol.hpp"
 #include "oops/inlineKlass.hpp"
 
 // ciInlineKlass
@@ -52,26 +48,31 @@ protected:
   ciInlineKlass(ciSymbol* name, jobject loader) :
     ciInstanceKlass(name, loader, T_OBJECT) {}
 
-  const char* type_string() { return "ciInlineKlass"; }
+  const char* type_string() override { return "ciInlineKlass"; }
 
 public:
-  bool is_inlinetype() const { return true; }
+  bool is_inlinetype() const override { return true; }
 
   // Inline type fields
   int payload_offset() const;
 
-  bool maybe_flat_in_array() const;
-  bool is_always_flat_in_array() const;
+  bool maybe_flat_in_array() const override;
+
+  // Scalarized calling convention support: pass/return this inline type as its
+  // field components in the calling convention (registers/stack), not as a single oop.
+  // See InlineKlass::initialize_calling_convention for details.
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
+
   bool is_empty();
-  int inline_arg_slots();
+  bool is_cloneable() const;
+  int inline_arg_length() const;
+  int inline_arg_slots() const;
   bool contains_oops() const;
   int oop_count() const;
   address pack_handler() const;
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;
-  int nullable_size_in_bytes() const;
   bool has_null_free_non_atomic_layout() const;
   bool has_null_free_atomic_layout() const;
   bool has_nullable_atomic_layout() const;
@@ -82,6 +83,7 @@ public:
   int field_map_offset() const;
   ciConstant get_field_map() const;
   ciConstant get_null_reset_value();
+  ArrayDescription array_description_of_array_properties(const ArrayProperties&);
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

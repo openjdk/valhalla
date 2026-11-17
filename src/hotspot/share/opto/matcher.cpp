@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -184,17 +184,17 @@ RegMask* Matcher::return_values_mask(const TypeFunc* tf) {
 
   int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
   if (regs <= 0) {
-    // We ran out of registers to store the null marker for a nullable inline type return.
-    // Since it is only set in the 'call_epilog', we can simply put it on the stack.
-    assert(tf->returns_inline_type_as_fields(), "should have been tested during graph construction");
-    // TODO 8284443 Can we teach the register allocator to reserve a stack slot instead?
-    // mask[--cnt] = STACK_ONLY_mask does not work (test with -XX:+StressGCM)
-    int slot = C->fixed_slots() - 2;
+    // We ran out of registers to store the null marker for a scalarized return.
+    // Put it into a fixed slot on the stack that we reserved for it in
+    // Compile::Compile. Code in 'call_epilog' will then initialize it.
+    assert(C->needs_nm_slot(), "Should have been set during parsing");
+    int current_slot = C->fixed_slots();
     if (C->needs_stack_repair()) {
-      slot -= 2; // Account for stack increment value
+      current_slot -= VMRegImpl::slots_per_word;
     }
+    int nm_slot = current_slot - VMRegImpl::slots_per_word;
     mask[--cnt].clear();
-    mask[cnt].insert(OptoReg::stack2reg(slot));
+    mask[cnt].insert(OptoReg::stack2reg(nm_slot));
   }
   for (uint i = 0; i < cnt; i++) {
     mask[i].clear();
@@ -2433,7 +2433,8 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
       break;
     }
     case Op_VectorBlend:
-    case Op_VectorInsert: {
+    case Op_VectorInsert:
+    case Op_VectorBitwiseBlend: {
       Node* pair = new BinaryNode(n->in(1), n->in(2));
       n->set_req(1, pair);
       n->set_req(2, n->in(3));
@@ -2606,7 +2607,7 @@ bool Matcher::gen_narrow_oop_implicit_null_checks() {
   // Advice matcher to perform null checks on the narrow oop side.
   // Implicit checks are not possible on the uncompressed oop side anyway
   // (at least not for read accesses).
-  // Performs significantly better (especially on Power 6).
+  // Performs significantly better.
   if (!os::zero_page_read_protected()) {
     return true;
   }

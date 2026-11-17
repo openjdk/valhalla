@@ -160,6 +160,19 @@ int MethodHandles::ref_kind_to_flags(int ref_kind) {
   return flags;
 }
 
+#ifdef ASSERT
+const char* MethodHandles::ref_kind_to_verify_msg(int ref_kind) {
+  switch (ref_kind) {
+    case JVM_REF_invokeSpecial:   return "verify_ref_kind expected invokeSpecial";
+    case JVM_REF_invokeStatic:    return "verify_ref_kind expected invokeStatic";
+    case JVM_REF_invokeVirtual:   return "verify_ref_kind expected invokeVirtual";
+    case JVM_REF_invokeInterface: return "verify_ref_kind expected invokeInterface";
+    default:  assert(false, "unexpected ref_kind: %d", ref_kind);
+  }
+  return "";
+}
+#endif
+
 Handle MethodHandles::resolve_MemberName_type(Handle mname, Klass* caller, TRAPS) {
   Handle empty;
   Handle type(THREAD, java_lang_invoke_MemberName::type(mname()));
@@ -257,7 +270,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
       ls.print_cr("memberName: invokeinterface method_holder::method: %s, itableindex: %d, access_flags:",
                   Method::name_and_sig_as_C_string(m->method_holder(), m->name(), m->signature()),
                   vmindex);
-       m->access_flags().print_on(&ls);
+       m->print_access_flags(&ls);
        if (!m->is_abstract()) {
          if (!m->is_private()) {
            ls.print("default");
@@ -304,7 +317,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
       ls.print_cr("memberName: invokevirtual method_holder::method: %s, receiver: %s, vtableindex: %d, access_flags:",
                   Method::name_and_sig_as_C_string(m->method_holder(), m->name(), m->signature()),
                   m_klass->internal_name(), vmindex);
-       m->access_flags().print_on(&ls);
+       m->print_access_flags(&ls);
        if (m->is_default_method()) {
          ls.print("default");
        }
@@ -1192,7 +1205,7 @@ JVM_ENTRY(jobject, MHN_getMemberVMInfo(JNIEnv *env, jobject igcls, jobject mname
   if (mname_jh == nullptr)  return nullptr;
   Handle mname(THREAD, JNIHandles::resolve_non_null(mname_jh));
   intptr_t vmindex  = java_lang_invoke_MemberName::vmindex(mname());
-  objArrayHandle result = oopFactory::new_objArray_handle(vmClasses::Object_klass(), 2, CHECK_NULL);
+  refArrayHandle result = oopFactory::new_refArray_handle(vmClasses::Object_klass(), 2, CHECK_NULL);
   jvalue vmindex_value; vmindex_value.j = (long)vmindex;
   oop x = java_lang_boxing_object::create(T_LONG, &vmindex_value, CHECK_NULL);
   result->obj_at_put(0, x);

@@ -62,9 +62,6 @@
 #include "adfiles/ad_aarch64.hpp"
 #include "opto/runtime.hpp"
 #endif
-#if INCLUDE_JVMCI
-#include "jvmci/jvmciJavaClasses.hpp"
-#endif
 
 #define __ masm->
 
@@ -121,17 +118,14 @@ int RegisterSaver::reg_offset_in_bytes(Register r) {
 
   int slots_per_vect = FloatRegister::save_slots_per_register;
 
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
   if (_save_vectors) {
     slots_per_vect = FloatRegister::slots_per_neon_register;
-
-#ifdef COMPILER2
     if (Matcher::supports_scalable_vector()) {
       slots_per_vect = Matcher::scalable_vector_reg_size(T_FLOAT);
     }
-#endif
   }
-#endif
+#endif // COMPILER2
 
   int r0_offset = v0_offset_in_bytes() + (slots_per_vect * FloatRegister::number_of_registers) * BytesPerInt;
   return r0_offset + r->encoding() * wordSize;
@@ -171,7 +165,7 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
   }
 #endif
 
-#if COMPILER2_OR_JVMCI
+#ifdef COMPILER2
   if (_save_vectors) {
     int extra_save_slots_per_register = 0;
     // Save upper half of vector registers
@@ -186,8 +180,8 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
     additional_frame_words += ((extra_vector_bytes + total_predicate_in_bytes) / wordSize);
   }
 #else
-  assert(!_save_vectors, "vectors are generated only by C2 and JVMCI");
-#endif
+  assert(!_save_vectors, "vectors are generated only by C2");
+#endif // COMPILER2
 
   int frame_size_in_bytes = align_up(additional_frame_words * wordSize +
                                      reg_save_size * BytesPerInt, 16);
@@ -241,9 +235,7 @@ void RegisterSaver::restore_live_registers(MacroAssembler* masm) {
   __ pop_CPU_state(_save_vectors, Matcher::supports_scalable_vector(),
                    Matcher::scalable_vector_reg_size(T_BYTE), total_sve_predicate_in_bytes());
 #else
-#if !INCLUDE_JVMCI
-  assert(!_save_vectors, "vectors are generated only by C2 and JVMCI");
-#endif
+  assert(!_save_vectors, "vectors are generated only by C2");
   __ pop_CPU_state(_save_vectors);
 #endif
   __ ldp(rfp, lr, Address(__ post(sp, 2 * wordSize)));
@@ -540,8 +532,8 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
   // 3    8 T_BOOL
   // -    0 return address
   //
-  // However to make thing extra confusing. Because we can fit a Java long/double in
-  // a single slot on a 64 bt vm and it would be silly to break them up, the interpreter
+  // However to make things extra confusing. Because we can fit a Java long/double in
+  // a single slot on a 64 bit vm and it would be silly to break them up, the interpreter
   // leaves one slot empty and only stores to a single slot. In this case the
   // slot that is occupied is the T_VOID slot. See I said it was confusing.
 
@@ -557,7 +549,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
   if (!r_1->is_FloatRegister()) {
     Register val = r25;
     if (r_1->is_stack()) {
-      // memory to memory use r25 (scratch registers is used by store_heap_oop)
+      // memory to memory use r25 (scratch registers are used by store_heap_oop)
       int ld_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
       __ load_sized_value(val, Address(sp, ld_off), size_in_bytes, /* is_signed */ false);
     } else {
@@ -633,7 +625,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   Register tmp2 = r16;
   Register tmp3 = r17;
 
-#ifndef ASSERT
+#ifdef ASSERT
   RegSet clobbered_gp_regs = MacroAssembler::call_clobbered_gp_registers();
   assert(clobbered_gp_regs.contains(buf_array), "buf_array must be saved explicitly if it's not a clobber");
   assert(clobbered_gp_regs.contains(buf_oop), "buf_oop must be saved explicitly if it's not a clobber");
@@ -649,9 +641,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       has_inline_argument = (sig_extended->at(i)._bt == T_METADATA);
     }
     if (has_inline_argument) {
-      // There is at least an inline type argument: we're coming from
-      // compiled code so we have no buffers to back the inline types
-      // Allocate the buffers here with a runtime call.
+      // There is at least a value type argument: we're coming from
+      // compiled code so we may not have buffers to back the value
+      // objects. Allocate the buffers here with a runtime call for
+      // the value arguments that needs a buffer.
       RegisterSaver reg_save(true /* save_vectors */);
       OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
 
@@ -686,7 +679,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       // We get an array of objects from the runtime call
       __ get_vm_result_oop(buf_array, rthread);
-      __ get_vm_result_metadata(rmethod, rthread); // TODO: required to keep the callee Method live?
     }
   }
 
@@ -739,10 +731,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 #endif /* ASSERT */
     } else {
       ignored++;
-      // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
-      __ load_heap_oop(buf_oop, Address(buf_array, index), tmp1, tmp2);
-      next_vt_arg++; next_arg_int++;
+      next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
       // slots to the buffer: we know we are done with that inline type
@@ -751,6 +740,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.
       Label L_null;
+      Label not_null_buffer;
       do {
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
@@ -761,6 +751,19 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
           vt--;
           ignored++;
+        } else if (sig_extended->at(next_arg_comp)._vt_oop) {
+          VMReg buffer = regs[next_arg_comp-ignored].first();
+          if (buffer->is_stack()) {
+            int ld_off = buffer->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
+            __ ldr(buf_oop, Address(sp, ld_off));
+          } else {
+            __ mov(buf_oop, buffer->as_Register());
+          }
+          __ cbnz(buf_oop, not_null_buffer);
+          // get the buffer from the just allocated pool of buffers
+          int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_OBJECT);
+          __ load_heap_oop(buf_oop, Address(buf_array, index), rscratch1, tmp2);
+          next_vt_arg++;
         } else {
           int off = sig_extended->at(next_arg_comp)._offset;
           if (off == -1) {
@@ -787,6 +790,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         }
       } while (vt != 0);
       // pass the buffer to the interpreter
+      __ bind(not_null_buffer);
       __ str(buf_oop, Address(sp, st_off));
       __ bind(L_null);
     }
@@ -838,18 +842,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   // Will jump to the compiled code just as if compiled code was doing it.
   // Pre-load the register-jump target early, to schedule it better.
   __ ldr(rscratch1, Address(rmethod, in_bytes(Method::from_compiled_inline_offset())));
-
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    // check if this call should be routed towards a specific entry point
-    __ ldr(rscratch2, Address(rthread, in_bytes(JavaThread::jvmci_alternate_call_target_offset())));
-    Label no_alternative_target;
-    __ cbz(rscratch2, no_alternative_target);
-    __ mov(rscratch1, rscratch2);
-    __ str(zr, Address(rthread, in_bytes(JavaThread::jvmci_alternate_call_target_offset())));
-    __ bind(no_alternative_target);
-  }
-#endif // INCLUDE_JVMCI
 
   int total_args_passed = sig->length();
 
@@ -928,7 +920,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
      }
    }
 
-
   __ mov(rscratch2, rscratch1);
   __ push_cont_fastpath(rthread); // Set JavaThread::_cont_fastpath to the sp of the oldest interpreted frame we know about; kills rscratch1
   __ mov(rscratch1, rscratch2);
@@ -944,6 +935,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   // and the vm will find there should this case occur.
 
   __ str(rmethod, Address(rthread, JavaThread::callee_target_offset()));
+
   __ br(rscratch1);
 }
 
@@ -2365,11 +2357,6 @@ void SharedRuntime::generate_deopt_blob() {
   ResourceMark rm;
   // Setup code generation tools
   int pad = 0;
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    pad += 512; // Increase the buffer size when compiling for JVMCI
-  }
-#endif
   const char* name = SharedRuntime::stub_name(StubId::shared_deopt_id);
   CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, BlobId::shared_deopt_id);
   if (blob != nullptr) {
@@ -2382,7 +2369,7 @@ void SharedRuntime::generate_deopt_blob() {
   int frame_size_in_words;
   OopMap* map = nullptr;
   OopMapSet *oop_maps = new OopMapSet();
-  RegisterSaver reg_save(COMPILER2_OR_JVMCI != 0);
+  RegisterSaver reg_save(COMPILER2_PRESENT(true) NOT_COMPILER2(false));
 
   // -------------
   // This code enters when returning to a de-optimized nmethod.  A return
@@ -2427,13 +2414,6 @@ void SharedRuntime::generate_deopt_blob() {
   __ b(cont);
 
   int reexecute_offset = __ pc() - start;
-#if INCLUDE_JVMCI && !defined(COMPILER1)
-  if (UseJVMCICompiler) {
-    // JVMCI does not use this kind of deoptimization
-    __ should_not_reach_here();
-  }
-#endif
-
   // Reexecute case
   // return address is the pc describes what bci to do re-execute at
 
@@ -2442,45 +2422,6 @@ void SharedRuntime::generate_deopt_blob() {
 
   __ movw(rcpool, Deoptimization::Unpack_reexecute); // callee-saved
   __ b(cont);
-
-#if INCLUDE_JVMCI
-  Label after_fetch_unroll_info_call;
-  int implicit_exception_uncommon_trap_offset = 0;
-  int uncommon_trap_offset = 0;
-
-  if (EnableJVMCI) {
-    implicit_exception_uncommon_trap_offset = __ pc() - start;
-
-    __ ldr(lr, Address(rthread, in_bytes(JavaThread::jvmci_implicit_exception_pc_offset())));
-    __ str(zr, Address(rthread, in_bytes(JavaThread::jvmci_implicit_exception_pc_offset())));
-
-    uncommon_trap_offset = __ pc() - start;
-
-    // Save everything in sight.
-    reg_save.save_live_registers(masm, 0, &frame_size_in_words);
-    // fetch_unroll_info needs to call last_java_frame()
-    Label retaddr;
-    __ set_last_Java_frame(sp, noreg, retaddr, rscratch1);
-
-    __ ldrw(c_rarg1, Address(rthread, in_bytes(JavaThread::pending_deoptimization_offset())));
-    __ movw(rscratch1, -1);
-    __ strw(rscratch1, Address(rthread, in_bytes(JavaThread::pending_deoptimization_offset())));
-
-    __ movw(rcpool, (int32_t)Deoptimization::Unpack_reexecute);
-    __ mov(c_rarg0, rthread);
-    __ movw(c_rarg2, rcpool); // exec mode
-    __ lea(rscratch1,
-           RuntimeAddress(CAST_FROM_FN_PTR(address,
-                                           Deoptimization::uncommon_trap)));
-    __ blr(rscratch1);
-    __ bind(retaddr);
-    oop_maps->add_gc_map( __ pc()-start, map->deep_copy());
-
-    __ reset_last_Java_frame(false);
-
-    __ b(after_fetch_unroll_info_call);
-  } // EnableJVMCI
-#endif // INCLUDE_JVMCI
 
   int exception_offset = __ pc() - start;
 
@@ -2571,12 +2512,6 @@ void SharedRuntime::generate_deopt_blob() {
   oop_maps->add_gc_map(__ pc() - start, map);
 
   __ reset_last_Java_frame(false);
-
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    __ bind(after_fetch_unroll_info_call);
-  }
-#endif
 
   // Load UnrollBlock* into r5
   __ mov(r5, r0);
@@ -2734,12 +2669,6 @@ void SharedRuntime::generate_deopt_blob() {
 
   _deopt_blob = DeoptimizationBlob::create(&buffer, oop_maps, 0, exception_offset, reexecute_offset, frame_size_in_words);
   _deopt_blob->set_unpack_with_exception_in_tls_offset(exception_in_tls_offset);
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    _deopt_blob->set_uncommon_trap_offset(uncommon_trap_offset);
-    _deopt_blob->set_implicit_exception_uncommon_trap_offset(implicit_exception_uncommon_trap_offset);
-  }
-#endif
 
   AOTCodeCache::store_code_blob(*_deopt_blob, AOTCodeEntry::SharedBlob, BlobId::shared_deopt_id);
 }
@@ -3249,6 +3178,151 @@ RuntimeStub* SharedRuntime::generate_throw_exception(StubId id, address runtime_
                                   oop_maps, false);
   AOTCodeCache::store_code_blob(*stub, AOTCodeEntry::SharedBlob, StubInfo::blob(id));
 
+  return stub;
+}
+
+// Call here from the interpreter or compiled code to store returned
+// values to a newly allocated inline type instance.
+RuntimeStub* SharedRuntime::generate_return_value_stub(address destination) {
+  StubId id = StubId::shared_store_inline_type_fields_to_buf_id;
+
+  const char* name = SharedRuntime::stub_name(id);
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, StubInfo::blob(id));
+  if (blob != nullptr) {
+    return blob->as_runtime_stub();
+  }
+
+  // We need to save all registers the calling convention may use so
+  // the runtime calls read or update those registers. This needs to
+  // be in sync with SharedRuntime::java_return_convention().
+  // n.b. aarch64 asserts that frame::arg_reg_save_area_bytes == 0
+  enum layout {
+    j_rarg7_off = 0, j_rarg7_2,    // j_rarg7 is r0
+    j_rarg6_off, j_rarg6_2,
+    j_rarg5_off, j_rarg5_2,
+    j_rarg4_off, j_rarg4_2,
+    j_rarg3_off, j_rarg3_2,
+    j_rarg2_off, j_rarg2_2,
+    j_rarg1_off, j_rarg1_2,
+    j_rarg0_off, j_rarg0_2,
+
+    j_farg7_off, j_farg7_2,
+    j_farg6_off, j_farg6_2,
+    j_farg5_off, j_farg5_2,
+    j_farg4_off, j_farg4_2,
+    j_farg3_off, j_farg3_2,
+    j_farg2_off, j_farg2_2,
+    j_farg1_off, j_farg1_2,
+    j_farg0_off, j_farg0_2,
+
+    rfp_off, rfp_off2,
+    return_off, return_off2,
+
+    framesize // inclusive of return address
+  };
+
+
+  ResourceMark rm;
+  CodeBuffer code(name, 512, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+
+  int frame_size_in_bytes = align_up(framesize*BytesPerInt, 16);
+  assert(frame_size_in_bytes == framesize*BytesPerInt, "misaligned");
+  int frame_size_in_slots = frame_size_in_bytes / BytesPerInt;
+  int frame_size_in_words = frame_size_in_bytes / wordSize;
+
+  OopMapSet* oop_maps = new OopMapSet();
+  OopMap* map = new OopMap(frame_size_in_slots, 0);
+
+  map->set_callee_saved(VMRegImpl::stack2reg(j_rarg7_off), j_rarg7->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_rarg6_off), j_rarg6->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_rarg5_off), j_rarg5->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_rarg4_off), j_rarg4->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_rarg3_off), j_rarg3->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_rarg2_off), j_rarg2->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_rarg1_off), j_rarg1->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_rarg0_off), j_rarg0->as_VMReg());
+
+  map->set_callee_saved(VMRegImpl::stack2reg(j_farg0_off), j_farg0->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_farg1_off), j_farg1->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_farg2_off), j_farg2->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_farg3_off), j_farg3->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_farg4_off), j_farg4->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_farg5_off), j_farg5->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_farg6_off), j_farg6->as_VMReg());
+  map->set_callee_saved(VMRegImpl::stack2reg(j_farg7_off), j_farg7->as_VMReg());
+
+  address start = __ pc();
+
+  __ enter(); // Save FP and LR before call
+
+  __ stpd(j_farg1, j_farg0, Address(__ pre(sp, -2 * wordSize)));
+  __ stpd(j_farg3, j_farg2, Address(__ pre(sp, -2 * wordSize)));
+  __ stpd(j_farg5, j_farg4, Address(__ pre(sp, -2 * wordSize)));
+  __ stpd(j_farg7, j_farg6, Address(__ pre(sp, -2 * wordSize)));
+
+  __ stp(j_rarg1, j_rarg0, Address(__ pre(sp, -2 * wordSize)));
+  __ stp(j_rarg3, j_rarg2, Address(__ pre(sp, -2 * wordSize)));
+  __ stp(j_rarg5, j_rarg4, Address(__ pre(sp, -2 * wordSize)));
+  __ stp(j_rarg7, j_rarg6, Address(__ pre(sp, -2 * wordSize)));
+
+  int frame_complete = __ offset();
+
+  // Set up last_Java_sp and last_Java_fp
+  address the_pc = __ pc();
+  __ set_last_Java_frame(sp, noreg, the_pc, rscratch1);
+
+  // Call runtime
+  __ mov(c_rarg1, r0);
+  __ mov(c_rarg0, rthread);
+
+  __ lea(rscratch1, ExternalAddress(destination));
+  __ blr(rscratch1);
+
+  oop_maps->add_gc_map(the_pc - start, map);
+
+  __ reset_last_Java_frame(false);
+
+  __ ldp(j_rarg7, j_rarg6, Address(__ post(sp, 2 * wordSize)));
+  __ ldp(j_rarg5, j_rarg4, Address(__ post(sp, 2 * wordSize)));
+  __ ldp(j_rarg3, j_rarg2, Address(__ post(sp, 2 * wordSize)));
+  __ ldp(j_rarg1, j_rarg0, Address(__ post(sp, 2 * wordSize)));
+
+  __ ldpd(j_farg7, j_farg6, Address(__ post(sp, 2 * wordSize)));
+  __ ldpd(j_farg5, j_farg4, Address(__ post(sp, 2 * wordSize)));
+  __ ldpd(j_farg3, j_farg2, Address(__ post(sp, 2 * wordSize)));
+  __ ldpd(j_farg1, j_farg0, Address(__ post(sp, 2 * wordSize)));
+
+  // check for pending exceptions
+  Label pending;
+  __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
+  __ cbnz(rscratch1, pending);
+
+  // We just called SharedRuntime::store_inline_type_fields_to_buf. Check if we still
+  // need to initialize the buffer and if so, call the inline class specific pack handler.
+  Label skip_pack;
+  __ get_vm_result_oop(r0, rthread);
+  __ get_vm_result_metadata(rscratch1, rthread);
+  __ cbz(rscratch1, skip_pack);
+  __ ldr(rscratch1, Address(rscratch1, InlineKlass::adr_members_offset()));
+  __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_offset()));
+  __ blr(rscratch1);
+  __ membar(Assembler::StoreStore);
+  __ bind(skip_pack);
+
+  __ leave();
+  __ ret(lr);
+
+  __ bind(pending);
+  __ leave();
+  __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
+
+  // -------------
+  // make sure all code is generated
+  masm->flush();
+
+  RuntimeStub* stub = RuntimeStub::new_runtime_stub(name, &code, frame_complete, frame_size_in_words, oop_maps, false);
+  AOTCodeCache::store_code_blob(*stub, AOTCodeEntry::SharedBlob, StubInfo::blob(id));
   return stub;
 }
 

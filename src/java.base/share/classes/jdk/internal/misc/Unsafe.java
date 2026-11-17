@@ -29,6 +29,7 @@ import jdk.internal.vm.annotation.AOTRuntimeSetup;
 import jdk.internal.vm.annotation.AOTSafeClassInitializer;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.value.ValueClass;
 import sun.nio.Cleaner;
 import sun.nio.ch.DirectBuffer;
 
@@ -42,14 +43,55 @@ import static jdk.internal.misc.UnsafeConstants.*;
  * Although the class and all methods are public, use of this class is
  * limited because only trusted code can obtain instances of it.
  *
- * <em>Note:</em> It is the responsibility of the caller to make sure
- * arguments are checked before methods of this class are
- * called. While some rudimentary checks are performed on the input,
- * the checks are best effort and when performance is an overriding
- * priority, as when methods of this class are optimized by the
- * runtime compiler, some or all checks (if any) may be elided. Hence,
- * the caller must not rely on the checks and corresponding
- * exceptions!
+ * <h2><a id="undefined-behavior">Undefined Behavior</a></h2>
+ * For performance reasons, {@code Unsafe} is allowed to work outside the
+ * restrictions enforced by the JVM. As a result, it is the responsibility of
+ * the caller to ensure that an invocation of an {@code Unsafe} method is
+ * conformant, and failure to do so will result in undefined behavior. The
+ * runtime and the JIT compiler may assume that undefined behavior never
+ * happens, and operate accordingly. For example, the runtime assumes that each
+ * object has a header with a particular layout, and if the users use
+ * {@code Unsafe} to overwrite this header with invalid data, the behavior of
+ * the runtime becomes unpredictable. Another example is that the JIT compiler
+ * may assume that accesses on separate objects are unrelated, and schedule
+ * each of them without taking into consideration the others. If there is an
+ * {@code Unsafe} access that is out of bounds and points to object different
+ * from the declared base, the program may execute in a way that a variable
+ * seems to have multiple values at the same time. As a result, when a program
+ * exhibits undefined behavior, there is no restrictions on its behaviors. Such
+ * behaviors may include but not be limited to:
+ *
+ * <ul>
+ * <li>Working as expected.
+ * <li>Crashing the VM.
+ * <li>Corruption of the heap or JVM memory.
+ * <li>Nonsensical variable value. E.g. an {@code int} may appear to be
+ * simultaneously 0 and 1.
+ * <li>Impossible code execution. E.g. the branches of an {@code if} are
+ * both executed or both not executed.
+ * <li>Wiping out the hard drive.
+ * </ul>
+ *
+ * Undefined behavior, as described in this class, is analogous to the
+ * terminology with the same name in the C++ language.
+ * <p>
+ * Some methods (e.g. {@link #getInt}) exhibit undefined behavior if they
+ * are invoked at runtime with illegal arguments. This means that they will
+ * never exhibit undefined behavior if they are not actually reachable at
+ * runtime. On the other hands, other methods (e.g.
+ * {@link #allocateInstance(Class)}) exhibit undefined behavior if they are
+ * used incorrectly, even if the invocation may not be reachable at runtime.
+ * The analogous terminology in C++ is that such programs are ill-formed.
+ * <p>
+ * For methods exhibiting undefined behavior if they are invoked at runtime
+ * with illegal arguments, undefined behavior may time travel. That is, if a
+ * control path may eventually reach an invocation of an {@code Unsafe} method
+ * with illegal arguments, the symptoms of undefined behavior may be present
+ * even before the invocation of the {@code Unsafe} method. This is because the
+ * JIT compiler may have certain assumptions about the inputs of an
+ * {@code Unsafe} invocation, these assumptions may propagate backward to
+ * previous statements, leading to wrong executions if the assumptions are
+ * invalid.
  *
  * @author John R. Rose
  * @see #getUnsafe
@@ -186,7 +228,6 @@ public final class Unsafe {
     @IntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
-
     /**
      * Returns true if the given field is flattened.
      */
@@ -228,6 +269,14 @@ public final class Unsafe {
 
     private native int nullMarkerOffset0(Object o);
 
+    /**
+     * The layout value for a "reference pointer" layout. This is the only
+     * value layout values should check against; all other layout values
+     * represent some kind of flat layout opaque to Java code.
+     *
+     * @see #arrayLayout
+     * @see #fieldLayout
+     */
     public static final int NON_FLAT_LAYOUT = 0;
 
     /* Reports the kind of layout used for an element in the storage
@@ -1308,7 +1357,7 @@ public final class Unsafe {
     }
 
     /**
-     * Detects if the given class may need to be initialized. This is often
+     * Detects if the given class is not yet fully initialized. This is often
      * needed in conjunction with obtaining the static field base of a
      * class.
      * @return false only if a call to {@code ensureClassInitialized} would have no effect
@@ -1460,18 +1509,33 @@ public final class Unsafe {
         return arrayInstanceIndexScale0(array);
     }
 
-    public int[] getFieldMap(Class<? extends Object> c) {
-      if (c == null) {
-        throw new NullPointerException();
-      }
-      return getFieldMap0(c);
+    /**
+     * Returns the acmp map of this class, which must be a concrete value class.
+     * Intended to be used by substitutability test in ValueObjectMethods only.
+     * The format is subject to change.
+     */
+    public int[] getFieldMap(Class<?> c) {
+        if (c == null) {
+            throw new NullPointerException();
+        }
+        return getFieldMap0(c);
+    }
+
+    /**
+     * For a field of type {@code c}, returns true if and only if there is
+     * a possible flat layout that contains no oop.
+     * Required for numerical CAS safety.
+     */
+    public boolean isFlatPayloadBinary(Class<?> c) {
+        int[] map = getFieldMap(c);
+        int nbNonRef = map[0];
+        return nbNonRef * 2 + 1 == map.length;
     }
 
     /**
      * Return the size of the object in the heap.
      * @param o an object
      * @return the objects's size
-     * @since Valhalla
      */
     public long getObjectSize(Object o) {
         if (o == null)
@@ -1581,6 +1645,11 @@ public final class Unsafe {
     /**
      * Allocates an instance but does not run any constructor.
      * Initializes the class if it has not yet been.
+     * <p>
+     * This method returns an uninitialized instance. In general, this is undefined behavior, this
+     * method is treated specially by the JVM to allow this behavior. The returned value must be
+     * passed into a constructor using {@link MethodHandle#linkToSpecial} before any other
+     * operation can be performed on it. Otherwise, the program is ill-formed.
      */
     @IntrinsicCandidate
     public native Object allocateInstance(Class<?> cls)
@@ -1656,8 +1725,10 @@ public final class Unsafe {
                                                        Object expected,
                                                        Object x);
 
-    private final boolean isValueObject(Object o) {
-        return o != null && o.getClass().isValue();
+    @ForceInline
+    private final boolean isValueObject(Class<?> valueType, Object o) {
+        return ValueClass.isValueObjectCompatible(valueType)
+                && o != null && o.getClass().isValue();
     }
 
     /*
@@ -1669,7 +1740,7 @@ public final class Unsafe {
                                                     Class<?> type,
                                                     V expected,
                                                     V x) {
-        if (type.isValue() || isValueObject(expected)) {
+        if (isValueObject(type, expected)) {
             while (true) {
                 Object witness = getReferenceVolatile(o, offset);
                 if (witness != expected) {
@@ -1704,7 +1775,7 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (valueType.isValue() || isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
             while (true) {
                 Object witness = getReferenceVolatile(o, offset);
                 if (witness != expected) {
@@ -1787,7 +1858,8 @@ public final class Unsafe {
                                                              Class<?> valueType,
                                                              V expected,
                                                              V x) {
-        if (valueType.isValue() || isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1814,10 +1886,11 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (valueType.isValue() || isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
-            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+            return weakCompareAndSetReferenceAcquire(o, offset, expected, x);
         }
     }
 
@@ -1841,10 +1914,11 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (valueType.isValue() || isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
-            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+            return weakCompareAndSetReferenceRelease(o, offset, expected, x);
         }
     }
 
@@ -1868,10 +1942,11 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (valueType.isValue() || isValueObject(expected)) {
+        if (isValueObject(valueType, expected)) {
+            // Reusing a stronger operation for now, still compliant
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
-            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+            return weakCompareAndSetReference(o, offset, expected, x);
         }
     }
 
@@ -2166,10 +2241,7 @@ public final class Unsafe {
      * <p>The JNI documents specify that, at least for returning
      * values from native methods, a Java boolean value is converted
      * to the value-set 0..1 by first truncating to a byte (0..255 or
-     * maybe -128..127) and then testing against zero. Thus, Java
-     * booleans in non-Java data structures are by convention
-     * represented as 8-bit containers containing either zero (for
-     * false) or any non-zero value (for true).
+     * maybe -128..127) and then testing against zero.
      *
      * <p>Java booleans in the heap are also stored in bytes, but are
      * strongly normalized to the value-set 0..1 (i.e., they are
@@ -2180,17 +2252,17 @@ public final class Unsafe {
      * bit can be usually implemented with fewer (machine)
      * instructions than byte testing against zero.
      *
-     * <p>A number of Unsafe methods load boolean values from the heap
-     * as bytes. Unsafe converts those values according to the JNI
-     * rules (i.e, using the "testing against zero" convention). The
-     * method {@code byte2bool} implements that conversion.
+     * <p>A number of Unsafe methods load boolean values as bytes,
+     * truncate them to the least-significant bit, and then test
+     * against zero. It is uniformly performed for both Java heap
+     * and non-Java heap accesses.
      *
      * @param b the byte to be converted to boolean
      * @return the result of the conversion
      */
     @ForceInline
     private boolean byte2bool(byte b) {
-        return b != 0;
+        return (b & 1) != 0;
     }
 
     /**

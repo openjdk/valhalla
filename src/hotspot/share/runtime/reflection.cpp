@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/arrayOop.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/klass.inline.hpp"
@@ -273,7 +274,6 @@ void Reflection::array_set(jvalue* value, arrayOop a, int index, BasicType value
   if (!a->is_within_bounds(index)) {
     THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
   }
-
   if (value_type == T_OBJECT) {
     assert(a->is_objArray(), "just checking");
     oop obj = cast_to_oop(value->l);
@@ -769,7 +769,8 @@ static Handle new_type(Symbol* signature, Klass* k, TRAPS) {
 
 oop Reflection::new_method(const methodHandle& method, bool for_constant_pool_access, TRAPS) {
   // Allow jdk.internal.reflect.ConstantPool to refer to <clinit> methods as java.lang.reflect.Methods.
-  assert(!method()->name()->starts_with('<') || for_constant_pool_access,
+  assert(!method()->is_object_constructor() ||
+         (for_constant_pool_access || !method()->is_class_initializer()),
          "should call new_constructor instead");
   InstanceKlass* holder = method->method_holder();
   int slot = method->method_idnum();
@@ -1171,6 +1172,7 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
     THROW_MSG_NULL(vmSymbols::java_lang_InternalError(), "invoke");
   }
   methodHandle method(THREAD, m);
+  assert(method->name() == vmSymbols::object_initializer_name(), "invalid constructor");
 
   // Make sure klass gets initialize
   klass->initialize(CHECK_NULL);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,7 +95,6 @@ class Compilation: public StackObj {
   CodeBuffer         _code;
   bool               _has_access_indexed;
   int                _interpreter_frame_size; // Stack space needed in case of a deoptimization
-  CompiledEntrySignature _compiled_entry_signature;
   int                _immediate_oops_patched;
 
   // compilation helpers
@@ -262,7 +261,7 @@ class Compilation: public StackObj {
   // will compilation make optimistic assumptions that might lead to
   // deoptimization and that the runtime will account for?
   bool is_optimistic() {
-    return CompilerConfig::is_c1_only_no_jvmci() && !is_profiling() &&
+    return CompilerConfig::is_c1_only() && !is_profiling() &&
       (RangeCheckElimination || UseLoopInvariantCodeMotion) &&
       method()->method_data()->trap_count(Deoptimization::Reason_none) == 0;
   }
@@ -282,13 +281,6 @@ class Compilation: public StackObj {
 
   int interpreter_frame_size() const {
     return _interpreter_frame_size;
-  }
-
-  const CompiledEntrySignature* compiled_entry_signature() const {
-    return &_compiled_entry_signature;
-  }
-  bool needs_stack_repair() const {
-    return compiled_entry_signature()->c1_needs_stack_repair();
   }
 };
 

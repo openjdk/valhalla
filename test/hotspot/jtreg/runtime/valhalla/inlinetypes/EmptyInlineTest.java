@@ -39,7 +39,7 @@ import jdk.internal.vm.annotation.NullRestricted;
  *          java.base/jdk.internal.value
  * @enablePreview
  * @compile EmptyInlineTest.java
- * @run main/othervm -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.EmptyInlineTest
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening runtime.valhalla.inlinetypes.EmptyInlineTest
  */
 
 public class EmptyInlineTest {

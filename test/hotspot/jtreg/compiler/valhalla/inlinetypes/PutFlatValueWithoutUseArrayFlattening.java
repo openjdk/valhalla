@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,9 +30,10 @@
  * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening::test
  *                   -XX:-TieredCompilation -Xcomp
+ *                   -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-UseArrayFlattening -XX:+UseFieldFlattening -XX:+IgnoreUnrecognizedVMOptions -XX:+PreloadClasses
  *                   compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening
- * @run main/othervm -XX:+UseFieldFlattening -XX:+IgnoreUnrecognizedVMOptions -XX:+PreloadClasses
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UseFieldFlattening -XX:+IgnoreUnrecognizedVMOptions -XX:+PreloadClasses
  *                   compiler.valhalla.inlinetypes.PutFlatValueWithoutUseArrayFlattening
  */
 

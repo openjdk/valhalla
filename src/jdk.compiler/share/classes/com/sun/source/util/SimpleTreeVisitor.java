@@ -236,7 +236,9 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
     }
 
     /**
-     * {@inheritDoc} This implementation calls {@code defaultAction}.
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param node {@inheritDoc}
      * @param p {@inheritDoc}
@@ -798,6 +800,21 @@ public class SimpleTreeVisitor <R,P> implements TreeVisitor<R,P> {
      */
     @Override
     public R visitPrimitiveType(PrimitiveTypeTree node, P p) {
+        return defaultAction(node, p);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
+     *
+     * @param node {@inheritDoc}
+     * @param p {@inheritDoc}
+     * @return  the result of {@code defaultAction}
+     * @since 27
+     */
+    @Override
+    public R visitVarType(VarTypeTree node, P p) {
         return defaultAction(node, p);
     }
 

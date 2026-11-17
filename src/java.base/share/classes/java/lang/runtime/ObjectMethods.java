@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,9 +76,7 @@ public final class ObjectMethods {
     private static final MethodTypeDesc MTD_OBJECT_BOOLEAN = MethodTypeDesc.of(CD_boolean, CD_Object);
     private static final MethodTypeDesc MTD_INT = MethodTypeDesc.of(CD_int);
 
-    /* package-private */
-    static final HashMap<Class<?>, MethodHandle> primitiveEquals = new HashMap<>();
-
+    private static final HashMap<Class<?>, MethodHandle> primitiveEquals = new HashMap<>();
     private static final HashMap<Class<?>, MethodHandle> primitiveHashers = new HashMap<>();
 
     static {
@@ -365,9 +363,9 @@ public final class ObjectMethods {
      * @return the method handle
      */
     private static MethodHandle makeToString(MethodHandles.Lookup lookup,
-                                            Class<?> receiverClass,
-                                            MethodHandle[] getters,
-                                            List<String> names) {
+                                             Class<?> receiverClass,
+                                             MethodHandle[] getters,
+                                             List<String> names) {
         assert getters.length == names.size();
         if (getters.length == 0) {
             // special case
@@ -481,12 +479,7 @@ public final class ObjectMethods {
      * {@link java.lang.Record#toString()}.
      *
      *
-     * @param lookup       Every bootstrap method is expected to have a {@code lookup}
-     *                     which usually represents a lookup context with the
-     *                     accessibility privileges of the caller. This is because
-     *                     {@code invokedynamic} call sites always provide a {@code lookup}
-     *                     to the corresponding bootstrap method, but this method just
-     *                     ignores the {@code lookup} parameter
+     * @param lookup       the full-privilege lookup context of the caller
      * @param methodName   the name of the method to generate, which must be one of
      *                     {@code "equals"}, {@code "hashCode"}, or {@code "toString"}
      * @param type         a {@link MethodType} corresponding the descriptor type
@@ -505,8 +498,6 @@ public final class ObjectMethods {
      *                     if invoked by a condy
      * @throws IllegalArgumentException if the bootstrap arguments are invalid
      *                                  or inconsistent
-     * @throws NullPointerException if any argument is {@code null} or if any element
-     *                              in the {@code getters} array is {@code null}
      * @throws Throwable if any exception is thrown during call site construction
      */
     public static Object bootstrap(MethodHandles.Lookup lookup, String methodName, TypeDescriptor type,
@@ -518,25 +509,27 @@ public final class ObjectMethods {
         requireNonNull(type);
         requireNonNull(recordClass);
         requireNonNull(names);
-        requireNonNull(getters);
-        Arrays.stream(getters).forEach(Objects::requireNonNull);
+        List<MethodHandle> getterList = List.of(getters); // deep null check
+
+        if (!lookup.hasFullPrivilegeAccess())
+            throw new IllegalArgumentException("Unprivileged lookup ".concat(lookup.toString()));
+
         MethodType methodType;
-        if (type instanceof MethodType mt) {
+        if (type instanceof MethodType mt)
             methodType = mt;
-            if (mt.parameterType(0) != recordClass) {
-                throw new IllegalArgumentException("Bad method type: " + mt);
-            }
-        } else {
+        else {
             methodType = null;
             if (!MethodHandle.class.equals(type))
                 throw new IllegalArgumentException(type.toString());
         }
-        List<MethodHandle> getterList = List.of(getters);
+
         for (MethodHandle getter : getterList) {
-            if (getter.type().parameterType(0) != recordClass) {
-                throw new IllegalArgumentException("Bad receiver type: " + getter);
+            var getterType = getter.type();
+            if (getterType.parameterCount() != 1 || getterType.returnType() == void.class || getterType.parameterType(0) != recordClass) {
+                throw new IllegalArgumentException("Illegal getter type %s for recordClass %s".formatted(getterType, recordClass.getTypeName()));
             }
         }
+
         MethodHandle handle = switch (methodName) {
             case "equals"   -> {
                 if (methodType != null && !methodType.equals(MethodType.methodType(boolean.class, recordClass, Object.class)))
@@ -551,7 +544,7 @@ public final class ObjectMethods {
             case "toString" -> {
                 if (methodType != null && !methodType.equals(MethodType.methodType(String.class, recordClass)))
                     throw new IllegalArgumentException("Bad method type: " + methodType);
-                List<String> nameList = "".equals(names) ? List.of() : List.of(names.split(";"));
+                List<String> nameList = names.isEmpty() ? List.of() : List.of(names.split(";"));
                 if (nameList.size() != getterList.size())
                     throw new IllegalArgumentException("Name list and accessor list do not match");
                 yield makeToString(lookup, recordClass, getters, nameList);

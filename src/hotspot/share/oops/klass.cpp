@@ -593,6 +593,7 @@ GrowableArray<Klass*>* Klass::compute_secondary_supers(int num_extra_slots,
   return nullptr;
 }
 
+
 // subklass links.  Used by the compiler (and vtable initialization)
 // May be cleaned concurrently, so must use the Compile_lock.
 Klass* Klass::subklass() const {
@@ -1038,14 +1039,8 @@ void Klass::verify_on(outputStream* st) {
 
   // This can be expensive, but it is worth checking that this klass is actually
   // in the CLD graph but not in production.
-#ifdef ASSERT
-  if (UseCompressedClassPointers) {
-    // Stricter checks for both correct alignment and placement
-    CompressedKlassPointers::check_encodable(this);
-  } else {
-    assert(Metaspace::contains((address)this), "Should be");
-  }
-#endif // ASSERT
+  // Stricter checks for both correct alignment and placement
+  DEBUG_ONLY(CompressedKlassPointers::check_encodable(this));
 
   guarantee(this->is_klass(),"should be klass");
 

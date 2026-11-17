@@ -31,10 +31,12 @@
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zHeap.hpp"
 #include "gc/z/zNMethod.hpp"
+#include "gc/z/zUtils.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 template <DecoratorSet decorators, typename BarrierSetT>
 template <DecoratorSet expected>
@@ -344,6 +346,21 @@ inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_co
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
+inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_clear_one(zpointer* dst) {
+  if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value) {
+    return OopCopyResult::failed_check_null;
+  }
+
+  // Store barrier
+  store_barrier_heap_without_healing(dst);
+
+  // Store colored null
+  AtomicAccess::store(dst, color_null());
+
+  return OopCopyResult::ok;
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
 inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_copy_one_check_cast(zpointer* dst, zpointer* src, Klass* dst_klass) {
   const zaddress obj = oop_copy_one_barriers(dst, src);
 
@@ -425,60 +442,67 @@ inline OopCopyResult ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_ar
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
   check_is_valid_zaddress(src);
+  check_is_valid_zaddress(dst);
+  precond(src->klass() == dst->klass());
 
-  if (dst->is_refArray()) {
-    // Cloning an object array is similar to performing array copy.
-    // If an array is large enough to have its allocation segmented,
-    // this operation might require GC barriers. However, the intrinsics
-    // for cloning arrays transform the clone to an optimized allocation
-    // and arraycopy sequence, so the performance of this runtime call
-    // does not matter for object arrays.
-    clone_obj_array(objArrayOop(src), objArrayOop(dst));
-    return;
-  }
-
-  // Fix the oops
-  ZBarrierSet::load_barrier_all(src, size);
-
-  // Clone the object
-  Raw::clone_in_heap(src, dst, size);
-
-  // Color store good before handing out
-  ZBarrierSet::color_store_good_all(dst, size);
+  clone_obj(to_zaddress(src), to_zaddress(dst), ZUtils::words_to_bytes(size));
 }
 
 static inline void copy_primitive_payload(const void* src, const void* dst, const size_t payload_size_bytes, size_t& copied_bytes) {
   if (payload_size_bytes == 0) {
     return;
   }
+
   void* src_payload = (void*)(address(src) + copied_bytes);
   void* dst_payload = (void*)(address(dst) + copied_bytes);
   Copy::copy_value_content(src_payload, dst_payload, payload_size_bytes);
   copied_bytes += payload_size_bytes;
 }
 
+static inline void clear_primitive_payload(const void* dst, const size_t payload_size_bytes, size_t& copied_bytes) {
+  if (payload_size_bytes == 0) {
+    return;
+  }
+
+  void* dst_payload = (void*)(address(dst) + copied_bytes);
+  Copy::fill_to_memory_atomic(dst_payload, payload_size_bytes);
+  copied_bytes += payload_size_bytes;
+}
+
 template <DecoratorSet decorators, typename BarrierSetT>
-inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(void* src, void* dst, InlineKlass* md, LayoutKind lk) {
+inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(const ValuePayload& src, const ValuePayload& dst) {
+  precond(src.klass() == dst.klass());
+
+  const LayoutKind lk = LayoutKindHelper::get_copy_layout(src.layout_kind(), dst.layout_kind());
+  const InlineKlass* md = src.klass();
   if (md->contains_oops()) {
+    assert(!LayoutKindHelper::is_atomic_flat(lk) ||
+               (md->nonstatic_oop_map_count() == 1 &&
+                md->layout_size_in_bytes(lk) == sizeof(zpointer)),
+           "ZGC can only handle atomic flat values with a single oop");
+
     // Iterate over each oop map, performing:
     //   1) possibly raw copy for any primitive payload before each map
     //   2) load and store barrier for each oop
     //   3) possibly raw copy for any primitive payload trailer
 
-    // src/dst may not be oops, need offset to adjust oop map offset
-    const address src_oop_addr_offset = ((address) src) - md->payload_offset();
+    // addr() points at the payload start, the oop map offset are relative to
+    // the object header, adjust address to account for this discrepancy.
+    const address src_addr = src.addr();
+    const address dst_addr = dst.addr();
+    const address oop_map_adjusted_src_addr = src_addr - md->payload_offset();
     OopMapBlock* map = md->start_of_nonstatic_oop_maps();
     const OopMapBlock* const end = map + md->nonstatic_oop_map_count();
     size_t size_in_bytes = md->layout_size_in_bytes(lk);
     size_t copied_bytes = 0;
     while (map != end) {
-      zpointer *src_p = (zpointer*)(src_oop_addr_offset + map->offset());
-      const uintptr_t oop_offset = uintptr_t(src_p) - uintptr_t(src);
-      zpointer *dst_p = (zpointer*)(uintptr_t(dst) + oop_offset);
+      zpointer* src_p = (zpointer*)(oop_map_adjusted_src_addr + map->offset());
+      const uintptr_t oop_offset = uintptr_t(src_p) - uintptr_t(src_addr);
+      zpointer* dst_p = (zpointer*)(uintptr_t(dst_addr) + oop_offset);
 
       // Copy any leading primitive payload before every cluster of oops
       assert(copied_bytes < oop_offset || copied_bytes == oop_offset, "Negative sized leading payload segment");
-      copy_primitive_payload(src, dst, oop_offset - copied_bytes, copied_bytes);
+      copy_primitive_payload(src_addr, dst_addr, oop_offset - copied_bytes, copied_bytes);
 
       // Copy a cluster of oops
       for (const zpointer* const src_end = src_p + map->count(); src_p < src_end; src_p++, dst_p++) {
@@ -490,9 +514,58 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_h
 
     // Copy trailing primitive payload after potential oops
     assert(copied_bytes < size_in_bytes || copied_bytes == size_in_bytes, "Negative sized trailing payload segment");
-    copy_primitive_payload(src, dst, size_in_bytes - copied_bytes, copied_bytes);
+    copy_primitive_payload(src_addr, dst_addr, size_in_bytes - copied_bytes, copied_bytes);
   } else {
-    Raw::value_copy_in_heap(src, dst, md, lk);
+    Raw::value_copy_in_heap(src, dst);
+  }
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
+inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_store_null_in_heap(const ValuePayload& dst) {
+  const LayoutKind lk = dst.layout_kind();
+  assert(!LayoutKindHelper::is_null_free_flat(lk), "Cannot store null in null free layout");
+  const InlineKlass* md = dst.klass();
+
+  if (md->contains_oops()) {
+    assert(!LayoutKindHelper::is_atomic_flat(lk) ||
+               (md->nonstatic_oop_map_count() == 1 &&
+                md->layout_size_in_bytes(lk) == sizeof(zpointer)),
+           "ZGC can only handle atomic flat values with a single oop");
+
+    // Iterate over each oop map, performing:
+    //   1) possibly raw clear for any primitive payload before each map
+    //   2) store barrier and clear for each oop
+    //   3) possibly raw clear for any primitive payload trailer
+
+    // addr() points at the payload start, the oop map offset are relative to
+    // the object header, adjust address to account for this discrepancy.
+    const address dst_addr = dst.addr();
+    const address oop_map_adjusted_dst_addr = dst_addr - md->payload_offset();
+    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+    const OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+    size_t size_in_bytes = md->layout_size_in_bytes(lk);
+    size_t copied_bytes = 0;
+    while (map != end) {
+      zpointer* dst_p = (zpointer*)(oop_map_adjusted_dst_addr + map->offset());
+      const uintptr_t oop_offset = uintptr_t(dst_p) - uintptr_t(dst_addr);
+
+      // Clear any leading primitive payload before every cluster of oops
+      assert(copied_bytes < oop_offset || copied_bytes == oop_offset, "Negative sized leading payload segment");
+      clear_primitive_payload(dst_addr, oop_offset - copied_bytes, copied_bytes);
+
+      // Clear a cluster of oops
+      for (const zpointer* const dst_end = dst_p + map->count(); dst_p < dst_end; dst_p++) {
+        oop_clear_one(dst_p);
+        copied_bytes += sizeof(zpointer);
+      }
+      map++;
+    }
+
+    // Clear trailing primitive payload after potential oops
+    assert(copied_bytes < size_in_bytes || copied_bytes == size_in_bytes, "Negative sized trailing payload segment");
+    clear_primitive_payload(dst_addr, size_in_bytes - copied_bytes, copied_bytes);
+  } else {
+    Raw::value_store_null(dst);
   }
 }
 
