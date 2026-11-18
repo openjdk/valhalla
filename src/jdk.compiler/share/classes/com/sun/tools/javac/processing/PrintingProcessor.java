@@ -465,6 +465,7 @@ public class PrintingProcessor extends AbstractProcessor {
             }
         }
 
+        @SuppressWarnings("preview")
         private void printModifiers(Element e) {
             ElementKind kind = e.getKind();
             if (kind == PARAMETER || kind == RECORD_COMPONENT) {
@@ -495,6 +496,12 @@ public class PrintingProcessor extends AbstractProcessor {
 
             case RECORD:
                 modifiers.remove(Modifier.FINAL);
+                break;
+
+            case CLASS:
+                // a primitive class is implicitly a value class
+                if (modifiers.contains(Modifier.PRIMITIVE))
+                    modifiers.remove(Modifier.VALUE);
                 break;
 
             case METHOD:

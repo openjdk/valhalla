@@ -175,7 +175,15 @@ public enum Modifier {
      * @since 28
      */
     @PreviewFeature(feature=PreviewFeature.Feature.VALUE_OBJECTS, reflective=true)
-    VALUE;
+    VALUE,
+
+    /**
+     * The modifier {@code primitive}
+     *
+     * @since 28
+     */
+    @PreviewFeature(feature=PreviewFeature.Feature.PRIMITIVE_CLASSES, reflective=true)
+    PRIMITIVE;
 
     /**
      * Returns this modifier's name as defined in <cite>The

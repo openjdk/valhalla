@@ -3111,7 +3111,7 @@ public class Attr extends JCTree.Visitor {
 
         void checkNewInnerClass(DiagnosticPosition pos, Env<AttrContext> env, Type type, boolean isSuper) {
             boolean isLocal = type.tsym.owner.kind == VAR || type.tsym.owner.kind == MTH;
-            if ((type.tsym.flags() & (INTERFACE | ENUM | RECORD)) != 0 ||
+            if ((type.tsym.flags() & (INTERFACE | ENUM | RECORD | PRIMITIVE_CLASS)) != 0 ||
                     (!isLocal && !type.tsym.isInner()) ||
                     (isSuper && env.enclClass.sym.isAnonymous())) {
                 // nothing to check

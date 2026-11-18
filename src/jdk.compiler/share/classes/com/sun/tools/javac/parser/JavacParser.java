@@ -199,6 +199,7 @@ public class JavacParser implements Parser {
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = preview.isEnabled() && Feature.PRIMITIVE_CLASSES.allowedInSource(source);
         updateUnexpectedTopLevelDefinitionStartError(false);
     }
 
@@ -223,6 +224,7 @@ public class JavacParser implements Parser {
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = preview.isEnabled() && Feature.PRIMITIVE_CLASSES.allowedInSource(source);
         updateUnexpectedTopLevelDefinitionStartError(false);
     }
 
@@ -258,6 +260,10 @@ public class JavacParser implements Parser {
     /** Switch: are value classes allowed in this source level?
      */
     boolean allowValueClasses;
+
+    /** Switch: are primitive classes allowed in this source level?
+     */
+    boolean allowPrimitiveClasses;
 
     /** Switch: are sealed types allowed in this source level?
      */
@@ -3018,6 +3024,11 @@ public class JavacParser implements Parser {
             dc = token.docComment();
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         }
+        if (isPrimitiveModifier() && allowPrimitiveClasses) {
+            checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+            dc = token.docComment();
+            return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
+        }
         dc = token.docComment();
         if (isRecordStart() && allowRecords) {
             return List.of(recordDeclaration(F.at(pos).Modifiers(0), dc));
@@ -3636,6 +3647,11 @@ public class JavacParser implements Parser {
                     flag = Flags.VALUE_CLASS;
                     break;
                 }
+                if (isPrimitiveModifier()) {
+                    checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+                    flag = Flags.PRIMITIVE_CLASS;
+                    break;
+                }
                 break loop;
             }
             default: break loop;
@@ -3905,6 +3921,13 @@ public class JavacParser implements Parser {
         }
         if (name == names.value) {
             if (allowValueClasses) {
+                return Source.DEFAULT;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.DEFAULT));
+            }
+        }
+        if (name == names.primitive) {
+            if (allowPrimitiveClasses) {
                 return Source.DEFAULT;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.DEFAULT));
@@ -5031,8 +5054,20 @@ public class JavacParser implements Parser {
     }
 
     protected boolean isValueModifier() {
-        if (token.kind == IDENTIFIER && token.name() == names.value) {
-            boolean isValueModifier = false;
+        return isContextualClassModifier(names.value);
+    }
+
+    protected boolean isPrimitiveModifier() {
+        return isContextualClassModifier(names.primitive);
+    }
+
+    /**
+     * Is the current token the contextual class modifier {@code name} ({@code value} or
+     * {@code primitive}), judging by the token that follows it?
+     */
+    private boolean isContextualClassModifier(Name name) {
+        if (token.kind == IDENTIFIER && token.name() == name) {
+            boolean isModifier = false;
             Token next = S.token(1);
             switch (next.kind) {
                 case PRIVATE: case PROTECTED: case PUBLIC: case STATIC: case TRANSIENT:
@@ -5040,15 +5075,16 @@ public class JavacParser implements Parser {
                 case STRICTFP: case MONKEYS_AT: case DEFAULT: case BYTE: case SHORT:
                 case CHAR: case INT: case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
                 case CLASS: case INTERFACE: case ENUM:
-                    isValueModifier = true;
+                    isModifier = true;
                     break;
-                case IDENTIFIER: // value record R || value value
+                case IDENTIFIER: // value record R || value value || value primitive || primitive value || primitive primitive
                     if (next.name() == names.record || next.name() == names.value
+                            || next.name() == names.primitive
                             || (mode & EXPR) != 0)
-                        isValueModifier = true;
+                        isModifier = true;
                     break;
             }
-            if (isValueModifier) {
+            if (isModifier) {
                 return true;
             }
         }
@@ -5084,7 +5120,8 @@ public class JavacParser implements Parser {
                 case PUBLIC, PROTECTED, PRIVATE, ABSTRACT, STATIC, FINAL, STRICTFP, CLASS, INTERFACE, ENUM -> true;
                 case IDENTIFIER -> isNonSealedIdentifier(next, currentIsNonSealed ? 3 : 1) ||
                         next.name() == names.sealed ||
-                        allowValueClasses && next.name() == names.value;
+                        allowValueClasses && next.name() == names.value ||
+                        allowPrimitiveClasses && next.name() == names.primitive;
                 default -> false;
             };
     }

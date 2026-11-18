@@ -233,6 +233,9 @@ public class Names {
     public final Name permits;
     public final Name sealed;
 
+    // primitive classes
+    public final Name primitive;
+
     // pattern switches
     public final Name typeSwitch;
     public final Name enumSwitch;
@@ -427,6 +430,9 @@ public class Names {
         // sealed types
         permits = fromString("permits");
         sealed = fromString("sealed");
+
+        // primitive classes
+        primitive = fromString("primitive");
 
 
         // pattern switches
