@@ -37,11 +37,9 @@ import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.ModuleTree.ModuleKind;
 
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.code.FlagsEnum;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.parser.Tokens.*;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
@@ -54,7 +52,6 @@ import com.sun.tools.javac.util.JCDiagnostic.Error;
 import com.sun.tools.javac.util.JCDiagnostic.Fragment;
 import com.sun.tools.javac.util.List;
 
-import static com.sun.tools.javac.code.Flags.asFlagSet;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.*;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.ASSERT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.CASE;
@@ -63,7 +60,7 @@ import static com.sun.tools.javac.parser.Tokens.TokenKind.EQ;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.GT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.IMPORT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.LT;
-import static com.sun.tools.javac.parser.Tokens.TokenKind.SYNCHRONIZED;
+
 import com.sun.tools.javac.parser.VirtualParser.VirtualScanner;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.ImplicitAndExplicitNotAllowed;
@@ -5054,18 +5051,17 @@ public class JavacParser implements Parser {
     }
 
     protected boolean isValueModifier() {
-        return isContextualClassModifier(names.value);
+        return isValueOrPrimitiveClassStart(names.value);
     }
 
     protected boolean isPrimitiveModifier() {
-        return isContextualClassModifier(names.primitive);
+        return isValueOrPrimitiveClassStart(names.primitive);
     }
 
     /**
-     * Is the current token the contextual class modifier {@code name} ({@code value} or
-     * {@code primitive}), judging by the token that follows it?
+     * Is the current token declaring a `value` or a `primitive` class
      */
-    private boolean isContextualClassModifier(Name name) {
+    private boolean isValueOrPrimitiveClassStart(Name name) {
         if (token.kind == IDENTIFIER && token.name() == name) {
             boolean isModifier = false;
             Token next = S.token(1);
