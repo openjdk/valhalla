@@ -168,6 +168,7 @@ public class Check {
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
         allowPrimitivePatterns = preview.isEnabled() && Feature.PRIMITIVE_PATTERNS.allowedInSource(source);
         allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
+        allowPrimitiveClasses = preview.isEnabled() && Feature.PRIMITIVE_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -198,6 +199,10 @@ public class Check {
     /** Are value classes allowed
      */
     private final boolean allowValueClasses;
+
+    /** Are primitive classes allowed
+     */
+    private final boolean allowPrimitiveClasses;
 
     /** Whether to force suppression of deprecation and preview warnings.
      *  This happens when attributing import statements for JDK 9+.
@@ -1364,6 +1369,9 @@ public class Check {
                 && checkDisjoint(pos, flags,
                                 PRIMITIVE_CLASS,
                                 INTERFACE)
+                && checkDisjoint(pos, flags,
+                                PRIMITIVE_CLASS,
+                                ABSTRACT)
                 // explicit modifiers only: VALUE_CLASS is also implied by PRIMITIVE_CLASS
                 && checkDisjoint(pos, flags,
                                 PRIMITIVE_CLASS,
@@ -3958,6 +3966,90 @@ public class Check {
             break; // int etc
         }
     }
+
+/* *************************************************************************
+ * Check for primitive classes constraints
+ **************************************************************************/
+
+    /** Primitive class must have a name made of lowercase letters and digits only,
+     *  must declare a public no-argument constructor; and its instance fields must
+     *  be primitives types or primitive class types, and must not lead back to the
+     *  declaring class.
+     */
+    void checkPrimitiveClass(JCClassDecl tree) {
+        if (allowPrimitiveClasses) {
+            ClassSymbol c = tree.sym;
+            checkPrimitiveClassName(tree, c);
+            checkPrimitiveClassConstructor(tree, c);
+            checkPrimitiveClassFields(tree, c);
+        }
+    }
+
+    private void checkPrimitiveClassName(JCClassDecl tree, ClassSymbol c) {
+        String name = c.name.toString();
+        for (int i = 0; i < name.length(); ) {
+            int cp = name.codePointAt(i);
+            if (!Character.isLowerCase(cp) && !Character.isDigit(cp)) {
+                log.error(tree.pos(), Errors.IllegalPrimitiveClassName(c.name));
+                return;
+            }
+            i += Character.charCount(cp);
+        }
+    }
+
+    private void checkPrimitiveClassConstructor(JCClassDecl tree, ClassSymbol c) {
+        for (JCTree def : tree.defs) {
+            if (TreeInfo.isConstructor(def)) {
+                JCMethodDecl constructor = (JCMethodDecl) def;
+                if (constructor.sym != null && constructor.params.isEmpty() &&
+                        (constructor.sym.flags() & GENERATEDCONSTR) == 0) {
+                    if ((constructor.sym.flags() & PUBLIC) == 0) {
+                        log.error(constructor.pos(), Errors.PrimitiveClassMustDeclarePublicNoArgConstructor(c));
+                    }
+                    return;
+                }
+            }
+        }
+        log.error(tree.pos(), Errors.PrimitiveClassMustDeclarePublicNoArgConstructor(c));
+    }
+
+    private void checkPrimitiveClassFields(JCClassDecl tree, ClassSymbol c) {
+        for (JCTree def : tree.defs) {
+            if (!def.hasTag(VARDEF)) {
+                continue;
+            }
+            JCVariableDecl field = (JCVariableDecl) def;
+            if (field.sym == null || field.sym.isStatic() ||
+                    field.sym.type.isErroneous() || field.sym.type.isPrimitive()) {
+                continue;
+            }
+            if (!isPrimitiveClass(field.sym.type)) {
+                log.error(field.vartype != null ? field.vartype.pos() : field.pos(),
+                        Errors.IllegalPrimitiveClassFieldType(field.sym.type));
+            } else if (leadsTo(field.sym.type.tsym, c, new HashSet<>())) {
+                log.error(field.pos(), Errors.CyclicPrimitiveClassMembership(c));
+            }
+        }
+    }
+    // where
+        private boolean isPrimitiveClass(Type t) {
+            return t.hasTag(CLASS) && (t.tsym.flags() & PRIMITIVE_CLASS) != 0;
+        }
+
+        private boolean leadsTo(TypeSymbol d, ClassSymbol c, Set<TypeSymbol> seen) {
+            if (d == c) {
+                return true;
+            }
+            if (!seen.add(d)) {
+                return false;
+            }
+            for (Symbol field : d.members().getSymbols(s -> s.kind == VAR && !s.isStatic(), NON_RECURSIVE)) {
+                if (isPrimitiveClass(field.type) && leadsTo(field.type.tsym, c, seen)) {
+                    return true;
+                }
+            }
+            return false;
+        }
 
 /* *************************************************************************
  * Check for cycles in the constructor call graph.
