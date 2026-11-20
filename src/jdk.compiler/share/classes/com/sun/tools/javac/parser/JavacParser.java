@@ -37,11 +37,9 @@ import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.ModuleTree.ModuleKind;
 
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.code.FlagsEnum;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.parser.Tokens.*;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
@@ -54,7 +52,6 @@ import com.sun.tools.javac.util.JCDiagnostic.Error;
 import com.sun.tools.javac.util.JCDiagnostic.Fragment;
 import com.sun.tools.javac.util.List;
 
-import static com.sun.tools.javac.code.Flags.asFlagSet;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.*;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.ASSERT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.CASE;
@@ -63,7 +60,7 @@ import static com.sun.tools.javac.parser.Tokens.TokenKind.EQ;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.GT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.IMPORT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.LT;
-import static com.sun.tools.javac.parser.Tokens.TokenKind.SYNCHRONIZED;
+
 import com.sun.tools.javac.parser.VirtualParser.VirtualScanner;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.ImplicitAndExplicitNotAllowed;
@@ -199,6 +196,7 @@ public class JavacParser implements Parser {
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = preview.isEnabled() && Feature.PRIMITIVE_CLASSES.allowedInSource(source);
         updateUnexpectedTopLevelDefinitionStartError(false);
     }
 
@@ -223,6 +221,7 @@ public class JavacParser implements Parser {
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowValueClasses = preview.isEnabled() && Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = preview.isEnabled() && Feature.PRIMITIVE_CLASSES.allowedInSource(source);
         updateUnexpectedTopLevelDefinitionStartError(false);
     }
 
@@ -258,6 +257,10 @@ public class JavacParser implements Parser {
     /** Switch: are value classes allowed in this source level?
      */
     boolean allowValueClasses;
+
+    /** Switch: are primitive classes allowed in this source level?
+     */
+    boolean allowPrimitiveClasses;
 
     /** Switch: are sealed types allowed in this source level?
      */
@@ -3018,6 +3021,11 @@ public class JavacParser implements Parser {
             dc = token.docComment();
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         }
+        if (isPrimitiveModifier() && allowPrimitiveClasses) {
+            checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+            dc = token.docComment();
+            return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
+        }
         dc = token.docComment();
         if (isRecordStart() && allowRecords) {
             return List.of(recordDeclaration(F.at(pos).Modifiers(0), dc));
@@ -3636,6 +3644,11 @@ public class JavacParser implements Parser {
                     flag = Flags.VALUE_CLASS;
                     break;
                 }
+                if (isPrimitiveModifier()) {
+                    checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+                    flag = Flags.PRIMITIVE_CLASS;
+                    break;
+                }
                 break loop;
             }
             default: break loop;
@@ -3905,6 +3918,13 @@ public class JavacParser implements Parser {
         }
         if (name == names.value) {
             if (allowValueClasses) {
+                return Source.DEFAULT;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.DEFAULT));
+            }
+        }
+        if (name == names.primitive) {
+            if (allowPrimitiveClasses) {
                 return Source.DEFAULT;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.DEFAULT));
@@ -5031,8 +5051,19 @@ public class JavacParser implements Parser {
     }
 
     protected boolean isValueModifier() {
-        if (token.kind == IDENTIFIER && token.name() == names.value) {
-            boolean isValueModifier = false;
+        return isValueOrPrimitiveClassStart(names.value);
+    }
+
+    protected boolean isPrimitiveModifier() {
+        return isValueOrPrimitiveClassStart(names.primitive);
+    }
+
+    /**
+     * Is the current token declaring a `value` or a `primitive` class
+     */
+    private boolean isValueOrPrimitiveClassStart(Name name) {
+        if (token.kind == IDENTIFIER && token.name() == name) {
+            boolean isModifier = false;
             Token next = S.token(1);
             switch (next.kind) {
                 case PRIVATE: case PROTECTED: case PUBLIC: case STATIC: case TRANSIENT:
@@ -5040,15 +5071,16 @@ public class JavacParser implements Parser {
                 case STRICTFP: case MONKEYS_AT: case DEFAULT: case BYTE: case SHORT:
                 case CHAR: case INT: case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
                 case CLASS: case INTERFACE: case ENUM:
-                    isValueModifier = true;
+                    isModifier = true;
                     break;
-                case IDENTIFIER: // value record R || value value
+                case IDENTIFIER: // value record R || value value || value primitive || primitive value || primitive primitive
                     if (next.name() == names.record || next.name() == names.value
+                            || next.name() == names.primitive
                             || (mode & EXPR) != 0)
-                        isValueModifier = true;
+                        isModifier = true;
                     break;
             }
-            if (isValueModifier) {
+            if (isModifier) {
                 return true;
             }
         }
@@ -5084,7 +5116,8 @@ public class JavacParser implements Parser {
                 case PUBLIC, PROTECTED, PRIVATE, ABSTRACT, STATIC, FINAL, STRICTFP, CLASS, INTERFACE, ENUM -> true;
                 case IDENTIFIER -> isNonSealedIdentifier(next, currentIsNonSealed ? 3 : 1) ||
                         next.name() == names.sealed ||
-                        allowValueClasses && next.name() == names.value;
+                        allowValueClasses && next.name() == names.value ||
+                        allowPrimitiveClasses && next.name() == names.primitive;
                 default -> false;
             };
     }

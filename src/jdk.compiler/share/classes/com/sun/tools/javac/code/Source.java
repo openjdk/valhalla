@@ -305,6 +305,7 @@ public enum Source {
         ERASE_POLY_SIG_RETURN_TYPE(JDK24),
         CAPTURE_MREF_RETURN_TYPE(JDK26),
         VALUE_CLASSES(DEFAULT, Fragments.FeatureValueClasses, DiagKind.PLURAL),
+        PRIMITIVE_CLASSES(DEFAULT, Fragments.FeaturePrimitiveClasses, DiagKind.PLURAL),
         ;
 
         enum DiagKind {

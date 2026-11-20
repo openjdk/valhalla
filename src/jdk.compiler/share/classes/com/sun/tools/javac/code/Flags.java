@@ -183,6 +183,11 @@ public class Flags {
     @CustomToStringValue("value")
     public static final int VALUE_CLASS      = 1<<20;
 
+    /** Marks a type as a primitive class */
+    @Use({FlagTarget.CLASS})
+    @CustomToStringValue("primitive")
+    public static final int PRIMITIVE_CLASS  = 1<<16;
+
     /** A parameter of a lambda function.
      */
     @Use(FlagTarget.VARIABLE)
@@ -564,14 +569,14 @@ public class Flags {
     @NotFlag
     public static final long
         //NOTE: flags in ExtendedStandardFlags cannot be overlayed across Symbol kinds:
-        ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
-        ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
-        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
-        ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | VALUE_CLASS,
-        ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS,
-        ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS,
+        ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS | PRIMITIVE_CLASS,
+        ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED | VALUE_CLASS | PRIMITIVE_CLASS,
+        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED | VALUE_CLASS | PRIMITIVE_CLASS,
+        ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | VALUE_CLASS | PRIMITIVE_CLASS,
+        ExtendedLocalClassFlags           = (long) LocalClassFlags | VALUE_CLASS | PRIMITIVE_CLASS,
+        ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | VALUE_CLASS | PRIMITIVE_CLASS,
         ValueFieldFlags                   = (long) VarFlags | STRICT | FINAL,
-        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS,
+        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | VALUE_CLASS | PRIMITIVE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,
         LocalVarFlags                     = FINAL | PARAMETER,
@@ -598,7 +603,10 @@ public class Flags {
             if (0 != (flags & NATIVE))    modifiers.add(Modifier.NATIVE);
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
-            if (0 != (flags & VALUE_CLASS))     modifiers.add(Modifier.VALUE);
+            if (0 != (flags & VALUE_CLASS))
+                                          modifiers.add(Modifier.VALUE);
+            if (0 != (flags & PRIMITIVE_CLASS))
+                                          modifiers.add(Modifier.PRIMITIVE);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);
         }

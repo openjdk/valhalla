@@ -220,6 +220,8 @@ compiler.err.annotation.unrecognized.attribute.name
 compiler.warn.restricted.method
 # Value Objects
 compiler.misc.feature.value.classes
+# Primitive classes
+compiler.misc.feature.primitive.classes
 
 # Pending removal
 compiler.note.implicit.annotation.processing

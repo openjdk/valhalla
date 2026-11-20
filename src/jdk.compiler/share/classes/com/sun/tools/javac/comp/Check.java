@@ -1241,7 +1241,7 @@ public class Check {
             if (sym.owner.kind.matches(KindSelector.VAL_MTH) ||
                     (sym.isDirectlyOrIndirectlyLocal() && (flags & ANNOTATION) != 0)) {
                 boolean implicitlyStatic = !sym.isAnonymous() &&
-                        ((flags & RECORD) != 0 || (flags & ENUM) != 0 || (flags & INTERFACE) != 0);
+                        ((flags & RECORD) != 0 || (flags & ENUM) != 0 || (flags & INTERFACE) != 0 || (flags & PRIMITIVE_CLASS) != 0);
                 boolean staticOrImplicitlyStatic = (flags & STATIC) != 0 || implicitlyStatic;
                 // local statics are allowed only if records are allowed too
                 mask = staticOrImplicitlyStatic && allowRecords && (flags & ANNOTATION) == 0 ? ExtendedStaticLocalClassFlags : ExtendedLocalClassFlags;
@@ -1252,28 +1252,34 @@ public class Check {
                 if (sym.owner.owner.kind == PCK ||
                     (sym.owner.flags_field & STATIC) != 0) {
                     mask |= STATIC;
-                } else if (!allowRecords && ((flags & ENUM) != 0 || (flags & RECORD) != 0)) {
+                } else if (!allowRecords && ((flags & ENUM) != 0 || (flags & RECORD) != 0 || (flags & PRIMITIVE_CLASS) != 0)) {
                     log.error(pos, Errors.StaticDeclarationNotAllowedInInnerClasses);
                 }
                 // Nested interfaces and enums are always STATIC (Spec ???)
-                if ((flags & (INTERFACE | ENUM | RECORD)) != 0 ) implicit = STATIC;
+                if ((flags & (INTERFACE | ENUM | RECORD | PRIMITIVE_CLASS)) != 0 ) implicit = STATIC;
             } else {
                 mask = ExtendedClassFlags;
             }
-            if ((flags & (VALUE_CLASS | SEALED | ABSTRACT)) == (VALUE_CLASS | SEALED) ||
-                (flags & (VALUE_CLASS | NON_SEALED | ABSTRACT)) == (VALUE_CLASS | NON_SEALED)) {
+
+            // primitive classes are implicitly value classes, and implicitly static when nested
+            if ((flags & PRIMITIVE_CLASS) != 0) {
+                implicit |= VALUE_CLASS;
+            }
+
+            if (((flags | implicit) & (VALUE_CLASS | SEALED | ABSTRACT)) == (VALUE_CLASS | SEALED) ||
+                ((flags | implicit) & (VALUE_CLASS | NON_SEALED | ABSTRACT)) == (VALUE_CLASS | NON_SEALED)) {
                 log.error(pos, Errors.NonAbstractValueClassCantBeSealedOrNonSealed);
             }
             // Interfaces are always ABSTRACT
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
-            if ((flags & (INTERFACE | VALUE_CLASS)) == 0) {
+            if (((flags | implicit) & (INTERFACE | VALUE_CLASS)) == 0) {
                 implicit |= IDENTITY_TYPE;
             }
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract, final, sealed or non-sealed or value
-                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | VALUE_CLASS);
+                // enums can't be declared abstract, final, sealed or non-sealed or value or primitive
+                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | VALUE_CLASS | PRIMITIVE_CLASS);
                 implicit |= implicitEnumFinalFlag(tree);
             }
             if ((flags & RECORD) != 0) {
@@ -1288,7 +1294,7 @@ public class Check {
             implicit |= sym.owner.flags_field & STRICTFP;
 
             // concrete value classes are implicitly final
-            if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS) {
+            if (((flags | implicit) & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS) {
                 implicit |= FINAL;
             }
             break;
@@ -1351,7 +1357,17 @@ public class Check {
                                 ANNOTATION)
                 && checkDisjoint(pos, flags,
                                 VALUE_CLASS,
-                                INTERFACE) ) {
+                                INTERFACE)
+                && checkDisjoint(pos, flags,
+                                PRIMITIVE_CLASS,
+                                ANNOTATION)
+                && checkDisjoint(pos, flags,
+                                PRIMITIVE_CLASS,
+                                INTERFACE)
+                // explicit modifiers only: VALUE_CLASS is also implied by PRIMITIVE_CLASS
+                && checkDisjoint(pos, flags,
+                                PRIMITIVE_CLASS,
+                                VALUE_CLASS) ) {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
