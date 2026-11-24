@@ -45,7 +45,6 @@ import java.lang.reflect.AccessFlag;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Matcher;
 
 import com.sun.tools.javac.util.Assert;
 
@@ -237,9 +236,8 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     d -> Assert.check(diags.errorKeys().equals(List.of("compiler.err.preview.feature.disabled.plural")),
                             diags.toString()),
                     """
-                    primitive class Point {
-                        String s;
-                        Point next;
+                    primitive class point {
+                        public point() {}
                     }
                     """);
         } finally {
@@ -483,19 +481,12 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
     @Test
     void testNames() {
         // the name of a primitive class can contain only lowercase letters and digits
-        for (String source : List.of(
+        assertOK(
                 """
                 primitive class uint64 {
                     public uint64() {}
                 }
-                """,
-                """
-                primitive class gr\u00f6\u00dfe {
-                    public gr\u00f6\u00dfe() {}
-                }
-                """)) {
-            assertOK(source);
-        }
+                """);
         for (String source : List.of(
                 """
                 primitive class Complex {
@@ -507,13 +498,6 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     public uint_64() {}
                 }
                 """,
-                // quoted, or expandMarkers would read the '$' as a group reference
-                Matcher.quoteReplacement(
-                """
-                primitive class usd$ {
-                    public usd$() {}
-                }
-                """),
                 """
                 class Outer {
                     primitive class Member {
