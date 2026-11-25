@@ -4014,14 +4014,14 @@ public class Check {
 
     private void checkPrimitiveClassFields(JCClassDecl tree, ClassSymbol c) {
         for (Symbol field : c.members().getSymbols(s -> s.kind == VAR && !s.isStatic(), NON_RECURSIVE)) {
-            if (field.type.isErroneous() || field.type.isPrimitive()) {
+            if (field.type.isErroneous()) {
                 continue;
             }
-            if (!isPrimitiveClass(field.type)) {
+            if (!field.type.isPrimitive() && !isPrimitiveClass(field.type)) {
                 JCVariableDecl decl = (JCVariableDecl) TreeInfo.declarationFor(field, tree);
                 log.error(decl.vartype != null ? decl.vartype.pos() : decl.pos(),
                         Errors.IllegalPrimitiveClassFieldType(field.type));
-            } else if (leadsTo(field.type.tsym, c, new HashSet<>())) {
+            } else if (isPrimitiveClass(field.type) && leadsTo(field.type.tsym, c, new HashSet<>())) {
                 log.error(TreeInfo.declarationFor(field, tree).pos(), Errors.CyclicPrimitiveClassMembership(c));
             }
         }

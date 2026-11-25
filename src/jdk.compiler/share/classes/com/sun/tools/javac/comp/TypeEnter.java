@@ -137,18 +137,12 @@ public class TypeEnter implements Completer {
         Source source = Source.instance(context);
         allowDeprecationOnImport = Feature.DEPRECATION_ON_IMPORT.allowedInSource(source);
         Preview preview = Preview.instance(context);
-        allowPrimitiveClasses = preview.isEnabled() && Feature.PRIMITIVE_CLASSES.allowedInSource(source);
     }
 
     /**
      * Switch: should deprecation warnings be issued on import
      */
     boolean allowDeprecationOnImport;
-
-    /**
-     * Switch: are primitive classes allowed
-     */
-    private final boolean allowPrimitiveClasses;
 
     /** A flag to disable completion from time to time during member
      *  enter, as we only need to look up types.  This avoids
@@ -1144,7 +1138,7 @@ public class TypeEnter implements Completer {
             boolean isClassWithoutInit = (sym.flags() & INTERFACE) == 0 && !TreeInfo.hasConstructors(tree.defs);
             boolean isRecord = sym.isRecord();
             // a primitive class must declare a public no-argument constructor itself
-            boolean isPrimitiveClass = allowPrimitiveClasses && sym.isPrimitiveClass();
+            boolean isPrimitiveClass = sym.isPrimitiveClass();
             if (isClassWithoutInit && !isRecord && !isPrimitiveClass) {
                 helper = new BasicConstructorHelper(sym);
                 if (sym.name.isEmpty()) {
