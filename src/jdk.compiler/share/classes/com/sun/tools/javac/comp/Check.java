@@ -1288,8 +1288,8 @@ public class Check {
                 implicit |= implicitEnumFinalFlag(tree);
             }
             if ((flags & RECORD) != 0) {
-                // records can't be declared abstract
-                mask &= ~ABSTRACT;
+                // records can't be declared abstract or primitive
+                mask &= ~(ABSTRACT | PRIMITIVE_CLASS);
                 implicit |= FINAL;
             }
             if ((flags & STRICTFP) != 0) {
@@ -4001,8 +4001,7 @@ public class Check {
         for (JCTree def : tree.defs) {
             if (TreeInfo.isConstructor(def)) {
                 JCMethodDecl constructor = (JCMethodDecl) def;
-                if (constructor.sym != null && constructor.params.isEmpty() &&
-                        (constructor.sym.flags() & GENERATEDCONSTR) == 0) {
+                if (constructor.sym != null && constructor.params.isEmpty()) {
                     if ((constructor.sym.flags() & PUBLIC) == 0) {
                         log.error(constructor.pos(), Errors.PrimitiveClassMustDeclarePublicNoArgConstructor(c));
                     }
@@ -4014,20 +4013,16 @@ public class Check {
     }
 
     private void checkPrimitiveClassFields(JCClassDecl tree, ClassSymbol c) {
-        for (JCTree def : tree.defs) {
-            if (!def.hasTag(VARDEF)) {
+        for (Symbol field : c.members().getSymbols(s -> s.kind == VAR && !s.isStatic(), NON_RECURSIVE)) {
+            if (field.type.isErroneous() || field.type.isPrimitive()) {
                 continue;
             }
-            JCVariableDecl field = (JCVariableDecl) def;
-            if (field.sym == null || field.sym.isStatic() ||
-                    field.sym.type.isErroneous() || field.sym.type.isPrimitive()) {
-                continue;
-            }
-            if (!isPrimitiveClass(field.sym.type)) {
-                log.error(field.vartype != null ? field.vartype.pos() : field.pos(),
-                        Errors.IllegalPrimitiveClassFieldType(field.sym.type));
-            } else if (leadsTo(field.sym.type.tsym, c, new HashSet<>())) {
-                log.error(field.pos(), Errors.CyclicPrimitiveClassMembership(c));
+            if (!isPrimitiveClass(field.type)) {
+                JCVariableDecl decl = (JCVariableDecl) TreeInfo.declarationFor(field, tree);
+                log.error(decl.vartype != null ? decl.vartype.pos() : decl.pos(),
+                        Errors.IllegalPrimitiveClassFieldType(field.type));
+            } else if (leadsTo(field.type.tsym, c, new HashSet<>())) {
+                log.error(TreeInfo.declarationFor(field, tree).pos(), Errors.CyclicPrimitiveClassMembership(c));
             }
         }
     }

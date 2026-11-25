@@ -372,6 +372,9 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 primitive enum e {}
                 """,
                 """
+                primitive record r() {}
+                """,
+                """
                 class Test {
                     primitive int x;
                 }
@@ -529,7 +532,7 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """);
         for (String source : List.of(
-                // the default constructor doesn't count, even when it is public
+                // javac generates no default constructor, not even for a public class
                 """
                 primitive class p {}
                 """,
@@ -574,6 +577,13 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 """)) {
             assertFail("compiler.err.primitive.class.must.declare.public.no.arg.constructor", source);
         }
+        // with no default constructor, `new p()` doesn't resolve either
+        assertFail("compiler.err.cant.resolve.location.args",
+                """
+                primitive class p {
+                    static p make() { return new p(); }
+                }
+                """);
         // like any value class constructor, it must assign every field (Q14)
         assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
                 """
