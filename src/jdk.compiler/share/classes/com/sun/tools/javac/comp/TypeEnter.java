@@ -136,7 +136,6 @@ public class TypeEnter implements Completer {
         dependencies = Dependencies.instance(context);
         Source source = Source.instance(context);
         allowDeprecationOnImport = Feature.DEPRECATION_ON_IMPORT.allowedInSource(source);
-        Preview preview = Preview.instance(context);
     }
 
     /**
