@@ -140,21 +140,11 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     }
                 }
                 """,
-                // a concrete primitive class is implicitly final, so it can be a permitted subclass
+                // a primitive class is implicitly final, so it can be a permitted subclass
                 """
                 sealed interface s permits p {}
                 primitive class p implements s {
                     public p() {}
-                }
-                """,
-                """
-                abstract primitive class shape {}
-                """,
-                // only a concrete primitive class is implicitly final; an abstract one may be sealed
-                """
-                abstract sealed primitive class shape permits circle {}
-                primitive class circle extends shape {
-                    public circle() {}
                 }
                 """)) {
             assertOK(source);
@@ -173,7 +163,7 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 """);
         ClassModel cm = parse(dir, "p.class");
         Assert.check((cm.flags().flagsMask() & ClassFile.ACC_IDENTITY) == 0, "a primitive class is not an identity class");
-        Assert.check((cm.flags().flagsMask() & ClassFile.ACC_FINAL) != 0, "a concrete primitive class is implicitly final");
+        Assert.check((cm.flags().flagsMask() & ClassFile.ACC_FINAL) != 0, "a primitive class is implicitly final");
         Assert.check(cm.minorVersion() == ClassFile.PREVIEW_MINOR_VERSION, "expected a preview class file");
         Assert.check(cm.fields().size() == 1);
         Set<AccessFlag> fieldFlags = cm.fields().get(0).flags().flags();
@@ -201,7 +191,7 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
         for (String name : List.of("Outer$inner.class", "Outer$Inner$deep.class", "Outer$1local.class")) {
             cm = parse(dir, name);
             Assert.check((cm.flags().flagsMask() & ClassFile.ACC_IDENTITY) == 0, name + ": a primitive class is not an identity class");
-            Assert.check((cm.flags().flagsMask() & ClassFile.ACC_FINAL) != 0, name + ": a concrete primitive class is implicitly final");
+            Assert.check((cm.flags().flagsMask() & ClassFile.ACC_FINAL) != 0, name + ": a primitive class is implicitly final");
             // a nested primitive class is implicitly static, even in an inner class: it has no
             // enclosing instance
             String thisClass = cm.thisClass().asInternalName();
@@ -216,18 +206,7 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                             name + ": the constructor takes an enclosing instance: " + method.methodType());
                 }
             }
-        }
-
-        dir = assertOK(true,
-                """
-                abstract primitive class shape {}
-                """);
-        cm = parse(dir, "shape.class");
-        Assert.check((cm.flags().flagsMask() & ClassFile.ACC_IDENTITY) == 0, "an abstract primitive class is not an identity class");
-        Assert.check((cm.flags().flagsMask() & ClassFile.ACC_ABSTRACT) != 0, "expected an abstract class");
-        Assert.check((cm.flags().flagsMask() & ClassFile.ACC_FINAL) == 0, "an abstract primitive class is not final");
-        Assert.check(cm.minorVersion() == ClassFile.PREVIEW_MINOR_VERSION, "expected a preview class file");
-    }
+        }    }
 
     @Test
     void testPreviewDisabled() {
@@ -252,6 +231,15 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                                 d.getMessage(Locale.ROOT)),
                         source);
             }
+            // the declaration rules are not checked: the preview error is the only error
+            assertFail("compiler.err.preview.feature.disabled.plural",
+                    d -> Assert.check(diags.errorKeys().equals(List.of("compiler.err.preview.feature.disabled.plural")),
+                            diags.toString()),
+                    """
+                    primitive class point {
+                        public point() {}
+                    }
+                    """);
         } finally {
             setCompileOptions(previousOptions);
         }
@@ -354,9 +342,37 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 """
                 primitive @interface a {}
                 """);
+        // a primitive class can't be abstract
+        for (String source : List.of(
+                """
+                abstract primitive class c {}
+                """,
+                """
+                primitive abstract class c {}
+                """,
+                """
+                class Outer {
+                    abstract primitive class member {}
+                }
+                """,
+                """
+                class Outer {
+                    void m() {
+                        abstract primitive class local {}
+                    }
+                }
+                """)) {
+            assertFail("compiler.err.illegal.combination.of.modifiers",
+                    d -> Assert.check("illegal combination of modifiers: primitive and abstract".equals(d.getMessage(Locale.ROOT)),
+                            d.getMessage(Locale.ROOT)),
+                    source);
+        }
         for (String source : List.of(
                 """
                 primitive enum e {}
+                """,
+                """
+                primitive record r() {}
                 """,
                 """
                 class Test {
@@ -463,6 +479,240 @@ class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
+    }
+
+    @Test
+    void testNames() {
+        // the name of a primitive class can contain only lowercase letters and digits
+        assertOK(
+                """
+                primitive class uint64 {
+                    public uint64() {}
+                }
+                """);
+        for (String source : List.of(
+                """
+                primitive class Complex {
+                    public Complex() {}
+                }
+                """,
+                """
+                primitive class uint_64 {
+                    public uint_64() {}
+                }
+                """,
+                """
+                class Outer {
+                    primitive class Member {
+                        public Member() {}
+                    }
+                }
+                """,
+                """
+                class Outer {
+                    void m() {
+                        primitive class Local {
+                            public Local() {}
+                        }
+                    }
+                }
+                """)) {
+            assertFail("compiler.err.illegal.primitive.class.name", source);
+        }
+    }
+
+    @Test
+    void testNoArgConstructor() {
+        assertOK(
+                """
+                primitive class p {
+                    int x;
+                    public p() { this(0); }
+                    p(int x) { this.x = x; }
+                }
+                """);
+        for (String source : List.of(
+                // javac generates no default constructor, not even for a public class
+                """
+                primitive class p {}
+                """,
+                """
+                class Outer {
+                    public primitive class p {}
+                }
+                """,
+                """
+                class Outer {
+                    void m() {
+                        primitive class local {}
+                    }
+                }
+                """,
+                """
+                primitive class p {
+                    int x;
+                    public p(int x) { this.x = x; }
+                }
+                """,
+                """
+                primitive class p {
+                    public p(int... xs) {}
+                }
+                """,
+                // the no-argument constructor must be public
+                """
+                primitive class p {
+                    p() {}
+                }
+                """,
+                """
+                primitive class p {
+                    protected p() {}
+                }
+                """,
+                """
+                primitive class p {
+                    private p() {}
+                }
+                """)) {
+            assertFail("compiler.err.primitive.class.must.declare.public.no.arg.constructor", source);
+        }
+        // with no default constructor, `new p()` doesn't resolve either
+        assertFail("compiler.err.cant.resolve.location.args",
+                """
+                primitive class p {
+                    static p make() { return new p(); }
+                }
+                """);
+        // like any value class constructor, it must assign every field (Q14)
+        assertFail("compiler.err.strict.field.not.have.been.initialized.before.super",
+                """
+                primitive class p {
+                    int x, y;
+                    public p() { x = 0; }
+                }
+                """);
+    }
+
+    @Test
+    void testFieldTypes() {
+        // instance fields have primitive types or primitive class types; static fields can have
+        // any type
+        assertOK(
+                """
+                primitive class point {
+                    static Object origin;
+                    double x, y;
+                    public point() { x = 0; y = 0; }
+                }
+                primitive class line {
+                    static line unit;
+                    point start, end;
+                    public line() { start = new point(); end = new point(); }
+                }
+                """);
+        for (String source : List.of(
+                """
+                primitive class p {
+                    String s;
+                    public p() { s = ""; }
+                }
+                """,
+                """
+                primitive class p {
+                    Integer i;
+                    public p() { i = 0; }
+                }
+                """,
+                """
+                primitive class p {
+                    int[] a;
+                    public p() { a = new int[0]; }
+                }
+                """,
+                // a value class that isn't a primitive class
+                """
+                value class v {}
+                primitive class p {
+                    v f;
+                    public p() { f = new v(); }
+                }
+                """,
+                // a type variable
+                """
+                primitive class box<T> {
+                    T t;
+                    public box() { t = null; }
+                }
+                """)) {
+            assertFail("compiler.err.illegal.primitive.class.field.type", source);
+        }
+    }
+
+    @Test
+    void testCyclicFields() {
+        // a field must not lead back to its own class, directly or through other primitive classes;
+        // each class on the cycle gets the error, at its field
+        assertCyclic(
+                """
+                primitive class node {
+                    node next;
+                    public node() { next = new node(); }
+                }
+                """,
+                "node");
+        assertCyclic(
+                """
+                primitive class a {
+                    b x;
+                    public a() { x = new b(); }
+                }
+                primitive class b {
+                    a y;
+                    public b() { y = new a(); }
+                }
+                """,
+                "a", "b");
+        // reaching the same class twice is not a cycle
+        assertOK(
+                """
+                primitive class d {
+                    int i;
+                    public d() { i = 0; }
+                }
+                primitive class b {
+                    d x;
+                    public b() { x = new d(); }
+                }
+                primitive class c {
+                    d y;
+                    public c() { y = new d(); }
+                }
+                primitive class a {
+                    b f;
+                    c g;
+                    public a() { f = new b(); g = new c(); }
+                }
+                """);
+    }
+
+    /** Asserts that the source fails, and that its cyclic membership errors name these classes, in
+     *  this order.
+     */
+    private void assertCyclic(String source, String... classes) {
+        String key = "compiler.err.cyclic.primitive.class.membership";
+        List<String> expected = List.of(classes).stream()
+                .map(c -> "cyclic primitive class membership involving " + c)
+                .toList();
+        assertFail(key,
+                d -> {
+                    List<String> found = diags.getAllDiags().stream()
+                            .filter(e -> e.getCode().equals(key))
+                            .map(e -> e.getMessage(Locale.ROOT))
+                            .toList();
+                    Assert.check(found.equals(expected), found.toString());
+                },
+                source);
     }
 
     private static ClassModel parse(File dir, String name) {

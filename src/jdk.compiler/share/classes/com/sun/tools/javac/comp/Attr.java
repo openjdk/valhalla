@@ -5769,6 +5769,11 @@ public class Attr extends JCTree.Visitor {
         // Check for cycles among annotation elements.
         chk.checkNonCyclicElements(tree);
 
+        // Check the declaration rules of primitive classes.
+        if (c.isPrimitiveClass()) {
+            chk.checkPrimitiveClass(tree);
+        }
+
         // Check for proper use of serialVersionUID and other
         // serialization-related fields and methods
         if (env.info.lint.isEnabled(LintCategory.SERIAL)

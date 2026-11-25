@@ -1136,7 +1136,9 @@ public class TypeEnter implements Completer {
             DefaultConstructorHelper helper = null;
             boolean isClassWithoutInit = (sym.flags() & INTERFACE) == 0 && !TreeInfo.hasConstructors(tree.defs);
             boolean isRecord = sym.isRecord();
-            if (isClassWithoutInit && !isRecord) {
+            // a primitive class must declare a public no-argument constructor itself
+            boolean isPrimitiveClass = sym.isPrimitiveClass();
+            if (isClassWithoutInit && !isRecord && !isPrimitiveClass) {
                 helper = new BasicConstructorHelper(sym);
                 if (sym.name.isEmpty()) {
                     JCNewClass nc = (JCNewClass)env.next.tree;
